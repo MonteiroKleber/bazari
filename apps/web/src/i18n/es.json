@@ -1,0 +1,55 @@
+{
+  "header": {
+    "about": "Acerca",
+    "modules": "Módulos",
+    "roadmap": "Hoja de Ruta",
+    "contact": "Contacto"
+  },
+  "hero": {
+    "title": "Bazari — Economía Popular Descentralizada",
+    "subtitle": "La super app y blockchain de la economía real, hecha por el pueblo para el pueblo.",
+    "cta_primary": "Entrar al Super App (próximamente)",
+    "cta_secondary": "Descargar Whitepaper"
+  },
+  "about": {
+    "title": "Qué es Bazari",
+    "text": "Bazari es una Nación Digital descentralizada con moneda BZR y cashback LIVO, enfocada en mercados populares, comerciantes y autónomos. Nuestra misión es democratizar la economía digital, ofreciendo herramientas y tecnología de vanguardia para pequeños emprendedores."
+  },
+  "modules": {
+    "title": "Módulos de Bazari",
+    "wallet": "Billetera",
+    "wallet_desc": "Billetera multi-cuenta con BZR y LIVO",
+    "marketplace": "Mercado",
+    "marketplace_desc": "Compra y vende con BZR",
+    "dao": "DAO",
+    "dao_desc": "Gobernanza descentralizada",
+    "p2p": "P2P/Cambio",
+    "p2p_desc": "Intercambia BZR por otras monedas",
+    "dex": "DEX",
+    "dex_desc": "Exchange descentralizado (próximamente)",
+    "social": "Red Social",
+    "social_desc": "Conéctate con otros comerciantes",
+    "studio": "Studio",
+    "studio_desc": "Crea sistemas low-code"
+  },
+  "roadmap": {
+    "title": "Hoja de Ruta",
+    "now": "Ahora",
+    "next": "Próximo",
+    "future": "Futuro",
+    "now_list": ["Página de Inicio", "Sistema de Diseño", "Billetera base", "Estructura del monorepo"],
+    "next_list": ["MVP del Mercado", "MVP del DAO", "Sistema de cashback LIVO", "Integración con BazariChain"],
+    "future_list": ["DEX comunitario", "Expansión de SubDAOs", "App móvil nativa", "Asociaciones estratégicas"]
+  },
+  "cta": {
+    "title": "Sé parte de la revolución económica",
+    "subtitle": "Sigue el desarrollo y sé uno de los primeros en usar Bazari",
+    "button": "Quiero seguir"
+  },
+  "footer": {
+    "rights": "© 2024 Bazari. Todos los derechos reservados",
+    "github": "GitHub",
+    "docs": "Documentación",
+    "contact": "Contacto"
+  }
+}

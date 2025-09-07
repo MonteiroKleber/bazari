@@ -1,0 +1,55 @@
+{
+  "header": {
+    "about": "About",
+    "modules": "Modules",
+    "roadmap": "Roadmap",
+    "contact": "Contact"
+  },
+  "hero": {
+    "title": "Bazari — Decentralized Popular Economy",
+    "subtitle": "The super app and blockchain of the real economy, made by the people for the people.",
+    "cta_primary": "Enter Super App (coming soon)",
+    "cta_secondary": "Download Whitepaper"
+  },
+  "about": {
+    "title": "What is Bazari",
+    "text": "Bazari is a decentralized Digital Nation with BZR currency and LIVO cashback, focused on popular markets, merchants and freelancers. Our mission is to democratize the digital economy, offering cutting-edge tools and technology for small entrepreneurs."
+  },
+  "modules": {
+    "title": "Bazari Modules",
+    "wallet": "Wallet",
+    "wallet_desc": "Multi-account wallet with BZR and LIVO",
+    "marketplace": "Marketplace",
+    "marketplace_desc": "Buy and sell with BZR",
+    "dao": "DAO",
+    "dao_desc": "Decentralized governance",
+    "p2p": "P2P/Exchange",
+    "p2p_desc": "Exchange BZR for other currencies",
+    "dex": "DEX",
+    "dex_desc": "Decentralized exchange (coming soon)",
+    "social": "Social Network",
+    "social_desc": "Connect with other merchants",
+    "studio": "Studio",
+    "studio_desc": "Create low-code systems"
+  },
+  "roadmap": {
+    "title": "Roadmap",
+    "now": "Now",
+    "next": "Next",
+    "future": "Future",
+    "now_list": ["Landing Page", "Design System", "Base Wallet", "Monorepo structure"],
+    "next_list": ["Marketplace MVP", "DAO MVP", "LIVO cashback system", "BazariChain integration"],
+    "future_list": ["Community DEX", "SubDAOs expansion", "Native mobile app", "Strategic partnerships"]
+  },
+  "cta": {
+    "title": "Be part of the economic revolution",
+    "subtitle": "Follow the development and be one of the first to use Bazari",
+    "button": "I want to follow"
+  },
+  "footer": {
+    "rights": "© 2024 Bazari. All rights reserved",
+    "github": "GitHub",
+    "docs": "Documentation",
+    "contact": "Contact"
+  }
+}

@@ -1,0 +1,163 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* ====== Tema padrão (Bazari) ====== */
+  :root, [data-theme="bazari"] {
+    --radius: 1rem;
+    --background: 40 20% 96%;    /* #F5F1E0 */
+    --foreground: 0 0% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+    --primary: 0 100% 27%;       /* #8B0000 */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 45 100% 54%;    /* #FFB300 */
+    --secondary-foreground: 0 0% 12%;
+    --accent: 45 100% 54%;
+    --accent-foreground: 0 0% 12%;
+    --muted: 0 0% 92%;
+    --muted-foreground: 0 0% 35%;
+    --border: 0 0% 85%;
+    --input: 0 0% 85%;
+    --ring: 0 100% 27%;
+  }
+
+  /* ====== Night (escuro) ====== */
+  [data-theme="night"] {
+    --radius: 1rem;
+    --background: 0 0% 8%;
+    --foreground: 0 0% 96%;
+    --card: 0 0% 12%;
+    --card-foreground: 0 0% 96%;
+    --primary: 0 80% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 45 100% 54%;
+    --secondary-foreground: 0 0% 10%;
+    --accent: 210 90% 55%;
+    --accent-foreground: 0 0% 10%;
+    --muted: 0 0% 20%;
+    --muted-foreground: 0 0% 70%;
+    --border: 0 0% 25%;
+    --input: 0 0% 25%;
+    --ring: 0 80% 45%;
+  }
+
+  /* ====== Sandstone (claro, "papel") ====== */
+  [data-theme="sandstone"] {
+    --radius: 1rem;
+    --background: 45 33% 96%;
+    --foreground: 0 0% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+    --primary: 45 100% 45%;
+    --primary-foreground: 0 0% 10%;
+    --secondary: 12 80% 52%;
+    --secondary-foreground: 0 0% 12%;
+    --accent: 16 85% 50%;
+    --accent-foreground: 0 0% 10%;
+    --muted: 0 0% 90%;
+    --muted-foreground: 0 0% 35%;
+    --border: 0 0% 85%;
+    --input: 0 0% 85%;
+    --ring: 45 100% 45%;
+  }
+
+  /* ====== Emerald (verde) ====== */
+  [data-theme="emerald"] {
+    --radius: 1rem;
+    --background: 150 30% 97%;
+    --foreground: 160 50% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 160 50% 12%;
+    --primary: 160 85% 35%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 45 100% 54%;
+    --secondary-foreground: 0 0% 12%;
+    --accent: 160 60% 45%;
+    --accent-foreground: 0 0% 100%;
+    --muted: 160 20% 90%;
+    --muted-foreground: 160 20% 30%;
+    --border: 160 15% 80%;
+    --input: 160 15% 80%;
+    --ring: 160 85% 35%;
+  }
+
+  /* ====== Royal (roxo/azul) ====== */
+  [data-theme="royal"] {
+    --radius: 1rem;
+    --background: 245 60% 97%;
+    --foreground: 250 30% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 250 30% 12%;
+    --primary: 258 80% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 90% 50%;
+    --secondary-foreground: 0 0% 100%;
+    --accent: 280 70% 55%;
+    --accent-foreground: 0 0% 100%;
+    --muted: 250 20% 92%;
+    --muted-foreground: 250 15% 35%;
+    --border: 250 15% 85%;
+    --input: 250 15% 85%;
+    --ring: 258 80% 50%;
+  }
+
+  /* ====== Cyber (neon) ====== */
+  [data-theme="cyber"] {
+    --radius: 1rem;
+    --background: 230 25% 8%;
+    --foreground: 0 0% 96%;
+    --card: 230 25% 12%;
+    --card-foreground: 0 0% 96%;
+    --primary: 170 95% 55%;
+    --primary-foreground: 0 0% 12%;
+    --secondary: 318 95% 55%;
+    --secondary-foreground: 0 0% 12%;
+    --accent: 45 100% 54%;
+    --accent-foreground: 0 0% 12%;
+    --muted: 230 15% 20%;
+    --muted-foreground: 0 0% 75%;
+    --border: 230 15% 25%;
+    --input: 230 15% 25%;
+    --ring: 170 95% 55%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer utilities {
+  @keyframes blob {
+    0% {
+      transform: translate(0px, 0px) scale(1);
+    }
+    33% {
+      transform: translate(30px, -50px) scale(1.1);
+    }
+    66% {
+      transform: translate(-20px, 20px) scale(0.9);
+    }
+    100% {
+      transform: translate(0px, 0px) scale(1);
+    }
+  }
+
+  .animate-blob {
+    animation: blob 7s infinite;
+  }
+
+  .animation-delay-2000 {
+    animation-delay: 2s;
+  }
+
+  .animation-delay-4000 {
+    animation-delay: 4s;
+  }
+}

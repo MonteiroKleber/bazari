@@ -1,0 +1,55 @@
+{
+  "header": {
+    "about": "Sobre",
+    "modules": "Módulos",
+    "roadmap": "Roadmap",
+    "contact": "Contato"
+  },
+  "hero": {
+    "title": "Bazari — Economia Popular Descentralizada",
+    "subtitle": "O super app e a blockchain da economia real, feita pelo povo e para o povo.",
+    "cta_primary": "Entrar no Super App (em breve)",
+    "cta_secondary": "Baixar Whitepaper"
+  },
+  "about": {
+    "title": "O que é a Bazari",
+    "text": "A Bazari é uma Nação Digital descentralizada com moeda BZR e cashback LIVO, focada em mercados populares, comerciantes e autônomos. Nossa missão é democratizar a economia digital, oferecendo ferramentas e tecnologia de ponta para pequenos empreendedores."
+  },
+  "modules": {
+    "title": "Módulos da Bazari",
+    "wallet": "Wallet",
+    "wallet_desc": "Carteira multi-conta com BZR e LIVO",
+    "marketplace": "Marketplace",
+    "marketplace_desc": "Compre e venda com BZR",
+    "dao": "DAO",
+    "dao_desc": "Governança descentralizada",
+    "p2p": "P2P/Câmbio",
+    "p2p_desc": "Troque BZR por outras moedas",
+    "dex": "DEX",
+    "dex_desc": "Exchange descentralizada (em breve)",
+    "social": "Rede Social",
+    "social_desc": "Conecte-se com outros comerciantes",
+    "studio": "Studio",
+    "studio_desc": "Crie sistemas low-code"
+  },
+  "roadmap": {
+    "title": "Roadmap",
+    "now": "Agora",
+    "next": "Próximo",
+    "future": "Futuro",
+    "now_list": ["Landing Page", "Design System", "Wallet base", "Estrutura do monorepo"],
+    "next_list": ["Marketplace MVP", "DAO MVP", "Sistema de cashback LIVO", "Integração com BazariChain"],
+    "future_list": ["DEX comunitária", "Expansão SubDAOs", "App mobile nativo", "Parcerias estratégicas"]
+  },
+  "cta": {
+    "title": "Faça parte da revolução econômica",
+    "subtitle": "Acompanhe o desenvolvimento e seja um dos primeiros a usar a Bazari",
+    "button": "Quero acompanhar"
+  },
+  "footer": {
+    "rights": "© 2024 Bazari. Todos os direitos reservados",
+    "github": "GitHub",
+    "docs": "Documentação",
+    "contact": "Contato"
+  }
+}
