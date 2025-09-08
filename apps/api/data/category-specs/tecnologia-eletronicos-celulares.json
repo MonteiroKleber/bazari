@@ -1,0 +1,27 @@
+{
+  "categoryId": "tecnologia-eletronicos-celulares",
+  "version": "1.0.0",
+  "inheritsFrom": "tecnologia-eletronicos",
+  "jsonSchema": {
+    "type": "object",
+    "properties": {
+      "marca": {"type": "string"},
+      "modelo": {"type": "string"},
+      "armazenamentoGB": {"type": "integer", "minimum": 2},
+      "ramGB": {"type": "integer", "minimum": 1},
+      "dualSim": {"type": "boolean"},
+      "rede": {"type": "string", "enum": ["4G","5G"]},
+      "bateriaMah": {"type": "integer", "minimum": 500},
+      "telaPolegadas": {"type": "number", "minimum": 3.0},
+      "imei": {"type": "string", "pattern": "^[0-9]{14,16}$"}
+    },
+    "required": ["marca","modelo","armazenamentoGB","ramGB"]
+  },
+  "uiSchema": {
+    "armazenamentoGB": {"widget": "number", "unit": "GB"},
+    "ramGB": {"widget": "number", "unit": "GB"},
+    "bateriaMah": {"widget": "number", "unit": "mAh"},
+    "telaPolegadas": {"widget": "number", "unit": "\""}
+  },
+  "indexHints": ["marca","modelo","armazenamentoGB","ramGB","rede"]
+}

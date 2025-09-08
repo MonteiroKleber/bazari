@@ -1,6 +1,5 @@
-// path: apps/api/prisma/schema.prisma
 generator client {
-  provider = "prisma-client-js" 
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -24,19 +23,84 @@ model MediaAsset {
 }
 
 model Category {
-  id        String   @id @default(cuid())
-  slug      String   @unique
-  level     Int
-  pathSlugs String[] @db.Text
-  namePt    String
-  nameEn    String
-  nameEs    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String    @id
+  slug         String    @unique
+  parentId     String?
+  kind         String    // "product" | "service"
+  level        Int       // 1..4
+  namePt       String
+  nameEn       String
+  nameEs       String
+  pathSlugs    String[]
+  pathNamesPt  String[]
+  pathNamesEn  String[]
+  pathNamesEs  String[]
+  active       Boolean   @default(true)
+  sort         Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  
+  products     Product[]
+  services     ServiceOffering[]
 
   @@index([slug])
-  @@index([level])
-  @@index([pathSlugs])
+  @@index([kind, level])
+  @@index([parentId])
+  @@index([pathSlugs], type: Gin)
+}
+
+model CategorySpec {
+  id           String   @id @default(cuid())
+  categoryId   String
+  version      String   // semântico, ex: 1.0.0
+  inheritsFrom String?  // opcional (outro categoryId)
+  jsonSchema   Json
+  uiSchema     Json
+  indexHints   String[]
+  createdAt    DateTime @default(now())
+
+  @@unique([categoryId, version])
+  @@index([categoryId])
+}
+
+model Product {
+  id                    String   @id @default(uuid())
+  daoId                 String
+  title                 String
+  description           String?
+  priceBzr              Decimal  @db.Decimal(20,12)
+  categoryId            String
+  categoryPath          String[]
+  attributes            Json
+  attributesSpecVersion String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  category              Category @relation(fields: [categoryId], references: [id])
+
+  @@index([daoId])
+  @@index([categoryId])
+  @@index([categoryPath], type: Gin)
+}
+
+model ServiceOffering {
+  id                    String   @id @default(uuid())
+  daoId                 String
+  title                 String
+  description           String?
+  basePriceBzr          Decimal? @db.Decimal(20,12)
+  categoryId            String
+  categoryPath          String[]
+  attributes            Json
+  attributesSpecVersion String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  category              Category @relation(fields: [categoryId], references: [id])
+
+  @@index([daoId])
+  @@index([categoryId])
+  @@index([categoryPath], type: Gin)
 }
 
 model AuditLog {

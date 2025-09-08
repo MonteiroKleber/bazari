@@ -1,0 +1,21 @@
+{
+  "categoryId": "alimentos-bebidas-bebidas-alcoolicas-vinhos",
+  "version": "1.0.0",
+  "inheritsFrom": "alimentos-bebidas-bebidas-alcoolicas",
+  "jsonSchema": {
+    "type": "object",
+    "properties": {
+      "uva": {"type": "string"},
+      "pais": {"type": "string"},
+      "safra": {"type": "integer", "minimum": 1900, "maximum": 2100},
+      "teorAlcoolico": {"type": "number", "minimum": 0, "maximum": 100},
+      "volumeML": {"type": "integer", "minimum": 50}
+    },
+    "required": ["uva","pais","volumeML"]
+  },
+  "uiSchema": {
+    "teorAlcoolico": {"widget": "number", "suffix": "%"},
+    "volumeML": {"widget": "number", "suffix": "ml"}
+  },
+  "indexHints": ["uva","pais","safra","teorAlcoolico","volumeML"]
+}

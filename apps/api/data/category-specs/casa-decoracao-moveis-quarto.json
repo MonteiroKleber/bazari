@@ -1,0 +1,19 @@
+{
+  "categoryId": "casa-decoracao-moveis-quarto",
+  "version": "1.0.0",
+  "inheritsFrom": "casa-decoracao-moveis",
+  "jsonSchema": {
+    "type": "object",
+    "properties": {
+      "material": {"type": "string"},
+      "dimensoesCM": {"type": "string"},
+      "montagem": {"type": "boolean"},
+      "garantiaMeses": {"type": "integer", "minimum": 0}
+    },
+    "required": ["material","dimensoesCM"]
+  },
+  "uiSchema": {
+    "dimensoesCM": {"placeholder": "LxAxP"}
+  },
+  "indexHints": ["material","garantiaMeses"]
+}

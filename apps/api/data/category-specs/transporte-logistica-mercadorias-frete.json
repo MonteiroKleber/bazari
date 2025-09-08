@@ -1,0 +1,17 @@
+{
+  "categoryId": "transporte-logistica-mercadorias-frete",
+  "version": "1.0.0",
+  "inheritsFrom": "transporte-logistica-mercadorias",
+  "jsonSchema": {
+    "type": "object",
+    "properties": {
+      "pesoMaxKG": {"type": "number", "minimum": 1},
+      "raioKM": {"type": "number", "minimum": 1},
+      "tipoVeiculo": {"type": "string", "enum": ["utilitario","caminhao"]},
+      "seguro": {"type": "boolean"}
+    },
+    "required": ["pesoMaxKG","raioKM","tipoVeiculo"]
+  },
+  "uiSchema": {},
+  "indexHints": ["pesoMaxKG","raioKM","tipoVeiculo","seguro"]
+}

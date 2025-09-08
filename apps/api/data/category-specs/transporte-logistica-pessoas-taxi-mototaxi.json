@@ -1,0 +1,19 @@
+{
+  "categoryId": "transporte-logistica-pessoas-taxi-mototaxi",
+  "version": "1.0.0",
+  "inheritsFrom": "transporte-logistica-pessoas",
+  "jsonSchema": {
+    "type": "object",
+    "properties": {
+      "areaAtendimentoKM": {"type": "number", "minimum": 1},
+      "placaVeiculo": {"type": "string"},
+      "habilitacaoCategoria": {"type": "string", "enum": ["A","AB"]},
+      "horarios": {"type": "array", "items": {"type": "string"}}
+    },
+    "required": ["areaAtendimentoKM","habilitacaoCategoria"]
+  },
+  "uiSchema": {
+    "horarios": {"widget": "chips"}
+  },
+  "indexHints": ["areaAtendimentoKM","habilitacaoCategoria"]
+}
