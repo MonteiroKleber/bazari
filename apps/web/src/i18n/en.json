@@ -1,3 +1,5 @@
+// path: apps/web/src/i18n/en.json
+
 {
   "header": {
     "about": "About",
@@ -81,5 +83,72 @@
       "error": "Upload error",
       "no_file": "Please select a file"
     }
+  },
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "saving": "Saving...",
+    "cancel": "Cancel",
+    "back": "Back",
+    "continue": "Continue",
+    "next": "Next",
+    "previous": "Previous",
+    "page": "Page {{current}} of {{total}}"
+  },
+  "search": {
+    "placeholder": "Search products and services...",
+    "button": "Search",
+    "all": "All",
+    "products": "Products",
+    "services": "Services",
+    "filters": "Filters",
+    "clear": "Clear",
+    "categories": "Categories",
+    "price_range": "Price Range",
+    "min": "Min",
+    "max": "Max",
+    "sort_by": "Sort by",
+    "sort": {
+      "relevance": "Relevance",
+      "price_asc": "Lowest price",
+      "price_desc": "Highest price",
+      "newest": "Newest"
+    },
+    "toggle_filters": "Filters",
+    "showing_results": "Showing {{start}}-{{end}} of {{total}} results"
+  },
+  "listing": {
+    "step1": "Type",
+    "step2": "Category",
+    "step3": "Information",
+    "step4": "Attributes",
+    "product": "Product",
+    "product_desc": "Physical or digital item for sale",
+    "service": "Service",
+    "service_desc": "Service provision or consulting",
+    "choose_category": "Choose Category",
+    "category_desc": "Select the most specific category possible",
+    "basic_info": "Basic Information",
+    "basic_info_desc": "Main data for your listing",
+    "title": "Title",
+    "title_placeholder": "E.g: Dell Inspiron 15 Notebook",
+    "description": "Description",
+    "description_placeholder": "Describe your product or service...",
+    "price": "Price",
+    "media": "Photos/Videos",
+    "files_selected": "{{count}} file(s) selected",
+    "attributes": "Specific Features",
+    "attributes_desc": "Fill in the category-specific fields"
+  },
+  "categories": {
+    "breadcrumb": "Path"
+  },
+  "forms": {
+    "required_fields": "Fill in all required fields",
+    "select_option": "Select an option",
+    "no_schema": "No schema available"
+  },
+  "errors": {
+    "generic": "An error occurred. Please try again."
   }
 }

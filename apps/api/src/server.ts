@@ -1,3 +1,5 @@
+// path: apps/api/src/server.ts
+
 import Fastify from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { env } from './env.js';
@@ -13,6 +15,7 @@ import { mediaRoutes } from './routes/media.js';
 import { categoriesRoutes } from './routes/categories.js';
 import { productsRoutes } from './routes/products.js';
 import { servicesRoutes } from './routes/services.js';
+import { searchRoutes } from './routes/search.js';
 
 // Prisma client singleton
 const prisma = new PrismaClient({
@@ -41,6 +44,7 @@ async function buildApp() {
   await app.register(categoriesRoutes, { prefix: '/', prisma });
   await app.register(productsRoutes, { prefix: '/', prisma });
   await app.register(servicesRoutes, { prefix: '/', prisma });
+  await app.register(searchRoutes, { prefix: '/', prisma });
 
   // Rota raiz
   app.get('/', async (request, reply) => {
@@ -51,6 +55,7 @@ async function buildApp() {
       endpoints: [
         'GET /healthz',
         'GET /categories',
+        'GET /categories/effective-spec',
         'POST /categories/seed',
         'POST /media/upload',
         'GET /media/:id',
@@ -60,7 +65,8 @@ async function buildApp() {
         'GET /products',
         'POST /services',
         'GET /services/:id',
-        'GET /services'
+        'GET /services',
+        'GET /search'
       ]
     };
   });

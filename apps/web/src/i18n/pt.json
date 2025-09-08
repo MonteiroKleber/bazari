@@ -1,3 +1,5 @@
+// path: apps/web/src/i18n/pt.json
+
 {
   "header": {
     "about": "Sobre",
@@ -13,23 +15,23 @@
   },
   "hero": {
     "title": "Bazari — Economia Popular Descentralizada",
-    "subtitle": "O super app e a blockchain da economia real, feita pelo povo e para o povo.",
+    "subtitle": "O super app e blockchain da economia real, feito pelo povo para o povo.",
     "cta_primary": "Entrar no Super App (em breve)",
     "cta_secondary": "Baixar Whitepaper"
   },
   "about": {
-    "title": "O que é a Bazari",
-    "text": "A Bazari é uma Nação Digital descentralizada com moeda BZR e cashback LIVO, focada em mercados populares, comerciantes e autônomos. Nossa missão é democratizar a economia digital, oferecendo ferramentas e tecnologia de ponta para pequenos empreendedores."
+    "title": "O que é Bazari",
+    "text": "Bazari é uma Nação Digital descentralizada com moeda BZR e cashback LIVO, focada em feiras, comerciantes e autônomos. Nossa missão é democratizar a economia digital, oferecendo ferramentas e tecnologia de ponta para pequenos empreendedores."
   },
   "modules": {
-    "title": "Módulos da Bazari",
-    "wallet": "Wallet",
-    "wallet_desc": "Carteira multi-conta com BZR e LIVO",
+    "title": "Módulos Bazari",
+    "wallet": "Carteira",
+    "wallet_desc": "Wallet multi-conta com BZR e LIVO",
     "marketplace": "Marketplace",
     "marketplace_desc": "Compre e venda com BZR",
     "dao": "DAO",
     "dao_desc": "Governança descentralizada",
-    "p2p": "P2P/Câmbio",
+    "p2p": "P2P/Exchange",
     "p2p_desc": "Troque BZR por outras moedas",
     "dex": "DEX",
     "dex_desc": "Exchange descentralizada (em breve)",
@@ -43,13 +45,13 @@
     "now": "Agora",
     "next": "Próximo",
     "future": "Futuro",
-    "now_list": ["Landing Page", "Design System", "Wallet base", "Estrutura do monorepo"],
-    "next_list": ["Marketplace MVP", "DAO MVP", "Sistema de cashback LIVO", "Integração com BazariChain"],
+    "now_list": ["Landing Page", "Design System", "Wallet base", "Estrutura monorepo"],
+    "next_list": ["Marketplace MVP", "DAO MVP", "Sistema LIVO cashback", "Integração BazariChain"],
     "future_list": ["DEX comunitária", "Expansão SubDAOs", "App mobile nativo", "Parcerias estratégicas"]
   },
   "cta": {
     "title": "Faça parte da revolução econômica",
-    "subtitle": "Acompanhe o desenvolvimento e seja um dos primeiros a usar a Bazari",
+    "subtitle": "Acompanhe o desenvolvimento e seja um dos primeiros a usar o Bazari",
     "button": "Quero acompanhar"
   },
   "footer": {
@@ -73,13 +75,80 @@
       "showing": "Mostrando {{count}} de {{total}} categorias"
     },
     "upload": {
-      "title": "Upload de Arquivos",
+      "title": "Upload de Arquivo",
       "select_file": "Selecionar arquivo",
       "submit": "Enviar",
       "uploading": "Enviando...",
-      "success": "Upload realizado com sucesso!",
-      "error": "Erro ao fazer upload",
+      "success": "Upload realizado!",
+      "error": "Erro no upload",
       "no_file": "Por favor, selecione um arquivo"
     }
+  },
+  "common": {
+    "loading": "Carregando...",
+    "save": "Salvar",
+    "saving": "Salvando...",
+    "cancel": "Cancelar",
+    "back": "Voltar",
+    "continue": "Continuar",
+    "next": "Próximo",
+    "previous": "Anterior",
+    "page": "Página {{current}} de {{total}}"
+  },
+  "search": {
+    "placeholder": "Buscar produtos e serviços...",
+    "button": "Buscar",
+    "all": "Todos",
+    "products": "Produtos",
+    "services": "Serviços",
+    "filters": "Filtros",
+    "clear": "Limpar",
+    "categories": "Categorias",
+    "price_range": "Faixa de Preço",
+    "min": "Mín",
+    "max": "Máx",
+    "sort_by": "Ordenar por",
+    "sort": {
+      "relevance": "Relevância",
+      "price_asc": "Menor preço",
+      "price_desc": "Maior preço",
+      "newest": "Mais recentes"
+    },
+    "toggle_filters": "Filtros",
+    "showing_results": "Mostrando {{start}}-{{end}} de {{total}} resultados"
+  },
+  "listing": {
+    "step1": "Tipo",
+    "step2": "Categoria",
+    "step3": "Informações",
+    "step4": "Atributos",
+    "product": "Produto",
+    "product_desc": "Item físico ou digital para venda",
+    "service": "Serviço",
+    "service_desc": "Prestação de serviço ou consultoria",
+    "choose_category": "Escolha a Categoria",
+    "category_desc": "Selecione a categoria mais específica possível",
+    "basic_info": "Informações Básicas",
+    "basic_info_desc": "Dados principais do seu anúncio",
+    "title": "Título",
+    "title_placeholder": "Ex: Notebook Dell Inspiron 15",
+    "description": "Descrição",
+    "description_placeholder": "Descreva seu produto ou serviço...",
+    "price": "Preço",
+    "media": "Fotos/Vídeos",
+    "files_selected": "{{count}} arquivo(s) selecionado(s)",
+    "attributes": "Características Específicas",
+    "attributes_desc": "Preencha os campos específicos da categoria"
+  },
+  "categories": {
+    "breadcrumb": "Caminho"
+  },
+  "forms": {
+    "required_fields": "Preencha todos os campos obrigatórios",
+    "select_option": "Selecione uma opção",
+    "no_schema": "Nenhum esquema disponível"
+  },
+  "errors": {
+    "generic": "Ocorreu um erro. Tente novamente."
   }
 }
