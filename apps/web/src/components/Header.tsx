@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { ThemeSwitcher } from './ThemeSwitcher';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { ApiHealth } from './ApiHealth';
 import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from './ui/button';
@@ -44,6 +45,7 @@ export function Header() {
         right={
           <div className="flex items-center gap-4">
             <div className="hidden md:flex items-center gap-3">
+              <ApiHealth compact />
               <LanguageSwitcher />
               <ThemeSwitcher />
             </div>
@@ -70,6 +72,7 @@ export function Header() {
               ))}
             </nav>
             <div className="flex flex-col gap-3 mt-4 pt-4 border-t">
+              <ApiHealth compact />
               <LanguageSwitcher />
               <ThemeSwitcher />
             </div>

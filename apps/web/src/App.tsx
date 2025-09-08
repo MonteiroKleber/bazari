@@ -6,6 +6,7 @@ import { Roadmap } from './components/Roadmap'
 import { CTASection } from './components/CTASection'
 import { Footer } from './components/Footer'
 import { ThemeGallery } from './components/ThemeGallery'
+import { DevPanel } from './components/DevPanel'
 
 function App() {
   return (
@@ -35,6 +36,9 @@ function App() {
           <CTASection />
         </main>
         <Footer />
+        
+        {/* DevPanel - apenas em desenvolvimento */}
+        {import.meta.env.DEV && <DevPanel />}
       </div>
     </ThemeProvider>
   )

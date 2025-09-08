@@ -3,7 +3,13 @@
     "about": "Sobre",
     "modules": "Módulos",
     "roadmap": "Roadmap",
-    "contact": "Contato"
+    "contact": "Contato",
+    "status": {
+      "online": "Online",
+      "offline": "Offline",
+      "unstable": "Instável",
+      "loading": "Carregando"
+    }
   },
   "hero": {
     "title": "Bazari — Economia Popular Descentralizada",
@@ -51,5 +57,29 @@
     "github": "GitHub",
     "docs": "Documentação",
     "contact": "Contato"
+  },
+  "dev": {
+    "panel": {
+      "title": "Painel de Desenvolvimento"
+    },
+    "categories": {
+      "title": "Categorias",
+      "loading": "Carregando categorias...",
+      "error": "Erro ao carregar categorias",
+      "empty": "Nenhuma categoria encontrada",
+      "name": "Nome",
+      "level": "Nível",
+      "type": "Tipo",
+      "showing": "Mostrando {{count}} de {{total}} categorias"
+    },
+    "upload": {
+      "title": "Upload de Arquivos",
+      "select_file": "Selecionar arquivo",
+      "submit": "Enviar",
+      "uploading": "Enviando...",
+      "success": "Upload realizado com sucesso!",
+      "error": "Erro ao fazer upload",
+      "no_file": "Por favor, selecione um arquivo"
+    }
   }
 }
