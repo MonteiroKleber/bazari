@@ -1,0 +1,23 @@
+{
+  "categoryId": "tecnologia-eletronicos-computadores",
+  "version": "1.0.0",
+  "inheritsFrom": "tecnologia-eletronicos",
+  "jsonSchema": {
+    "type": "object",
+    "properties": {
+      "marca": {"type": "string"},
+      "modelo": {"type": "string"},
+      "cpu": {"type": "string"},
+      "ramGB": {"type": "integer", "minimum": 2},
+      "armazenamento": {"type": "string", "enum": ["SSD","HDD","Híbrido"]},
+      "armazenamentoGB": {"type": "integer", "minimum": 64},
+      "gpu": {"type": "string"}
+    },
+    "required": ["marca","modelo","cpu","ramGB","armazenamento","armazenamentoGB"]
+  },
+  "uiSchema": {
+    "armazenamentoGB": {"widget": "number", "unit": "GB"},
+    "ramGB": {"widget": "number", "unit": "GB"}
+  },
+  "indexHints": ["marca","modelo","cpu","ramGB","armazenamento","armazenamentoGB","gpu"]
+}

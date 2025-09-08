@@ -1,0 +1,19 @@
+{
+  "categoryId": "beleza-bem-estar-pessoais-cabeleireiro",
+  "version": "1.0.0",
+  "inheritsFrom": "beleza-bem-estar-pessoais",
+  "jsonSchema": {
+    "type": "object",
+    "properties": {
+      "duracaoMin": {"type": "integer", "minimum": 15},
+      "atendimentoDomiciliar": {"type": "boolean"},
+      "portfolio": {"type": "array", "items": {"type": "string"}},
+      "precoBaseBzr": {"type": "number", "minimum": 0}
+    },
+    "required": ["duracaoMin"]
+  },
+  "uiSchema": {
+    "portfolio": {"widget": "chips"}
+  },
+  "indexHints": ["duracaoMin","atendimentoDomiciliar","precoBaseBzr"]
+}

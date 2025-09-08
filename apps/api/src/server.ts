@@ -11,6 +11,8 @@ import { S3Storage } from './storage/S3Storage.js';
 import { healthRoutes } from './routes/health.js';
 import { mediaRoutes } from './routes/media.js';
 import { categoriesRoutes } from './routes/categories.js';
+import { productsRoutes } from './routes/products.js';
+import { servicesRoutes } from './routes/services.js';
 
 // Prisma client singleton
 const prisma = new PrismaClient({
@@ -37,6 +39,8 @@ async function buildApp() {
   await app.register(healthRoutes);
   await app.register(mediaRoutes, { prefix: '/', prisma, storage });
   await app.register(categoriesRoutes, { prefix: '/', prisma });
+  await app.register(productsRoutes, { prefix: '/', prisma });
+  await app.register(servicesRoutes, { prefix: '/', prisma });
 
   // Rota raiz
   app.get('/', async (request, reply) => {
@@ -51,6 +55,12 @@ async function buildApp() {
         'POST /media/upload',
         'GET /media/:id',
         'GET /media/:id/url',
+        'POST /products',
+        'GET /products/:id',
+        'GET /products',
+        'POST /services',
+        'GET /services/:id',
+        'GET /services'
       ]
     };
   });
