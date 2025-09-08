@@ -2,7 +2,7 @@ import * as React from "react";
 import { BaseHeader } from "./BaseHeader";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 import { LanguageSwitcher } from "./LanguageSwitcher";
-// import { ApiHealth } from "./ApiHealth"; // versão detalhada (futuro)
+import { ApiHealth } from "./ApiHealth";
 // import { UserMenu } from "./UserMenu";   // placeholder futuro
 // import { WalletMenu } from "./WalletMenu"; // placeholder futuro
 // import { Search } from "lucide-react"; // placeholder futuro
@@ -40,9 +40,9 @@ export function AppHeader() {
           <div className="flex items-center gap-4">
             <div className="hidden md:flex items-center gap-3">
               {/* Futuramente adicionar: Search, Notifications, UserMenu, Wallet */}
+              <ApiHealth />
               <LanguageSwitcher />
               <ThemeSwitcher />
-              {/* <ApiHealth /> versão detalhada com ambiente/versão */}
               {/* <UserMenu /> */}
               {/* <WalletMenu /> */}
             </div>
