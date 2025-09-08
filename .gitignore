@@ -18,11 +18,11 @@ out/
 .DS_Store
 
 # Environment
-.env
-.env.local
-.env.production
-.env.development
-apps/api/.env
+#.env
+#.env.local
+#.env.production
+#.env.development
+#apps/api/.env
 
 # Logs
 *.log

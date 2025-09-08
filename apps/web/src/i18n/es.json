@@ -1,3 +1,5 @@
+// path: apps/web/src/i18n/es.json
+
 {
   "header": {
     "about": "Acerca",
@@ -6,7 +8,7 @@
     "contact": "Contacto",
     "status": {
       "online": "En línea",
-      "offline": "Sin conexión",
+      "offline": "Fuera de línea",
       "unstable": "Inestable",
       "loading": "Cargando"
     }
@@ -14,23 +16,23 @@
   "hero": {
     "title": "Bazari — Economía Popular Descentralizada",
     "subtitle": "La super app y blockchain de la economía real, hecha por el pueblo para el pueblo.",
-    "cta_primary": "Entrar al Super App (próximamente)",
+    "cta_primary": "Entrar en Super App (próximamente)",
     "cta_secondary": "Descargar Whitepaper"
   },
   "about": {
     "title": "Qué es Bazari",
-    "text": "Bazari es una Nación Digital descentralizada con moneda BZR y cashback LIVO, enfocada en mercados populares, comerciantes y autónomos. Nuestra misión es democratizar la economía digital, ofreciendo herramientas y tecnología de vanguardia para pequeños emprendedores."
+    "text": "Bazari es una Nación Digital descentralizada con moneda BZR y cashback LIVO, enfocada en ferias, comerciantes y autónomos. Nuestra misión es democratizar la economía digital, ofreciendo herramientas y tecnología de vanguardia para pequeños emprendedores."
   },
   "modules": {
-    "title": "Módulos de Bazari",
-    "wallet": "Billetera",
-    "wallet_desc": "Billetera multi-cuenta con BZR y LIVO",
-    "marketplace": "Mercado",
+    "title": "Módulos Bazari",
+    "wallet": "Cartera",
+    "wallet_desc": "Wallet multi-cuenta con BZR y LIVO",
+    "marketplace": "Marketplace",
     "marketplace_desc": "Compra y vende con BZR",
     "dao": "DAO",
     "dao_desc": "Gobernanza descentralizada",
-    "p2p": "P2P/Cambio",
-    "p2p_desc": "Intercambia BZR por otras monedas",
+    "p2p": "P2P/Exchange",
+    "p2p_desc": "Cambia BZR por otras monedas",
     "dex": "DEX",
     "dex_desc": "Exchange descentralizado (próximamente)",
     "social": "Red Social",
@@ -43,9 +45,9 @@
     "now": "Ahora",
     "next": "Próximo",
     "future": "Futuro",
-    "now_list": ["Página de Inicio", "Sistema de Diseño", "Billetera base", "Estructura del monorepo"],
-    "next_list": ["MVP del Mercado", "MVP del DAO", "Sistema de cashback LIVO", "Integración con BazariChain"],
-    "future_list": ["DEX comunitario", "Expansión de SubDAOs", "App móvil nativa", "Asociaciones estratégicas"]
+    "now_list": ["Landing Page", "Sistema de Diseño", "Wallet base", "Estructura monorepo"],
+    "next_list": ["Marketplace MVP", "DAO MVP", "Sistema LIVO cashback", "Integración BazariChain"],
+    "future_list": ["DEX comunitario", "Expansión SubDAOs", "App móvil nativa", "Alianzas estratégicas"]
   },
   "cta": {
     "title": "Sé parte de la revolución económica",
@@ -73,13 +75,80 @@
       "showing": "Mostrando {{count}} de {{total}} categorías"
     },
     "upload": {
-      "title": "Carga de Archivos",
+      "title": "Carga de Archivo",
       "select_file": "Seleccionar archivo",
-      "submit": "Subir",
-      "uploading": "Subiendo...",
+      "submit": "Enviar",
+      "uploading": "Enviando...",
       "success": "¡Carga exitosa!",
-      "error": "Error al cargar",
-      "no_file": "Por favor seleccione un archivo"
+      "error": "Error en la carga",
+      "no_file": "Por favor, selecciona un archivo"
     }
+  },
+  "common": {
+    "loading": "Cargando...",
+    "save": "Guardar",
+    "saving": "Guardando...",
+    "cancel": "Cancelar",
+    "back": "Volver",
+    "continue": "Continuar",
+    "next": "Siguiente",
+    "previous": "Anterior",
+    "page": "Página {{current}} de {{total}}"
+  },
+  "search": {
+    "placeholder": "Buscar productos y servicios...",
+    "button": "Buscar",
+    "all": "Todos",
+    "products": "Productos",
+    "services": "Servicios",
+    "filters": "Filtros",
+    "clear": "Limpiar",
+    "categories": "Categorías",
+    "price_range": "Rango de Precio",
+    "min": "Mín",
+    "max": "Máx",
+    "sort_by": "Ordenar por",
+    "sort": {
+      "relevance": "Relevancia",
+      "price_asc": "Menor precio",
+      "price_desc": "Mayor precio",
+      "newest": "Más recientes"
+    },
+    "toggle_filters": "Filtros",
+    "showing_results": "Mostrando {{start}}-{{end}} de {{total}} resultados"
+  },
+  "listing": {
+    "step1": "Tipo",
+    "step2": "Categoría",
+    "step3": "Información",
+    "step4": "Atributos",
+    "product": "Producto",
+    "product_desc": "Artículo físico o digital para venta",
+    "service": "Servicio",
+    "service_desc": "Prestación de servicio o consultoría",
+    "choose_category": "Elegir Categoría",
+    "category_desc": "Selecciona la categoría más específica posible",
+    "basic_info": "Información Básica",
+    "basic_info_desc": "Datos principales de tu anuncio",
+    "title": "Título",
+    "title_placeholder": "Ej: Notebook Dell Inspiron 15",
+    "description": "Descripción",
+    "description_placeholder": "Describe tu producto o servicio...",
+    "price": "Precio",
+    "media": "Fotos/Videos",
+    "files_selected": "{{count}} archivo(s) seleccionado(s)",
+    "attributes": "Características Específicas",
+    "attributes_desc": "Completa los campos específicos de la categoría"
+  },
+  "categories": {
+    "breadcrumb": "Ruta"
+  },
+  "forms": {
+    "required_fields": "Completa todos los campos obligatorios",
+    "select_option": "Selecciona una opción",
+    "no_schema": "No hay esquema disponible"
+  },
+  "errors": {
+    "generic": "Ocurrió un error. Intenta nuevamente."
   }
 }

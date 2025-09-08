@@ -1,10 +1,14 @@
+// path: apps/api/prisma/schema.prisma
+
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pg_trgm]
 }
 
 model MediaAsset {
@@ -81,6 +85,11 @@ model Product {
   @@index([daoId])
   @@index([categoryId])
   @@index([categoryPath], type: Gin)
+  @@index([title gin_trgm_ops], type: Gin)
+  @@index([description gin_trgm_ops], type: Gin)
+  @@index([attributes], type: Gin)
+  @@index([priceBzr])
+  @@index([createdAt])
 }
 
 model ServiceOffering {
@@ -101,6 +110,11 @@ model ServiceOffering {
   @@index([daoId])
   @@index([categoryId])
   @@index([categoryPath], type: Gin)
+  @@index([title gin_trgm_ops], type: Gin)
+  @@index([description gin_trgm_ops], type: Gin)
+  @@index([attributes], type: Gin)
+  @@index([basePriceBzr])
+  @@index([createdAt])
 }
 
 model AuditLog {
@@ -115,6 +129,5 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   @@index([entity, entityId])
-  @@index([actor])
   @@index([createdAt])
 }
