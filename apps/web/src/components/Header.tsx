@@ -4,6 +4,7 @@ import { LanguageSwitcher } from './LanguageSwitcher';
 import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from './ui/button';
+import { BaseHeader } from './BaseHeader';
 
 export function Header() {
   const { t } = useTranslation();
@@ -16,39 +17,36 @@ export function Header() {
     { label: t('header.contact'), href: '#contact' },
   ];
 
+  const renderNavLinks = () => {
+    return navItems.map((item) => (
+      <a key={item.href} href={item.href} className="text-sm font-medium transition-colors hover:text-primary">
+        {item.label}
+      </a>
+    ));
+  };
+
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
-          {/* Logo */}
+    <>
+      <BaseHeader
+        left={
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <span className="text-primary-foreground font-bold">B</span>
             </div>
             <span className="text-xl font-bold">Bazari</span>
           </div>
-
-          {/* Desktop Navigation */}
+        }
+        nav={
           <nav className="hidden md:flex items-center gap-6">
-            {navItems.map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
-                className="text-sm font-medium transition-colors hover:text-primary"
-              >
-                {item.label}
-              </a>
-            ))}
+            {renderNavLinks()}
           </nav>
-
-          {/* Controls */}
+        }
+        right={
           <div className="flex items-center gap-4">
             <div className="hidden md:flex items-center gap-3">
               <LanguageSwitcher />
               <ThemeSwitcher />
             </div>
-
-            {/* Mobile Menu Button */}
             <Button
               variant="ghost"
               size="icon"
@@ -58,19 +56,15 @@ export function Header() {
               {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
           </div>
-        </div>
+        }
+      />
 
-        {/* Mobile Menu */}
-        {isMenuOpen && (
-          <div className="md:hidden py-4 border-t">
+      {isMenuOpen && (
+        <div className="md:hidden py-4 border-t">
+          <div className="container mx-auto px-4">
             <nav className="flex flex-col gap-3">
               {navItems.map((item) => (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  className="text-sm font-medium transition-colors hover:text-primary px-2 py-1"
-                  onClick={() => setIsMenuOpen(false)}
-                >
+                <a key={item.href} href={item.href} className="text-sm font-medium transition-colors hover:text-primary px-2 py-1" onClick={() => setIsMenuOpen(false)}>
                   {item.label}
                 </a>
               ))}
@@ -80,8 +74,8 @@ export function Header() {
               <ThemeSwitcher />
             </div>
           </div>
-        )}
-      </div>
-    </header>
+        </div>
+      )}
+    </>
   );
 }
