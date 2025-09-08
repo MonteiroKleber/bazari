@@ -156,11 +156,12 @@ export function DynamicForm({ jsonSchema, uiSchema, onSubmit, loading }: Dynamic
           disabled={loading}
         />
         {description && <p className="text-sm text-muted-foreground">{description}</p>}
-        {form.formState.errors[key] && (
-          <p className="text-sm text-destructive">{form.formState.errors[key]?.message as string}</p>}
+          {form.formState.errors[key] && (
+            <p className="text-sm text-destructive">{form.formState.errors[key]?.message as string}</p>
+          )}
         </div>
       );
-    };
+    }
 
     if (!jsonSchema || !jsonSchema.properties) {
       return (

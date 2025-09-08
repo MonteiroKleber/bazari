@@ -16,6 +16,9 @@
     "prisma:reset": "prisma migrate reset",
     "prisma:reset:force": "prisma migrate reset --force"
   },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "dependencies": {
     "@fastify/cors": "^8.5.0",
     "@fastify/multipart": "^8.3.1",
@@ -34,7 +37,7 @@
     "@types/mime": "^3.0.4",
     "@types/node": "^20.10.6",
     "prisma": "^5.8.0",
-    "tsx": "^4.7.0",
+    "tsx": "^4.20.5",
     "typescript": "^5.3.3"
   }
 }
