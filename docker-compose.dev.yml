@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: bazari-postgres
+    environment:
+      POSTGRES_USER: bazari
+      POSTGRES_PASSWORD: bazari
+      POSTGRES_DB: bazari_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - bazari-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bazari -d bazari_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgweb:
+    image: sosedoff/pgweb
+    container_name: bazari-pgweb
+    environment:
+      DATABASE_URL: postgresql://bazari:bazari@postgres:5432/bazari_db?sslmode=disable
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  bazari-postgres-data:

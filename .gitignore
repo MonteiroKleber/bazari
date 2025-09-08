@@ -22,6 +22,7 @@ out/
 .env.local
 .env.production
 .env.development
+apps/api/.env
 
 # Logs
 *.log
@@ -34,6 +35,9 @@ lerna-debug.log*
 # Testing
 coverage/
 .nyc_output/
+
+# Uploads (local storage)
+apps/api/uploads/
 
 # Misc
 *.pid
