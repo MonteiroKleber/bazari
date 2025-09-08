@@ -13,10 +13,11 @@ import { Alert, AlertDescription } from '../components/ui/alert';
 import { CategoryPicker } from '../components/CategoryPicker';
 import { DynamicForm } from '../components/DynamicForm';
 import { useEffectiveSpec } from '../hooks/useEffectiveSpec';
+import { useCategories } from '../hooks/useCategories';
 import { API_BASE_URL } from '../config';
 
 export function NewListingPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [kind, setKind] = useState<'product' | 'service' | null>(null);
@@ -32,6 +33,8 @@ export function NewListingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Carregar categorias
+  const { categories, loading: categoriesLoading, error: categoriesError } = useCategories();
   const { spec, loading: specLoading } = useEffectiveSpec(categoryId);
 
   const handleKindSelect = (selectedKind: 'product' | 'service') => {
@@ -39,16 +42,17 @@ export function NewListingPage() {
     setStep(2);
   };
 
-  const handleCategorySelect = (catId: string, catPath: string[]) => {
-    setCategoryId(catId);
-    setCategoryPath(catPath);
+  // Ajustado para receber o objeto Category completo
+  const handleCategorySelect = (category: any) => {
+    setCategoryId(category.id);
+    setCategoryPath(category.pathSlugs);
     setStep(3);
   };
 
   const handleBasicDataSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!basicData.title || !basicData.price) {
-      setError(t('forms.required_fields'));
+      setError(t('forms.required_fields') || 'Campos obrigatórios não preenchidos');
       return;
     }
     setError(null);
@@ -112,7 +116,7 @@ export function NewListingPage() {
       // Redirecionar para página do item ou lista
       navigate(`/${kind}s/${result.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('errors.generic'));
+      setError(err instanceof Error ? err.message : 'Erro ao criar anúncio');
     } finally {
       setSubmitting(false);
     }
@@ -152,10 +156,10 @@ export function NewListingPage() {
           ))}
         </div>
         <div className="flex justify-between mt-2">
-          <span className="text-xs">{t('listing.step1')}</span>
-          <span className="text-xs">{t('listing.step2')}</span>
-          <span className="text-xs">{t('listing.step3')}</span>
-          <span className="text-xs">{t('listing.step4')}</span>
+          <span className="text-xs">{t('new.type') || 'Tipo'}</span>
+          <span className="text-xs">{t('new.category') || 'Categoria'}</span>
+          <span className="text-xs">{t('new.basic_info') || 'Informações'}</span>
+          <span className="text-xs">{t('new.attributes') || 'Atributos'}</span>
         </div>
       </div>
 
@@ -168,8 +172,10 @@ export function NewListingPage() {
           >
             <CardHeader>
               <Package className="h-12 w-12 text-primary mb-2" />
-              <CardTitle>{t('listing.product')}</CardTitle>
-              <CardDescription>{t('listing.product_desc')}</CardDescription>
+              <CardTitle>{t('new.product') || 'Produto'}</CardTitle>
+              <CardDescription>
+                {t('new.product_desc') || 'Vender um produto físico'}
+              </CardDescription>
             </CardHeader>
           </Card>
           
@@ -179,8 +185,10 @@ export function NewListingPage() {
           >
             <CardHeader>
               <Briefcase className="h-12 w-12 text-primary mb-2" />
-              <CardTitle>{t('listing.service')}</CardTitle>
-              <CardDescription>{t('listing.service_desc')}</CardDescription>
+              <CardTitle>{t('new.service') || 'Serviço'}</CardTitle>
+              <CardDescription>
+                {t('new.service_desc') || 'Oferecer um serviço'}
+              </CardDescription>
             </CardHeader>
           </Card>
         </div>
@@ -190,22 +198,35 @@ export function NewListingPage() {
       {step === 2 && kind && (
         <Card>
           <CardHeader>
-            <CardTitle>{t('listing.choose_category')}</CardTitle>
+            <CardTitle>{t('new.select_category') || 'Selecione a Categoria'}</CardTitle>
             <CardDescription>
-              {t('listing.category_desc')}
+              {t('new.category_desc') || 'Navegue pelos 4 níveis de categorias'}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <CategoryPicker
-              kind={kind}
-              onSelect={handleCategorySelect}
-            />
+            {categoriesLoading ? (
+              <div className="p-8 text-center">
+                <p>{t('categories.loading') || 'Carregando categorias...'}</p>
+              </div>
+            ) : categoriesError ? (
+              <div className="p-8 text-center text-destructive">
+                <p>{t('categories.error') || 'Erro ao carregar categorias'}</p>
+                <p className="text-sm mt-2">{categoriesError}</p>
+              </div>
+            ) : (
+              <CategoryPicker
+                type={kind}
+                categories={categories}
+                onSelect={handleCategorySelect}
+                language={i18n.language}
+              />
+            )}
             <Button
               variant="outline"
               className="mt-4"
               onClick={() => setStep(1)}
             >
-              {t('common.back')}
+              {t('common.back') || 'Voltar'}
             </Button>
           </CardContent>
         </Card>
@@ -215,55 +236,55 @@ export function NewListingPage() {
       {step === 3 && (
         <Card>
           <CardHeader>
-            <CardTitle>{t('listing.basic_info')}</CardTitle>
+            <CardTitle>{t('new.basic_info') || 'Informações Básicas'}</CardTitle>
             <CardDescription>
-              {t('listing.basic_info_desc')}
+              {t('new.basic_info_desc') || 'Preencha as informações principais'}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleBasicDataSubmit} className="space-y-4">
               <div>
                 <Label htmlFor="title">
-                  {t('listing.title')} <span className="text-destructive">*</span>
+                  {t('new.title') || 'Título'} <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="title"
                   value={basicData.title}
                   onChange={(e) => setBasicData({ ...basicData, title: e.target.value })}
-                  placeholder={t('listing.title_placeholder')}
+                  placeholder={t('new.title_placeholder') || 'Ex: iPhone 15 Pro Max'}
                 />
               </div>
 
               <div>
                 <Label htmlFor="description">
-                  {t('listing.description')}
+                  {t('new.description') || 'Descrição'}
                 </Label>
                 <Textarea
                   id="description"
                   value={basicData.description}
                   onChange={(e) => setBasicData({ ...basicData, description: e.target.value })}
-                  placeholder={t('listing.description_placeholder')}
+                  placeholder={t('new.description_placeholder') || 'Descreva o produto ou serviço'}
                   rows={4}
                 />
               </div>
 
               <div>
                 <Label htmlFor="price">
-                  {t('listing.price')} (BZR) <span className="text-destructive">*</span>
+                  {t('new.price') || 'Preço'} (BZR) <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="price"
                   type="number"
-                  step="0.000000000001"
+                  step="0.01"
                   value={basicData.price}
                   onChange={(e) => setBasicData({ ...basicData, price: e.target.value })}
-                  placeholder="0.000000000000"
+                  placeholder="0.00"
                 />
               </div>
 
               <div>
                 <Label htmlFor="media">
-                  {t('listing.media')}
+                  {t('new.media') || 'Imagens/Vídeos'}
                 </Label>
                 <Input
                   id="media"
@@ -274,7 +295,7 @@ export function NewListingPage() {
                 />
                 {media.length > 0 && (
                   <p className="text-sm text-muted-foreground mt-1">
-                    {t('listing.files_selected', { count: media.length })}
+                    {media.length} arquivo(s) selecionado(s)
                   </p>
                 )}
               </div>
@@ -291,10 +312,10 @@ export function NewListingPage() {
                   variant="outline"
                   onClick={() => setStep(2)}
                 >
-                  {t('common.back')}
+                  {t('common.back') || 'Voltar'}
                 </Button>
                 <Button type="submit">
-                  {t('common.continue')}
+                  {t('common.continue') || 'Continuar'}
                 </Button>
               </div>
             </form>
@@ -306,14 +327,16 @@ export function NewListingPage() {
       {step === 4 && spec && (
         <Card>
           <CardHeader>
-            <CardTitle>{t('listing.attributes')}</CardTitle>
+            <CardTitle>{t('new.attributes') || 'Atributos Específicos'}</CardTitle>
             <CardDescription>
-              {t('listing.attributes_desc')}
+              {t('new.attributes_desc') || 'Complete as informações específicas da categoria'}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {specLoading ? (
-              <div className="text-center py-8">{t('common.loading')}</div>
+              <div className="text-center py-8">
+                {t('common.loading') || 'Carregando...'}
+              </div>
             ) : (
               <>
                 <DynamicForm
@@ -335,7 +358,7 @@ export function NewListingPage() {
                   onClick={() => setStep(3)}
                   disabled={submitting}
                 >
-                  {t('common.back')}
+                  {t('common.back') || 'Voltar'}
                 </Button>
               </>
             )}

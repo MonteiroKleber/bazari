@@ -1,144 +1,179 @@
 // path: apps/web/src/components/CategoryPicker.tsx
 
 import { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
-import { ChevronRight, ChevronDown } from 'lucide-react';
-import { Button } from './ui/button';
-import { API_BASE_URL } from '../config';
+import { ChevronRight } from 'lucide-react';
+import { cn } from '../lib/utils';
 
 interface Category {
   id: string;
-  slug: string;
-  kind: 'product' | 'service';
-  level: number;
   namePt: string;
   nameEn: string;
   nameEs: string;
+  level: number;
+  parentId: string | null;
+  kind: string;
   pathSlugs: string[];
-  active: boolean;
 }
 
 interface CategoryPickerProps {
-  kind: 'product' | 'service';
-  onSelect: (categoryId: string, categoryPath: string[]) => void;
-  maxLevel?: number;
+  type: 'product' | 'service';
+  onSelect: (category: Category) => void;
+  categories: Category[];
+  language?: string;
 }
 
-export function CategoryPicker({ kind, onSelect, maxLevel = 4 }: CategoryPickerProps) {
-  const { t, i18n } = useTranslation();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedPath, setSelectedPath] = useState<string[]>([kind === 'product' ? 'products' : 'services']);
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+export function CategoryPicker({ type, onSelect, categories = [], language = 'pt' }: CategoryPickerProps) {
+  const [selectedPath, setSelectedPath] = useState<Category[]>([]);
+  const [currentLevel, setCurrentLevel] = useState(1);
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  const fetchCategories = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/categories`);
-      const data = await response.json();
-      setCategories(data.flat.filter((c: Category) => c.kind === kind));
-      setLoading(false);
-    } catch (error) {
-      console.error('Error loading categories:', error);
-      setLoading(false);
-    }
-  };
-
-  const getCategoryName = (category: Category) => {
-    switch (i18n.language) {
-      case 'en':
-        return category.nameEn;
-      case 'es':
-        return category.nameEs;
-      default:
-        return category.namePt;
-    }
-  };
-
-  const getCategoriesByLevel = (level: number, parentPath: string[]) => {
-    return categories.filter(c => 
-      c.level === level &&
-      parentPath.every((p, i) => c.pathSlugs[i] === p)
-    );
-  };
-
-  const toggleExpand = (categoryId: string) => {
-    const newExpanded = new Set(expandedNodes);
-    if (newExpanded.has(categoryId)) {
-      newExpanded.delete(categoryId);
-    } else {
-      newExpanded.add(categoryId);
-    }
-    setExpandedNodes(newExpanded);
-  };
-
-  const handleSelect = (category: Category) => {
-    setSelectedPath(category.pathSlugs);
-    
-    // Se não é o nível máximo, expandir
-    if (category.level < maxLevel) {
-      toggleExpand(category.id);
-    }
-    
-    onSelect(category.id, category.pathSlugs);
-  };
-
-  const renderLevel = (level: number, parentPath: string[]) => {
-    const levelCategories = getCategoriesByLevel(level, parentPath);
-    
-    if (levelCategories.length === 0) return null;
-
+  // PROTEÇÃO: Se não houver categorias, mostrar loading/erro
+  if (!categories || categories.length === 0) {
     return (
-      <div className="ml-4">
-        {levelCategories.map(category => {
-          const isExpanded = expandedNodes.has(category.id);
-          const isSelected = category.id === selectedPath.join('-');
-          const hasChildren = level < maxLevel && 
-            categories.some(c => c.level === level + 1 && 
-              category.pathSlugs.every((p, i) => c.pathSlugs[i] === p)
-            );
-
-          return (
-            <div key={category.id}>
-              <Button
-                variant={isSelected ? 'secondary' : 'ghost'}
-                className="w-full justify-start text-left mb-1"
-                onClick={() => handleSelect(category)}
-              >
-                {hasChildren && (
-                  <span className="mr-2">
-                    {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                  </span>
-                )}
-                <span className="flex-1">{getCategoryName(category)}</span>
-                <span className="text-xs text-muted-foreground ml-2">L{level}</span>
-              </Button>
-              
-              {isExpanded && hasChildren && renderLevel(level + 1, category.pathSlugs)}
-            </div>
-          );
-        })}
+      <div className="p-8 text-center text-muted-foreground">
+        <p>Carregando categorias...</p>
       </div>
     );
-  };
-
-  if (loading) {
-    return <div className="text-center py-4">{t('common.loading')}</div>;
   }
 
+  // Função para pegar o nome na língua correta
+  const getCategoryName = (cat: Category) => {
+    switch (language) {
+      case 'en': return cat.nameEn;
+      case 'es': return cat.nameEs;
+      default: return cat.namePt;
+    }
+  };
+
+  // Filtrar categorias do nível atual
+  const getCurrentLevelCategories = () => {
+    const kind = type === 'product' ? 'product' : 'service';
+    
+    if (currentLevel === 1) {
+      // Nível 1: mostrar apenas categorias raiz do tipo selecionado
+      return categories.filter(cat => 
+        cat.kind === kind && 
+        cat.level === 1
+      );
+    } else {
+      // Níveis 2-4: mostrar filhas da última categoria selecionada
+      const parentId = selectedPath[selectedPath.length - 1]?.id;
+      return categories.filter(cat => 
+        cat.parentId === parentId && 
+        cat.level === currentLevel
+      );
+    }
+  };
+
+  // Resto do componente continua igual...
+  const handleCategoryClick = (category: Category) => {
+    const newPath = [...selectedPath, category];
+    setSelectedPath(newPath);
+
+    if (category.level === 4) {
+      onSelect(category);
+    } else {
+      setCurrentLevel(category.level + 1);
+    }
+  };
+
+  const handleBreadcrumbClick = (index: number) => {
+    const newPath = selectedPath.slice(0, index);
+    setSelectedPath(newPath);
+    setCurrentLevel(newPath.length > 0 ? newPath[newPath.length - 1].level + 1 : 1);
+  };
+
+  const availableCategories = getCurrentLevelCategories();
+
   return (
-    <div className="border rounded-lg p-4">
-      <div className="mb-2">
-        <div className="text-sm text-muted-foreground mb-2">
-          {t('categories.breadcrumb')}: {selectedPath.join(' > ')}
+    <div className="space-y-4">
+      {/* Breadcrumbs */}
+      {selectedPath.length > 0 && (
+        <div className="flex items-center gap-2 text-sm">
+          <button
+            onClick={() => {
+              setSelectedPath([]);
+              setCurrentLevel(1);
+            }}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            {type === 'product' ? 'Produtos' : 'Serviços'}
+          </button>
+          {selectedPath.map((cat, index) => (
+            <div key={cat.id} className="flex items-center gap-2">
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              <button
+                onClick={() => handleBreadcrumbClick(index + 1)}
+                className={cn(
+                  "hover:text-foreground",
+                  index === selectedPath.length - 1 
+                    ? "text-foreground font-medium" 
+                    : "text-muted-foreground"
+                )}
+              >
+                {getCategoryName(cat)}
+              </button>
+            </div>
+          ))}
         </div>
+      )}
+
+      {/* Título do nível atual */}
+      <div className="text-sm text-muted-foreground">
+        Selecione {currentLevel === 1 ? 'a categoria principal' : 
+                  currentLevel === 2 ? 'a subcategoria' :
+                  currentLevel === 3 ? 'o tipo' : 
+                  'a especialização'}
+        <span className="ml-2 text-xs">(Nível {currentLevel} de 4)</span>
       </div>
-      
-      <div className="max-h-96 overflow-y-auto">
-        {renderLevel(1, [kind === 'product' ? 'products' : 'services'])}
+
+      {/* Grid de categorias */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        {availableCategories.length > 0 ? (
+          availableCategories.map((category) => (
+            <button
+              key={category.id}
+              onClick={() => handleCategoryClick(category)}
+              className={cn(
+                "p-4 rounded-lg border text-left transition-all",
+                "hover:border-primary hover:bg-accent",
+                "focus:outline-none focus:ring-2 focus:ring-primary"
+              )}
+            >
+              <div className="font-medium">{getCategoryName(category)}</div>
+              {category.level < 4 && (
+                <div className="text-xs text-muted-foreground mt-1">
+                  Clique para ver subcategorias
+                </div>
+              )}
+              {category.level === 4 && (
+                <div className="text-xs text-primary mt-1">
+                  Categoria final
+                </div>
+              )}
+            </button>
+          ))
+        ) : (
+          <div className="col-span-full text-center py-8 text-muted-foreground">
+            {currentLevel > 1 
+              ? 'Nenhuma subcategoria disponível neste nível'
+              : 'Nenhuma categoria disponível'}
+          </div>
+        )}
+      </div>
+
+      {/* Indicador de progresso */}
+      <div className="flex gap-1 justify-center mt-4">
+        {[1, 2, 3, 4].map((level) => (
+          <div
+            key={level}
+            className={cn(
+              "h-2 w-12 rounded-full transition-colors",
+              level <= currentLevel 
+                ? "bg-primary" 
+                : "bg-muted"
+            )}
+          />
+        ))}
       </div>
     </div>
   );
