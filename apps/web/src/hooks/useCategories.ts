@@ -1,76 +1,41 @@
-import { useState, useEffect } from "react";
-import { getJSON } from "../lib/api";
+// path: apps/web/src/hooks/useCategories.ts
 
-interface Category {
-  id: string;
-  slug: string;
-  level: number;
-  pathSlugs: string[];
-  namePt: string;
-  nameEn: string;
-  nameEs: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import { useState, useEffect } from 'react';
+import { getJSON } from '../lib/api';
 
-interface CategoriesResponse {
-  total: number;
-  tree: {
-    products: Category[];
-    services: Category[];
-  };
-  flat: Category[];
-}
-
-interface UseCategoriesReturn {
-  loading: boolean;
-  error: Error | null;
-  categories: Category[];
-}
-
-// Cache simples em memória
-let categoriesCache: Category[] | null = null;
-
-export function useCategories(): UseCategoriesReturn {
+export function useCategories() {
+  const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchCategories = async () => {
-      // Se já tem cache, usa ele
-      if (categoriesCache) {
-        setCategories(categoriesCache);
-        setLoading(false);
-        return;
-      }
-
+    async function fetchCategories() {
       try {
         setLoading(true);
+        const data = await getJSON('/categories');
+        
+        // A API retorna {total, tree, flat}
+        // Precisamos do array flat
+        if (data.flat) {
+          setCategories(data.flat);
+        } else if (Array.isArray(data)) {
+          setCategories(data);
+        } else {
+          setCategories([]);
+        }
+        
         setError(null);
-        
-        // MUDANÇA AQUI: processar o formato correto
-        const response = await getJSON<CategoriesResponse>("/categories");
-        
-        // Usar o array flat que já vem pronto
-        const flatCategories = response.flat || [];
-        
-        categoriesCache = flatCategories; // Salva no cache
-        setCategories(flatCategories);
       } catch (err) {
-        setError(err instanceof Error ? err : new Error("Failed to load categories"));
+        console.error('Erro ao carregar categorias:', err);
+        setError('Erro ao carregar categorias');
         setCategories([]);
       } finally {
         setLoading(false);
       }
-    };
+    }
 
     fetchCategories();
   }, []);
 
-  return {
-    loading,
-    error,
-    categories,
-  };
+  return { categories, loading, error };
 }
