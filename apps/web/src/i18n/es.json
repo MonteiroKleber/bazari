@@ -115,6 +115,26 @@
     "toggle_filters": "Filtros",
     "showing_results": "Mostrando {{start}}-{{end}} de {{total}} resultados"
   },
+  "new": {
+    "type": "Tipo",
+    "product": "Producto",
+    "product_desc": "Vender un producto físico o digital",
+    "service": "Servicio",
+    "service_desc": "Ofrecer un servicio o consultoría",
+    "category": "Categoría",
+    "select_category": "Seleccionar Categoría",
+    "category_desc": "Navega por los 4 niveles de categorías para encontrar la más específica",
+    "basic_info": "Información Básica",
+    "basic_info_desc": "Completa la información principal de tu anuncio",
+    "title": "Título",
+    "title_placeholder": "Ej: iPhone 15 Pro Max 256GB",
+    "description": "Descripción",
+    "description_placeholder": "Describe tu producto o servicio en detalle...",
+    "price": "Precio",
+    "media": "Fotos/Videos",
+    "attributes": "Atributos Específicos",
+    "attributes_desc": "Completa la información específica de la categoría seleccionada"
+  },
   "listing": {
     "step1": "Tipo",
     "step2": "Categoría",

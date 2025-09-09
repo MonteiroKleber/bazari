@@ -115,6 +115,26 @@
     "toggle_filters": "Filters",
     "showing_results": "Showing {{start}}-{{end}} of {{total}} results"
   },
+  "new": {
+    "type": "Type",
+    "product": "Product",
+    "product_desc": "Sell a physical or digital product",
+    "service": "Service",
+    "service_desc": "Offer a service or consulting",
+    "category": "Category",
+    "select_category": "Select Category",
+    "category_desc": "Navigate through 4 levels of categories to find the most specific one",
+    "basic_info": "Basic Information",
+    "basic_info_desc": "Fill in the main information for your listing",
+    "title": "Title",
+    "title_placeholder": "E.g: iPhone 15 Pro Max 256GB",
+    "description": "Description",
+    "description_placeholder": "Describe your product or service in detail...",
+    "price": "Price",
+    "media": "Photos/Videos",
+    "attributes": "Specific Attributes",
+    "attributes_desc": "Complete the specific information for the selected category"
+  },
   "listing": {
     "step1": "Type",
     "step2": "Category",
