@@ -6,12 +6,27 @@
     "type": "object",
     "properties": {
       "pesoMaxKG": {"type": "number", "minimum": 1},
+      "volumeMaxM3": {"type": "number", "minimum": 0.1},
       "raioKM": {"type": "number", "minimum": 1},
-      "tipoVeiculo": {"type": "string", "enum": ["utilitario","caminhao"]},
-      "seguro": {"type": "boolean"}
+      "tipoVeiculo": {"type": "string", "enum": ["Utilitário", "Caminhão", "Caminhonete", "Van", "Moto"]},
+      "seguro": {"type": "boolean"},
+      "rastreamento": {"type": "boolean"},
+      "ajudantes": {"type": "integer", "minimum": 0},
+      "embalagem": {"type": "boolean"},
+      "precoKM": {"type": "number", "minimum": 0},
+      "precoBase": {"type": "number", "minimum": 0}
     },
-    "required": ["pesoMaxKG","raioKM","tipoVeiculo"]
+    "required": ["pesoMaxKG", "raioKM", "tipoVeiculo", "precoBase"]
   },
-  "uiSchema": {},
-  "indexHints": ["pesoMaxKG","raioKM","tipoVeiculo","seguro"]
+  "uiSchema": {
+    "pesoMaxKG": {"widget": "number", "suffix": "kg"},
+    "volumeMaxM3": {"widget": "number", "suffix": "m³"},
+    "raioKM": {"widget": "number", "suffix": "km"},
+    "seguro": {"widget": "checkbox"},
+    "rastreamento": {"widget": "checkbox"},
+    "embalagem": {"widget": "checkbox"},
+    "precoKM": {"widget": "number", "prefix": "R$"},
+    "precoBase": {"widget": "number", "prefix": "R$"}
+  },
+  "indexHints": ["pesoMaxKG", "volumeMaxM3", "raioKM", "tipoVeiculo", "seguro", "precoBase"]
 }

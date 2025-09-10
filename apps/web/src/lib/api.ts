@@ -81,3 +81,110 @@ export async function postMultipart<T>(path: string, form: FormData): Promise<T>
     body: form,
   });
 }
+
+// Helper para PUT com JSON
+export async function putJSON<T>(path: string, data: unknown): Promise<T> {
+  return apiFetch<T>(path, {
+    method: "PUT",
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+}
+
+// Helper para DELETE
+export async function deleteJSON<T>(path: string): Promise<T> {
+  return apiFetch<T>(path, {
+    method: "DELETE",
+    headers: {
+      "Accept": "application/json",
+    },
+  });
+}
+
+// Classe API para organizar melhor
+class ApiClient {
+  async get<T = any>(endpoint: string, params?: Record<string, any>): Promise<T> {
+    const queryString = params ? '?' + new URLSearchParams(params).toString() : '';
+    return getJSON<T>(`${endpoint}${queryString}`);
+  }
+  
+  async post<T = any>(endpoint: string, data?: any): Promise<T> {
+    return postJSON<T>(endpoint, data);
+  }
+  
+  async put<T = any>(endpoint: string, data?: any): Promise<T> {
+    return putJSON<T>(endpoint, data);
+  }
+  
+  async delete<T = any>(endpoint: string): Promise<T> {
+    return deleteJSON<T>(endpoint);
+  }
+  
+  async upload<T = any>(endpoint: string, file: File, additionalData?: Record<string, any>): Promise<T> {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    if (additionalData) {
+      Object.entries(additionalData).forEach(([key, value]) => {
+        formData.append(key, value);
+      });
+    }
+    
+    return postMultipart<T>(endpoint, formData);
+  }
+}
+
+// Instância exportada
+export const api = new ApiClient();
+
+// Helpers específicos do domínio
+export const apiHelpers = {
+  // Health check
+  health: () => getJSON('/health'),
+  
+  // Categories
+  getCategories: () => getJSON('/categories'),
+  getCategorySpec: (path: string) => getJSON(`/categories/effective-spec?path=${path}`),
+  getCategoryById: (id: string) => getJSON(`/categories/${id}/spec`),
+  
+  // Products
+  createProduct: (data: any) => postJSON('/products', data),
+  getProduct: (id: string) => getJSON(`/products/${id}`),
+  updateProduct: (id: string, data: any) => putJSON(`/products/${id}`, data),
+  deleteProduct: (id: string) => deleteJSON(`/products/${id}`),
+  listProducts: (params?: any) => {
+    const queryString = params ? '?' + new URLSearchParams(params).toString() : '';
+    return getJSON(`/products${queryString}`);
+  },
+  
+  // Services
+  createService: (data: any) => postJSON('/services', data),
+  getService: (id: string) => getJSON(`/services/${id}`),
+  updateService: (id: string, data: any) => putJSON(`/services/${id}`, data),
+  deleteService: (id: string) => deleteJSON(`/services/${id}`),
+  listServices: (params?: any) => {
+    const queryString = params ? '?' + new URLSearchParams(params).toString() : '';
+    return getJSON(`/services${queryString}`);
+  },
+  
+  // Media/Upload
+  uploadFile: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return postMultipart('/media/upload', formData);
+  },
+  
+  // Search
+  search: (query: string, filters?: any) => {
+    const params = { q: query, ...filters };
+    const queryString = '?' + new URLSearchParams(params).toString();
+    return getJSON(`/search${queryString}`);
+  },
+};
+
+// Exportar tipos e constantes
+export { API_BASE_URL };
+export default api;

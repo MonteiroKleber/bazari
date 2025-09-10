@@ -133,7 +133,9 @@
     "price": "Precio",
     "media": "Fotos/Videos",
     "attributes": "Atributos Específicos",
-    "attributes_desc": "Completa la información específica de la categoría seleccionada"
+    "attributes_desc": "Completa la información específica de la categoría seleccionada",
+    "what_to_list": "¿Qué deseas anunciar?",
+    "what_to_list_desc": "Elige si estás vendiendo un producto u ofreciendo un servicio"
   },
   "listing": {
     "step1": "Tipo",
@@ -159,7 +161,21 @@
     "attributes_desc": "Completa los campos específicos de la categoría"
   },
   "categories": {
-    "breadcrumb": "Ruta"
+    "breadcrumb": "Ruta",
+    "title": "Categorías",
+    "loading": "Cargando categorías...",
+    "error": "Error al cargar categorías",
+    "empty": "No se encontraron categorías",
+    "select_main": "Seleccione la categoría principal",
+    "select_sub": "Seleccione la subcategoría",
+    "select_specific": "Seleccione la categoría específica",
+    "select_detail": "Seleccione la especialización",
+    "level_indicator": "Nivel {{current}} de {{max}}",
+    "can_select": "Haga clic para seleccionar",
+    "no_subcategories": "No hay subcategorías disponibles",
+    "is_final_level": "Esta categoría puede ser seleccionada",
+    "some_are_final": "Las categorías con ✓ pueden ser seleccionadas",
+    "select_to_continue": "Seleccione una categoría para continuar"
   },
   "forms": {
     "required_fields": "Completa todos los campos obligatorios",

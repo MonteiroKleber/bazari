@@ -1,0 +1,71 @@
+{
+  "categoryId": "products-casa-decoracao-decoracao-quadros",
+  "version": "1.0.0",
+  "jsonSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "artista": { "type": "string", "minLength": 1 },
+      "titulo": { "type": "string" },
+      "ano": { "type": "integer", "minimum": 1800, "maximum": 2100 },
+      "tecnica": {
+        "type": "string",
+        "enum": ["Óleo", "Acrílica", "Aquarela", "Guache", "Gravura", "Fotografia", "Mista", "Outro"]
+      },
+      "suporte": {
+        "type": "string",
+        "enum": ["Tela", "Papel", "Madeira", "Metal", "Outro"]
+      },
+      "orientacao": {
+        "type": "string",
+        "enum": ["Retrato", "Paisagem", "Quadrado"]
+      },
+      "largura_cm": { "type": "integer", "minimum": 0 },
+      "altura_cm": { "type": "integer", "minimum": 0 },
+      "profundidade_cm": { "type": "integer", "minimum": 0 },
+      "moldura": { "type": "boolean" },
+      "estado_conservacao": {
+        "type": "string",
+        "enum": ["Novo", "Usado", "Antigo"]
+      },
+      "autenticidade": {
+        "type": "string",
+        "enum": ["Com certificado", "Sem certificado"]
+      },
+      "cores_predominantes": {
+        "type": "array",
+        "items": { "type": "string" }
+      },
+      "peso_kg": { "type": "number", "minimum": 0 },
+      "observacoes": { "type": "string" }
+    },
+    "required": ["tecnica", "suporte", "largura_cm", "altura_cm", "estado_conservacao"]
+  },
+  "uiSchema": {
+    "artista": { "widget": "input", "placeholder": "Ex.: Candido Portinari" },
+    "titulo": { "widget": "input" },
+    "ano": { "widget": "input", "type": "number" },
+    "tecnica": { "widget": "select" },
+    "suporte": { "widget": "select" },
+    "orientacao": { "widget": "radio" },
+    "largura_cm": { "widget": "input", "type": "number" },
+    "altura_cm": { "widget": "input", "type": "number" },
+    "profundidade_cm": { "widget": "input", "type": "number" },
+    "moldura": { "widget": "switch" },
+    "estado_conservacao": { "widget": "radio" },
+    "autenticidade": { "widget": "radio" },
+    "cores_predominantes": { "widget": "tags" },
+    "peso_kg": { "widget": "input", "type": "number" },
+    "observacoes": { "widget": "textarea", "rows": 4 }
+  },
+  "indexHints": [
+    "tecnica",
+    "suporte",
+    "orientacao",
+    "estado_conservacao",
+    "ano",
+    "artista",
+    "titulo"
+  ],
+  "inheritsFrom": null
+}

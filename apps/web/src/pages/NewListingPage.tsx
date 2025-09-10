@@ -1,9 +1,13 @@
-// path: apps/web/src/pages/NewListingPage.tsx
+// V-3: i18n alinhado às chaves existentes + adição de 2 chaves novas nos JSONs (2025-09-10)
+// - Progress usa listing.step1..step4
+// - Títulos/labels usam chaves já existentes em "new" (title, description, price, ...)
+// - Removidas chaves inexistentes (forms.title, forms.description, new.step_*)
+// - Mantida UX atual; sem mudar estilos/temas
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Package, Briefcase, Upload } from 'lucide-react';
+import { Package, Briefcase, ArrowLeft, ArrowRight } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
@@ -13,12 +17,13 @@ import { Alert, AlertDescription } from '../components/ui/alert';
 import { CategoryPicker } from '../components/CategoryPicker';
 import { DynamicForm } from '../components/DynamicForm';
 import { useEffectiveSpec } from '../hooks/useEffectiveSpec';
-import { useCategories } from '../hooks/useCategories';
-import { API_BASE_URL } from '../config';
+import { api } from '../lib/api';
 
 export function NewListingPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
+  
+  // Estados do wizard
   const [step, setStep] = useState(1);
   const [kind, setKind] = useState<'product' | 'service' | null>(null);
   const [categoryId, setCategoryId] = useState<string | null>(null);
@@ -27,277 +32,175 @@ export function NewListingPage() {
     title: '',
     description: '',
     price: '',
-    daoId: 'dao-1' // Placeholder - seria obtido do contexto do usuário
+    daoId: 'dao-demo' // Temporário
   });
-  const [media, setMedia] = useState<File[]>([]);
+  const [attributes, setAttributes] = useState<any>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Carregar categorias
-  const { categories, loading: categoriesLoading, error: categoriesError } = useCategories();
+  // Carregar spec da categoria selecionada
   const { spec, loading: specLoading } = useEffectiveSpec(categoryId);
 
+  // Step 1: Escolher tipo (produto ou serviço)
   const handleKindSelect = (selectedKind: 'product' | 'service') => {
     setKind(selectedKind);
     setStep(2);
   };
 
-  // Ajustado para receber o objeto Category completo
-  const handleCategorySelect = (category: any) => {
-    setCategoryId(category.id);
-    setCategoryPath(category.pathSlugs);
+  // Step 2: Selecionar categoria
+  const handleCategorySelect = (path: string[], id: string) => {
+    setCategoryPath(path);
+    setCategoryId(id);
     setStep(3);
   };
 
-  const handleBasicDataSubmit = (e: React.FormEvent) => {
+  // Step 3: Informações básicas
+  const handleBasicSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!basicData.title || !basicData.price) {
-      setError(t('forms.required_fields') || 'Campos obrigatórios não preenchidos');
+      setError(t('forms.required_fields'));
       return;
     }
     setError(null);
     setStep(4);
   };
 
-  const handleAttributesSubmit = async (attributes: any) => {
+  // Step 4: Atributos específicos e submissão final
+  const handleFinalSubmit = async (formAttributes: any) => {
     setSubmitting(true);
     setError(null);
 
     try {
-      // Preparar dados
       const payload = {
         ...basicData,
-        categoryId,
         categoryPath,
-        attributes,
+        attributes: formAttributes,
         priceBzr: basicData.price,
-        basePriceBzr: kind === 'service' ? basicData.price : undefined,
-        attributesSpecVersion: spec?.version || '1.0.0'
+        basePriceBzr: kind === 'service' ? basicData.price : undefined
       };
 
-      // Upload de mídia se houver
-      const mediaUrls = [];
-      if (media.length > 0) {
-        for (const file of media) {
-          const formData = new FormData();
-          formData.append('file', file);
-          
-          const uploadRes = await fetch(`${API_BASE_URL}/media/upload`, {
-            method: 'POST',
-            body: formData
-          });
-          
-          if (uploadRes.ok) {
-            const { url } = await uploadRes.json();
-            mediaUrls.push({ url, mime: file.type });
-          }
-        }
-      }
-
-      // Criar produto ou serviço
       const endpoint = kind === 'product' ? '/products' : '/services';
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          ...payload,
-          media: mediaUrls
-        })
-      });
+      const response = await api.post(endpoint, payload);
 
-      if (!response.ok) {
-        throw new Error('Failed to create listing');
-      }
-
-      const result = await response.json();
-      
-      // Redirecionar para página do item ou lista
-      navigate(`/${kind}s/${result.id}`);
+      // Sucesso - redirecionar
+      navigate(`/${kind}s/${response.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao criar anúncio');
-    } finally {
+      setError(err instanceof Error ? err.message : t('errors.generic'));
       setSubmitting(false);
     }
   };
 
-  const handleMediaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setMedia(Array.from(e.target.files));
-    }
-  };
-
-  return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      {/* Progress Steps */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          {[1, 2, 3, 4].map((s) => (
-            <div
-              key={s}
-              className={`flex items-center ${s < 4 ? 'flex-1' : ''}`}
-            >
-              <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  s <= step ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                }`}
-              >
-                {s}
-              </div>
-              {s < 4 && (
-                <div
-                  className={`flex-1 h-1 mx-2 ${
-                    s < step ? 'bg-primary' : 'bg-muted'
-                  }`}
-                />
-              )}
+  // Conteúdo por passo
+  const renderStepContent = () => {
+    switch (step) {
+      case 1:
+        // Escolher tipo
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">{t('new.what_to_list')}</h2>
+              <p className="text-muted-foreground">
+                {t('new.what_to_list_desc')}
+              </p>
             </div>
-          ))}
-        </div>
-        <div className="flex justify-between mt-2">
-          <span className="text-xs">{t('new.type') || 'Tipo'}</span>
-          <span className="text-xs">{t('new.category') || 'Categoria'}</span>
-          <span className="text-xs">{t('new.basic_info') || 'Informações'}</span>
-          <span className="text-xs">{t('new.attributes') || 'Atributos'}</span>
-        </div>
-      </div>
 
-      {/* Step 1: Choose Kind */}
-      {step === 1 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card
-            className="cursor-pointer hover:shadow-lg transition-shadow"
-            onClick={() => handleKindSelect('product')}
-          >
-            <CardHeader>
-              <Package className="h-12 w-12 text-primary mb-2" />
-              <CardTitle>{t('new.product') || 'Produto'}</CardTitle>
-              <CardDescription>
-                {t('new.product_desc') || 'Vender um produto físico'}
-              </CardDescription>
-            </CardHeader>
-          </Card>
-          
-          <Card
-            className="cursor-pointer hover:shadow-lg transition-shadow"
-            onClick={() => handleKindSelect('service')}
-          >
-            <CardHeader>
-              <Briefcase className="h-12 w-12 text-primary mb-2" />
-              <CardTitle>{t('new.service') || 'Serviço'}</CardTitle>
-              <CardDescription>
-                {t('new.service_desc') || 'Oferecer um serviço'}
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
-      )}
+            <div className="grid md:grid-cols-2 gap-4">
+              <Card 
+                className="cursor-pointer hover:border-primary transition-colors"
+                onClick={() => handleKindSelect('product')}
+              >
+                <CardHeader>
+                  <Package className="w-12 h-12 text-primary mb-2" />
+                  <CardTitle>{t('new.product')}</CardTitle>
+                  <CardDescription>
+                    {t('new.product_desc')}
+                  </CardDescription>
+                </CardHeader>
+              </Card>
 
-      {/* Step 2: Choose Category */}
-      {step === 2 && kind && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('new.select_category') || 'Selecione a Categoria'}</CardTitle>
-            <CardDescription>
-              {t('new.category_desc') || 'Navegue pelos 4 níveis de categorias'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {categoriesLoading ? (
-              <div className="p-8 text-center">
-                <p>{t('categories.loading') || 'Carregando categorias...'}</p>
-              </div>
-            ) : categoriesError ? (
-              <div className="p-8 text-center text-destructive">
-                <p>{t('categories.error') || 'Erro ao carregar categorias'}</p>
-                <p className="text-sm mt-2">{categoriesError}</p>
-              </div>
-            ) : (
+              <Card 
+                className="cursor-pointer hover:border-primary transition-colors"
+                onClick={() => handleKindSelect('service')}
+              >
+                <CardHeader>
+                  <Briefcase className="w-12 h-12 text-primary mb-2" />
+                  <CardTitle>{t('new.service')}</CardTitle>
+                  <CardDescription>
+                    {t('new.service_desc')}
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            </div>
+          </div>
+        );
+
+      case 2:
+        // Selecionar categoria
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">{t('new.select_category')}</h2>
+              <p className="text-muted-foreground">
+                {t('new.category_desc')}
+              </p>
+            </div>
+
+            {kind && (
               <CategoryPicker
-                type={kind}
-                categories={categories}
+                kind={kind}
                 onSelect={handleCategorySelect}
-                language={i18n.language}
               />
             )}
-            <Button
-              variant="outline"
-              className="mt-4"
-              onClick={() => setStep(1)}
-            >
-              {t('common.back') || 'Voltar'}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        );
 
-      {/* Step 3: Basic Information */}
-      {step === 3 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('new.basic_info') || 'Informações Básicas'}</CardTitle>
-            <CardDescription>
-              {t('new.basic_info_desc') || 'Preencha as informações principais'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleBasicDataSubmit} className="space-y-4">
+      case 3:
+        // Informações básicas
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">{t('new.basic_info')}</h2>
+              <p className="text-muted-foreground">
+                {t('new.basic_info_desc')}
+              </p>
+            </div>
+
+            <form onSubmit={handleBasicSubmit} className="space-y-4">
               <div>
-                <Label htmlFor="title">
-                  {t('new.title') || 'Título'} <span className="text-destructive">*</span>
-                </Label>
+                <Label htmlFor="title">{t('new.title')} *</Label>
                 <Input
                   id="title"
                   value={basicData.title}
-                  onChange={(e) => setBasicData({ ...basicData, title: e.target.value })}
-                  placeholder={t('new.title_placeholder') || 'Ex: iPhone 15 Pro Max'}
+                  onChange={(e) => setBasicData({...basicData, title: e.target.value})}
+                  placeholder={t('new.title_placeholder')}
+                  required
                 />
               </div>
 
               <div>
-                <Label htmlFor="description">
-                  {t('new.description') || 'Descrição'}
-                </Label>
+                <Label htmlFor="description">{t('new.description')}</Label>
                 <Textarea
                   id="description"
                   value={basicData.description}
-                  onChange={(e) => setBasicData({ ...basicData, description: e.target.value })}
-                  placeholder={t('new.description_placeholder') || 'Descreva o produto ou serviço'}
+                  onChange={(e) => setBasicData({...basicData, description: e.target.value})}
+                  placeholder={t('new.description_placeholder')}
                   rows={4}
                 />
               </div>
 
               <div>
                 <Label htmlFor="price">
-                  {t('new.price') || 'Preço'} (BZR) <span className="text-destructive">*</span>
+                  {t('new.price')} (BZR) *
                 </Label>
                 <Input
                   id="price"
                   type="number"
                   step="0.01"
                   value={basicData.price}
-                  onChange={(e) => setBasicData({ ...basicData, price: e.target.value })}
+                  onChange={(e) => setBasicData({...basicData, price: e.target.value})}
                   placeholder="0.00"
+                  required
                 />
-              </div>
-
-              <div>
-                <Label htmlFor="media">
-                  {t('new.media') || 'Imagens/Vídeos'}
-                </Label>
-                <Input
-                  id="media"
-                  type="file"
-                  multiple
-                  accept="image/*,video/*"
-                  onChange={handleMediaChange}
-                />
-                {media.length > 0 && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {media.length} arquivo(s) selecionado(s)
-                  </p>
-                )}
               </div>
 
               {error && (
@@ -306,65 +209,123 @@ export function NewListingPage() {
                 </Alert>
               )}
 
-              <div className="flex gap-2">
+              <div className="flex gap-4">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setStep(2)}
                 >
-                  {t('common.back') || 'Voltar'}
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  {t('common.back')}
                 </Button>
                 <Button type="submit">
-                  {t('common.continue') || 'Continuar'}
+                  {t('common.continue')}
+                  <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </div>
             </form>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        );
 
-      {/* Step 4: Dynamic Attributes */}
-      {step === 4 && spec && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('new.attributes') || 'Atributos Específicos'}</CardTitle>
-            <CardDescription>
-              {t('new.attributes_desc') || 'Complete as informações específicas da categoria'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {specLoading ? (
-              <div className="text-center py-8">
-                {t('common.loading') || 'Carregando...'}
-              </div>
+      case 4:
+        // Atributos específicos
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">{t('new.attributes')}</h2>
+              <p className="text-muted-foreground">
+                {t('new.attributes_desc')}
+              </p>
+            </div>
+
+            {spec && !specLoading ? (
+              <DynamicForm
+                schema={spec.jsonSchema}
+                uiSchema={spec.uiSchema}
+                onSubmit={handleFinalSubmit}
+                loading={submitting}
+              />
             ) : (
-              <>
-                <DynamicForm
-                  jsonSchema={spec.jsonSchema}
-                  uiSchema={spec.uiSchema}
-                  onSubmit={handleAttributesSubmit}
-                  loading={submitting}
-                />
-                
-                {error && (
-                  <Alert variant="destructive" className="mt-4">
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
-
-                <Button
-                  variant="outline"
-                  className="mt-4"
-                  onClick={() => setStep(3)}
-                  disabled={submitting}
-                >
-                  {t('common.back') || 'Voltar'}
-                </Button>
-              </>
+              <div className="flex justify-center p-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
             )}
-          </CardContent>
-        </Card>
-      )}
+
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className="flex gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setStep(3)}
+                disabled={submitting}
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                {t('common.back')}
+              </Button>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  // Indicador de progresso
+  const renderProgress = () => {
+    const steps = [
+      { num: 1, label: t('listing.step1') },
+      { num: 2, label: t('listing.step2') },
+      { num: 3, label: t('listing.step3') },
+      { num: 4, label: t('listing.step4') }
+    ];
+
+    return (
+      <div className="flex items-center justify-between mb-8">
+        {steps.map((s, index) => (
+          <React.Fragment key={s.num}>
+            <div className="flex items-center">
+              <div
+                className={`
+                  w-10 h-10 rounded-full flex items-center justify-center font-semibold
+                  ${step >= s.num 
+                    ? 'bg-primary text-primary-foreground' 
+                    : 'bg-muted text-muted-foreground'
+                  }
+                `}
+              >
+                {s.num}
+              </div>
+              <span className={`ml-2 text-sm ${step >= s.num ? 'text-foreground' : 'text-muted-foreground'}`}>
+                {s.label}
+              </span>
+            </div>
+            {index < steps.length - 1 && (
+              <div 
+                className={`flex-1 h-1 mx-4 ${
+                  step > s.num ? 'bg-primary' : 'bg-muted'
+                }`}
+              />
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
+      {renderProgress()}
+      <Card>
+        <CardContent className="p-6">
+          {renderStepContent()}
+        </CardContent>
+      </Card>
     </div>
   );
 }

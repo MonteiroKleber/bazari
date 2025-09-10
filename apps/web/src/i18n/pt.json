@@ -2,7 +2,7 @@
   "header": {
     "about": "Sobre",
     "modules": "Módulos",
-    "roadmap": "Roadmap",
+    "roadmap": "Roteiro",
     "contact": "Contato",
     "status": {
       "online": "Online",
@@ -13,7 +13,7 @@
   },
   "hero": {
     "title": "Bazari — Economia Popular Descentralizada",
-    "subtitle": "O super app e blockchain da economia real, feito pelo povo para o povo.",
+    "subtitle": "A super app e blockchain da economia real, feita pelo povo para o povo.",
     "cta_primary": "Entrar no Super App (em breve)",
     "cta_secondary": "Baixar Whitepaper"
   },
@@ -39,13 +39,13 @@
     "studio_desc": "Crie sistemas low-code"
   },
   "roadmap": {
-    "title": "Roadmap",
+    "title": "Roteiro",
     "now": "Agora",
     "next": "Próximo",
     "future": "Futuro",
     "now_list": ["Landing Page", "Design System", "Wallet base", "Estrutura monorepo"],
-    "next_list": ["Marketplace MVP", "DAO MVP", "Sistema LIVO cashback", "Integração BazariChain"],
-    "future_list": ["DEX comunitária", "Expansão SubDAOs", "App mobile nativo", "Parcerias estratégicas"]
+    "next_list": ["Marketplace MVP", "DAO MVP", "Sistema de cashback LIVO", "Integração BazariChain"],
+    "future_list": ["DEX comunitária", "Expansão de SubDAOs", "App móvel nativo", "Parcerias estratégicas"]
   },
   "cta": {
     "title": "Faça parte da revolução econômica",
@@ -73,13 +73,13 @@
       "showing": "Mostrando {{count}} de {{total}} categorias"
     },
     "upload": {
-      "title": "Upload de Arquivo",
+      "title": "Envio de Arquivo",
       "select_file": "Selecionar arquivo",
       "submit": "Enviar",
       "uploading": "Enviando...",
-      "success": "Upload realizado!",
-      "error": "Erro no upload",
-      "no_file": "Por favor, selecione um arquivo"
+      "success": "Envio concluído!",
+      "error": "Erro no envio",
+      "no_file": "Selecione um arquivo"
     }
   },
   "common": {
@@ -122,18 +122,20 @@
     "service": "Serviço",
     "service_desc": "Oferecer um serviço ou consultoria",
     "category": "Categoria",
-    "select_category": "Selecione a Categoria",
+    "select_category": "Selecionar Categoria",
     "category_desc": "Navegue pelos 4 níveis de categorias para encontrar a mais específica",
     "basic_info": "Informações Básicas",
     "basic_info_desc": "Preencha as informações principais do seu anúncio",
     "title": "Título",
-    "title_placeholder": "Ex: iPhone 15 Pro Max 256GB",
+    "title_placeholder": "Ex.: iPhone 15 Pro Max 256GB",
     "description": "Descrição",
-    "description_placeholder": "Descreva seu produto ou serviço com detalhes...",
+    "description_placeholder": "Descreva seu produto ou serviço em detalhes...",
     "price": "Preço",
     "media": "Fotos/Vídeos",
-    "attributes": "Atributos Específicos",
-    "attributes_desc": "Complete as informações específicas da categoria selecionada"
+    "attributes": "Características Específicas",
+    "attributes_desc": "Preencha as informações específicas da categoria selecionada",
+    "what_to_list": "O que você deseja anunciar?",
+    "what_to_list_desc": "Escolha se você está vendendo um produto ou oferecendo um serviço"
   },
   "listing": {
     "step1": "Tipo",
@@ -144,12 +146,12 @@
     "product_desc": "Item físico ou digital para venda",
     "service": "Serviço",
     "service_desc": "Prestação de serviço ou consultoria",
-    "choose_category": "Escolha a Categoria",
+    "choose_category": "Escolher Categoria",
     "category_desc": "Selecione a categoria mais específica possível",
     "basic_info": "Informações Básicas",
     "basic_info_desc": "Dados principais do seu anúncio",
     "title": "Título",
-    "title_placeholder": "Ex: Notebook Dell Inspiron 15",
+    "title_placeholder": "Ex.: Notebook Dell Inspiron 15",
     "description": "Descrição",
     "description_placeholder": "Descreva seu produto ou serviço...",
     "price": "Preço",
@@ -159,12 +161,26 @@
     "attributes_desc": "Preencha os campos específicos da categoria"
   },
   "categories": {
-    "breadcrumb": "Caminho"
+    "breadcrumb": "Caminho",
+    "title": "Categorias",
+    "loading": "Carregando categorias...",
+    "error": "Erro ao carregar categorias",
+    "empty": "Nenhuma categoria encontrada",
+    "select_main": "Selecione a categoria principal",
+    "select_sub": "Selecione a subcategoria",
+    "select_specific": "Selecione a categoria específica",
+    "select_detail": "Selecione a especialização",
+    "level_indicator": "Nível {{current}} de {{max}}",
+    "can_select": "Clique para selecionar",
+    "no_subcategories": "Não há subcategorias disponíveis",
+    "is_final_level": "Esta categoria pode ser selecionada",
+    "some_are_final": "Categorias com ✓ podem ser selecionadas",
+    "select_to_continue": "Selecione uma categoria para continuar"
   },
   "forms": {
     "required_fields": "Preencha todos os campos obrigatórios",
     "select_option": "Selecione uma opção",
-    "no_schema": "Nenhum esquema disponível"
+    "no_schema": "Não há schema disponível"
   },
   "errors": {
     "generic": "Ocorreu um erro. Tente novamente."

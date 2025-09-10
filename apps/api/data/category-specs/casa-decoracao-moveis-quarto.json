@@ -5,15 +5,21 @@
   "jsonSchema": {
     "type": "object",
     "properties": {
-      "material": {"type": "string"},
-      "dimensoesCM": {"type": "string"},
+      "material": {"type": "string", "enum": ["MDF", "MDP", "Madeira Maciça", "Compensado", "Aglomerado", "Metal"]},
+      "dimensoesCM": {"type": "string", "pattern": "^[0-9]+x[0-9]+x[0-9]+$"},
+      "cor": {"type": "string"},
       "montagem": {"type": "boolean"},
-      "garantiaMeses": {"type": "integer", "minimum": 0}
+      "garantiaMeses": {"type": "integer", "minimum": 0, "maximum": 120},
+      "peso": {"type": "number", "minimum": 0},
+      "capacidadePeso": {"type": "number", "minimum": 0}
     },
-    "required": ["material","dimensoesCM"]
+    "required": ["material", "dimensoesCM", "cor"]
   },
   "uiSchema": {
-    "dimensoesCM": {"placeholder": "LxAxP"}
+    "dimensoesCM": {"placeholder": "LxAxP (ex: 200x180x60)"},
+    "montagem": {"widget": "checkbox"},
+    "peso": {"widget": "number", "suffix": "kg"},
+    "capacidadePeso": {"widget": "number", "suffix": "kg"}
   },
-  "indexHints": ["material","garantiaMeses"]
+  "indexHints": ["material", "cor", "garantiaMeses", "montagem"]
 }

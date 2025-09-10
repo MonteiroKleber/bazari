@@ -1,188 +1,222 @@
-// path: apps/api/src/routes/categories.ts
+import type { FastifyInstance, FastifyRequest } from "fastify";
+import { PrismaClient } from "@prisma/client";
+import {
+  resolveEffectiveSpec,
+  resolveCategoryPath,
+} from "../lib/categoryResolver.js";
 
-import { FastifyInstance } from 'fastify';
-import { PrismaClient } from '@prisma/client';
-import { z } from 'zod';
-import { resolveEffectiveSpec } from '../lib/categoryResolver.js';
+const prisma = new PrismaClient();
 
-const effectiveSpecQuerySchema = z.object({
-  path: z.string().optional(),
-  id: z.string().optional()
-});
+/**
+ * Rotas de Categorias
+ *
+ * Endpoints:
+ *  - GET /categories
+ *      Query:
+ *        - root: "products" | "services"        (opcional; se omitido, traz ambos)
+ *        - kind: "product" | "service"          (alias de root; opcional)
+ *        - level: 1 | 2 | 3 | 4                 (opcional)
+ *        - parentId: <categoryId>               (se informado, retorna só os filhos diretos)
+ *        - q: termo de busca (id/nome)          (opcional, simples)
+ *
+ *  - GET /categories/children?parentId=<id>     (atalho para obter filhos diretos)
+ *
+ *  - GET /categories/effective-spec?id=<id>
+ *  - GET /categories/effective-spec?path=<pathString>  (ex.: products>tecnologia>eletronicos>celulares)
+ *
+ *  - GET /categories/path?id=<id>               (utilitário legado: retorna array de slugs)
+ *
+ * Observações:
+ *  - Respostas seguem o shape nativo do Prisma para Category (campos do schema).
+ *  - effective-spec responde { categoryId, categoryPath, version, jsonSchema, uiSchema, indexHints }.
+ */
 
-export async function categoriesRoutes(
-  app: FastifyInstance,
-  options: { prisma: PrismaClient }
-) {
-  const { prisma } = options;
+type ListQuery = {
+  root?: "products" | "services";
+  kind?: "product" | "service";
+  level?: string; // será parseado para número
+  parentId?: string;
+  q?: string;
+};
 
-  // Listar todas as categorias
-  app.get('/categories', async (request, reply) => {
-    const categories = await prisma.category.findMany({
-      orderBy: [
-        { level: 'asc' },
-        { slug: 'asc' },
-      ],
-    });
+type EffectiveSpecQuery = { id?: string; path?: string };
 
-    // Organizar em árvore se necessário
-    const tree = {
-      products: categories.filter(c => c.pathSlugs[0] === 'products'),
-      services: categories.filter(c => c.pathSlugs[0] === 'services'),
-    };
+export async function categoriesRoutes(app: FastifyInstance) {
+  // Health simples desta rota (ajuda em debug)
+  app.get("/categories/__health", async () => ({ ok: true }));
 
-    return reply.send({
-      total: categories.length,
-      tree,
-      flat: categories,
-    });
-  });
+  /**
+   * GET /categories
+   * Lista categorias com filtros. Se parentId informado, retorna filhos diretos.
+   */
+  app.get(
+    "/categories",
+    async (req: FastifyRequest<{ Querystring: ListQuery }>, reply) => {
+      const { root, kind, level, parentId, q } = req.query || {};
 
-  // Obter effective spec de uma categoria
-  app.get('/categories/effective-spec', async (request, reply) => {
-    try {
-      const query = effectiveSpecQuerySchema.parse(request.query);
-      
-      let categoryId: string | null = null;
-      
-      if (query.id) {
-        categoryId = query.id;
-      } else if (query.path) {
-        // Converter path para ID (ex: products>tecnologia>eletronicos>celulares)
-        const pathParts = query.path.split('>');
-        categoryId = pathParts.join('-');
-      }
-
-      if (!categoryId) {
-        return reply.status(400).send({
-          error: 'Category ID or path required'
-        });
-      }
-
-      // Verificar se categoria existe
-      const category = await prisma.category.findUnique({
-        where: { id: categoryId }
-      });
-
-      if (!category) {
-        return reply.status(404).send({
-          error: 'Category not found'
-        });
-      }
-
-      // Resolver spec efetiva (merge L1→L4)
-      const effectiveSpec = await resolveEffectiveSpec(categoryId);
-      
-      return reply.send({
-        categoryId,
-        categoryPath: category.pathSlugs,
-        ...effectiveSpec
-      });
-      
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return reply.status(400).send({
-          error: 'Invalid parameters',
-          details: error.errors
-        });
-      }
-      
-      app.log.error('Error getting effective spec:', error);
-      return reply.status(500).send({
-        error: 'Failed to get effective spec'
-      });
-    }
-  });
-
-  // GET /categories/:id/spec - alternativa
-  app.get('/categories/:id/spec', async (request, reply) => {
-    const { id } = request.params as { id: string };
-    
-    try {
-      const category = await prisma.category.findUnique({
-        where: { id }
-      });
-
-      if (!category) {
-        return reply.status(404).send({
-          error: 'Category not found'
-        });
-      }
-
-      const effectiveSpec = await resolveEffectiveSpec(id);
-      
-      return reply.send({
-        categoryId: id,
-        categoryPath: category.pathSlugs,
-        ...effectiveSpec
-      });
-    } catch (error) {
-      app.log.error('Error getting category spec:', error);
-      return reply.status(500).send({
-        error: 'Failed to get category spec'
-      });
-    }
-  });
-
-  // Executar seed idempotente
-  app.post('/categories/seed', async (request, reply) => {
-    try {
-      // Importar e executar seed
-      const { default: runSeed } = await import('../../prisma/seed.js');
-      
-      // Se o seed não exportar default, tentar executar diretamente
-      if (typeof runSeed === 'function') {
-        await runSeed();
-      } else {
-        // Executar seed manualmente (simplificado)
-        const categories = [
-          {
-            id: 'products-alimentos-bebidas',
-            slug: 'products-alimentos-bebidas',
-            kind: 'product',
-            level: 1,
-            pathSlugs: ['products', 'alimentos-bebidas'],
-            pathNamesPt: ['Produtos', 'Alimentos e Bebidas'],
-            pathNamesEn: ['Products', 'Food & Drinks'],
-            pathNamesEs: ['Productos', 'Alimentos y Bebidas'],
-            namePt: 'Alimentos e Bebidas',
-            nameEn: 'Food & Drinks',
-            nameEs: 'Alimentos y Bebidas',
-          },
-          {
-            id: 'products-tecnologia',
-            slug: 'products-tecnologia',
-            kind: 'product',
-            level: 1,
-            pathSlugs: ['products', 'tecnologia'],
-            pathNamesPt: ['Produtos', 'Tecnologia'],
-            pathNamesEn: ['Products', 'Technology'],
-            pathNamesEs: ['Productos', 'Tecnología'],
-            namePt: 'Tecnologia',
-            nameEn: 'Technology',
-            nameEs: 'Tecnología',
-          },
-        ];
-
-        for (const cat of categories) {
-          await prisma.category.upsert({
-            where: { id: cat.id },
-            update: {},
-            create: cat,
-          });
+      // Se pedir filhos diretos
+      if (parentId) {
+        const parent = await prisma.category.findUnique({ where: { id: parentId } });
+        if (!parent) {
+          return reply.code(404).send({ error: `Categoria não encontrada: ${parentId}` });
         }
+
+        const children = await prisma.category.findMany({
+          where: {
+            id: { startsWith: parent.id + "-" },
+            level: parent.level + 1,
+          },
+          orderBy: { id: "asc" },
+        });
+
+        // filtro de busca simples (id/nome) se q vier
+        const filtered = (q && q.trim())
+          ? children.filter((c: any) => {
+              const t = q.toLowerCase();
+              const idOk = String(c.id).toLowerCase().includes(t);
+              const np = (c.namePt ?? c.name_pt ?? "").toString().toLowerCase().includes(t);
+              const ne = (c.nameEn ?? c.name_en ?? "").toString().toLowerCase().includes(t);
+              const ns = (c.nameEs ?? c.name_es ?? "").toString().toLowerCase().includes(t);
+              return idOk || np || ne || ns;
+            })
+          : children;
+
+        return reply.send(filtered);
       }
 
-      return reply.send({ 
-        success: true, 
-        message: 'Seed executado com sucesso' 
+      // Filtros gerais
+      const where: any = {};
+
+      // root/kind → prefixo do id
+      const rootResolved =
+        root ??
+        (kind === "product" ? "products" : kind === "service" ? "services" : undefined);
+
+      if (rootResolved === "products") where.id = { startsWith: "products-" };
+      if (rootResolved === "services") where.id = { startsWith: "services-" };
+
+      // level
+      const lvl = level ? Number(level) : undefined;
+      if (lvl && [1, 2, 3, 4].includes(lvl)) where.level = lvl;
+
+      // q (busca simples por id/nome)
+      // Como o Prisma não tem contains para múltiplos campos em OR com camel/snake, vamos filtrar pós-query se precisar
+      const list = await prisma.category.findMany({
+        where,
+        orderBy: { id: "asc" },
       });
-    } catch (error) {
-      app.log.error('Erro no seed:', error);
-      return reply.status(500).send({ 
-        error: 'Erro ao executar seed',
-        details: error instanceof Error ? error.message : 'Erro desconhecido'
-      });
+
+      const result =
+        q && q.trim()
+          ? list.filter((c: any) => {
+              const t = q.toLowerCase();
+              const idOk = String(c.id).toLowerCase().includes(t);
+              const np = (c.namePt ?? c.name_pt ?? "").toString().toLowerCase().includes(t);
+              const ne = (c.nameEn ?? c.name_en ?? "").toString().toLowerCase().includes(t);
+              const ns = (c.nameEs ?? c.name_es ?? "").toString().toLowerCase().includes(t);
+              return idOk || np || ne || ns;
+            })
+          : list;
+
+      return reply.send(result);
     }
-  });
+  );
+
+  /**
+   * GET /categories/children
+   * Atalho para pegar filhos diretos de um parentId.
+   */
+  app.get(
+    "/categories/children",
+    async (req: FastifyRequest<{ Querystring: { parentId?: string; q?: string } }>, reply) => {
+      const { parentId, q } = req.query || {};
+      if (!parentId) {
+        return reply.code(400).send({ error: "parentId é obrigatório" });
+      }
+
+      const parent = await prisma.category.findUnique({ where: { id: parentId } });
+      if (!parent) {
+        return reply.code(404).send({ error: `Categoria não encontrada: ${parentId}` });
+      }
+
+      const children = await prisma.category.findMany({
+        where: {
+          id: { startsWith: parent.id + "-" },
+          level: parent.level + 1,
+        },
+        orderBy: { id: "asc" },
+      });
+
+      const filtered = (q && q.trim())
+        ? children.filter((c: any) => {
+            const t = q.toLowerCase();
+            const idOk = String(c.id).toLowerCase().includes(t);
+            const np = (c.namePt ?? c.name_pt ?? "").toString().toLowerCase().includes(t);
+            const ne = (c.nameEn ?? c.name_en ?? "").toString().toLowerCase().includes(t);
+            const ns = (c.nameEs ?? c.name_es ?? "").toString().toLowerCase().includes(t);
+            return idOk || np || ne || ns;
+          })
+        : children;
+
+      return reply.send(filtered);
+    }
+  );
+
+  /**
+   * GET /categories/effective-spec
+   * Herança L1→L4 e merge de jsonSchema/uiSchema/indexHints.
+   */
+  app.get(
+    "/categories/effective-spec",
+    async (req: FastifyRequest<{ Querystring: EffectiveSpecQuery }>, reply) => {
+      const { id, path } = req.query || {};
+      if (!id && !path) {
+        return reply
+          .code(400)
+          .send({ error: "Informe ?id=<categoryId> ou ?path=<products>... " });
+      }
+
+      try {
+        const eff = await resolveEffectiveSpec({ id, path });
+        return reply.send({
+          categoryId: eff.categoryId,
+          categoryPath: eff.categoryPath,
+          version: eff.version,
+          jsonSchema: eff.jsonSchema ?? { type: "object", properties: {} },
+          uiSchema: eff.uiSchema ?? {},
+          indexHints: Array.isArray(eff.indexHints) ? eff.indexHints : [],
+        });
+      } catch (err: any) {
+        app.log.error(
+          { err, id, path },
+          "Falha ao resolver effective-spec para categoria"
+        );
+        return reply.code(400).send({ error: String(err?.message ?? err) });
+      }
+    }
+  );
+
+  /**
+   * GET /categories/path
+   * Retorna a categoryPath (array de slugs) a partir de um id completo.
+   */
+  app.get(
+    "/categories/path",
+    async (
+      req: FastifyRequest<{ Querystring: { id?: string } }>,
+      reply
+    ) => {
+      const { id } = req.query || {};
+      if (!id) return reply.code(400).send({ error: "id é obrigatório" });
+
+      try {
+        const path = resolveCategoryPath(id);
+        return reply.send({ path });
+      } catch (err: any) {
+        return reply.code(400).send({ error: String(err?.message ?? err) });
+      }
+    }
+  );
 }
+
+export default categoriesRoutes;

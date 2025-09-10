@@ -1,0 +1,31 @@
+{
+  "categoryId": "products-alimentos-bebidas-bebidas-alcoolicas-cervejas-cervejas-artesanais",
+  "path": "products>alimentos-bebidas>bebidas-alcoolicas>cervejas>cervejas-artesanais",
+  "version": "1.0.0",
+  "inheritsFrom": [
+    "products",
+    "products>alimentos-bebidas",
+    "products>alimentos-bebidas>bebidas-alcoolicas",
+    "products>alimentos-bebidas>bebidas-alcoolicas>cervejas"
+  ],
+  "jsonSchema": {
+    "type": "object",
+    "properties": {
+      "estilo": { "type": "string", "enum": ["IPA", "Stout", "Pilsen", "Weiss", "APA", "Sour", "Lager", "Porter"] },
+      "abv": { "type": "number", "minimum": 0, "maximum": 20 },
+      "ibu": { "type": "integer", "minimum": 0, "maximum": 120 },
+      "volumeML": { "type": "integer", "minimum": 200, "maximum": 1000 },
+      "origem": { "type": "string" },
+      "ingredientes": { "type": "array", "items": { "type": "string" } },
+      "temperatura": { "type": "string", "enum": ["Estupidamente Gelada", "Gelada", "Fresca", "Temperatura Ambiente"] }
+    },
+    "required": ["estilo", "abv", "volumeML", "origem"]
+  },
+  "uiSchema": {
+    "abv": { "widget": "number", "suffix": "%" },
+    "volumeML": { "widget": "number", "suffix": "ml" },
+    "ingredientes": { "widget": "chips" },
+    "temperatura": { "widget": "radio" }
+  },
+  "indexHints": ["estilo", "abv", "ibu", "volumeML", "origem", "temperatura"]
+}

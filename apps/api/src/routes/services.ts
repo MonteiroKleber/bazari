@@ -12,34 +12,41 @@ const createServiceSchema = z.object({
   attributes: z.record(z.any())
 });
 
+const updateServiceSchema = createServiceSchema.partial();
+
 export async function servicesRoutes(
   app: FastifyInstance,
   options: { prisma: PrismaClient }
 ) {
   const { prisma } = options;
 
-  // POST /services - Criar serviço
+  // POST /services - Criar serviço com validação completa
   app.post('/services', async (request, reply) => {
     try {
       const body = createServiceSchema.parse(request.body);
       
-      // Resolver categoria
+      // Resolver categoria e validar que é uma folha
       const { categoryId, path, category } = await resolveCategoryPath(
         'service',
         body.categoryPath
       );
       
-      // Processar e validar atributos
+      // Processar e validar atributos com effective spec
       const processed = await processAttributes(categoryId, body.attributes);
       
       if (!processed.valid) {
         return reply.status(400).send({
-          error: 'Atributos inválidos',
+          error: 'Atributos inválidos para a categoria',
+          category: {
+            id: categoryId,
+            name: category.namePt,
+            path: category.pathSlugs
+          },
           details: processed.errors
         });
       }
       
-      // Criar serviço
+      // Criar serviço com campos indexáveis projetados
       const service = await prisma.serviceOffering.create({
         data: {
           daoId: body.daoId,
@@ -48,8 +55,11 @@ export async function servicesRoutes(
           basePriceBzr: body.basePriceBzr,
           categoryId,
           categoryPath: path,
-          attributes: processed.processedAttributes,
-          attributesSpecVersion: processed.specVersion || '0.0.0'
+          attributes: {
+            ...processed.processedAttributes,
+            _indexFields: processed.indexFields // Campos projetados para busca
+          },
+          attributesSpecVersion: processed.specVersion || '1.0.0'
         }
       });
       
@@ -64,7 +74,7 @@ export async function servicesRoutes(
         }
       });
       
-      app.log.info(`Serviço criado: ${service.id}`);
+      app.log.info(`Serviço criado: ${service.id} - ${service.title}`);
       
       return reply.status(201).send({
         id: service.id,
@@ -74,7 +84,8 @@ export async function servicesRoutes(
           namePt: category.namePt,
           nameEn: category.nameEn,
           nameEs: category.nameEs,
-          path: category.pathSlugs
+          path: category.pathSlugs,
+          level: category.level
         }
       });
       
@@ -100,7 +111,7 @@ export async function servicesRoutes(
     }
   });
 
-  // GET /services/:id - Obter serviço
+  // GET /services/:id - Obter serviço com informações da categoria
   app.get<{ Params: { id: string } }>('/services/:id', async (request, reply) => {
     try {
       const { id } = request.params;
@@ -128,20 +139,135 @@ export async function servicesRoutes(
     }
   });
 
-  // GET /services - Listar serviços
+  // PUT /services/:id - Atualizar serviço
+  app.put<{ Params: { id: string } }>('/services/:id', async (request, reply) => {
+    try {
+      const { id } = request.params;
+      const body = updateServiceSchema.parse(request.body);
+      
+      // Buscar serviço existente
+      const existing = await prisma.serviceOffering.findUnique({
+        where: { id }
+      });
+      
+      if (!existing) {
+        return reply.status(404).send({
+          error: 'Serviço não encontrado'
+        });
+      }
+      
+      let updateData: any = {
+        title: body.title,
+        description: body.description,
+        basePriceBzr: body.basePriceBzr
+      };
+      
+      // Se mudou categoria ou atributos, revalidar
+      if (body.categoryPath || body.attributes) {
+        const categoryPath = body.categoryPath || existing.categoryPath;
+        const attributes = body.attributes || existing.attributes;
+        
+        const { categoryId, path, category } = await resolveCategoryPath(
+          'service',
+          categoryPath
+        );
+        
+        const processed = await processAttributes(categoryId, attributes);
+        
+        if (!processed.valid) {
+          return reply.status(400).send({
+            error: 'Atributos inválidos',
+            details: processed.errors
+          });
+        }
+        
+        updateData = {
+          ...updateData,
+          categoryId,
+          categoryPath: path,
+          attributes: {
+            ...processed.processedAttributes,
+            _indexFields: processed.indexFields
+          },
+          attributesSpecVersion: processed.specVersion || '1.0.0'
+        };
+      }
+      
+      const updated = await prisma.serviceOffering.update({
+        where: { id },
+        data: updateData
+      });
+      
+      // Audit log
+      await prisma.auditLog.create({
+        data: {
+          entity: 'ServiceOffering',
+          entityId: id,
+          action: 'UPDATE',
+          actor: body.daoId || 'system',
+          diff: { before: existing, after: updated }
+        }
+      });
+      
+      return reply.send(updated);
+      
+    } catch (error) {
+      app.log.error('Erro ao atualizar serviço:', error);
+      
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({
+          error: 'Dados inválidos',
+          details: error.errors
+        });
+      }
+      
+      return reply.status(500).send({
+        error: 'Erro ao atualizar serviço'
+      });
+    }
+  });
+
+  // GET /services - Listar serviços com filtros
   app.get('/services', async (request, reply) => {
     try {
-      const { daoId, categoryId, limit = 20, offset = 0 } = request.query as any;
+      const { 
+        categoryId, 
+        categoryPath,
+        daoId,
+        minPrice,
+        maxPrice,
+        page = '1',
+        limit = '20'
+      } = request.query as any;
       
       const where: any = {};
-      if (daoId) where.daoId = daoId;
+      
       if (categoryId) where.categoryId = categoryId;
+      if (daoId) where.daoId = daoId;
+      
+      if (categoryPath) {
+        // Filtrar por path parcial
+        const pathArray = categoryPath.split(',');
+        where.categoryPath = {
+          hasEvery: pathArray
+        };
+      }
+      
+      if (minPrice || maxPrice) {
+        where.basePriceBzr = {};
+        if (minPrice) where.basePriceBzr.gte = parseFloat(minPrice);
+        if (maxPrice) where.basePriceBzr.lte = parseFloat(maxPrice);
+      }
+      
+      const pageNum = parseInt(page);
+      const limitNum = parseInt(limit);
+      const skip = (pageNum - 1) * limitNum;
       
       const [services, total] = await Promise.all([
         prisma.serviceOffering.findMany({
           where,
-          take: parseInt(limit),
-          skip: parseInt(offset),
+          skip,
+          take: limitNum,
           orderBy: { createdAt: 'desc' },
           include: {
             category: true
@@ -151,16 +277,59 @@ export async function servicesRoutes(
       ]);
       
       return reply.send({
-        data: services,
-        total,
-        limit: parseInt(limit),
-        offset: parseInt(offset)
+        services,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          pages: Math.ceil(total / limitNum)
+        }
       });
       
     } catch (error) {
       app.log.error('Erro ao listar serviços:', error);
       return reply.status(500).send({
         error: 'Erro ao listar serviços'
+      });
+    }
+  });
+
+  // DELETE /services/:id
+  app.delete<{ Params: { id: string } }>('/services/:id', async (request, reply) => {
+    try {
+      const { id } = request.params;
+      
+      const service = await prisma.serviceOffering.findUnique({
+        where: { id }
+      });
+      
+      if (!service) {
+        return reply.status(404).send({
+          error: 'Serviço não encontrado'
+        });
+      }
+      
+      await prisma.serviceOffering.delete({
+        where: { id }
+      });
+      
+      // Audit log
+      await prisma.auditLog.create({
+        data: {
+          entity: 'ServiceOffering',
+          entityId: id,
+          action: 'DELETE',
+          actor: 'system',
+          diff: service
+        }
+      });
+      
+      return reply.status(204).send();
+      
+    } catch (error) {
+      app.log.error('Erro ao deletar serviço:', error);
+      return reply.status(500).send({
+        error: 'Erro ao deletar serviço'
       });
     }
   });
