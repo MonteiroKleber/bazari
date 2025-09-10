@@ -1,0 +1,31 @@
+{
+  "categoryId": "tecnologia-eletronicos-computadores-notebooks",
+  "version": "1.0.0",
+  "inheritsFrom": "tecnologia-eletronicos-computadores",
+  "jsonSchema": {
+    "type": "object",
+    "properties": {
+      "marca": {"type": "string", "enum": ["Dell", "HP", "Lenovo", "Asus", "Acer", "Apple", "Samsung", "MSI", "Razer"]},
+      "modelo": {"type": "string"},
+      "cpu": {"type": "string"},
+      "ramGB": {"type": "integer", "minimum": 4, "enum": [4, 8, 16, 32, 64]},
+      "armazenamento": {"type": "string", "enum": ["SSD", "HDD", "SSD+HDD"]},
+      "armazenamentoGB": {"type": "integer", "minimum": 128},
+      "gpu": {"type": "string"},
+      "telaPolegadas": {"type": "number", "minimum": 11, "maximum": 18},
+      "resolucao": {"type": "string", "enum": ["HD", "Full HD", "2K", "4K"]},
+      "sistemaOperacional": {"type": "string", "enum": ["Windows 10", "Windows 11", "MacOS", "Linux", "ChromeOS", "Sem SO"]},
+      "condicao": {"type": "string", "enum": ["Novo", "Usado", "Recondicionado", "Com Defeito"]},
+      "peso": {"type": "number", "minimum": 0.5, "maximum": 5}
+    },
+    "required": ["marca", "modelo", "cpu", "ramGB", "armazenamento", "armazenamentoGB", "condicao"]
+  },
+  "uiSchema": {
+    "armazenamentoGB": {"widget": "number", "unit": "GB"},
+    "ramGB": {"widget": "select", "unit": "GB"},
+    "telaPolegadas": {"widget": "number", "unit": "\""},
+    "peso": {"widget": "number", "unit": "kg"},
+    "condicao": {"widget": "radio"}
+  },
+  "indexHints": ["marca", "modelo", "cpu", "ramGB", "armazenamento", "armazenamentoGB", "gpu", "sistemaOperacional", "condicao"]
+}

@@ -19,21 +19,30 @@
             "name_es": "Comidas Frescas",
             "level": 2,
             "children": [
-              {"id": "frutas-verduras", "name_pt": "Frutas e Verduras", "name_en": "Fruits & Vegetables", "name_es": "Frutas y Verduras", "level": 3, "children": []},
-              {"id": "carnes", "name_pt": "Carnes", "name_en": "Meats", "name_es": "Carnes", "level": 3, "children": []},
-              {"id": "peixes-frutos-mar", "name_pt": "Peixes e Frutos do Mar", "name_en": "Fish & Seafood", "name_es": "Pescados y Mariscos", "level": 3, "children": []}
-            ]
-          },
-          {
-            "id": "comidas-prontas",
-            "name_pt": "Comidas Prontas",
-            "name_en": "Ready Foods",
-            "name_es": "Comidas Preparadas",
-            "level": 2,
-            "children": [
-              {"id": "marmitas", "name_pt": "Marmitas", "name_en": "Meal Boxes", "name_es": "Viandas", "level": 3, "children": []},
-              {"id": "salgados", "name_pt": "Salgados", "name_en": "Savory Snacks", "name_es": "Salados", "level": 3, "children": []},
-              {"id": "doces-bolos", "name_pt": "Doces e Bolos", "name_en": "Sweets & Cakes", "name_es": "Dulces y Tortas", "level": 3, "children": []}
+              {
+                "id": "frutas-verduras",
+                "name_pt": "Frutas e Verduras",
+                "name_en": "Fruits & Vegetables",
+                "name_es": "Frutas y Verduras",
+                "level": 3,
+                "children": [
+                  {"id": "frutas-tropicais", "name_pt": "Frutas Tropicais", "name_en": "Tropical Fruits", "name_es": "Frutas Tropicales", "level": 4, "children": []},
+                  {"id": "verduras-organicas", "name_pt": "Verduras Orgânicas", "name_en": "Organic Vegetables", "name_es": "Verduras Orgánicas", "level": 4, "children": []}
+                ]
+              },
+              {
+                "id": "carnes-peixes",
+                "name_pt": "Carnes e Peixes",
+                "name_en": "Meat & Fish",
+                "name_es": "Carnes y Pescados",
+                "level": 3,
+                "children": [
+                  {"id": "carnes-bovinas", "name_pt": "Carnes Bovinas", "name_en": "Beef", "name_es": "Carne de Res", "level": 4, "children": []},
+                  {"id": "peixes-frescos", "name_pt": "Peixes Frescos", "name_en": "Fresh Fish", "name_es": "Pescados Frescos", "level": 4, "children": []}
+                ]
+              },
+              {"id": "padarias-confeitarias", "name_pt": "Padarias e Confeitarias", "name_en": "Bakeries & Pastry", "name_es": "Panaderías y Pastelerías", "level": 3, "children": []},
+              {"id": "produtos-organicos", "name_pt": "Produtos Orgânicos", "name_en": "Organic Products", "name_es": "Productos Orgánicos", "level": 3, "children": []}
             ]
           },
           {
@@ -43,21 +52,32 @@
             "name_es": "Bebidas Alcohólicas",
             "level": 2,
             "children": [
-              {"id": "cervejas", "name_pt": "Cervejas", "name_en": "Beers", "name_es": "Cervezas", "level": 3, "children": []},
-              {"id": "vinhos", "name_pt": "Vinhos", "name_en": "Wines", "name_es": "Vinos", "level": 3, "children": []},
+              {
+                "id": "cervejas",
+                "name_pt": "Cervejas",
+                "name_en": "Beer",
+                "name_es": "Cervezas",
+                "level": 3,
+                "children": [
+                  {"id": "cervejas-artesanais", "name_pt": "Cervejas Artesanais", "name_en": "Craft Beer", "name_es": "Cervezas Artesanales", "level": 4, "children": []},
+                  {"id": "cervejas-importadas", "name_pt": "Cervejas Importadas", "name_en": "Imported Beer", "name_es": "Cervezas Importadas", "level": 4, "children": []}
+                ]
+              },
+              {"id": "vinhos", "name_pt": "Vinhos", "name_en": "Wine", "name_es": "Vinos", "level": 3, "children": []},
               {"id": "destilados", "name_pt": "Destilados", "name_en": "Spirits", "name_es": "Destilados", "level": 3, "children": []}
             ]
           },
           {
-            "id": "bebidas-nao-alcoolicas",
-            "name_pt": "Bebidas Não Alcoólicas",
-            "name_en": "Non-Alcoholic Drinks",
-            "name_es": "Bebidas Sin Alcohol",
+            "id": "comidas-industrializadas",
+            "name_pt": "Comidas Industrializadas",
+            "name_en": "Processed Foods",
+            "name_es": "Comidas Industrializadas",
             "level": 2,
             "children": [
-              {"id": "sucos-naturais", "name_pt": "Sucos Naturais", "name_en": "Natural Juices", "name_es": "Jugos Naturales", "level": 3, "children": []},
-              {"id": "refrigerantes", "name_pt": "Refrigerantes", "name_en": "Soft Drinks", "name_es": "Refrescos", "level": 3, "children": []},
-              {"id": "aguas-chas", "name_pt": "Águas e Chás", "name_en": "Water & Teas", "name_es": "Aguas y Tés", "level": 3, "children": []}
+              {"id": "enlatados", "name_pt": "Enlatados", "name_en": "Canned", "name_es": "Enlatados", "level": 3, "children": []},
+              {"id": "congelados", "name_pt": "Congelados", "name_en": "Frozen", "name_es": "Congelados", "level": 3, "children": []},
+              {"id": "snacks", "name_pt": "Snacks", "name_en": "Snacks", "name_es": "Snacks", "level": 3, "children": []},
+              {"id": "bebidas-nao-alcoolicas", "name_pt": "Bebidas Não Alcoólicas", "name_en": "Non-alcoholic Drinks", "name_es": "Bebidas sin Alcohol", "level": 3, "children": []}
             ]
           }
         ]
@@ -76,8 +96,28 @@
             "name_es": "Ropa",
             "level": 2,
             "children": [
-              {"id": "masculinas", "name_pt": "Masculinas", "name_en": "Men", "name_es": "Hombre", "level": 3, "children": []},
-              {"id": "femininas", "name_pt": "Femininas", "name_en": "Women", "name_es": "Mujer", "level": 3, "children": []},
+              {
+                "id": "masculinas",
+                "name_pt": "Masculinas",
+                "name_en": "Men",
+                "name_es": "Hombre",
+                "level": 3,
+                "children": [
+                  {"id": "camisas-masculinas", "name_pt": "Camisas", "name_en": "Shirts", "name_es": "Camisas", "level": 4, "children": []},
+                  {"id": "calcas-masculinas", "name_pt": "Calças", "name_en": "Pants", "name_es": "Pantalones", "level": 4, "children": []}
+                ]
+              },
+              {
+                "id": "femininas",
+                "name_pt": "Femininas",
+                "name_en": "Women",
+                "name_es": "Mujer",
+                "level": 3,
+                "children": [
+                  {"id": "vestidos", "name_pt": "Vestidos", "name_en": "Dresses", "name_es": "Vestidos", "level": 4, "children": []},
+                  {"id": "blusas-femininas", "name_pt": "Blusas", "name_en": "Blouses", "name_es": "Blusas", "level": 4, "children": []}
+                ]
+              },
               {"id": "infantis", "name_pt": "Infantis", "name_en": "Kids", "name_es": "Niños", "level": 3, "children": []}
             ]
           },
@@ -121,8 +161,28 @@
             "name_es": "Electrónica",
             "level": 2,
             "children": [
-              {"id": "celulares", "name_pt": "Celulares", "name_en": "Phones", "name_es": "Celulares", "level": 3, "children": []},
-              {"id": "computadores", "name_pt": "Computadores", "name_en": "Computers", "name_es": "Computadoras", "level": 3, "children": []},
+              {
+                "id": "celulares",
+                "name_pt": "Celulares",
+                "name_en": "Phones",
+                "name_es": "Celulares",
+                "level": 3,
+                "children": [
+                  {"id": "smartphones-android", "name_pt": "Smartphones Android", "name_en": "Android Smartphones", "name_es": "Smartphones Android", "level": 4, "children": []},
+                  {"id": "smartphones-ios", "name_pt": "Smartphones iOS", "name_en": "iOS Smartphones", "name_es": "Smartphones iOS", "level": 4, "children": []}
+                ]
+              },
+              {
+                "id": "computadores",
+                "name_pt": "Computadores",
+                "name_en": "Computers",
+                "name_es": "Computadoras",
+                "level": 3,
+                "children": [
+                  {"id": "notebooks", "name_pt": "Notebooks", "name_en": "Laptops", "name_es": "Portátiles", "level": 4, "children": []},
+                  {"id": "desktops", "name_pt": "Desktops", "name_en": "Desktops", "name_es": "Computadoras de Escritorio", "level": 4, "children": []}
+                ]
+              },
               {"id": "tablets", "name_pt": "Tablets", "name_en": "Tablets", "name_es": "Tablets", "level": 3, "children": []},
               {"id": "tvs", "name_pt": "TVs", "name_en": "TVs", "name_es": "TVs", "level": 3, "children": []}
             ]
@@ -155,8 +215,8 @@
             "name_es": "Muebles",
             "level": 2,
             "children": [
-              {"id": "quarto", "name_pt": "Quarto", "name_en": "Bedroom", "name_es": "Dormitorio", "level": 3, "children": []},
               {"id": "sala", "name_pt": "Sala", "name_en": "Living Room", "name_es": "Sala", "level": 3, "children": []},
+              {"id": "quarto", "name_pt": "Quarto", "name_en": "Bedroom", "name_es": "Dormitorio", "level": 3, "children": []},
               {"id": "cozinha", "name_pt": "Cozinha", "name_en": "Kitchen", "name_es": "Cocina", "level": 3, "children": []}
             ]
           },
@@ -168,19 +228,7 @@
             "level": 2,
             "children": [
               {"id": "quadros", "name_pt": "Quadros", "name_en": "Frames", "name_es": "Cuadros", "level": 3, "children": []},
-              {"id": "luminarias", "name_pt": "Luminárias", "name_en": "Lamps", "name_es": "Lámparas", "level": 3, "children": []},
-              {"id": "tapetes", "name_pt": "Tapetes", "name_en": "Rugs", "name_es": "Alfombras", "level": 3, "children": []}
-            ]
-          },
-          {
-            "id": "cama-mesa-banho",
-            "name_pt": "Cama, Mesa e Banho",
-            "name_en": "Bed & Bath",
-            "name_es": "Cama y Baño",
-            "level": 2,
-            "children": [
-              {"id": "lencois", "name_pt": "Lençóis", "name_en": "Sheets", "name_es": "Sábanas", "level": 3, "children": []},
-              {"id": "toalhas", "name_pt": "Toalhas", "name_en": "Towels", "name_es": "Toallas", "level": 3, "children": []},
+              {"id": "tapetes", "name_pt": "Tapetes", "name_en": "Rugs", "name_es": "Alfombras", "level": 3, "children": []},
               {"id": "cortinas", "name_pt": "Cortinas", "name_en": "Curtains", "name_es": "Cortinas", "level": 3, "children": []}
             ]
           }
@@ -195,6 +243,59 @@
     "name_es": "Servicios",
     "children": [
       {
+        "id": "casa-reformas",
+        "name_pt": "Casa e Reformas",
+        "name_en": "Home & Renovations",
+        "name_es": "Casa y Reformas",
+        "level": 1,
+        "children": [
+          {
+            "id": "manutencao",
+            "name_pt": "Manutenção",
+            "name_en": "Maintenance",
+            "name_es": "Mantenimiento",
+            "level": 2,
+            "children": [
+              {
+                "id": "eletricista",
+                "name_pt": "Eletricista",
+                "name_en": "Electrician",
+                "name_es": "Electricista",
+                "level": 3,
+                "children": [
+                  {"id": "eletricista-residencial", "name_pt": "Residencial", "name_en": "Residential", "name_es": "Residencial", "level": 4, "children": []},
+                  {"id": "eletricista-comercial", "name_pt": "Comercial", "name_en": "Commercial", "name_es": "Comercial", "level": 4, "children": []}
+                ]
+              },
+              {
+                "id": "encanador",
+                "name_pt": "Encanador",
+                "name_en": "Plumber",
+                "name_es": "Fontanero",
+                "level": 3,
+                "children": [
+                  {"id": "encanador-emergencia", "name_pt": "Emergência", "name_en": "Emergency", "name_es": "Emergencia", "level": 4, "children": []},
+                  {"id": "encanador-instalacao", "name_pt": "Instalação", "name_en": "Installation", "name_es": "Instalación", "level": 4, "children": []}
+                ]
+              },
+              {"id": "pintor", "name_pt": "Pintor", "name_en": "Painter", "name_es": "Pintor", "level": 3, "children": []},
+              {"id": "marceneiro", "name_pt": "Marceneiro", "name_en": "Carpenter", "name_es": "Carpintero", "level": 3, "children": []}
+            ]
+          },
+          {
+            "id": "reformas",
+            "name_pt": "Reformas",
+            "name_en": "Renovations",
+            "name_es": "Reformas",
+            "level": 2,
+            "children": [
+              {"id": "reforma-completa", "name_pt": "Reforma Completa", "name_en": "Complete Renovation", "name_es": "Reforma Completa", "level": 3, "children": []},
+              {"id": "pequenos-reparos", "name_pt": "Pequenos Reparos", "name_en": "Small Repairs", "name_es": "Pequeñas Reparaciones", "level": 3, "children": []}
+            ]
+          }
+        ]
+      },
+      {
         "id": "beleza-bem-estar",
         "name_pt": "Beleza e Bem-estar",
         "name_en": "Beauty & Wellness",
@@ -208,54 +309,64 @@
             "name_es": "Personales",
             "level": 2,
             "children": [
-              {"id": "cabeleireiro", "name_pt": "Cabeleireiro", "name_en": "Hairdresser", "name_es": "Peluquero", "level": 3, "children": []},
+              {
+                "id": "cabeleireiro",
+                "name_pt": "Cabeleireiro",
+                "name_en": "Hairdresser",
+                "name_es": "Peluquero",
+                "level": 3,
+                "children": [
+                  {"id": "corte-cabelo", "name_pt": "Corte de Cabelo", "name_en": "Haircut", "name_es": "Corte de Pelo", "level": 4, "children": []},
+                  {"id": "coloracao", "name_pt": "Coloração", "name_en": "Hair Coloring", "name_es": "Coloración", "level": 4, "children": []}
+                ]
+              },
               {"id": "manicure", "name_pt": "Manicure", "name_en": "Manicure", "name_es": "Manicura", "level": 3, "children": []},
-              {"id": "estetica", "name_pt": "Estética", "name_en": "Aesthetics", "name_es": "Estética", "level": 3, "children": []}
+              {"id": "massagista", "name_pt": "Massagista", "name_en": "Masseur", "name_es": "Masajista", "level": 3, "children": []}
             ]
           },
           {
-            "id": "terapeuticos",
-            "name_pt": "Terapêuticos",
-            "name_en": "Therapeutic",
-            "name_es": "Terapéuticos",
+            "id": "estetica",
+            "name_pt": "Estética",
+            "name_en": "Aesthetics",
+            "name_es": "Estética",
             "level": 2,
             "children": [
-              {"id": "massagem", "name_pt": "Massagem", "name_en": "Massage", "name_es": "Masaje", "level": 3, "children": []},
-              {"id": "acupuntura", "name_pt": "Acupuntura", "name_en": "Acupuncture", "name_es": "Acupuntura", "level": 3, "children": []},
-              {"id": "terapia-holistica", "name_pt": "Terapia Holística", "name_en": "Holistic Therapy", "name_es": "Terapia Holística", "level": 3, "children": []}
+              {"id": "limpeza-pele", "name_pt": "Limpeza de Pele", "name_en": "Skin Cleansing", "name_es": "Limpieza de Piel", "level": 3, "children": []},
+              {"id": "depilacao", "name_pt": "Depilação", "name_en": "Hair Removal", "name_es": "Depilación", "level": 3, "children": []}
             ]
           }
         ]
       },
       {
-        "id": "reparos-manutencao",
-        "name_pt": "Reparos e Manutenção",
-        "name_en": "Repairs & Maintenance",
-        "name_es": "Reparaciones y Mantenimiento",
+        "id": "eventos-entretenimento",
+        "name_pt": "Eventos e Entretenimento",
+        "name_en": "Events & Entertainment",
+        "name_es": "Eventos y Entretenimiento",
         "level": 1,
         "children": [
           {
-            "id": "residenciais",
-            "name_pt": "Residenciais",
-            "name_en": "Residential",
-            "name_es": "Residenciales",
+            "id": "festas",
+            "name_pt": "Festas",
+            "name_en": "Parties",
+            "name_es": "Fiestas",
             "level": 2,
             "children": [
-              {"id": "eletricista", "name_pt": "Eletricista", "name_en": "Electrician", "name_es": "Electricista", "level": 3, "children": []},
-              {"id": "encanador", "name_pt": "Encanador", "name_en": "Plumber", "name_es": "Fontanero", "level": 3, "children": []},
-              {"id": "pintor", "name_pt": "Pintor", "name_en": "Painter", "name_es": "Pintor", "level": 3, "children": []}
+              {"id": "fotografo", "name_pt": "Fotógrafo", "name_en": "Photographer", "name_es": "Fotógrafo", "level": 3, "children": []},
+              {"id": "filmagem", "name_pt": "Filmagem", "name_en": "Filming", "name_es": "Filmación", "level": 3, "children": []},
+              {"id": "dj", "name_pt": "DJ", "name_en": "DJ", "name_es": "DJ", "level": 3, "children": []},
+              {"id": "animador-festas", "name_pt": "Animador de Festas", "name_en": "Party Entertainer", "name_es": "Animador de Fiestas", "level": 3, "children": []}
             ]
           },
           {
-            "id": "eletronicos",
-            "name_pt": "Eletrônicos",
-            "name_en": "Electronics",
-            "name_es": "Electrónicos",
+            "id": "artesanato",
+            "name_pt": "Artesanato",
+            "name_en": "Handicraft",
+            "name_es": "Artesanía",
             "level": 2,
             "children": [
-              {"id": "celulares-tablets", "name_pt": "Celulares e Tablets", "name_en": "Phones & Tablets", "name_es": "Celulares y Tablets", "level": 3, "children": []},
-              {"id": "computadores-notebooks", "name_pt": "Computadores e Notebooks", "name_en": "Computers & Laptops", "name_es": "Computadoras y Portátiles", "level": 3, "children": []},
-              {"id": "tvs-som", "name_pt": "TVs e Som", "name_en": "TVs & Audio", "name_es": "TVs y Audio", "level": 3, "children": []}
+              {"id": "costureira", "name_pt": "Costureira", "name_en": "Seamstress", "name_es": "Costurera", "level": 3, "children": []},
+              {"id": "marcenaria", "name_pt": "Marcenaria", "name_en": "Carpentry", "name_es": "Carpintería", "level": 3, "children": []},
+              {"id": "design-personalizado", "name_pt": "Design Personalizado", "name_en": "Custom Design", "name_es": "Diseño Personalizado", "level": 3, "children": []}
             ]
           }
         ]

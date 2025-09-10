@@ -5,15 +5,26 @@
   "jsonSchema": {
     "type": "object",
     "properties": {
+      "tipoVeiculo": {"type": "string", "enum": ["Carro", "Moto", "Van"]},
       "areaAtendimentoKM": {"type": "number", "minimum": 1},
-      "placaVeiculo": {"type": "string"},
-      "habilitacaoCategoria": {"type": "string", "enum": ["A","AB"]},
-      "horarios": {"type": "array", "items": {"type": "string"}}
+      "placaVeiculo": {"type": "string", "pattern": "^[A-Z]{3}-?[0-9][A-Z0-9][0-9]{2}$"},
+      "habilitacaoCategoria": {"type": "string", "enum": ["A", "B", "AB", "C", "D", "E"]},
+      "horarios": {"type": "array", "items": {"type": "string"}},
+      "disponivel24h": {"type": "boolean"},
+      "aceitaCartao": {"type": "boolean"},
+      "aceitaPix": {"type": "boolean"},
+      "precoKM": {"type": "number", "minimum": 0},
+      "taxaMinima": {"type": "number", "minimum": 0}
     },
-    "required": ["areaAtendimentoKM","habilitacaoCategoria"]
+    "required": ["tipoVeiculo", "areaAtendimentoKM", "habilitacaoCategoria", "precoKM"]
   },
   "uiSchema": {
-    "horarios": {"widget": "chips"}
+    "horarios": {"widget": "chips"},
+    "disponivel24h": {"widget": "checkbox"},
+    "aceitaCartao": {"widget": "checkbox"},
+    "aceitaPix": {"widget": "checkbox"},
+    "precoKM": {"widget": "number", "prefix": "R$"},
+    "taxaMinima": {"widget": "number", "prefix": "R$"}
   },
-  "indexHints": ["areaAtendimentoKM","habilitacaoCategoria"]
+  "indexHints": ["tipoVeiculo", "areaAtendimentoKM", "habilitacaoCategoria", "disponivel24h", "precoKM"]
 }

@@ -7,15 +7,18 @@
     "properties": {
       "uva": {"type": "string"},
       "pais": {"type": "string"},
+      "regiao": {"type": "string"},
       "safra": {"type": "integer", "minimum": 1900, "maximum": 2100},
       "teorAlcoolico": {"type": "number", "minimum": 0, "maximum": 100},
-      "volumeML": {"type": "integer", "minimum": 50}
+      "volumeML": {"type": "integer", "minimum": 50},
+      "tipo": {"type": "string", "enum": ["Tinto", "Branco", "Rosé", "Espumante", "Fortificado"]}
     },
-    "required": ["uva","pais","volumeML"]
+    "required": ["uva", "pais", "volumeML", "tipo"]
   },
   "uiSchema": {
     "teorAlcoolico": {"widget": "number", "suffix": "%"},
-    "volumeML": {"widget": "number", "suffix": "ml"}
+    "volumeML": {"widget": "number", "suffix": "ml"},
+    "tipo": {"widget": "radio"}
   },
-  "indexHints": ["uva","pais","safra","teorAlcoolico","volumeML"]
+  "indexHints": ["uva", "pais", "regiao", "safra", "teorAlcoolico", "volumeML", "tipo"]
 }

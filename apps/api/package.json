@@ -11,10 +11,11 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "seed": "tsx prisma/seed.ts",
-    "seed:categories": "tsx scripts/seedCategories.ts",
     "clean": "rm -rf dist node_modules .turbo",
     "prisma:reset": "prisma migrate reset",
-    "prisma:reset:force": "prisma migrate reset --force"
+    "prisma:reset:force": "prisma migrate reset --force",
+    "seed:categories": "tsx scripts/seedCategories.ts",
+    "seed:specs": "tsx scripts/seedCategorySpecs.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

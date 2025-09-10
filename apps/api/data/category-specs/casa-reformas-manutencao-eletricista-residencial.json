@@ -1,0 +1,42 @@
+{
+  "categoryId": "services-casa-reformas-manutencao-eletricista-eletricista-residencial",
+  "path": "services>casa-reformas>manutencao>eletricista>eletricista-residencial",
+  "version": "1.0.0",
+  "inheritsFrom": [
+    "services",
+    "services>casa-reformas",
+    "services>casa-reformas>manutencao",
+    "services>casa-reformas>manutencao>eletricista"
+  ],
+  "jsonSchema": {
+    "type": "object",
+    "properties": {
+      "tipoServico": {
+        "type": "array",
+        "items": { "type": "string", "enum": ["Instalação", "Manutenção", "Reparo", "Troca de Fiação", "Quadro Elétrico", "Iluminação", "Tomadas", "Chuveiro Elétrico"] }
+      },
+      "atendimento24h": { "type": "boolean" },
+      "experienciaAnos": { "type": "integer", "minimum": 0 },
+      "certificacoes": { "type": "array", "items": { "type": "string" } },
+      "precoBase": { "type": "number", "minimum": 0 },
+      "precoVisita": { "type": "number", "minimum": 0 },
+      "garantiaMeses": { "type": "integer", "minimum": 0 },
+      "areaAtendimento": { "type": "array", "items": { "type": "string" } },
+      "diasAtendimento": {
+        "type": "array",
+        "items": { "type": "string", "enum": ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"] }
+      }
+    },
+    "required": ["tipoServico", "experienciaAnos", "precoBase"]
+  },
+  "uiSchema": {
+    "tipoServico": { "widget": "checkbox-group" },
+    "atendimento24h": { "widget": "checkbox" },
+    "certificacoes": { "widget": "chips" },
+    "precoBase": { "widget": "number", "prefix": "R$" },
+    "precoVisita": { "widget": "number", "prefix": "R$" },
+    "areaAtendimento": { "widget": "chips" },
+    "diasAtendimento": { "widget": "checkbox-group" }
+  },
+  "indexHints": ["tipoServico", "atendimento24h", "experienciaAnos", "precoBase", "garantiaMeses", "areaAtendimento"]
+}

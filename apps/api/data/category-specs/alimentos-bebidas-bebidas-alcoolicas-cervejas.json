@@ -5,16 +5,16 @@
   "jsonSchema": {
     "type": "object",
     "properties": {
-      "estilo": {"type": "string", "enum": ["Pilsen","IPA","Stout","Witbier","Lager","Outros"]},
+      "estilo": {"type": "string", "enum": ["Pilsen", "IPA", "Stout", "Witbier", "Lager", "Outros"]},
       "abv": {"type": "number", "minimum": 0, "maximum": 100},
       "ibu": {"type": "integer", "minimum": 0, "maximum": 120},
       "volumeML": {"type": "integer", "minimum": 50}
     },
-    "required": ["estilo","abv","volumeML"]
+    "required": ["estilo", "abv", "volumeML"]
   },
   "uiSchema": {
     "abv": {"widget": "number", "suffix": "%"},
     "volumeML": {"widget": "number", "suffix": "ml"}
   },
-  "indexHints": ["estilo","abv","ibu","volumeML"]
+  "indexHints": ["estilo", "abv", "ibu", "volumeML"]
 }

@@ -17,18 +17,26 @@ import { productsRoutes } from './routes/products.js';
 import { servicesRoutes } from './routes/services.js';
 import { searchRoutes } from './routes/search.js';
 
-// Prisma client singleton
-const prisma = new PrismaClient({
-  log: env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-});
-
-// Storage adapter baseado no env
-const storage: StorageAdapter = 
-  env.STORAGE_PROVIDER === 's3' 
-    ? new S3Storage() 
-    : new LocalFsStorage();
+const prisma = new PrismaClient();
 
 async function buildApp() {
+  // Definir storage adapter
+  let storage: StorageAdapter;
+  if (env.STORAGE_PROVIDER === 's3') {
+    storage = new S3Storage({
+      region: env.S3_REGION,
+      bucket: env.S3_BUCKET,
+      prefix: env.S3_PREFIX,
+      kmsKeyId: env.S3_KMS_KEY_ID,
+      ttlSeconds: 60 * 10, // 10m
+    });
+  } else {
+    storage = new LocalFsStorage({
+      rootDir: env.FS_UPLOAD_DIR,
+      baseUrl: '/uploads',
+    });
+  }
+
   const app = Fastify({
     logger: createLogger(),
   });
@@ -45,6 +53,13 @@ async function buildApp() {
   await app.register(productsRoutes, { prefix: '/', prisma });
   await app.register(servicesRoutes, { prefix: '/', prisma });
   await app.register(searchRoutes, { prefix: '/', prisma });
+  // Também expor com prefixo /api para compatibilidade com o front
+  await app.register(healthRoutes, { prefix: '/api' });
+  await app.register(mediaRoutes, { prefix: '/api', prisma, storage });
+  await app.register(categoriesRoutes, { prefix: '/api', prisma });
+  await app.register(productsRoutes, { prefix: '/api', prisma });
+  await app.register(servicesRoutes, { prefix: '/api', prisma });
+  await app.register(searchRoutes, { prefix: '/api', prisma });
 
   // Rota raiz
   app.get('/', async (request, reply) => {

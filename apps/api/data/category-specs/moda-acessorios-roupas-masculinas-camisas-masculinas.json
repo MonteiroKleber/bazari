@@ -1,0 +1,23 @@
+{
+  "categoryId": "moda-acessorios-roupas-masculinas-camisas-masculinas",
+  "version": "1.0.0",
+  "inheritsFrom": "moda-acessorios-roupas-masculinas",
+  "jsonSchema": {
+    "type": "object",
+    "properties": {
+      "tamanho": {"type": "string", "enum": ["PP", "P", "M", "G", "GG", "XGG", "XXGG"]},
+      "cor": {"type": "string"},
+      "material": {"type": "string", "enum": ["Algodão", "Poliéster", "Linho", "Seda", "Viscose", "Misto"]},
+      "modelo": {"type": "string", "enum": ["Social", "Casual", "Polo", "Regata", "Manga Longa", "Manga Curta"]},
+      "marca": {"type": "string"},
+      "condicao": {"type": "string", "enum": ["Novo", "Usado", "Semi-novo"]}
+    },
+    "required": ["tamanho", "cor", "material", "modelo", "condicao"]
+  },
+  "uiSchema": {
+    "tamanho": {"widget": "radio"},
+    "modelo": {"widget": "select"},
+    "condicao": {"widget": "radio"}
+  },
+  "indexHints": ["tamanho", "cor", "material", "modelo", "marca", "condicao"]
+}

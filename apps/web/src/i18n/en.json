@@ -133,7 +133,9 @@
     "price": "Price",
     "media": "Photos/Videos",
     "attributes": "Specific Attributes",
-    "attributes_desc": "Complete the specific information for the selected category"
+    "attributes_desc": "Complete the specific information for the selected category",
+    "what_to_list": "What do you want to list?",
+    "what_to_list_desc": "Choose whether you are selling a product or offering a service"
   },
   "listing": {
     "step1": "Type",
@@ -159,7 +161,21 @@
     "attributes_desc": "Fill in the category-specific fields"
   },
   "categories": {
-    "breadcrumb": "Path"
+    "breadcrumb": "Path",
+    "title": "Categories",
+    "loading": "Loading categories...",
+    "error": "Error loading categories",
+    "empty": "No categories found",
+    "select_main": "Select main category",
+    "select_sub": "Select subcategory",
+    "select_specific": "Select specific category",
+    "select_detail": "Select specialization",
+    "level_indicator": "Level {{current}} of {{max}}",
+    "can_select": "Click to select",
+    "no_subcategories": "No subcategories available",
+    "is_final_level": "This category can be selected",
+    "some_are_final": "Categories with ✓ can be selected",
+    "select_to_continue": "Select a category to continue"
   },
   "forms": {
     "required_fields": "Fill in all required fields",
