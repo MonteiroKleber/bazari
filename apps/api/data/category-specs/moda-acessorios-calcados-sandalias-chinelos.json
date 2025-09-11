@@ -1,0 +1,50 @@
+{
+  "categoryId": "products-moda-acessorios-calcados-sandalias-chinelos",
+  "version": "1.0.0",
+  "inheritsFrom": "products-moda-acessorios-calcados",
+  "jsonSchema": {
+    "type": "object",
+    "properties": {
+      "tamanho": {
+        "type": "string", 
+        "enum": ["33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45"]
+      },
+      "cor": {
+        "type": "string"
+      },
+      "material": {
+        "type": "string",
+        "enum": ["Couro", "Sintético", "Borracha", "EVA", "Tecido", "Couro Sintético"]
+      },
+      "tipo": {
+        "type": "string",
+        "enum": ["Sandália", "Chinelo", "Papete", "Rasteirinha", "Slide"]
+      },
+      "marca": {
+        "type": "string"
+      },
+      "condicao": {
+        "type": "string",
+        "enum": ["Novo", "Usado", "Semi-novo"]
+      },
+      "fechamento": {
+        "type": "string",
+        "enum": ["Velcro", "Fivela", "Elástico", "Sem fechamento"]
+      },
+      "genero": {
+        "type": "string",
+        "enum": ["Masculino", "Feminino", "Unissex", "Infantil"]
+      }
+    },
+    "required": ["tamanho", "cor", "tipo", "condicao"]
+  },
+  "uiSchema": {
+    "tamanho": {"widget": "select"},
+    "tipo": {"widget": "radio"},
+    "material": {"widget": "select"},
+    "condicao": {"widget": "radio"},
+    "fechamento": {"widget": "select"},
+    "genero": {"widget": "radio"}
+  },
+  "indexHints": ["tamanho", "cor", "tipo", "marca", "condicao", "genero", "material"]
+}

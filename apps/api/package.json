@@ -15,7 +15,8 @@
     "prisma:reset": "prisma migrate reset",
     "prisma:reset:force": "prisma migrate reset --force",
     "seed:categories": "tsx scripts/seedCategories.ts",
-    "seed:specs": "tsx scripts/seedCategorySpecs.ts"
+    "seed:specs": "tsx scripts/seedCategorySpecs.ts",
+    "create-specs": "node scripts/createMissingCategorySpecs.js"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
