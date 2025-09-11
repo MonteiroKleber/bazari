@@ -1,7 +1,7 @@
 {
   "categoryId": "products-alimentos-bebidas-bebidas-alcoolicas-cervejas-cervejas-artesanais",
   "path": "products>alimentos-bebidas>bebidas-alcoolicas>cervejas>cervejas-artesanais",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "inheritsFrom": [
     "products",
     "products>alimentos-bebidas",
@@ -11,13 +11,19 @@
   "jsonSchema": {
     "type": "object",
     "properties": {
-      "estilo": { "type": "string", "enum": ["IPA", "Stout", "Pilsen", "Weiss", "APA", "Sour", "Lager", "Porter"] },
-      "abv": { "type": "number", "minimum": 0, "maximum": 20 },
+      "estilo": {
+        "type": "string",
+        "enum": ["IPA", "Stout", "Pilsen", "Weiss", "APA", "Sour", "Lager", "Porter"]
+      },
+      "abv": { "type": "number", "minimum": 0, "maximum": 100 },
       "ibu": { "type": "integer", "minimum": 0, "maximum": 120 },
       "volumeML": { "type": "integer", "minimum": 200, "maximum": 1000 },
       "origem": { "type": "string" },
       "ingredientes": { "type": "array", "items": { "type": "string" } },
-      "temperatura": { "type": "string", "enum": ["Estupidamente Gelada", "Gelada", "Fresca", "Temperatura Ambiente"] }
+      "temperatura": {
+        "type": "string",
+        "enum": ["Estupidamente Gelada", "Gelada", "Fresca", "Temperatura Ambiente"]
+      }
     },
     "required": ["estilo", "abv", "volumeML", "origem"]
   },
@@ -25,7 +31,69 @@
     "abv": { "widget": "number", "suffix": "%" },
     "volumeML": { "widget": "number", "suffix": "ml" },
     "ingredientes": { "widget": "chips" },
-    "temperatura": { "widget": "radio" }
+    "temperatura": { "widget": "radio" },
+    "i18n": {
+      "pt": {
+        "estilo": { "label": "Estilo", "placeholder": "Selecione o estilo" },
+        "abv": { "label": "Teor alcoólico (ABV)", "placeholder": "Ex.: 5.2" },
+        "ibu": { "label": "Amargor (IBU)", "placeholder": "Ex.: 35" },
+        "volumeML": { "label": "Volume (ml)", "placeholder": "Ex.: 600" },
+        "origem": { "label": "Origem", "placeholder": "Ex.: Brasil" },
+        "ingredientes": { "label": "Ingredientes", "placeholder": "Adicione ingredientes" },
+        "temperatura": {
+          "label": "Temperatura de consumo",
+          "placeholder": "Escolha a temperatura",
+          "options": {
+            "Estupidamente Gelada": "Estupidamente Gelada",
+            "Gelada": "Gelada",
+            "Fresca": "Fresca",
+            "Temperatura Ambiente": "Temperatura Ambiente"
+          }
+        }
+      },
+      "en": {
+        "estilo": { "label": "Style", "placeholder": "Select a style", "options": {
+          "IPA": "IPA","Stout": "Stout","Pilsen": "Pilsner","Weiss": "Wheat (Weiss)",
+          "APA": "APA","Sour": "Sour","Lager": "Lager","Porter": "Porter"
+        }},
+        "abv": { "label": "Alcohol by volume (ABV)", "placeholder": "e.g., 5.2" },
+        "ibu": { "label": "Bitterness (IBU)", "placeholder": "e.g., 35" },
+        "volumeML": { "label": "Volume (ml)", "placeholder": "e.g., 600" },
+        "origem": { "label": "Origin", "placeholder": "e.g., Brazil" },
+        "ingredientes": { "label": "Ingredients", "placeholder": "Add ingredients" },
+        "temperatura": {
+          "label": "Serving temperature",
+          "placeholder": "Choose a temperature",
+          "options": {
+            "Estupidamente Gelada": "Ice cold",
+            "Gelada": "Cold",
+            "Fresca": "Chilled",
+            "Temperatura Ambiente": "Room temperature"
+          }
+        }
+      },
+      "es": {
+        "estilo": { "label": "Estilo", "placeholder": "Seleccione el estilo", "options": {
+          "IPA": "IPA","Stout": "Stout","Pilsen": "Pilsen","Weiss": "Trigo (Weiss)",
+          "APA": "APA","Sour": "Sour","Lager": "Lager","Porter": "Porter"
+        }},
+        "abv": { "label": "Graduación alcohólica (ABV)", "placeholder": "Ej.: 5.2" },
+        "ibu": { "label": "Amargor (IBU)", "placeholder": "Ej.: 35" },
+        "volumeML": { "label": "Volumen (ml)", "placeholder": "Ej.: 600" },
+        "origem": { "label": "Origen", "placeholder": "Ej.: Brasil" },
+        "ingredientes": { "label": "Ingredientes", "placeholder": "Añade ingredientes" },
+        "temperatura": {
+          "label": "Temperatura de consumo",
+          "placeholder": "Elige la temperatura",
+          "options": {
+            "Estupidamente Gelada": "Muy helada",
+            "Gelada": "Helada",
+            "Fresca": "Fresca",
+            "Temperatura Ambiente": "Temperatura ambiente"
+          }
+        }
+      }
+    }
   },
   "indexHints": ["estilo", "abv", "ibu", "volumeML", "origem", "temperatura"]
 }

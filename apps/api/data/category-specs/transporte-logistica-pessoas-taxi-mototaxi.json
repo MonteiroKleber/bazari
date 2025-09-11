@@ -1,30 +1,64 @@
 {
   "categoryId": "transporte-logistica-pessoas-taxi-mototaxi",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "inheritsFrom": "transporte-logistica-pessoas",
   "jsonSchema": {
     "type": "object",
     "properties": {
-      "tipoVeiculo": {"type": "string", "enum": ["Carro", "Moto", "Van"]},
-      "areaAtendimentoKM": {"type": "number", "minimum": 1},
-      "placaVeiculo": {"type": "string", "pattern": "^[A-Z]{3}-?[0-9][A-Z0-9][0-9]{2}$"},
-      "habilitacaoCategoria": {"type": "string", "enum": ["A", "B", "AB", "C", "D", "E"]},
-      "horarios": {"type": "array", "items": {"type": "string"}},
-      "disponivel24h": {"type": "boolean"},
-      "aceitaCartao": {"type": "boolean"},
-      "aceitaPix": {"type": "boolean"},
-      "precoKM": {"type": "number", "minimum": 0},
-      "taxaMinima": {"type": "number", "minimum": 0}
+      "tipoVeiculo": { "type": "string", "enum": ["Carro", "Moto", "Van"] },
+      "areaAtendimentoKM": { "type": "number", "minimum": 1 },
+      "placaVeiculo": { "type": "string", "pattern": "^[A-Z]{3}-?[0-9][A-Z0-9][0-9]{2}$" },
+      "modeloVeiculo": { "type": "string" },
+      "habilitacaoCategoria": { "type": "string", "enum": ["A","B","AB","C","D","E"] },
+      "disponivel24h": { "type": "boolean" },
+      "aceitaCartao": { "type": "boolean" },
+      "aceitaPix": { "type": "boolean" },
+      "precoKM": { "type": "number", "minimum": 0 },
+      "taxaMinima": { "type": "number", "minimum": 0 }
     },
     "required": ["tipoVeiculo", "areaAtendimentoKM", "habilitacaoCategoria", "precoKM"]
   },
   "uiSchema": {
-    "horarios": {"widget": "chips"},
-    "disponivel24h": {"widget": "checkbox"},
-    "aceitaCartao": {"widget": "checkbox"},
-    "aceitaPix": {"widget": "checkbox"},
-    "precoKM": {"widget": "number", "prefix": "R$"},
-    "taxaMinima": {"widget": "number", "prefix": "R$"}
+    "precoKM": { "widget": "number", "prefix": "R$" },
+    "taxaMinima": { "widget": "number", "prefix": "R$" },
+    "i18n": {
+      "pt": {
+        "tipoVeiculo": { "label": "Tipo de veículo", "placeholder": "Selecione", "options": { "Carro": "Carro", "Moto": "Moto", "Van": "Van" } },
+        "areaAtendimentoKM": { "label": "Área de atendimento (km)", "placeholder": "Ex.: 15" },
+        "placaVeiculo": { "label": "Placa do veículo", "placeholder": "ABC-1234" },
+        "modeloVeiculo": { "label": "Modelo do veículo", "placeholder": "Ex.: Honda CG 160" },
+        "habilitacaoCategoria": { "label": "Categoria da CNH", "placeholder": "Selecione", "options": { "A": "A","B": "B","AB": "AB","C": "C","D": "D","E": "E" } },
+        "disponivel24h": { "label": "Disponível 24h?" },
+        "aceitaCartao": { "label": "Aceita cartão?" },
+        "aceitaPix": { "label": "Aceita Pix?" },
+        "precoKM": { "label": "Preço por km", "placeholder": "Ex.: 3.50" },
+        "taxaMinima": { "label": "Taxa mínima", "placeholder": "Ex.: 8.00" }
+      },
+      "en": {
+        "tipoVeiculo": { "label": "Vehicle type", "placeholder": "Select", "options": { "Carro": "Car", "Moto": "Motorcycle", "Van": "Van" } },
+        "areaAtendimentoKM": { "label": "Service radius (km)", "placeholder": "e.g., 15" },
+        "placaVeiculo": { "label": "License plate", "placeholder": "ABC-1234" },
+        "modeloVeiculo": { "label": "Vehicle model", "placeholder": "e.g., Honda CG 160" },
+        "habilitacaoCategoria": { "label": "Driver license category", "placeholder": "Select", "options": { "A": "A","B": "B","AB": "AB","C": "C","D": "D","E": "E" } },
+        "disponivel24h": { "label": "Available 24/7?" },
+        "aceitaCartao": { "label": "Accepts card?" },
+        "aceitaPix": { "label": "Accepts Pix?" },
+        "precoKM": { "label": "Price per km", "placeholder": "e.g., 3.50" },
+        "taxaMinima": { "label": "Minimum fare", "placeholder": "e.g., 8.00" }
+      },
+      "es": {
+        "tipoVeiculo": { "label": "Tipo de vehículo", "placeholder": "Seleccione", "options": { "Carro": "Auto", "Moto": "Moto", "Van": "Van" } },
+        "areaAtendimentoKM": { "label": "Radio de atención (km)", "placeholder": "Ej.: 15" },
+        "placaVeiculo": { "label": "Placa del vehículo", "placeholder": "ABC-1234" },
+        "modeloVeiculo": { "label": "Modelo del vehículo", "placeholder": "Ej.: Honda CG 160" },
+        "habilitacaoCategoria": { "label": "Categoría de la licencia (CNH)", "placeholder": "Seleccione", "options": { "A": "A","B": "B","AB": "AB","C": "C","D": "D","E": "E" } },
+        "disponivel24h": { "label": "¿Disponible 24h?" },
+        "aceitaCartao": { "label": "¿Acepta tarjeta?" },
+        "aceitaPix": { "label": "¿Acepta Pix?" },
+        "precoKM": { "label": "Precio por km", "placeholder": "Ej.: 3.50" },
+        "taxaMinima": { "label": "Tarifa mínima", "placeholder": "Ej.: 8.00" }
+      }
+    }
   },
   "indexHints": ["tipoVeiculo", "areaAtendimentoKM", "habilitacaoCategoria", "disponivel24h", "precoKM"]
 }

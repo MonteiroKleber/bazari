@@ -135,7 +135,31 @@
     "attributes": "Atributos Específicos",
     "attributes_desc": "Completa la información específica de la categoría seleccionada",
     "what_to_list": "¿Qué deseas anunciar?",
-    "what_to_list_desc": "Elige si estás vendiendo un producto u ofreciendo un servicio"
+    "what_to_list_desc": "Elige si estás vendiendo un producto u ofreciendo un servicio",
+
+    "dynamicFields": {
+    "tamanho": { "label": "Talla", "placeholder": "Selecciona", "options": { "PP": "PP", "P": "P", "M": "M", "G": "G" } },
+    "cor": { "label": "Color" },
+    "material": { "label": "Material" },
+    "tecnica": { "label": "Técnica", "options": {
+      "Óleo":"Óleo","Acrílica":"Acrílica","Aquarela":"Acuarela","Guache":"Gouache","Mista":"Mixta","Outros":"Otros"
+    }},
+    "suporte": { "label": "Soporte", "options": {
+      "Tela":"Lienzo","Papel":"Papel","Madeira":"Madera","Metal":"Metal","Outros":"Otros"
+    }},
+    "largura_cm": { "label": "Ancho (cm)" },
+    "altura_cm": { "label": "Alto (cm)" },
+    "estado_conservacao": { "label": "Estado", "options": {
+      "Novo":"Nuevo","Usado":"Usado","Restaurado":"Restaurado"
+    }},
+    "moldura": { "label": "Con marco" },
+    "autenticidade": { "label": "Autenticidad", "options": {
+      "Com certificado":"Con certificado","Assinado":"Firmado","Sem comprovação":"Sin comprobación"
+    }},
+    "cores_predominantes": { "label": "Colores predominantes",
+      "options": {"Azul":"Azul","Branco":"Blanco","Preto":"Negro","Vermelho":"Rojo","Verde":"Verde","Amarelo":"Amarillo"}
+    }
+  }
   },
   "listing": {
     "step1": "Tipo",
@@ -185,4 +209,6 @@
   "errors": {
     "generic": "Ocurrió un error. Intenta nuevamente."
   }
+ 
+  
 }
