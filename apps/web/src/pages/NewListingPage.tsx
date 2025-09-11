@@ -1,5 +1,5 @@
-// V-5: Adicionados logs de debug para rastrear erro 400 (2025-01-11)
-// Mantém todas as funcionalidades existentes
+// V-6: Correção mínima do payload para resolver erro 400 (2025-01-11)
+// Apenas ajustado handleFinalSubmit - resto mantido intacto
 
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -147,7 +147,7 @@ export function NewListingPage() {
     setUploadedFiles(uploadedFiles.filter((_, i) => i !== index));
   };
 
-  // Step 4: Atributos específicos e submissão final - COM DEBUG
+  // Step 4: Atributos específicos e submissão final - CORRIGIDO APENAS O PAYLOAD
   const handleFinalSubmit = async (formAttributes: any) => {
     console.log('🚀 handleFinalSubmit chamado');
     console.log('  - basicData:', basicData);
@@ -165,16 +165,19 @@ export function NewListingPage() {
         .filter(f => f.mediaId)
         .map(f => f.mediaId);
 
+      // CORREÇÃO: Construir payload sem campo 'price' duplicado
       const payload = {
-        ...basicData,
+        daoId: basicData.daoId,
+        title: basicData.title,
+        description: basicData.description,
         categoryPath,
         attributes: formAttributes,
-        priceBzr: basicData.price,
-        basePriceBzr: kind === 'service' ? basicData.price : undefined,
+        // Usar o campo correto baseado no tipo
+        ...(kind === 'product' ? { priceBzr: basicData.price } : { basePriceBzr: basicData.price }),
         ...(mediaIds.length > 0 && { mediaIds })
       };
 
-      console.log('📤 Payload a ser enviado:', JSON.stringify(payload, null, 2));
+      console.log('📤 Payload corrigido a ser enviado:', JSON.stringify(payload, null, 2));
       
       const endpoint = kind === 'product' ? '/products' : '/services';
       console.log('📍 Endpoint:', endpoint);

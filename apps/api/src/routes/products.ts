@@ -1,5 +1,5 @@
-// V-4: Correção do processamento de categoryPath para resolver erro 400 (2025-01-11)
-// Ajustado para processar corretamente paths como ["casa-decoracao", "decoracao", "quadros"]
+// V-5: Correção do campo attributesSpecVersion obrigatório que causava erro 400 (2025-01-11)
+// Adicionado o campo attributesSpecVersion na criação do produto
 
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
@@ -100,6 +100,9 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
       // Obter o path real da categoria (para garantir consistência)
       const resolvedPath = buildCategoryPathFromId(categoryId);
 
+      // Resolver a spec efetiva da categoria para obter a versão
+      const effectiveSpec = await resolveEffectiveSpecByCategoryId(categoryId);
+      
       // Processar e validar atributos com o spec da categoria
       const { attributes: processedAttributes, errors } = await processAttributes(
         body.attributes || {},
@@ -128,7 +131,7 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
         }
       }
 
-      // Criar produto
+      // Criar produto - AGORA COM attributesSpecVersion
       const product = await prisma.product.create({
         data: {
           daoId: body.daoId,
@@ -138,6 +141,7 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
           categoryId,
           categoryPath: resolvedPath,
           attributes: processedAttributes,
+          attributesSpecVersion: effectiveSpec.version, // CORREÇÃO: Campo obrigatório que faltava
         },
         select: {
           id: true,
@@ -208,6 +212,8 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
             namePt: true,
             nameEn: true,
             nameEs: true,
+            pathSlugs: true,
+            level: true,
           },
         },
       },
@@ -217,64 +223,76 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
       return reply.status(404).send({ error: 'Produto não encontrado' });
     }
 
-    // Buscar mídias associadas
-    const mediaAssets = await prisma.mediaAsset.findMany({
-      where: {
-        ownerType: 'Product',
-        ownerId: id
-      },
-      select: {
-        id: true,
-        url: true,
-        mime: true,
-        size: true
-      }
-    });
-
-    return reply.send({
-      ...product,
-      mediaAssets
-    });
+    return reply.send(product);
   });
 
   /**
-   * GET /products — Listar produtos
+   * GET /products — Listar produtos com filtros
    */
   app.get('/products', async (request, reply) => {
-    const { page = '1', limit = '20', daoId, categoryId } = request.query as any;
-    const pageNum = Math.max(1, parseInt(page));
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+    const query = request.query as any;
+    
+    const page = parseInt(query.page) || 1;
+    const limit = Math.min(parseInt(query.limit) || 20, 100);
+    const skip = (page - 1) * limit;
 
     const where: any = {};
-    if (daoId) where.daoId = daoId;
-    if (categoryId) where.categoryId = categoryId;
 
-    const [total, products] = await Promise.all([
-      prisma.product.count({ where }),
+    // Filtros básicos
+    if (query.daoId) where.daoId = query.daoId;
+    if (query.categoryId) where.categoryId = query.categoryId;
+    if (query.search) {
+      where.OR = [
+        { title: { contains: query.search, mode: 'insensitive' } },
+        { description: { contains: query.search, mode: 'insensitive' } },
+      ];
+    }
+
+    // Filtro por categoryPath (suporte a filtro por hierarquia)
+    if (query.categoryPath && Array.isArray(query.categoryPath)) {
+      where.categoryPath = { hasEvery: query.categoryPath };
+    }
+
+    // Filtro de preço
+    if (query.priceMin || query.priceMax) {
+      where.priceBzr = {};
+      if (query.priceMin) where.priceBzr.gte = parseFloat(query.priceMin);
+      if (query.priceMax) where.priceBzr.lte = parseFloat(query.priceMax);
+    }
+
+    // Ordenação
+    let orderBy: any = { createdAt: 'desc' };
+    if (query.sort === 'priceAsc') orderBy = { priceBzr: 'asc' };
+    else if (query.sort === 'priceDesc') orderBy = { priceBzr: 'desc' };
+    else if (query.sort === 'titleAsc') orderBy = { title: 'asc' };
+
+    const [products, total] = await Promise.all([
       prisma.product.findMany({
         where,
-        skip: (pageNum - 1) * limitNum,
-        take: limitNum,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
+        skip,
+        take: limit,
         include: {
           category: {
             select: {
               namePt: true,
               nameEn: true,
               nameEs: true,
+              pathSlugs: true,
             },
           },
         },
       }),
+      prisma.product.count({ where }),
     ]);
 
     return reply.send({
       data: products,
-      meta: {
-        page: pageNum,
-        limit: limitNum,
+      pagination: {
+        page,
+        limit,
         total,
-        totalPages: Math.ceil(total / limitNum),
+        pages: Math.ceil(total / limit),
       },
     });
   });
@@ -287,7 +305,7 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
       const { id } = request.params;
       const body = updateProductSchema.parse(request.body);
 
-      // Verificar se produto existe
+      // Verificar se o produto existe
       const existing = await prisma.product.findUnique({ where: { id } });
       if (!existing) {
         return reply.status(404).send({ error: 'Produto não encontrado' });
@@ -295,6 +313,7 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
 
       let categoryId = existing.categoryId;
       let catPathArr = existing.categoryPath;
+      let specVersion = existing.attributesSpecVersion;
 
       // Se mudou a categoria, revalidar
       if (body.categoryPath && body.categoryPath.length > 0) {
@@ -306,6 +325,10 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
         }
         categoryId = newCategoryId;
         catPathArr = buildCategoryPathFromId(newCategoryId);
+        
+        // Resolver nova spec
+        const effectiveSpec = await resolveEffectiveSpecByCategoryId(categoryId);
+        specVersion = effectiveSpec.version;
       }
 
       // Revalidar atributos com novo spec se necessário
@@ -347,7 +370,7 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
           ...(body.title ? { title: body.title } : {}),
           ...(body.description !== undefined ? { description: body.description } : {}),
           ...(body.priceBzr ? { priceBzr: body.priceBzr.replace(',', '.') } : {}),
-          ...(catPathArr ? { categoryId, categoryPath: catPathArr } : {}),
+          ...(catPathArr ? { categoryId, categoryPath: catPathArr, attributesSpecVersion: specVersion } : {}),
           ...(body.attributes ? { attributes: processedAttributes } : {}),
         },
         select: {
@@ -395,7 +418,7 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
           entity: 'Product',
           entityId: updated.id,
           action: 'UPDATE',
-          actor: body.daoId ?? 'system',
+          actor: body.daoId ?? existing.daoId,
           diff: updated,
         },
       });
@@ -420,46 +443,42 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
   });
 
   /**
-   * DELETE /products/:id — Remover
+   * DELETE /products/:id — Deletar produto
    */
-  app.delete<{ Params: { id: string } }>('/products/:id', async (req, reply) => {
-    try {
-      const product = await prisma.product.findUnique({
-        where: { id: req.params.id },
-      });
+  app.delete<{ Params: { id: string } }>('/products/:id', async (request, reply) => {
+    const { id } = request.params;
 
-      if (!product) {
-        return reply.status(404).send({ error: 'Produto não encontrado' });
-      }
-
-      // Desassociar mídias
-      await prisma.mediaAsset.updateMany({
-        where: {
-          ownerType: 'Product',
-          ownerId: req.params.id
-        },
-        data: {
-          ownerType: null,
-          ownerId: null
-        }
-      });
-
-      await prisma.product.delete({ where: { id: req.params.id } });
-
-      await prisma.auditLog.create({
-        data: {
-          entity: 'Product',
-          entityId: req.params.id,
-          action: 'DELETE',
-          actor: 'system',
-          diff: product,
-        },
-      });
-
-      return reply.status(204).send();
-    } catch (error) {
-      app.log.error('Erro ao deletar produto:', error);
-      return reply.status(500).send({ error: 'Erro ao deletar produto' });
+    const existing = await prisma.product.findUnique({ where: { id } });
+    if (!existing) {
+      return reply.status(404).send({ error: 'Produto não encontrado' });
     }
+
+    // Remover associações de mídia
+    await prisma.mediaAsset.updateMany({
+      where: {
+        ownerType: 'Product',
+        ownerId: id
+      },
+      data: {
+        ownerType: null,
+        ownerId: null
+      }
+    });
+
+    // Deletar produto
+    await prisma.product.delete({ where: { id } });
+
+    // Audit
+    await prisma.auditLog.create({
+      data: {
+        entity: 'Product',
+        entityId: id,
+        action: 'DELETE',
+        actor: existing.daoId,
+        diff: existing,
+      },
+    });
+
+    return reply.status(204).send();
   });
 }
