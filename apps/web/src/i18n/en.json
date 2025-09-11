@@ -32,19 +32,10 @@
     "copyright": "© 2025 Bazari. All rights reserved."
   },
   "hero": {
-    "title": "Your Economy,",
-    "highlight": "Your Currency",
-    "subtitle": "Decentralize your commerce with BZR",
-    "description": "Connect to the first digital nation focused on popular economy. Sell, buy and earn cashback using our native currency BZR.",
-    "cta": {
-      "primary": "Get Started",
-      "secondary": "Learn More"
-    },
-    "stats": {
-      "merchants": "Merchants",
-      "transactions": "BZR Transactions",
-      "communities": "Active SubDAOs"
-    }
+    "title": "Your Economy, Your Currency",
+    "subtitle": "Connect to the first digital nation focused on popular economy. Sell, buy and earn cashback using our native currency BZR.",
+    "cta_primary": "Get Started Now",
+    "cta_secondary": "Download Whitepaper"
   },
   "modules": {
     "title": "Bazari Ecosystem",
@@ -68,46 +59,34 @@
   },
   "roadmap": {
     "title": "Development Roadmap",
-    "subtitle": "Our journey towards a fully decentralized economy",
-    "phases": {
-      "mvp": {
-        "title": "MVP - Foundation",
-        "status": "In Development",
-        "items": {
-          "marketplace": "Basic marketplace",
-          "wallet": "Web wallet",
-          "dao": "Simple governance",
-          "tokens": "BZR + LIVO"
-        }
-      },
-      "beta": {
-        "title": "Beta - Expansion",
-        "status": "Next",
-        "items": {
-          "mobile": "Mobile apps",
-          "subdaos": "Complete SubDAOs",
-          "studio": "Bazari Studio",
-          "integrations": "API integrations"
-        }
-      },
-      "production": {
-        "title": "Production - Scale",
-        "status": "Future",
-        "items": {
-          "crosschain": "Cross-chain bridges",
-          "enterprise": "Enterprise solutions",
-          "global": "Global expansion",
-          "ecosystem": "Complete ecosystem"
-        }
-      }
-    }
+    "now": "Now - MVP",
+    "next": "Next - Beta",
+    "future": "Future - Production",
+    "now_list": [
+      "Basic marketplace",
+      "Web wallet",
+      "Simple governance",
+      "BZR + LIVO tokens"
+    ],
+    "next_list": [
+      "Mobile apps",
+      "Complete SubDAOs",
+      "Bazari Studio",
+      "API integrations"
+    ],
+    "future_list": [
+      "Cross-chain bridges",
+      "Enterprise solutions",
+      "Global expansion",
+      "Complete ecosystem"
+    ]
   },
   "cta": {
     "title": "Ready to Decentralize?",
     "description": "Join thousands of merchants, producers and consumers building the decentralized future of commerce.",
     "primary": "Get Started",
-    "primary_aria": "Start journey on Bazari",
-    "primary_title": "Click to start your journey on Bazari",
+    "primary_aria": "Start your Bazari journey",
+    "primary_title": "Click to start your Bazari journey",
     "secondary": "Learn More",
     "beta_notice": "Closed beta available for selected merchants"
   },
@@ -133,7 +112,11 @@
       "empty": "No categories found"
     },
     "upload": {
-      "title": "File Upload"
+      "title": "File Upload",
+      "button": "Select File",
+      "success": "Upload successful",
+      "error": "Upload error",
+      "placeholder": "Choose a file..."
     }
   },
   "products": {
@@ -181,14 +164,30 @@
     "page": "Page {{current}} of {{total}}",
     "yes": "Yes",
     "no": "No",
-    "back_to_search": "Back to search"
+    "back_to_search": "Back to search",
+    "view_details": "View details",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "close": "Close",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Information",
+    "all": "All",
+    "select": "Select"
   },
   "errors": {
     "generic": "An unexpected error occurred",
     "network": "Connection error",
     "not_found": "Not found",
     "unauthorized": "Unauthorized",
-    "server_error": "Server error"
+    "server_error": "Server error",
+    "validation_error": "Validation error",
+    "required_field": "Required field",
+    "invalid_format": "Invalid format",
+    "min_length": "Minimum {{min}} characters",
+    "max_length": "Maximum {{max}} characters"
   },
   "search": {
     "title": "Search Products and Services",
@@ -209,124 +208,97 @@
       "relevance": "Relevance",
       "price_asc": "Lowest price",
       "price_desc": "Highest price",
-      "newest": "Newest"
+      "newest": "Most recent"
     },
     "toggle_filters": "Filters",
     "showing_results": "Showing {{start}}-{{end}} of {{total}} results",
     "no_results": "No results found",
-    "search_placeholder": "Type something to search products and services"
+    "search_placeholder": "Type something to search products and services",
+    "results_for": "Results for \"{{query}}\"",
+    "loading_results": "Loading results..."
   },
   "new": {
     "type": "Type",
     "product": "Product",
     "product_desc": "Sell a physical or digital product",
     "service": "Service",
-    "service_desc": "Offer a service or consultancy",
+    "service_desc": "Offer a service or consulting",
     "category": "Category",
     "select_category": "Select Category",
-    "category_desc": "Navigate through 4 levels of categories to find the most specific one",
+    "category_desc": "Browse through 4 category levels to find the most specific",
     "basic_info": "Basic Information",
-    "basic_info_desc": "Fill in the main information of your listing",
+    "basic_info_desc": "Fill in the main information for your listing",
     "title": "Title",
-    "title_placeholder": "Ex.: iPhone 15 Pro Max 256GB",
+    "title_placeholder": "E.g.: iPhone 15 Pro Max 256GB",
     "description": "Description",
     "description_placeholder": "Describe your product or service in detail...",
     "price": "Price",
+    "price_placeholder": "0.00",
     "media": "Photos/Videos",
-    "attributes": "Specific Characteristics",
-    "attributes_desc": "Fill in the specific information of the selected category",
+    "media_desc": "Add images or videos of your product",
+    "attributes": "Specific Features",
+    "attributes_desc": "Fill in the specific information for the selected category",
     "what_to_list": "What would you like to list?",
-    "what_to_list_desc": "Choose whether you are selling a product or offering a service",
+    "what_to_list_desc": "Choose if you're selling a product or offering a service",
     "success": "Success",
     "success_title": "Successfully registered!",
-    "success_message": "Your listing has been published on the marketplace",
-    "view_product": "View listing",
-    "add_another": "Register another in this category",
-    "add_new": "New registration",
-    "add_photos_now": "Add photos now",
-    "click_to_upload": "Click to upload photos",
-    "files_uploaded": "{{count}} file(s) uploaded",
-    "max_files_error": "Maximum of 10 files allowed",
-    "upload_error": "Upload error",
-    "uploading_files": "Uploading files...",
-    "finish": "Finish Registration",
+    "success_message": "Your listing has been published",
+    "finish": "Finish",
     "dynamic": {
+      "required": "Required field",
       "inputPlaceholder": "Enter value"
     },
     "dynamicFields": {
-      "tamanho": { "label": "Size", "placeholder": "Select", "options": { "PP": "XS", "P": "S", "M": "M", "G": "L" } },
-      "cor": { "label": "Color" },
-      "material": { "label": "Material" },
-      "tecnica": { "label": "Technique", "options": {
-      "Óleo":"Oil","Acrílica":"Acrylic","Aquarela":"Watercolor","Guache":"Gouache","Mista":"Mixed","Outros":"Others"
-      }},
-      "suporte": { "label": "Support", "options": {
-        "Tela":"Canvas","Papel":"Paper","Madeira":"Wood","Metal":"Metal","Outros":"Others"
-      }},
-      "largura_cm": { "label": "Width (cm)" },
-      "altura_cm": { "label": "Height (cm)" },
-      "estado_conservacao": { "label": "Conservation state", "options": {
-        "Novo":"New","Usado":"Used","Restaurado":"Restored"
-      }},
-      "moldura": { "label": "With frame" },
-      "autenticidade": { "label": "Authenticity", "options": {
-        "Com certificado":"With certificate","Assinado":"Signed","Sem comprovação":"No verification"
-      }},
-      "cores_predominantes": { "label": "Predominant colors",
-        "options": {"Azul":"Blue","Branco":"White","Preto":"Black","Vermelho":"Red","Verde":"Green","Amarelo":"Yellow"}
+      "brand": {
+        "label": "Brand",
+        "placeholder": "E.g.: Apple, Samsung"
+      },
+      "model": {
+        "label": "Model",
+        "placeholder": "E.g.: iPhone 15 Pro"
+      },
+      "storage": {
+        "label": "Storage",
+        "placeholder": "E.g.: 256GB"
+      },
+      "color": {
+        "label": "Color",
+        "placeholder": "E.g.: Black"
+      },
+      "condition": {
+        "label": "Condition",
+        "options": {
+          "new": "New",
+          "used": "Used",
+          "refurbished": "Refurbished"
+        }
+      },
+      "warranty": {
+        "label": "Warranty"
+      },
+      "size": {
+        "label": "Size",
+        "placeholder": "E.g.: S, M, L"
+      },
+      "material": {
+        "label": "Material",
+        "placeholder": "E.g.: Cotton, Polyester"
       }
     }
   },
-  "listing": {
-    "step1": "Type",
-    "step2": "Category",
-    "step3": "Information",
-    "step4": "Attributes",
-    "product": "Product",
-    "product_desc": "Physical or digital item for sale",
-    "service": "Service",
-    "service_desc": "Service provision or consultancy",
-    "choose_category": "Choose Category",
-    "category_desc": "Select the most specific category possible",
-    "basic_info": "Basic Information",
-    "basic_info_desc": "Main data of your listing",
-    "title": "Title",
-    "title_placeholder": "Ex.: iPhone 15 Pro Max 256GB",
-    "description": "Description",
-    "price": "Price in BZR",
-    "upload_photos": "Upload Photos"
-  },
-  "product": {
-    "description": "Description",
-    "characteristics": "Characteristics",
-    "contact_seller": "Contact seller",
-    "contact_seller_placeholder": "Feature under development",
-    "share": "Share",
-    "seller_info": "Seller Information",
-    "published_at": "Published on",
-    "no_images": "No images",
-    "type_product": "Product",
-    "type_service": "Service",
-    "video": "Video",
-    "base_price": "Base price"
-  },
-  "upload": {
-    "page_title": "Add Photos",
-    "view_listing": "View listing",
-    "current_media": "Current Media",
-    "no_media": "No media attached yet",
-    "media_count": "{{count}} of 10 media",
-    "add_more": "Add More Media",
-    "limit_reached": "Limit of 10 media reached",
-    "supported_formats": "Supports: JPG, PNG, GIF, MP4 (max 10MB each)",
-    "new_uploads": "New Uploads",
-    "uploading": "Uploading...",
-    "success": "Successfully uploaded",
-    "retry": "Try again",
-    "success_count": "uploaded",
-    "pending_count": "uploading...",
-    "error_count": "with error",
-    "view_final_listing": "View final listing",
-    "create_another": "Create another listing"
+  "validation": {
+    "required": "This field is required",
+    "min": "Minimum value is {{min}}",
+    "max": "Maximum value is {{max}}",
+    "email": "Invalid email",
+    "url": "Invalid URL",
+    "number": "Must be a number",
+    "integer": "Must be an integer",
+    "positive": "Must be a positive number",
+    "date": "Invalid date",
+    "time": "Invalid time",
+    "phone": "Invalid phone",
+    "cpf": "Invalid CPF",
+    "cnpj": "Invalid CNPJ"
   }
 }
