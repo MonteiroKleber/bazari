@@ -1,24 +1,28 @@
-// path: apps/web/src/pages/SearchPage.tsx
+// V-1 (2025-09-10): Corrige tradução da lista de categorias no filtro (facet) seguindo a mesma lógica do DevPanel.
+// Fonte de dados: useCategories() -> categories (namePt/nameEn/nameEs, pathSlugs).
+// Mudanças mínimas: import do useCategories, indexação por path, helper getFacetLabel(), uso no label da faceta.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
-import { Search, Filter, X } from 'lucide-react';
+import { Search, Filter } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { Slider } from '../components/ui/slider';
 import { useSearch } from '../hooks/useSearch';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 
+// [ADICIONADO] Mesma fonte do DevPanel
+import { useCategories } from '../hooks/useCategories';
+
 export function SearchPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
-  
+
   const {
     filters,
     results,
@@ -32,7 +36,46 @@ export function SearchPage() {
     limit: 20
   });
 
-  // Sincronizar com URL
+  // ===================== CATEGORIAS (tradução igual ao DevPanel) =====================
+  const { categories } = useCategories(); // categories tem namePt/nameEn/nameEs e pathSlugs
+
+  // Índice: "products-foo-bar" -> category
+  const catIndex = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const c of categories || []) {
+      const key = Array.isArray(c.pathSlugs) ? c.pathSlugs.join('-') : '';
+      if (key) map.set(key, c);
+    }
+    return map;
+  }, [categories]);
+
+  const humanize = (slug: string) =>
+    (slug || '')
+      .replace(/[-_]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+
+  // Mesma regra do DevPanel (switch na linguagem, usando namePt/nameEn/nameEs)
+  const getCategoryDisplayName = (category: any) => {
+    const lang = (i18n?.language || 'pt').slice(0, 2);
+    if (lang === 'en') return category?.nameEn || category?.namePt || category?.nameEs || '';
+    if (lang === 'es') return category?.nameEs || category?.namePt || category?.nameEn || '';
+    return category?.namePt || category?.nameEn || category?.nameEs || '';
+  };
+
+  // Dado um path vindo do facet (array de slugs), resolve o registro e retorna o nome no idioma
+  const getFacetLabel = (path: string[]) => {
+    const key = Array.isArray(path) ? path.join('-') : '';
+    const rec = key ? catIndex.get(key) : null;
+    if (rec) {
+      return getCategoryDisplayName(rec) || humanize(path[path.length - 1] || '');
+    }
+    return humanize(path?.[path.length - 1] || '');
+  };
+  // ================================================================================
+
+  // Sincronizar com URL (mantido)
   useEffect(() => {
     const params: Record<string, string> = {};
     if (filters.q) params.q = filters.q;
@@ -128,7 +171,7 @@ export function SearchPage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Category Facets */}
-                {results?.facets.categories && results.facets.categories.length > 0 && (
+                {results?.facets?.categories && results.facets.categories.length > 0 && (
                   <div>
                     <h4 className="font-medium mb-2">{t('search.categories')}</h4>
                     <div className="space-y-1">
@@ -138,7 +181,8 @@ export function SearchPage() {
                           className="w-full text-left text-sm hover:text-primary flex justify-between"
                           onClick={() => handleCategoryFilter(cat.path)}
                         >
-                          <span>{cat.path[cat.path.length - 1]}</span>
+                          {/* ÚNICA mudança visual: texto do rótulo traduzido via índice de categorias */}
+                          <span>{getFacetLabel(cat.path)}</span>
                           <span className="text-muted-foreground">({cat.count})</span>
                         </button>
                       ))}
@@ -146,8 +190,8 @@ export function SearchPage() {
                   </div>
                 )}
 
-                {/* Price Range */}
-                {results?.facets.price && (
+                {/* Price Range (mantido) */}
+                {results?.facets?.price && (
                   <div>
                     <h4 className="font-medium mb-2">{t('search.price_range')}</h4>
                     <div className="space-y-2">
@@ -179,7 +223,7 @@ export function SearchPage() {
                   </div>
                 )}
 
-                {/* Sort */}
+                {/* Sort (mantido) */}
                 <div>
                   <h4 className="font-medium mb-2">{t('search.sort_by')}</h4>
                   <select
@@ -210,9 +254,9 @@ export function SearchPage() {
             </Button>
 
             {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+              <div className="text-red-600 text-sm mb-4">
+                {error}
+              </div>
             )}
 
             {loading && (

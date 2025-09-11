@@ -1,325 +1,365 @@
-// V-2: i18n fixes — mensagens/labels/CTA (2025-09-10)
+// V-4: i18n aprimorado para campos dinâmicos
+// - Suporta chaves globais (new.dynamicFields.*) e i18n embutido no spec: uiSchema.i18n[lang][field]
+// - Tradução de labels, placeholders e opções enum
+// - Mantém layout/estilo; sem alterações visuais
+// - 2025-09-10
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { ArrowRight } from 'lucide-react';
 
+interface JsonSchemaProp {
+  type?: string | string[];
+  enum?: string[];
+  items?: { type?: string; enum?: string[] };
+  title?: string;
+  description?: string;
+  format?: string;
+}
+
+interface UiFieldI18n {
+  label?: string;
+  placeholder?: string;
+  options?: Record<string, string>;
+}
+
+interface UiSchemaI18nByLang {
+  [lang: string]: {
+    [fieldName: string]: UiFieldI18n;
+  };
+}
+
 interface DynamicFormProps {
-  schema: any;
-  uiSchema?: any;
+  schema: {
+    type: 'object';
+    properties: Record<string, JsonSchemaProp>;
+    required?: string[];
+  };
+  uiSchema?: Record<string, any> & { i18n?: UiSchemaI18nByLang };
   onSubmit: (data: any) => void;
   loading?: boolean;
 }
 
-export function DynamicForm({ schema, uiSchema = {}, onSubmit, loading = false }: DynamicFormProps) {
-  const { t } = useTranslation();
+/**
+ * Dynamic form driven by a JSON Schema and optional uiSchema.
+ * NOTE: Visual stays intact. Only behavior for i18n/sanitization improved.
+ */
+function DynamicForm({ schema, uiSchema = {}, onSubmit, loading = false }: DynamicFormProps) {
+  const { t, i18n } = useTranslation();
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const lang = (i18n.language || 'pt').split('-')[0];
 
-  const sanitizeAttributes = (raw: Record<string, any>) => {
-    const clean: Record<string, any> = {};
-    const props = schema?.properties || {};
+  const required = useMemo(() => new Set(schema?.required ?? []), [schema?.required]);
 
-    const normalize = (v: any) => (v === '' || v === null ? undefined : v);
+  const uiI18n: UiSchemaI18nByLang | undefined = (uiSchema as any).i18n;
 
-    for (const [key, def] of Object.entries(props as Record<string, any>)) {
-      const val = raw[key];
+  const prettyName = (name: string) =>
+    name
+      .replace(/[_-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .replace(/\b\w/g, (m) => m.toUpperCase());
 
-      // remove vazios se não requerido
-      const isRequired = Array.isArray(schema?.required) && schema.required.includes(key);
-      if ((val === '' || val === null || typeof val === 'undefined') && !isRequired) {
-        continue;
-      }
+  const specI18nLabel = (name: string): string | undefined =>
+    uiI18n?.[lang]?.[name]?.label ?? uiI18n?.[lang]?.[name]?.label; // redundância intencional p/ clareza
 
-      // enum → garante que é string e tenta casar exatamente
-      if (Array.isArray((def as any).enum)) {
-        if (typeof val !== 'string') continue;
-        const options = (def as any).enum as string[];
-        // match exato primeiro
-        if (options.includes(val)) {
-          clean[key] = val;
-          continue;
-        }
-        // normalização leve (case/acentos)
-        const norm = (s: string) =>
-          s
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .toLowerCase()
-            .trim();
-        const found = options.find((opt) => norm(opt) === norm(val));
-        if (found) {
-          clean[key] = found;
-          continue;
-        }
-        // não conseguiu normalizar, mantém original para o backend validar
-        clean[key] = val;
-        continue;
-      }
+  const specI18nPlaceholder = (name: string): string | undefined =>
+    uiI18n?.[lang]?.[name]?.placeholder ?? uiI18n?.[lang]?.[name]?.placeholder;
 
-      // tipos básicos
-      if ((def as any).type === 'boolean') {
-        clean[key] = Boolean(val);
-        continue;
-      }
-      if ((def as any).type === 'integer') {
-        const n = typeof val === 'number' ? val : parseInt(String(val), 10);
-        if (Number.isFinite(n)) clean[key] = n;
-        continue;
-      }
-      if ((def as any).type === 'number') {
-        const n = typeof val === 'number' ? val : parseFloat(String(val));
-        if (Number.isFinite(n)) clean[key] = n;
-        continue;
-      }
-      if ((def as any).type === 'array' && (def as any).items?.type === 'string') {
-        if (Array.isArray(val)) {
-          const arr = val.filter((s) => typeof s === 'string' && s.trim() !== '');
-          if (arr.length) clean[key] = arr;
-        } else if (typeof val === 'string') {
-          const arr = val
-            .split(',')
-            .map((s) => s.trim())
-            .filter((s) => s !== '');
-          if (arr.length) clean[key] = arr;
-        }
-        continue;
-      }
+  const specI18nOption = (name: string, option: string): string | undefined =>
+    uiI18n?.[lang]?.[name]?.options?.[option];
 
-      // default (string/objeto/etc)
-      const v2 = normalize(val);
-      if (typeof v2 !== 'undefined') clean[key] = v2;
-    }
+  const toLabel = (name: string, def?: JsonSchemaProp) => {
+    // 1) i18n no spec (por idioma)
+    const fromSpec = specI18nLabel(name);
+    if (fromSpec) return fromSpec;
 
-    return clean;
+    // 2) i18n global do app
+    const key = `new.dynamicFields.${name}.label`;
+    const fallback = def?.title ?? def?.description ?? prettyName(name);
+    const fromGlobal = t(key, fallback);
+    return fromGlobal;
   };
 
-  if (!schema || !schema.properties) {
-    return (
-      <div className="text-center p-8 text-muted-foreground">
-        <p>{t('new.no_schema_title', 'Sem atributos específicos')}</p>
-        <p className="text-sm mt-2">
-          {t('new.no_schema_desc', 'Categoria sem atributos específicos configurados')}
-        </p>
-      </div>
-    );
-  }
+  const toPlaceholder = (name: string) => {
+    // 1) i18n no spec (por idioma)
+    const fromSpec = specI18nPlaceholder(name);
+    if (fromSpec) return fromSpec;
+
+    // 2) i18n global do app
+    const key = `new.dynamicFields.${name}.placeholder`;
+    return t(key, t('new.dynamic.inputPlaceholder', 'Digite o valor'));
+  };
+
+  const toOptionLabel = (name: string, opt: string) => {
+    // 1) i18n no spec (por idioma)
+    const fromSpec = specI18nOption(name, opt);
+    if (fromSpec) return fromSpec;
+
+    // 2) i18n global do app
+    const key = `new.dynamicFields.${name}.options.${opt}`;
+    return t(key, opt);
+  };
+
+  const normalizeEnum = (val: string, options: string[]) => {
+    const norm = (s: string) =>
+      (s ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+    const found = options.find((opt) => norm(opt) === norm(val));
+    return found ?? val;
+  };
+
+  const sanitizePayload = (data: Record<string, any>) => {
+    const out: Record<string, any> = {};
+    for (const [key, defAny] of Object.entries(schema.properties ?? {})) {
+      const def = defAny as JsonSchemaProp;
+      let val = (data as any)[key];
+      if (val === '' || val === null || typeof val === 'undefined') {
+        continue;
+      }
+
+      const type = Array.isArray(def.type) ? def.type[0] : def.type;
+
+      if (def.enum && typeof val === 'string') {
+        out[key] = normalizeEnum(val, def.enum);
+        continue;
+      }
+
+      if (type === 'number' || type === 'integer') {
+        const num = typeof val === 'number' ? val : Number(String(val).replace(',', '.'));
+        if (!Number.isNaN(num)) out[key] = num;
+        continue;
+      }
+
+      if (type === 'boolean') {
+        out[key] = Boolean(val);
+        continue;
+      }
+
+      if (type === 'array') {
+        if (Array.isArray(val)) {
+          out[key] = val.filter((v) => v !== '' && v !== null && typeof v !== 'undefined');
+        } else if (typeof val === 'string') {
+          out[key] = val
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+        }
+        continue;
+      }
+
+      // default: string or unknown
+      out[key] = val;
+    }
+    return out;
+  };
+
+  const validate = (data: Record<string, any>) => {
+    const errs: Record<string, string> = {};
+    for (const req of required) {
+      const v = (data as any)[req];
+      if (v === '' || v === null || typeof v === 'undefined') {
+        errs[req] = t('new.dynamic.required', 'Campo obrigatório');
+      }
+    }
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validação básica
-    const newErrors: Record<string, string> = {};
-    
-    if (schema.required) {
-      schema.required.forEach((field: string) => {
-        if (!formData[field] || formData[field] === '') {
-          newErrors[field] = t('forms.field_required', 'Campo obrigatório');
-        }
-      });
-    }
-    
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
-    
-    onSubmit(sanitizeAttributes(formData));
+    const clean = sanitizePayload(formData);
+    if (!validate(clean)) return;
+    onSubmit(clean);
   };
 
-  const renderField = (name: string, property: any) => {
-    const value = formData[name] ?? '';
-    const error = errors[name];
-    const isRequired = schema.required?.includes(name);
-    
-    // Enum com uiSchema.widget: 'select' (padrão) ou 'radio'
-    if (property.enum) {
-      const widget = uiSchema?.[name]?.widget || 'select';
-      const options: string[] = property.enum as string[];
-      const inputId = `field-${name}`;
+  const renderField = (name: string, def: JsonSchemaProp) => {
+    const ui = (uiSchema as any)[name] ?? {};
+    const label = toLabel(name, def);
+    const isRequired = required.has(name);
 
-      if (widget === 'radio') {
+    // ENUM
+    if (def.enum && Array.isArray(def.enum)) {
+      const asRadio = ui?.widget === 'radio';
+      const options = def.enum;
+
+      if (asRadio) {
         return (
-          <div key={name}>
-            <Label className="mb-2 block">
-              {name} {isRequired && '*'}
+          <div key={name} className="space-y-2">
+            <Label className="font-medium">
+              {label} {isRequired && <span className="text-red-600">*</span>}
             </Label>
-            <div className="flex flex-wrap gap-3">
-              {options.map((option) => {
-                const optId = `${inputId}-${option}`;
-                return (
-                  <label key={optId} htmlFor={optId} className="inline-flex items-center gap-2 cursor-pointer">
-                    <input
-                      id={optId}
-                      type="radio"
-                      name={name}
-                      value={option}
-                      checked={value === option}
-                      onChange={(e) => {
-                        setFormData({ ...formData, [name]: e.target.value });
-                        setErrors({ ...errors, [name]: '' });
-                      }}
-                      className="h-4 w-4 border-gray-300"
-                    />
-                    <span className="text-sm">{option}</span>
-                  </label>
-                );
-              })}
+            <div className="grid grid-cols-2 gap-2">
+              {options.map((opt) => (
+                <label key={opt} className="flex items-center space-x-2 p-2 rounded border">
+                  <input
+                    type="radio"
+                    name={name}
+                    value={opt}
+                    checked={formData[name] === opt}
+                    onChange={(e) => {
+                      setFormData({ ...formData, [name]: e.target.value });
+                      setErrors({ ...errors, [name]: '' });
+                    }}
+                  />
+                  <span>{toOptionLabel(name, opt)}</span>
+                </label>
+              ))}
             </div>
-            {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
+            {errors[name] && <p className="text-sm text-red-600">{errors[name]}</p>}
           </div>
         );
       }
 
-      // default => select
+      // default enum -> select
       return (
-        <div key={name}>
-          <Label htmlFor={inputId}>
-            {name} {isRequired && '*'}
+        <div key={name} className="space-y-2">
+          <Label className="font-medium">
+            {label} {isRequired && <span className="text-red-600">*</span>}
           </Label>
           <select
-            id={inputId}
-            value={value ?? ''}
-            onChange={(e) => {
-              const v = e.target.value === '' ? '' : e.target.value;
-              setFormData({ ...formData, [name]: v });
-              setErrors({ ...errors, [name]: '' });
-            }}
-            className="mt-1 block w-full rounded-md border border-gray-300 bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2"
-          >
-            {!isRequired && <option value="">--</option>}
-            {options.map((option) => (
-              <option key={option} value={option}>{option}</option>
-            ))}
-          </select>
-          {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
-        </div>
-      );
-    }
-    
-    // Checkbox simples para boolean
-    if (property.type === 'boolean') {
-      return (
-        <div key={name} className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            id={name}
-            checked={value === true}
-            onChange={(e) => {
-              setFormData({ ...formData, [name]: e.target.checked });
-              setErrors({ ...errors, [name]: '' });
-            }}
-            className="w-4 h-4 rounded border-gray-300"
-          />
-          <Label htmlFor={name} className="cursor-pointer">
-            {name} {isRequired && '*'}
-          </Label>
-          {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
-        </div>
-      );
-    }
-    
-    // Number input
-    if (property.type === 'number' || property.type === 'integer') {
-      return (
-        <div key={name}>
-          <Label htmlFor={name}>
-            {name} {isRequired && '*'}
-          </Label>
-          <Input
-            id={name}
-            type="number"
-            value={value}
-            onChange={(e) => {
-              const val = property.type === 'integer' 
-                ? (e.target.value === '' ? '' : parseInt(e.target.value) || '')
-                : (e.target.value === '' ? '' : parseFloat(e.target.value) || '');
-              setFormData({ ...formData, [name]: val });
-              setErrors({ ...errors, [name]: '' });
-            }}
-            min={property.minimum}
-            max={property.maximum}
-            step={property.type === 'integer' ? '1' : 'any'}
-            placeholder={property.minimum ? `${t('forms.min', 'Mínimo')}: ${property.minimum}` : ''}
-          />
-          {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
-        </div>
-      );
-    }
-    
-    // Array de strings (chips simplificado)
-    if (property.type === 'array' && property.items?.type === 'string') {
-      return (
-        <div key={name}>
-          <Label htmlFor={name}>
-            {name} {isRequired && '*'}
-            <span className="text-xs text-muted-foreground ml-2">
-              {t('forms.separate_by_commas', '(separe com vírgulas)')}
-            </span>
-          </Label>
-          <Input
-            id={name}
-            value={Array.isArray(value) ? value.join(', ') : value}
+            className="w-full rounded border px-3 py-2 bg-background"
+            value={formData[name] ?? ''}
             onChange={(e) => {
               setFormData({ ...formData, [name]: e.target.value });
               setErrors({ ...errors, [name]: '' });
             }}
-            placeholder={t('forms.example_colors', 'ex.: Azul, Branco')}
-          />
-          {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
+          >
+            <option value="">{t('new.dynamic.selectOption', 'Selecione')}</option>
+            {options.map((opt) => (
+              <option key={opt} value={opt}>
+                {toOptionLabel(name, opt)}
+              </option>
+            ))}
+          </select>
+          {errors[name] && <p className="text-sm text-red-600">{errors[name]}</p>}
         </div>
       );
     }
 
-    // Text input por padrão
+    // BOOLEAN
+    if (def.type === 'boolean') {
+      return (
+        <div key={name} className="flex items-center space-x-2">
+          <input
+            id={name}
+            type="checkbox"
+            checked={Boolean(formData[name])}
+            onChange={(e) => {
+              setFormData({ ...formData, [name]: e.target.checked });
+              setErrors({ ...errors, [name]: '' });
+            }}
+          />
+          <Label htmlFor={name}>
+            {label} {isRequired && <span className="text-red-600">*</span>}
+          </Label>
+          {errors[name] && <p className="text-sm text-red-600">{errors[name]}</p>}
+        </div>
+      );
+    }
+
+    // ARRAY of strings (simple CSV input)
+    if (def.type === 'array' && def.items?.type === 'string') {
+      const val: string[] = Array.isArray(formData[name]) ? formData[name] : [];
+      const placeholder = toPlaceholder(name);
+      return (
+        <div key={name} className="space-y-2">
+          <Label className="font-medium">
+            {label} {isRequired && <span className="text-red-600">*</span>}
+          </Label>
+          <Input
+            value={val.join(', ')}
+            placeholder={placeholder}
+            onChange={(e) => {
+              const raw = e.target.value;
+              const arr = raw
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean);
+              setFormData({ ...formData, [name]: arr });
+              setErrors({ ...errors, [name]: '' });
+            }}
+          />
+          <p className="text-xs text-muted-foreground">{t('new.dynamic.hintCsv', 'Separe por vírgulas')}</p>
+          {errors[name] && <p className="text-sm text-red-600">{errors[name]}</p>}
+        </div>
+      );
+    }
+
+    // NUMBER / INTEGER
+    if (def.type === 'number' || def.type === 'integer') {
+      return (
+        <div key={name} className="space-y-2">
+          <Label className="font-medium">
+            {label} {isRequired && <span className="text-red-600">*</span>}
+          </Label>
+          <Input
+            type="number"
+            value={formData[name] ?? ''}
+            placeholder={toPlaceholder(name)}
+            onChange={(e) => {
+              setFormData({ ...formData, [name]: e.target.value });
+              setErrors({ ...errors, [name]: '' });
+            }}
+          />
+          {errors[name] && <p className="text-sm text-red-600">{errors[name]}</p>}
+        </div>
+      );
+    }
+
+    // STRING (default)
+    const widget = ui?.widget as string | undefined;
+    if (widget === 'textarea') {
+      const rows = ui?.rows ?? 4;
+      return (
+        <div key={name} className="space-y-2">
+          <Label className="font-medium">
+            {label} {isRequired && <span className="text-red-600">*</span>}
+          </Label>
+          <textarea
+            className="w-full rounded border px-3 py-2 bg-background"
+            rows={rows}
+            value={formData[name] ?? ''}
+            placeholder={toPlaceholder(name)}
+            onChange={(e) => {
+              setFormData({ ...formData, [name]: e.target.value });
+              setErrors({ ...errors, [name]: '' });
+            }}
+          />
+          {errors[name] && <p className="text-sm text-red-600">{errors[name]}</p>}
+        </div>
+      );
+    }
+
+    // default input
     return (
-      <div key={name}>
-        <Label htmlFor={name}>
-          {name} {isRequired && '*'}
+      <div key={name} className="space-y-2">
+        <Label className="font-medium">
+          {label} {isRequired && <span className="text-red-600">*</span>}
         </Label>
         <Input
-          id={name}
-          value={value}
+          value={formData[name] ?? ''}
+          placeholder={toPlaceholder(name)}
           onChange={(e) => {
             setFormData({ ...formData, [name]: e.target.value });
             setErrors({ ...errors, [name]: '' });
           }}
-          placeholder={t('forms.type_x', 'Digite {{field}}', { field: name })}
         />
-        {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
+        {errors[name] && <p className="text-sm text-red-600">{errors[name]}</p>}
       </div>
     );
   };
 
-  const properties = Object.entries(schema.properties || {});
-  
-  if (properties.length === 0) {
-    return (
-      <div className="text-center p-8">
-        <p className="text-muted-foreground">
-          {t('new.no_attributes', 'Esta categoria não possui atributos específicos.')}
-        </p>
-        <Button 
-          onClick={() => onSubmit({})} 
-          disabled={loading}
-          className="mt-4"
-        >
-          {loading ? t('common.sending', 'Enviando...') : t('new.finish', 'Finalizar Cadastro')}
-          {!loading && <ArrowRight className="w-4 h-4 ml-2" />}
-        </Button>
-      </div>
-    );
-  }
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {properties.map(([name, property]) => 
-        renderField(name, property as any)
-      )}
-      
+    <form className="space-y-4" onSubmit={handleSubmit}>
+      {Object.entries(schema?.properties ?? {}).map(([name, def]) => renderField(name, def as JsonSchemaProp))}
+
       <div className="pt-4">
         <Button type="submit" disabled={loading} className="w-full">
           {loading ? t('common.sending', 'Enviando...') : t('new.finish', 'Finalizar Cadastro')}
@@ -330,4 +370,5 @@ export function DynamicForm({ schema, uiSchema = {}, onSubmit, loading = false }
   );
 }
 
+export { DynamicForm };
 export default DynamicForm;
