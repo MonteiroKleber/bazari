@@ -13,7 +13,10 @@
     "settings": "Settings",
     "logout": "Logout",
     "login": "Login",
-    "signup": "Sign Up"
+    "signup": "Sign Up",
+    "status": {
+      "online": "Online"
+    }
   },
   "footer": {
     "tagline": "The Digital Nation of Popular Economy",
