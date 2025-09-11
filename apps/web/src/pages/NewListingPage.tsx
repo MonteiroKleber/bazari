@@ -1,5 +1,6 @@
-// V-6: Correção mínima do payload para resolver erro 400 (2025-01-11)
-// Apenas ajustado handleFinalSubmit - resto mantido intacto
+// V-7: Correção da navegação de categorias - limpar categoryPath ao selecionar tipo (2025-01-11)
+// Fix: handleKindSelect agora limpa categoryPath e categoryId para começar categoria do zero
+// Fix: botão voltar no step 2 também limpa categoria para permitir nova seleção
 
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -50,10 +51,16 @@ export function NewListingPage() {
   // Carregar spec da categoria selecionada
   const { spec, loading: specLoading } = useEffectiveSpec(categoryId);
 
-  // Step 1: Escolher tipo (produto ou serviço)
+  // Step 1: Escolher tipo (produto ou serviço) - CORRIGIDO: limpar categoria anterior
   const handleKindSelect = (selectedKind: 'product' | 'service') => {
     console.log('✅ Tipo selecionado:', selectedKind);
+    console.log('🧹 Limpando categoria anterior para começar do zero');
+    
     setKind(selectedKind);
+    // CORREÇÃO: Limpar categoria anterior para começar navegação do zero
+    setCategoryId(null);
+    setCategoryPath([]);
+    setError(null);
     setStep(2);
   };
 
@@ -72,6 +79,15 @@ export function NewListingPage() {
     console.log('  - categoryPath:', path);
     console.log('  - categoryId:', id);
     console.log('  - próximo step:', 3);
+  };
+
+  // NOVA FUNÇÃO: Voltar para step 1 limpando categoria
+  const handleBackToKindSelection = () => {
+    console.log('⬅️ Voltando para seleção de tipo, limpando categoria');
+    setCategoryId(null);
+    setCategoryPath([]);
+    setError(null);
+    setStep(1);
   };
 
   // Step 3: Informações básicas
@@ -306,7 +322,7 @@ export function NewListingPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setStep(1)}
+                onClick={handleBackToKindSelection}
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 {t('common.back')}
@@ -337,80 +353,73 @@ export function NewListingPage() {
             )}
 
             <form onSubmit={handleBasicSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="title">
-                  {t('new.title')} <span className="text-red-600">*</span>
-                </Label>
+              <div>
+                <Label htmlFor="title">{t('new.title')}</Label>
                 <Input
                   id="title"
-                  value={basicData.title}
-                  onChange={(e) => setBasicData({ ...basicData, title: e.target.value })}
+                  type="text"
                   placeholder={t('new.title_placeholder')}
+                  value={basicData.title}
+                  onChange={(e) => setBasicData({...basicData, title: e.target.value})}
+                  required
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="description">
-                  {t('new.description')}
-                </Label>
+              <div>
+                <Label htmlFor="description">{t('new.description')}</Label>
                 <Textarea
                   id="description"
-                  value={basicData.description}
-                  onChange={(e) => setBasicData({ ...basicData, description: e.target.value })}
                   placeholder={t('new.description_placeholder')}
+                  value={basicData.description}
+                  onChange={(e) => setBasicData({...basicData, description: e.target.value})}
                   rows={4}
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="price">
-                  {t('new.price')} (BZR) <span className="text-red-600">*</span>
-                </Label>
+              <div>
+                <Label htmlFor="price">{t('new.price')} (BZR)</Label>
                 <Input
                   id="price"
                   type="number"
-                  step="0.01"
-                  value={basicData.price}
-                  onChange={(e) => setBasicData({ ...basicData, price: e.target.value })}
+                  step="0.000000000001"
+                  min="0"
                   placeholder="0.00"
+                  value={basicData.price}
+                  onChange={(e) => setBasicData({...basicData, price: e.target.value})}
+                  required
                 />
               </div>
 
               {/* Upload de Fotos */}
-              <div className="space-y-2">
+              <div>
                 <Label>{t('new.media')}</Label>
-                <div className="border-2 border-dashed rounded-lg p-4">
+                <div className="mt-2">
                   <input
                     type="file"
                     multiple
-                    accept="image/*"
+                    accept="image/*,video/*"
                     onChange={handleFileSelect}
                     className="hidden"
                     id="file-upload"
-                    disabled={uploadedFiles.length >= 10}
                   />
                   <label
                     htmlFor="file-upload"
-                    className="flex flex-col items-center justify-center cursor-pointer"
+                    className="cursor-pointer inline-flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-muted-foreground/25 rounded-lg hover:border-primary transition-colors"
                   >
-                    <Upload className="w-8 h-8 text-muted-foreground mb-2" />
-                    <span className="text-sm text-muted-foreground">
-                      {uploadedFiles.length > 0 
-                        ? t('new.files_uploaded', { count: uploadedFiles.length })
-                        : t('new.click_to_upload', 'Clique para enviar fotos')}
-                    </span>
+                    <Upload className="w-4 h-4" />
+                    {t('new.click_to_upload')}
                   </label>
                 </div>
 
-                {/* Preview das imagens */}
+                {/* Preview dos arquivos */}
                 {uploadedFiles.length > 0 && (
-                  <div className="grid grid-cols-5 gap-2 mt-2">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
                     {uploadedFiles.map((file, index) => (
-                      <div key={index} className="relative group">
+                      <div key={index} className="relative">
                         <img
                           src={file.preview}
-                          alt={`Upload ${index + 1}`}
-                          className="w-full h-20 object-cover rounded"
+                          alt={`Preview ${index + 1}`}
+                          className="w-full h-24 object-cover rounded border"
                         />
                         {file.uploading && (
                           <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded">
@@ -418,18 +427,26 @@ export function NewListingPage() {
                           </div>
                         )}
                         {file.error && (
-                          <div className="absolute inset-0 bg-red-500/50 rounded"></div>
+                          <div className="absolute inset-0 bg-red-500/50 flex items-center justify-center rounded">
+                            <span className="text-white text-xs">Erro</span>
+                          </div>
                         )}
                         <button
                           type="button"
                           onClick={() => removeFile(index)}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
                         >
                           <X className="w-3 h-3" />
                         </button>
                       </div>
                     ))}
                   </div>
+                )}
+
+                {uploadedFiles.length > 0 && (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    {t('new.files_uploaded', { count: uploadedFiles.length })}
+                  </p>
                 )}
               </div>
 
@@ -448,9 +465,10 @@ export function NewListingPage() {
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   {t('common.back')}
                 </Button>
-                <Button type="submit" className="flex-1">
-                  {t('common.continue')}
-                  <ArrowRight className="w-4 h-4 ml-2" />
+                
+                <Button type="submit" disabled={submitting}>
+                  {submitting ? t('common.saving') : t('common.continue')}
+                  {!submitting && <ArrowRight className="w-4 h-4 ml-2" />}
                 </Button>
               </div>
             </form>
@@ -468,7 +486,7 @@ export function NewListingPage() {
               </p>
             </div>
 
-            {spec && !specLoading ? (
+            {!specLoading ? (
               <DynamicForm
                 schema={spec.jsonSchema}
                 uiSchema={spec.uiSchema}
@@ -523,35 +541,17 @@ export function NewListingPage() {
                   )}
                 </CardDescription>
               </CardHeader>
+              
               <CardContent className="space-y-4">
-                {successData && (
-                  <div className="bg-background rounded-lg p-4 space-y-2">
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">ID: </span>
-                      <span className="font-mono">{successData.id}</span>
-                    </div>
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">{t('new.title')}: </span>
-                      <span className="font-medium">{basicData.title}</span>
-                    </div>
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">{t('new.price')}: </span>
-                      <span className="font-medium">BZR {basicData.price}</span>
-                    </div>
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">{t('new.category')}: </span>
-                      <span className="font-medium">{categoryPath.join(' > ')}</span>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex flex-col gap-3">
+                <div className="space-y-3">
                   <Button
                     onClick={() => navigate(`/${kind}s/${successData?.id}`)}
                     className="w-full"
                   >
+                    <CheckCircle className="w-4 h-4 mr-2" />
                     {t('new.view_product', 
-                      kind === 'product' ? 'Ver produto' : 'Ver serviço'
+                      kind === 'product' 
+                        ? 'Ver produto' : 'Ver serviço'
                     )}
                   </Button>
                   
