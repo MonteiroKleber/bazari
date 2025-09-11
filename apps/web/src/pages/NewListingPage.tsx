@@ -1,13 +1,10 @@
-// V-3: i18n alinhado às chaves existentes + adição de 2 chaves novas nos JSONs (2025-09-10)
-// - Progress usa listing.step1..step4
-// - Títulos/labels usam chaves já existentes em "new" (title, description, price, ...)
-// - Removidas chaves inexistentes (forms.title, forms.description, new.step_*)
-// - Mantida UX atual; sem mudar estilos/temas
+// V-5: Adicionados logs de debug para rastrear erro 400 (2025-01-11)
+// Mantém todas as funcionalidades existentes
 
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Package, Briefcase, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Package, Briefcase, ArrowLeft, ArrowRight, CheckCircle, Upload, X } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
@@ -18,6 +15,14 @@ import { CategoryPicker } from '../components/CategoryPicker';
 import { DynamicForm } from '../components/DynamicForm';
 import { useEffectiveSpec } from '../hooks/useEffectiveSpec';
 import { api } from '../lib/api';
+
+interface UploadedFile {
+  file: File;
+  preview: string;
+  mediaId?: string;
+  uploading?: boolean;
+  error?: string;
+}
 
 export function NewListingPage() {
   const { t } = useTranslation();
@@ -37,57 +42,200 @@ export function NewListingPage() {
   const [attributes, setAttributes] = useState<any>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Novos estados para melhorias
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [successData, setSuccessData] = useState<any>(null);
 
   // Carregar spec da categoria selecionada
   const { spec, loading: specLoading } = useEffectiveSpec(categoryId);
 
   // Step 1: Escolher tipo (produto ou serviço)
   const handleKindSelect = (selectedKind: 'product' | 'service') => {
+    console.log('✅ Tipo selecionado:', selectedKind);
     setKind(selectedKind);
     setStep(2);
   };
 
-  // Step 2: Selecionar categoria
+  // Step 2: Selecionar categoria - FUNÇÃO COM DEBUG
   const handleCategorySelect = (path: string[], id: string) => {
+    console.log('📍 handleCategorySelect chamado:');
+    console.log('  - path recebido:', path);
+    console.log('  - id recebido:', id);
+    console.log('  - tipo (kind):', kind);
+    
     setCategoryPath(path);
     setCategoryId(id);
     setStep(3);
+    
+    console.log('✅ Estados atualizados:');
+    console.log('  - categoryPath:', path);
+    console.log('  - categoryId:', id);
+    console.log('  - próximo step:', 3);
   };
 
   // Step 3: Informações básicas
   const handleBasicSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('📋 Informações básicas submetidas:', basicData);
+    
     if (!basicData.title || !basicData.price) {
       setError(t('forms.required_fields'));
       return;
     }
     setError(null);
-    setStep(4);
+    
+    // Se não há spec, pula direto para submissão
+    if (!spec || !spec.jsonSchema || Object.keys(spec.jsonSchema.properties || {}).length === 0) {
+      console.log('⚠️ Categoria sem spec, pulando para submissão direta');
+      handleFinalSubmit({});
+    } else {
+      console.log('✅ Categoria tem spec, indo para step 4');
+      setStep(4);
+    }
   };
 
-  // Step 4: Atributos específicos e submissão final
+  // Upload de arquivos
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    
+    // Validação: máximo 10 arquivos
+    if (uploadedFiles.length + files.length > 10) {
+      setError(t('new.max_files_error', 'Máximo de 10 arquivos permitidos'));
+      return;
+    }
+
+    // Criar previews e adicionar à lista
+    const newFiles: UploadedFile[] = files.map(file => ({
+      file,
+      preview: URL.createObjectURL(file)
+    }));
+    
+    setUploadedFiles([...uploadedFiles, ...newFiles]);
+    setError(null);
+
+    // Upload automático em background
+    for (const fileObj of newFiles) {
+      uploadFile(fileObj);
+    }
+  };
+
+  const uploadFile = async (fileObj: UploadedFile) => {
+    try {
+      // Marcar como uploading
+      setUploadedFiles(prev => prev.map(f => 
+        f === fileObj ? { ...f, uploading: true } : f
+      ));
+
+      const response = await api.upload('/media/upload', fileObj.file);
+      
+      // Atualizar com mediaId
+      setUploadedFiles(prev => prev.map(f => 
+        f === fileObj ? { ...f, mediaId: response.id, uploading: false } : f
+      ));
+    } catch (err) {
+      // Marcar erro
+      setUploadedFiles(prev => prev.map(f => 
+        f === fileObj ? { ...f, error: t('new.upload_error', 'Erro no upload'), uploading: false } : f
+      ));
+    }
+  };
+
+  const removeFile = (index: number) => {
+    const file = uploadedFiles[index];
+    URL.revokeObjectURL(file.preview);
+    setUploadedFiles(uploadedFiles.filter((_, i) => i !== index));
+  };
+
+  // Step 4: Atributos específicos e submissão final - COM DEBUG
   const handleFinalSubmit = async (formAttributes: any) => {
+    console.log('🚀 handleFinalSubmit chamado');
+    console.log('  - basicData:', basicData);
+    console.log('  - categoryPath:', categoryPath);
+    console.log('  - categoryId:', categoryId);
+    console.log('  - attributes:', formAttributes);
+    console.log('  - kind:', kind);
+    
     setSubmitting(true);
     setError(null);
 
     try {
+      // Coletar mediaIds dos uploads bem-sucedidos
+      const mediaIds = uploadedFiles
+        .filter(f => f.mediaId)
+        .map(f => f.mediaId);
+
       const payload = {
         ...basicData,
         categoryPath,
         attributes: formAttributes,
         priceBzr: basicData.price,
-        basePriceBzr: kind === 'service' ? basicData.price : undefined
+        basePriceBzr: kind === 'service' ? basicData.price : undefined,
+        ...(mediaIds.length > 0 && { mediaIds })
       };
 
+      console.log('📤 Payload a ser enviado:', JSON.stringify(payload, null, 2));
+      
       const endpoint = kind === 'product' ? '/products' : '/services';
+      console.log('📍 Endpoint:', endpoint);
+      
       const response = await api.post(endpoint, payload);
+      console.log('✅ Resposta do servidor:', response);
 
-      // Sucesso - redirecionar
-      navigate(`/${kind}s/${response.id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('errors.generic'));
+      // Sucesso - mostrar card de sucesso
+      setSuccessData(response);
+      setStep(5);
+      setSubmitting(false);
+    } catch (err: any) {
+      console.error('❌ Erro ao criar produto/serviço:', err);
+      console.error('  - Detalhes:', err.response || err.message || err);
+      
+      const errorMessage = err.response?.data?.error || err.message || t('errors.generic');
+      setError(errorMessage);
       setSubmitting(false);
     }
+  };
+
+  // Cadastrar outro na mesma categoria
+  const handleAddAnother = () => {
+    console.log('➕ Cadastrar outro na mesma categoria');
+    console.log('  - Mantendo categoryPath:', categoryPath);
+    console.log('  - Mantendo categoryId:', categoryId);
+    
+    // Limpar dados mas manter categoria
+    setBasicData({
+      title: '',
+      description: '',
+      price: '',
+      daoId: 'dao-demo'
+    });
+    setAttributes({});
+    setUploadedFiles([]);
+    setSuccessData(null);
+    setError(null);
+    // Voltar para step 3 (informações básicas)
+    setStep(3);
+  };
+
+  // Novo cadastro (reset completo)
+  const handleNewListing = () => {
+    console.log('🔄 Novo cadastro (reset completo)');
+    
+    // Reset completo
+    setStep(1);
+    setKind(null);
+    setCategoryId(null);
+    setCategoryPath([]);
+    setBasicData({
+      title: '',
+      description: '',
+      price: '',
+      daoId: 'dao-demo'
+    });
+    setAttributes({});
+    setUploadedFiles([]);
+    setSuccessData(null);
+    setError(null);
   };
 
   // Conteúdo por passo
@@ -145,17 +293,27 @@ export function NewListingPage() {
               </p>
             </div>
 
-            {kind && (
-              <CategoryPicker
-                kind={kind}
-                onSelect={handleCategorySelect}
-              />
-            )}
+            <CategoryPicker
+              kind={kind!}
+              onSelect={handleCategorySelect}
+              value={categoryPath}
+            />
+
+            <div className="flex gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setStep(1)}
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                {t('common.back')}
+              </Button>
+            </div>
           </div>
         );
 
       case 3:
-        // Informações básicas
+        // Informações básicas + Upload
         return (
           <div className="space-y-6">
             <div>
@@ -165,42 +323,111 @@ export function NewListingPage() {
               </p>
             </div>
 
+            {/* DEBUG INFO */}
+            {import.meta.env.DEV && (
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded text-xs">
+                <p className="font-bold">DEBUG INFO:</p>
+                <p>categoryPath: {JSON.stringify(categoryPath)}</p>
+                <p>categoryId: {categoryId}</p>
+                <p>kind: {kind}</p>
+              </div>
+            )}
+
             <form onSubmit={handleBasicSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="title">{t('new.title')} *</Label>
+              <div className="space-y-2">
+                <Label htmlFor="title">
+                  {t('new.title')} <span className="text-red-600">*</span>
+                </Label>
                 <Input
                   id="title"
                   value={basicData.title}
-                  onChange={(e) => setBasicData({...basicData, title: e.target.value})}
+                  onChange={(e) => setBasicData({ ...basicData, title: e.target.value })}
                   placeholder={t('new.title_placeholder')}
-                  required
                 />
               </div>
 
-              <div>
-                <Label htmlFor="description">{t('new.description')}</Label>
+              <div className="space-y-2">
+                <Label htmlFor="description">
+                  {t('new.description')}
+                </Label>
                 <Textarea
                   id="description"
                   value={basicData.description}
-                  onChange={(e) => setBasicData({...basicData, description: e.target.value})}
+                  onChange={(e) => setBasicData({ ...basicData, description: e.target.value })}
                   placeholder={t('new.description_placeholder')}
                   rows={4}
                 />
               </div>
 
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="price">
-                  {t('new.price')} (BZR) *
+                  {t('new.price')} (BZR) <span className="text-red-600">*</span>
                 </Label>
                 <Input
                   id="price"
                   type="number"
                   step="0.01"
                   value={basicData.price}
-                  onChange={(e) => setBasicData({...basicData, price: e.target.value})}
+                  onChange={(e) => setBasicData({ ...basicData, price: e.target.value })}
                   placeholder="0.00"
-                  required
                 />
+              </div>
+
+              {/* Upload de Fotos */}
+              <div className="space-y-2">
+                <Label>{t('new.media')}</Label>
+                <div className="border-2 border-dashed rounded-lg p-4">
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    id="file-upload"
+                    disabled={uploadedFiles.length >= 10}
+                  />
+                  <label
+                    htmlFor="file-upload"
+                    className="flex flex-col items-center justify-center cursor-pointer"
+                  >
+                    <Upload className="w-8 h-8 text-muted-foreground mb-2" />
+                    <span className="text-sm text-muted-foreground">
+                      {uploadedFiles.length > 0 
+                        ? t('new.files_uploaded', { count: uploadedFiles.length })
+                        : t('new.click_to_upload', 'Clique para enviar fotos')}
+                    </span>
+                  </label>
+                </div>
+
+                {/* Preview das imagens */}
+                {uploadedFiles.length > 0 && (
+                  <div className="grid grid-cols-5 gap-2 mt-2">
+                    {uploadedFiles.map((file, index) => (
+                      <div key={index} className="relative group">
+                        <img
+                          src={file.preview}
+                          alt={`Upload ${index + 1}`}
+                          className="w-full h-20 object-cover rounded"
+                        />
+                        {file.uploading && (
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          </div>
+                        )}
+                        {file.error && (
+                          <div className="absolute inset-0 bg-red-500/50 rounded"></div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeFile(index)}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {error && (
@@ -218,7 +445,7 @@ export function NewListingPage() {
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   {t('common.back')}
                 </Button>
-                <Button type="submit">
+                <Button type="submit" className="flex-1">
                   {t('common.continue')}
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
@@ -271,6 +498,81 @@ export function NewListingPage() {
           </div>
         );
 
+      case 5:
+        // Card de Sucesso
+        return (
+          <div className="space-y-6">
+            <Card className="border-green-500 bg-green-50 dark:bg-green-950/20">
+              <CardHeader className="text-center">
+                <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                <CardTitle className="text-2xl text-green-700 dark:text-green-400">
+                  {t('new.success_title', 
+                    kind === 'product' 
+                      ? 'Produto cadastrado com sucesso!' 
+                      : 'Serviço cadastrado com sucesso!'
+                  )}
+                </CardTitle>
+                <CardDescription className="text-green-600 dark:text-green-400">
+                  {t('new.success_message', 
+                    kind === 'product'
+                      ? 'Seu produto foi publicado no marketplace'
+                      : 'Seu serviço foi publicado no marketplace'
+                  )}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {successData && (
+                  <div className="bg-background rounded-lg p-4 space-y-2">
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">ID: </span>
+                      <span className="font-mono">{successData.id}</span>
+                    </div>
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">{t('new.title')}: </span>
+                      <span className="font-medium">{basicData.title}</span>
+                    </div>
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">{t('new.price')}: </span>
+                      <span className="font-medium">BZR {basicData.price}</span>
+                    </div>
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">{t('new.category')}: </span>
+                      <span className="font-medium">{categoryPath.join(' > ')}</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-3">
+                  <Button
+                    onClick={() => navigate(`/${kind}s/${successData?.id}`)}
+                    className="w-full"
+                  >
+                    {t('new.view_product', 
+                      kind === 'product' ? 'Ver produto' : 'Ver serviço'
+                    )}
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    onClick={handleAddAnother}
+                    className="w-full"
+                  >
+                    {t('new.add_another', 'Cadastrar outro nesta categoria')}
+                  </Button>
+                  
+                  <Button
+                    variant="ghost"
+                    onClick={handleNewListing}
+                    className="w-full"
+                  >
+                    {t('new.add_new', 'Novo cadastro')}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+
       default:
         return null;
     }
@@ -278,11 +580,16 @@ export function NewListingPage() {
 
   // Indicador de progresso
   const renderProgress = () => {
+    // Ajustar steps baseado na existência de spec
+    const hasSpec = spec && spec.jsonSchema && Object.keys(spec.jsonSchema.properties || {}).length > 0;
+    const totalSteps = step === 5 ? 5 : (hasSpec ? 4 : 3);
+    
     const steps = [
       { num: 1, label: t('listing.step1') },
       { num: 2, label: t('listing.step2') },
       { num: 3, label: t('listing.step3') },
-      { num: 4, label: t('listing.step4') }
+      ...(hasSpec ? [{ num: 4, label: t('listing.step4') }] : []),
+      ...(step === 5 ? [{ num: 5, label: t('new.success', 'Sucesso') }] : [])
     ];
 
     return (
@@ -299,7 +606,7 @@ export function NewListingPage() {
                   }
                 `}
               >
-                {s.num}
+                {s.num === 5 ? '✓' : s.num}
               </div>
               <span className={`ml-2 text-sm ${step >= s.num ? 'text-foreground' : 'text-muted-foreground'}`}>
                 {s.label}

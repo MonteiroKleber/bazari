@@ -2,7 +2,7 @@
   "header": {
     "about": "Sobre",
     "modules": "Módulos",
-    "roadmap": "Roteiro",
+    "roadmap": "Roadmap",
     "contact": "Contato",
     "status": {
       "online": "Online",
@@ -13,13 +13,13 @@
   },
   "hero": {
     "title": "Bazari — Economia Popular Descentralizada",
-    "subtitle": "A super app e blockchain da economia real, feita pelo povo para o povo.",
+    "subtitle": "O super app e blockchain da economia real, feito pelo povo para o povo.",
     "cta_primary": "Entrar no Super App (em breve)",
     "cta_secondary": "Baixar Whitepaper"
   },
   "about": {
-    "title": "O que é Bazari",
-    "text": "Bazari é uma Nação Digital descentralizada com moeda BZR e cashback LIVO, focada em feiras, comerciantes e autônomos. Nossa missão é democratizar a economia digital, oferecendo ferramentas e tecnologia de ponta para pequenos empreendedores."
+    "title": "O que é a Bazari",
+    "text": "Bazari é uma Nação Digital descentralizada com moeda BZR e cashback LIVO, focada em feiras populares, comerciantes e autônomos. Nossa missão é democratizar a economia digital, oferecendo tecnologia de ponta e ferramentas para pequenos empreendedores."
   },
   "modules": {
     "title": "Módulos Bazari",
@@ -39,17 +39,17 @@
     "studio_desc": "Crie sistemas low-code"
   },
   "roadmap": {
-    "title": "Roteiro",
+    "title": "Roadmap",
     "now": "Agora",
     "next": "Próximo",
     "future": "Futuro",
     "now_list": ["Landing Page", "Design System", "Wallet base", "Estrutura monorepo"],
     "next_list": ["Marketplace MVP", "DAO MVP", "Sistema de cashback LIVO", "Integração BazariChain"],
-    "future_list": ["DEX comunitária", "Expansão de SubDAOs", "App móvel nativo", "Parcerias estratégicas"]
+    "future_list": ["DEX comunitária", "Expansão de SubDAOs", "App mobile nativo", "Parcerias estratégicas"]
   },
   "cta": {
     "title": "Faça parte da revolução econômica",
-    "subtitle": "Acompanhe o desenvolvimento e seja um dos primeiros a usar o Bazari",
+    "subtitle": "Acompanhe o desenvolvimento e seja um dos primeiros a usar a Bazari",
     "button": "Quero acompanhar"
   },
   "footer": {
@@ -73,11 +73,11 @@
       "showing": "Mostrando {{count}} de {{total}} categorias"
     },
     "upload": {
-      "title": "Envio de Arquivo",
+      "title": "Upload de Arquivo",
       "select_file": "Selecionar arquivo",
       "submit": "Enviar",
       "uploading": "Enviando...",
-      "success": "Envio concluído!",
+      "success": "Upload realizado com sucesso!",
       "error": "Erro no envio",
       "no_file": "Selecione um arquivo"
     }
@@ -136,7 +136,17 @@
     "attributes_desc": "Preencha as informações específicas da categoria selecionada",
     "what_to_list": "O que você deseja anunciar?",
     "what_to_list_desc": "Escolha se você está vendendo um produto ou oferecendo um serviço",
-
+    "success": "Sucesso",
+    "success_title": "Cadastrado com sucesso!",
+    "success_message": "Seu anúncio foi publicado no marketplace",
+    "view_product": "Ver anúncio",
+    "add_another": "Cadastrar outro nesta categoria",
+    "add_new": "Novo cadastro",
+    "click_to_upload": "Clique para enviar fotos",
+    "files_uploaded": "{{count}} arquivo(s) enviado(s)",
+    "max_files_error": "Máximo de 10 arquivos permitidos",
+    "upload_error": "Erro no upload",
+    "uploading_files": "Enviando arquivos...",
     "dynamicFields": {
       "tamanho": { "label": "Tamanho", "placeholder": "Selecione", "options": { "PP": "PP", "P": "P", "M": "M", "G": "G" } },
       "cor": { "label": "Cor" },
@@ -208,6 +218,5 @@
   },
   "errors": {
     "generic": "Ocorreu um erro. Tente novamente."
-  } 
-
+  }
 }

@@ -136,30 +136,40 @@
     "attributes_desc": "Complete the specific information for the selected category",
     "what_to_list": "What do you want to list?",
     "what_to_list_desc": "Choose whether you are selling a product or offering a service",
-
+    "success": "Success",
+    "success_title": "Successfully registered!",
+    "success_message": "Your listing has been published to the marketplace",
+    "view_product": "View listing",
+    "add_another": "Add another in this category",
+    "add_new": "New listing",
+    "click_to_upload": "Click to upload photos",
+    "files_uploaded": "{{count}} file(s) uploaded",
+    "max_files_error": "Maximum of 10 files allowed",
+    "upload_error": "Upload error",
+    "uploading_files": "Uploading files...",
     "dynamicFields": {
-    "tamanho": { "label": "Size", "placeholder": "Select", "options": { "PP": "PP", "P": "P", "M": "M", "G": "G" } },
-    "cor": { "label": "Color" },
-    "material": { "label": "Material" },
-    "tecnica": { "label": "Technique", "options": {
-      "Óleo":"Oil","Acrílica":"Acrylic","Aquarela":"Watercolor","Guache":"Gouache","Mista":"Mixed media","Outros":"Other"
-    }},
-    "suporte": { "label": "Support", "options": {
-      "Tela":"Canvas","Papel":"Paper","Madeira":"Wood","Metal":"Metal","Outros":"Other"
-    }},
-    "largura_cm": { "label": "Width (cm)" },
-    "altura_cm": { "label": "Height (cm)" },
-    "estado_conservacao": { "label": "Condition", "options": {
-      "Novo":"New","Usado":"Used","Restaurado":"Restored"
-    }},
-    "moldura": { "label": "Framed" },
-    "autenticidade": { "label": "Authenticity", "options": {
-      "Com certificado":"With certificate","Assinado":"Signed","Sem comprovação":"No proof"
-    }},
-    "cores_predominantes": { "label": "Dominant colors",
-      "options": {"Azul":"Blue","Branco":"White","Preto":"Black","Vermelho":"Red","Verde":"Green","Amarelo":"Yellow"}
+      "tamanho": { "label": "Size", "placeholder": "Select", "options": { "PP": "PP", "P": "P", "M": "M", "G": "G" } },
+      "cor": { "label": "Color" },
+      "material": { "label": "Material" },
+      "tecnica": { "label": "Technique", "options": {
+        "Óleo":"Oil","Acrílica":"Acrylic","Aquarela":"Watercolor","Guache":"Gouache","Mista":"Mixed media","Outros":"Other"
+      }},
+      "suporte": { "label": "Support", "options": {
+        "Tela":"Canvas","Papel":"Paper","Madeira":"Wood","Metal":"Metal","Outros":"Other"
+      }},
+      "largura_cm": { "label": "Width (cm)" },
+      "altura_cm": { "label": "Height (cm)" },
+      "estado_conservacao": { "label": "Condition", "options": {
+        "Novo":"New","Usado":"Used","Restaurado":"Restored"
+      }},
+      "moldura": { "label": "Framed" },
+      "autenticidade": { "label": "Authenticity", "options": {
+        "Com certificado":"With certificate","Assinado":"Signed","Sem comprovação":"No proof"
+      }},
+      "cores_predominantes": { "label": "Dominant colors",
+        "options": {"Azul":"Blue","Branco":"White","Preto":"Black","Vermelho":"Red","Verde":"Green","Amarelo":"Yellow"}
+      }
     }
-  }
   },
   "listing": {
     "step1": "Type",
@@ -209,5 +219,4 @@
   "errors": {
     "generic": "An error occurred. Please try again."
   }
-  
 }
