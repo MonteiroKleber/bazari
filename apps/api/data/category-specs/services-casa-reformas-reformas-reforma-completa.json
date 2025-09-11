@@ -1,0 +1,64 @@
+{
+  "categoryId": "services-casa-reformas-reformas-reforma-completa",
+  "version": "1.0.0",
+  "inheritsFrom": "services-casa-reformas-reformas",
+  "jsonSchema": {
+    "type": "object",
+    "properties": {
+      "tipo_reforma": {
+        "type": "string",
+        "enum": ["Residencial", "Comercial", "Industrial"]
+      },
+      "area_m2": {
+        "type": "number",
+        "minimum": 1
+      },
+      "prazo_dias": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "material_incluso": {
+        "type": "boolean"
+      },
+      "mao_obra_inclusa": {
+        "type": "boolean"
+      },
+      "experiencia_anos": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "area_atendimento": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "disponibilidade": {
+        "type": "string",
+        "enum": ["Segunda a Sexta", "Fins de Semana", "Todos os dias"]
+      },
+      "garantia_meses": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 60
+      },
+      "orcamento_gratuito": {
+        "type": "boolean"
+      }
+    },
+    "required": ["tipo_reforma", "material_incluso", "mao_obra_inclusa"]
+  },
+  "uiSchema": {
+    "tipo_reforma": {"widget": "radio"},
+    "area_m2": {"widget": "number", "suffix": "m²"},
+    "prazo_dias": {"widget": "number", "suffix": "dias"},
+    "material_incluso": {"widget": "checkbox"},
+    "mao_obra_inclusa": {"widget": "checkbox"},
+    "experiencia_anos": {"widget": "number", "suffix": "anos"},
+    "area_atendimento": {"widget": "chips"},
+    "disponibilidade": {"widget": "radio"},
+    "garantia_meses": {"widget": "number", "suffix": "meses"},
+    "orcamento_gratuito": {"widget": "checkbox"}
+  },
+  "indexHints": ["tipo_reforma", "area_m2", "material_incluso", "mao_obra_inclusa", "experiencia_anos", "disponibilidade", "garantia_meses"]
+}
