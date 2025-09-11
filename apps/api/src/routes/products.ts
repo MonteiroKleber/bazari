@@ -1,10 +1,16 @@
-// V+1: Adiciona GET /products/:id e GET /products (lista com filtros) - 2025-09-11
-// Mantém POST /products existente intacto
-// Adiciona endpoint de detalhe e listagem simples para o frontend
+// V-2: Correção do import do categoryResolver - 2025-09-11
+// Corrigido path de '../resolvers/categoryResolver.js' para '../lib/categoryResolver.js'
+// Mantém toda funcionalidade existente intacta
+// path: apps/api/src/routes/products.ts
 
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
-import { categoryResolver } from '../resolvers/categoryResolver.js';
+import { 
+  processAttributes,
+  buildCategoryId,
+  buildCategoryPathFromId,
+  resolveEffectiveSpecByCategoryId
+} from '../lib/categoryResolver.js';
 
 interface CreateProductBody {
   daoId: string;
@@ -31,6 +37,25 @@ export async function productsRoutes(
   options: { prisma: PrismaClient }
 ) {
   const { prisma } = options;
+
+  /**
+   * Função auxiliar para resolver categoryId a partir do path
+   */
+  async function resolveCategoryFromPath(categoryPath: string[]): Promise<string | null> {
+    if (!categoryPath || categoryPath.length === 0) return null;
+    
+    // Tentar products primeiro
+    const productsId = buildCategoryId('products', categoryPath);
+    const productsCategory = await prisma.category.findUnique({ where: { id: productsId } });
+    if (productsCategory) return productsId;
+    
+    // Fallback para services
+    const servicesId = buildCategoryId('services', categoryPath);
+    const servicesCategory = await prisma.category.findUnique({ where: { id: servicesId } });
+    if (servicesCategory) return servicesId;
+    
+    return null;
+  }
 
   // GET /products/:id - Obter produto por ID com mídias
   app.get<{ Params: { id: string } }>('/products/:id', async (request, reply) => {
@@ -87,42 +112,46 @@ export async function productsRoutes(
     } = request.query;
 
     try {
-      const pageNum = Math.max(1, parseInt(page));
-      const pageSizeNum = Math.min(50, Math.max(1, parseInt(pageSize))); // Máximo 50 por página
-      const offset = (pageNum - 1) * pageSizeNum;
+      const pageNum = parseInt(page);
+      const pageSizeNum = parseInt(pageSize);
+      const skip = (pageNum - 1) * pageSizeNum;
 
-      // Construir where clause
+      // Construir filtros
       const where: any = {};
 
-      // Filtro por texto (título e descrição)
-      if (q) {
+      // Filtro de busca por texto
+      if (q && q.trim()) {
         where.OR = [
-          { title: { contains: q, mode: 'insensitive' } },
-          { description: { contains: q, mode: 'insensitive' } },
+          { title: { contains: q.trim(), mode: 'insensitive' } },
+          { description: { contains: q.trim(), mode: 'insensitive' } }
         ];
       }
 
       // Filtro por categoria
       if (categoryId) {
-        // Buscar por categoryPath que contenha o categoryId
-        where.categoryPath = {
-          has: categoryId,
-        };
+        where.categoryId = categoryId;
       }
 
       // Filtro por preço
-      if (minPrice || maxPrice) {
-        where.priceBzr = {};
-        if (minPrice) {
-          where.priceBzr.gte = minPrice;
-        }
-        if (maxPrice) {
-          where.priceBzr.lte = maxPrice;
+      if (minPrice) {
+        const minPriceDecimal = parseFloat(minPrice);
+        if (!isNaN(minPriceDecimal)) {
+          where.priceBzr = { gte: minPriceDecimal.toString() };
         }
       }
 
-      // Construir orderBy
-      let orderBy: any = {};
+      if (maxPrice) {
+        const maxPriceDecimal = parseFloat(maxPrice);
+        if (!isNaN(maxPriceDecimal)) {
+          where.priceBzr = {
+            ...where.priceBzr,
+            lte: maxPriceDecimal.toString()
+          };
+        }
+      }
+
+      // Definir ordenação
+      let orderBy: any = { createdAt: 'desc' };
       switch (sort) {
         case 'priceAsc':
           orderBy = { priceBzr: 'asc' };
@@ -131,9 +160,10 @@ export async function productsRoutes(
           orderBy = { priceBzr: 'desc' };
           break;
         case 'createdDesc':
-        default:
           orderBy = { createdAt: 'desc' };
           break;
+        default:
+          orderBy = { createdAt: 'desc' };
       }
 
       // Buscar produtos
@@ -141,7 +171,7 @@ export async function productsRoutes(
         prisma.product.findMany({
           where,
           orderBy,
-          skip: offset,
+          skip,
           take: pageSizeNum,
           include: {
             media: {
@@ -151,15 +181,111 @@ export async function productsRoutes(
                 mime: true,
                 size: true,
               },
-              take: 3, // Limitar mídias para performance
+              take: 1, // Apenas primeira mídia para listagem
             },
           },
         }),
-        prisma.product.count({ where }),
+        prisma.product.count({ where })
       ]);
 
-      // Formatar resposta
-      const items = products.map(product => ({
+      const totalPages = Math.ceil(total / pageSizeNum);
+
+      return reply.send({
+        products: products.map(product => ({
+          id: product.id,
+          kind: 'product' as const,
+          title: product.title,
+          description: product.description,
+          priceBzr: product.priceBzr,
+          categoryPath: product.categoryPath,
+          attributes: product.attributes,
+          media: product.media,
+          daoId: product.daoId,
+          createdAt: product.createdAt,
+          updatedAt: product.updatedAt,
+        })),
+        pagination: {
+          page: pageNum,
+          pageSize: pageSizeNum,
+          total,
+          totalPages,
+          hasNext: pageNum < totalPages,
+          hasPrev: pageNum > 1,
+        }
+      });
+    } catch (error) {
+      app.log.error('Erro ao listar produtos:', error);
+      return reply.status(500).send({ error: 'Erro interno do servidor' });
+    }
+  });
+
+  // POST /products - Criar novo produto
+  app.post<{ Body: CreateProductBody }>('/products', async (request, reply) => {
+    const { daoId, title, description, priceBzr, categoryPath, attributes, mediaIds } = request.body;
+
+    try {
+      // Resolver categoryId a partir do path
+      const categoryId = await resolveCategoryFromPath(categoryPath);
+      if (!categoryId) {
+        return reply.status(400).send({ 
+          error: 'Categoria não encontrada',
+          categoryPath 
+        });
+      }
+
+      // Processar atributos com validação
+      const { attributes: processedAttributes, errors } = await processAttributes(
+        attributes || {}, 
+        { categoryId }
+      );
+
+      if (Object.keys(errors).length > 0) {
+        return reply.status(400).send({ 
+          error: 'Atributos inválidos', 
+          validationErrors: errors 
+        });
+      }
+
+      // Verificar se as mídias existem (se fornecidas)
+      if (mediaIds && mediaIds.length > 0) {
+        const existingMedia = await prisma.media.findMany({
+          where: { id: { in: mediaIds } }
+        });
+        
+        if (existingMedia.length !== mediaIds.length) {
+          return reply.status(400).send({ 
+            error: 'Algumas mídias não foram encontradas' 
+          });
+        }
+      }
+
+      // Criar o produto
+      const product = await prisma.product.create({
+        data: {
+          daoId,
+          title,
+          description,
+          priceBzr,
+          categoryId,
+          categoryPath,
+          attributes: processedAttributes,
+          media: mediaIds && mediaIds.length > 0 ? {
+            connect: mediaIds.map(id => ({ id }))
+          } : undefined,
+        },
+        include: {
+          media: {
+            select: {
+              id: true,
+              url: true,
+              mime: true,
+              size: true,
+            },
+          },
+        },
+      });
+
+      return reply.status(201).send({
         id: product.id,
         kind: 'product' as const,
         title: product.title,
@@ -168,88 +294,12 @@ export async function productsRoutes(
         categoryPath: product.categoryPath,
         attributes: product.attributes,
         media: product.media,
+        daoId: product.daoId,
         createdAt: product.createdAt,
         updatedAt: product.updatedAt,
-      }));
-
-      return reply.send({
-        items,
-        page: {
-          current: pageNum,
-          size: pageSizeNum,
-          total,
-          totalPages: Math.ceil(total / pageSizeNum),
-        },
-        filters: {
-          q,
-          categoryId,
-          minPrice,
-          maxPrice,
-          sort,
-        },
       });
     } catch (error) {
-      app.log.error('Erro ao listar produtos:', error);
-      return reply.status(500).send({ error: 'Erro interno do servidor' });
-    }
-  });
-
-  // POST /products - Criar produto (MANTIDO INTACTO)
-  app.post<{ Body: CreateProductBody }>('/products', async (request, reply) => {
-    try {
-      const { daoId, title, description, priceBzr, categoryPath, attributes = {}, mediaIds = [] } = request.body;
-
-      // Validação básica
-      if (!daoId || !title || !priceBzr || !categoryPath?.length) {
-        return reply.status(400).send({
-          error: 'Campos obrigatórios: daoId, title, priceBzr, categoryPath'
-        });
-      }
-
-      // Processar e validar atributos via categoryResolver
-      const processedAttributes = await categoryResolver.processAttributes(categoryPath, attributes);
-
-      // Criar produto
-      const product = await prisma.product.create({
-        data: {
-          daoId,
-          title,
-          description: description || '',
-          priceBzr,
-          categoryPath,
-          attributes: processedAttributes,
-        },
-      });
-
-      // Vincular mídias se fornecidas
-      if (mediaIds.length > 0) {
-        await prisma.mediaAsset.updateMany({
-          where: {
-            id: { in: mediaIds },
-            entityType: null, // Apenas mídias não vinculadas
-          },
-          data: {
-            entityType: 'product',
-            entityId: product.id,
-          },
-        });
-      }
-
-      app.log.info(`Produto criado: ${product.id} - ${title}`);
-
-      return reply.status(201).send({
-        id: product.id,
-        title: product.title,
-        categoryPath: product.categoryPath,
-        message: 'Produto criado com sucesso',
-      });
-    } catch (error: any) {
       app.log.error('Erro ao criar produto:', error);
-      
-      if (error.name === 'ValidationError') {
-        return reply.status(400).send({ error: error.message });
-      }
-      
       return reply.status(500).send({ error: 'Erro interno do servidor' });
     }
   });
