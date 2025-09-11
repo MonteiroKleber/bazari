@@ -1,4 +1,6 @@
-// path: apps/web/src/App.tsx
+// V+1: Adicionadas rotas para ProductDetailPage e UploadPage - 2025-09-11
+// Novas rotas: /p/:id (público) e /app/upload/:productId (interno)
+// Mantém todas as rotas existentes intactas
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './theme/ThemeProvider';
@@ -13,6 +15,8 @@ import { ThemeGallery } from './components/ThemeGallery';
 import { DevPanel } from './components/DevPanel';
 import { SearchPage } from './pages/SearchPage';
 import { NewListingPage } from './pages/NewListingPage';
+import { ProductDetailPage } from './pages/ProductDetailPage';
+import { UploadPage } from './pages/UploadPage';
 
 function LandingPage() {
   return (
@@ -69,12 +73,14 @@ function App() {
             {/* Rotas públicas */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/search" element={<SearchPage />} />
+            <Route path="/p/:id" element={<ProductDetailPage />} />
             
             {/* Rotas internas/autenticadas */}
             <Route path="/app/*" element={
               <AppLayout>
                 <Routes>
                   <Route path="new" element={<NewListingPage />} />
+                  <Route path="upload/:productId" element={<UploadPage />} />
                   {/* Futuras rotas internas */}
                   {/* <Route path="dashboard" element={<Dashboard />} /> */}
                   {/* <Route path="wallet" element={<Wallet />} /> */}
