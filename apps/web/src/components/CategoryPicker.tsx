@@ -1,5 +1,5 @@
-// V-1 (2025-09-10): Ajustes leves de i18n (interpolação em level_indicator) e cabeçalho de versão.
-//                    Sem mudanças visuais/estruturais.
+// V-2: Correção do onSelect para enviar pathParts ao invés de pathSlugs completo (2025-01-11)
+// Mantém toda compatibilidade com i18n e funcionalidades existentes
 
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, Check, AlertCircle } from 'lucide-react';
@@ -10,13 +10,22 @@ interface CategoryPickerProps {
   kind: 'product' | 'service';
   onSelect: (categoryPath: string[], categoryId: string) => void;
   className?: string;
+  value?: string[]; // Adicionado para suportar categoria pré-selecionada
 }
 
-export function CategoryPicker({ kind, onSelect, className = '' }: CategoryPickerProps) {
+export function CategoryPicker({ kind, onSelect, className = '', value }: CategoryPickerProps) {
   const { t, i18n } = useTranslation();
   const { categories, loading, error } = useCategories();
-  const [selectedPath, setSelectedPath] = useState<string[]>([]);
+  const [selectedPath, setSelectedPath] = useState<string[]>(value || []);
   const [currentLevel, setCurrentLevel] = useState(1);
+
+  // Atualizar quando value mudar (para "cadastrar outro")
+  useEffect(() => {
+    if (value && value.length > 0) {
+      setSelectedPath(value);
+      setCurrentLevel(value.length + 1);
+    }
+  }, [value]);
 
   const getFilteredCategories = (level: number) => {
     if (!categories || categories.length === 0) return [];
@@ -44,7 +53,7 @@ export function CategoryPicker({ kind, onSelect, className = '' }: CategoryPicke
   };
 
   const handleCategoryClick = (category: any) => {
-    // Usar o slug correto da categoria, não apenas a última parte
+    // CORREÇÃO: Sempre usar pathParts (sem prefixo "products/services")
     const pathParts = category.pathSlugs.filter((p: string) => p !== `${kind}s`);
     setSelectedPath(pathParts);
     
@@ -56,7 +65,8 @@ export function CategoryPicker({ kind, onSelect, className = '' }: CategoryPicke
       setCurrentLevel(category.level + 1);
     } else {
       // É uma folha, pode selecionar
-      onSelect(category.pathSlugs, category.id);
+      // CORREÇÃO: Enviar pathParts ao invés de category.pathSlugs
+      onSelect(pathParts, category.id);
     }
   };
 

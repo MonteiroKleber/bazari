@@ -19,18 +19,18 @@
   },
   "about": {
     "title": "Qué es Bazari",
-    "text": "Bazari es una Nación Digital descentralizada con moneda BZR y cashback LIVO, enfocada en ferias, comerciantes y autónomos. Nuestra misión es democratizar la economía digital, ofreciendo herramientas y tecnología de vanguardia para pequeños emprendedores."
+    "text": "Bazari es una Nación Digital descentralizada con moneda BZR y cashback LIVO, enfocada en mercados populares, comerciantes y autónomos. Nuestra misión es democratizar la economía digital, ofreciendo herramientas de vanguardia y tecnología para pequeños emprendedores."
   },
   "modules": {
     "title": "Módulos Bazari",
     "wallet": "Cartera",
-    "wallet_desc": "Wallet multi-cuenta con BZR y LIVO",
+    "wallet_desc": "Cartera multi-cuenta con BZR y LIVO",
     "marketplace": "Marketplace",
     "marketplace_desc": "Compra y vende con BZR",
     "dao": "DAO",
     "dao_desc": "Gobernanza descentralizada",
     "p2p": "P2P/Exchange",
-    "p2p_desc": "Cambia BZR por otras monedas",
+    "p2p_desc": "Intercambia BZR por otras monedas",
     "dex": "DEX",
     "dex_desc": "Exchange descentralizado (próximamente)",
     "social": "Red Social",
@@ -43,9 +43,9 @@
     "now": "Ahora",
     "next": "Próximo",
     "future": "Futuro",
-    "now_list": ["Landing Page", "Sistema de Diseño", "Wallet base", "Estructura monorepo"],
-    "next_list": ["Marketplace MVP", "DAO MVP", "Sistema LIVO cashback", "Integración BazariChain"],
-    "future_list": ["DEX comunitario", "Expansión SubDAOs", "App móvil nativa", "Alianzas estratégicas"]
+    "now_list": ["Landing Page", "Sistema de Diseño", "Cartera base", "Estructura monorepo"],
+    "next_list": ["Marketplace MVP", "DAO MVP", "Sistema de cashback LIVO", "Integración BazariChain"],
+    "future_list": ["DEX comunitario", "Expansión de SubDAOs", "App móvil nativa", "Alianzas estratégicas"]
   },
   "cta": {
     "title": "Sé parte de la revolución económica",
@@ -136,30 +136,40 @@
     "attributes_desc": "Completa la información específica de la categoría seleccionada",
     "what_to_list": "¿Qué deseas anunciar?",
     "what_to_list_desc": "Elige si estás vendiendo un producto u ofreciendo un servicio",
-
+    "success": "Éxito",
+    "success_title": "¡Registrado con éxito!",
+    "success_message": "Tu anuncio ha sido publicado en el marketplace",
+    "view_product": "Ver anuncio",
+    "add_another": "Agregar otro en esta categoría",
+    "add_new": "Nuevo registro",
+    "click_to_upload": "Haz clic para subir fotos",
+    "files_uploaded": "{{count}} archivo(s) subido(s)",
+    "max_files_error": "Máximo de 10 archivos permitidos",
+    "upload_error": "Error al subir",
+    "uploading_files": "Subiendo archivos...",
     "dynamicFields": {
-    "tamanho": { "label": "Talla", "placeholder": "Selecciona", "options": { "PP": "PP", "P": "P", "M": "M", "G": "G" } },
-    "cor": { "label": "Color" },
-    "material": { "label": "Material" },
-    "tecnica": { "label": "Técnica", "options": {
-      "Óleo":"Óleo","Acrílica":"Acrílica","Aquarela":"Acuarela","Guache":"Gouache","Mista":"Mixta","Outros":"Otros"
-    }},
-    "suporte": { "label": "Soporte", "options": {
-      "Tela":"Lienzo","Papel":"Papel","Madeira":"Madera","Metal":"Metal","Outros":"Otros"
-    }},
-    "largura_cm": { "label": "Ancho (cm)" },
-    "altura_cm": { "label": "Alto (cm)" },
-    "estado_conservacao": { "label": "Estado", "options": {
-      "Novo":"Nuevo","Usado":"Usado","Restaurado":"Restaurado"
-    }},
-    "moldura": { "label": "Con marco" },
-    "autenticidade": { "label": "Autenticidad", "options": {
-      "Com certificado":"Con certificado","Assinado":"Firmado","Sem comprovação":"Sin comprobación"
-    }},
-    "cores_predominantes": { "label": "Colores predominantes",
-      "options": {"Azul":"Azul","Branco":"Blanco","Preto":"Negro","Vermelho":"Rojo","Verde":"Verde","Amarelo":"Amarillo"}
+      "tamanho": { "label": "Talla", "placeholder": "Selecciona", "options": { "PP": "PP", "P": "P", "M": "M", "G": "G" } },
+      "cor": { "label": "Color" },
+      "material": { "label": "Material" },
+      "tecnica": { "label": "Técnica", "options": {
+        "Óleo":"Óleo","Acrílica":"Acrílica","Aquarela":"Acuarela","Guache":"Gouache","Mista":"Mixta","Outros":"Otros"
+      }},
+      "suporte": { "label": "Soporte", "options": {
+        "Tela":"Lienzo","Papel":"Papel","Madeira":"Madera","Metal":"Metal","Outros":"Otros"
+      }},
+      "largura_cm": { "label": "Ancho (cm)" },
+      "altura_cm": { "label": "Alto (cm)" },
+      "estado_conservacao": { "label": "Estado", "options": {
+        "Novo":"Nuevo","Usado":"Usado","Restaurado":"Restaurado"
+      }},
+      "moldura": { "label": "Con marco" },
+      "autenticidade": { "label": "Autenticidad", "options": {
+        "Com certificado":"Con certificado","Assinado":"Firmado","Sem comprovação":"Sin comprobación"
+      }},
+      "cores_predominantes": { "label": "Colores predominantes",
+        "options": {"Azul":"Azul","Branco":"Blanco","Preto":"Negro","Vermelho":"Rojo","Verde":"Verde","Amarelo":"Amarillo"}
+      }
     }
-  }
   },
   "listing": {
     "step1": "Tipo",
@@ -190,16 +200,16 @@
     "loading": "Cargando categorías...",
     "error": "Error al cargar categorías",
     "empty": "No se encontraron categorías",
-    "select_main": "Seleccione la categoría principal",
-    "select_sub": "Seleccione la subcategoría",
-    "select_specific": "Seleccione la categoría específica",
-    "select_detail": "Seleccione la especialización",
+    "select_main": "Selecciona la categoría principal",
+    "select_sub": "Selecciona la subcategoría",
+    "select_specific": "Selecciona la categoría específica",
+    "select_detail": "Selecciona la especialización",
     "level_indicator": "Nivel {{current}} de {{max}}",
-    "can_select": "Haga clic para seleccionar",
+    "can_select": "Haz clic para seleccionar",
     "no_subcategories": "No hay subcategorías disponibles",
     "is_final_level": "Esta categoría puede ser seleccionada",
-    "some_are_final": "Las categorías con ✓ pueden ser seleccionadas",
-    "select_to_continue": "Seleccione una categoría para continuar"
+    "some_are_final": "Categorías con ✓ pueden ser seleccionadas",
+    "select_to_continue": "Selecciona una categoría para continuar"
   },
   "forms": {
     "required_fields": "Completa todos los campos obligatorios",
@@ -207,8 +217,6 @@
     "no_schema": "No hay esquema disponible"
   },
   "errors": {
-    "generic": "Ocurrió un error. Intenta nuevamente."
+    "generic": "Ocurrió un error. Por favor, intenta de nuevo."
   }
- 
-  
 }
