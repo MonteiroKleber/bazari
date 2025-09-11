@@ -1,10 +1,12 @@
-// V-2: Correção do onSelect para enviar pathParts ao invés de pathSlugs completo (2025-01-11)
-// Mantém toda compatibilidade com i18n e funcionalidades existentes
+// V-3: Correção da navegação de volta - mostra categoria selecionada quando usuário volta de step posterior (2025-01-11)
+// Fix: currentLevel deve ser value.length (não +1) quando categoria já está selecionada
+// Adiciona botão "Continuar" quando categoria já está selecionada
 
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, Check, AlertCircle } from 'lucide-react';
+import { ChevronRight, Check, AlertCircle, ArrowRight } from 'lucide-react';
 import { useCategories } from '../hooks/useCategories';
 import { useTranslation } from 'react-i18next';
+import { Button } from './ui/button';
 
 interface CategoryPickerProps {
   kind: 'product' | 'service';
@@ -19,11 +21,17 @@ export function CategoryPicker({ kind, onSelect, className = '', value }: Catego
   const [selectedPath, setSelectedPath] = useState<string[]>(value || []);
   const [currentLevel, setCurrentLevel] = useState(1);
 
-  // Atualizar quando value mudar (para "cadastrar outro")
+  // Atualizar quando value mudar (para "cadastrar outro" ou "voltar")
   useEffect(() => {
     if (value && value.length > 0) {
       setSelectedPath(value);
-      setCurrentLevel(value.length + 1);
+      // CORREÇÃO: quando uma categoria já está selecionada (voltando de step posterior),
+      // currentLevel deve ser o nível da categoria selecionada, não +1
+      setCurrentLevel(value.length);
+    } else {
+      // Se não há value, começar do nível 1
+      setSelectedPath([]);
+      setCurrentLevel(1);
     }
   }, [value]);
 
@@ -70,6 +78,15 @@ export function CategoryPicker({ kind, onSelect, className = '', value }: Catego
     }
   };
 
+  // NOVA FUNÇÃO: confirmar seleção atual (quando categoria já está escolhida)
+  const handleConfirmSelection = () => {
+    if (selectedPath.length > 0) {
+      // Encontrar a categoria atual pelo path
+      const currentCategoryId = `${kind}s-${selectedPath.join('-')}`;
+      onSelect(selectedPath, currentCategoryId);
+    }
+  };
+
   const isLeafCategory = (category: any) => {
     // Verifica se a categoria não tem filhos
     return !categories?.some(cat => cat.parentId === category.id);
@@ -78,6 +95,13 @@ export function CategoryPicker({ kind, onSelect, className = '', value }: Catego
   const canSelectCategory = (category: any) => {
     // Pode selecionar se for folha OU se estiver no nível 4
     return isLeafCategory(category) || category.level === 4;
+  };
+
+  // NOVA FUNÇÃO: verifica se uma categoria está selecionada atualmente
+  const isCategorySelected = (category: any) => {
+    const pathParts = category.pathSlugs.filter((p: string) => p !== `${kind}s`);
+    return selectedPath.length === pathParts.length && 
+           selectedPath.every((part, index) => part === pathParts[index]);
   };
 
   const getBreadcrumbs = () => {
@@ -123,6 +147,11 @@ export function CategoryPicker({ kind, onSelect, className = '', value }: Catego
   const breadcrumbs = getBreadcrumbs();
   const maxLevel = 4;
 
+  // NOVA LÓGICA: verificar se estamos mostrando categoria já selecionada
+  const hasSelectedCategory = selectedPath.length > 0 && selectedPath.length === currentLevel;
+  const selectedCategory = hasSelectedCategory ? 
+    currentCategories.find(cat => isCategorySelected(cat)) : null;
+
   // Debug info (remover em produção)
   console.log('CategoryPicker Debug:', {
     kind,
@@ -130,7 +159,8 @@ export function CategoryPicker({ kind, onSelect, className = '', value }: Catego
     selectedPath,
     totalCategories: categories?.length,
     currentCategories: currentCategories.length,
-    currentCategoriesIds: currentCategories.map(c => c.id)
+    hasSelectedCategory,
+    selectedCategory: selectedCategory?.id
   });
 
   return (
@@ -171,6 +201,27 @@ export function CategoryPicker({ kind, onSelect, className = '', value }: Catego
         </p>
       </div>
 
+      {/* NOVA SEÇÃO: Categoria atualmente selecionada (quando voltando de step posterior) */}
+      {hasSelectedCategory && selectedCategory && (
+        <div className="bg-primary/5 border-2 border-primary/20 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-primary">
+                {t('categories.currently_selected', 'Categoria selecionada:')}
+              </p>
+              <p className="text-lg">
+                {selectedCategory[i18n.language === 'pt' ? 'namePt' : 
+                              i18n.language === 'es' ? 'nameEs' : 'nameEn']}
+              </p>
+            </div>
+            <Button onClick={handleConfirmSelection} className="flex items-center gap-2">
+              {t('common.continue', 'Continuar')}
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Grid de categorias */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {currentCategories.length > 0 ? (
@@ -179,6 +230,7 @@ export function CategoryPicker({ kind, onSelect, className = '', value }: Catego
                            i18n.language === 'es' ? 'nameEs' : 'nameEn';
             const isLeaf = isLeafCategory(category);
             const canSelect = canSelectCategory(category);
+            const isSelected = isCategorySelected(category);
             
             return (
               <button
@@ -186,22 +238,33 @@ export function CategoryPicker({ kind, onSelect, className = '', value }: Catego
                 onClick={() => handleCategoryClick(category)}
                 className={`
                   relative p-4 rounded-lg border-2 transition-all text-left
-                  ${canSelect 
-                    ? 'border-primary/20 hover:border-primary bg-primary/5 hover:bg-primary/10' 
-                    : 'border-border hover:border-primary/50 hover:bg-accent'
+                  ${isSelected 
+                    ? 'border-primary bg-primary/10 ring-2 ring-primary/20' 
+                    : canSelect 
+                      ? 'border-primary/20 hover:border-primary bg-primary/5 hover:bg-primary/10' 
+                      : 'border-border hover:border-primary/50 hover:bg-accent'
                   }
                 `}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <p className="font-medium">{category[nameKey]}</p>
-                    {isLeaf && (
+                    <p className={`font-medium ${isSelected ? 'text-primary' : ''}`}>
+                      {category[nameKey]}
+                    </p>
+                    {isSelected && (
+                      <p className="text-xs text-primary mt-1">
+                        {t('categories.selected', 'Selecionada')}
+                      </p>
+                    )}
+                    {isLeaf && !isSelected && (
                       <p className="text-xs text-muted-foreground mt-1">
                         {t('categories.can_select', 'Clique para selecionar')}
                       </p>
                     )}
                   </div>
-                  {isLeaf ? (
+                  {isSelected ? (
+                    <Check className="w-5 h-5 text-primary" />
+                  ) : isLeaf ? (
                     <Check className="w-5 h-5 text-primary" />
                   ) : (
                     <ChevronRight className="w-5 h-5 text-muted-foreground" />
@@ -223,7 +286,7 @@ export function CategoryPicker({ kind, onSelect, className = '', value }: Catego
       </div>
 
       {/* Informação adicional */}
-      {currentLevel < maxLevel && currentCategories.length > 0 && (
+      {currentLevel < maxLevel && currentCategories.length > 0 && !hasSelectedCategory && (
         <p className="text-sm text-muted-foreground text-center">
           {currentCategories.some(isLeafCategory) 
             ? t('categories.some_are_final', 'Categorias com ✓ podem ser selecionadas')
