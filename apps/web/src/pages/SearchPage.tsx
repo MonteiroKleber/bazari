@@ -1,7 +1,5 @@
-// V-4 (2025-09-10): Versão otimizada com memoização e sem logs de debug
-// - Tradução funcionando corretamente para categorias
-// - Memoização para evitar recálculos desnecessários
-// - Tratamento melhorado para categorias não encontradas
+// V-5 (2025-09-11): Aplica a mesma estratégia de tradução nas breadcrumbs dos cards (sem alterar layout/componentes).
+// Base: V-4 (memoização, índices múltiplos e fallback humanizado para categorias).
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -163,6 +161,14 @@ export function SearchPage() {
     // Fallback: humanizar o último item do path
     return humanize(path[path.length - 1] || '');
   }, [categoryIndexes, getCategoryDisplayName, humanize]);
+
+  // >>> NOVO: helper para breadcrumbs — usa a MESMA estratégia do getFacetLabel, mas por nível cumulativo <<<
+  const getCrumbLabel = useCallback((fullPath: string[], levelIndex: number) => {
+    // levelIndex é o índice do nível que queremos exibir (ex.: 1 = depois do prefixo)
+    if (!Array.isArray(fullPath) || fullPath.length === 0) return '';
+    const upto = Math.min(levelIndex + 1, fullPath.length);
+    return getFacetLabel(fullPath.slice(0, upto));
+  }, [getFacetLabel]);
 
   // Memoizar labels das categorias para evitar recálculos
   const categoryLabels = useMemo(() => {
@@ -398,9 +404,11 @@ export function SearchPage() {
                         </p>
                         {item.categoryPath && item.categoryPath.length > 0 && (
                           <div className="mt-3 flex flex-wrap gap-1">
-                            {item.categoryPath.slice(1).map((cat, idx) => (
+                            {/* Mantém o MESMO layout (Badges). 
+                                Agora cada crumb usa a mesma estratégia de tradução: path cumulativo até o nível. */}
+                            {item.categoryPath.slice(1).map((_, idx) => (
                               <Badge key={idx} variant="outline" className="text-xs">
-                                {cat}
+                                {getCrumbLabel(item.categoryPath, idx + 1)}
                               </Badge>
                             ))}
                           </div>
