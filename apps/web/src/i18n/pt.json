@@ -1,83 +1,127 @@
 {
   "header": {
-    "about": "Sobre",
-    "modules": "Módulos",
-    "roadmap": "Roadmap",
-    "contact": "Contato",
-    "status": {
-      "online": "Online",
-      "offline": "Offline",
-      "unstable": "Instável",
-      "loading": "Carregando"
-    }
-  },
-  "hero": {
-    "title": "Bazari — Economia Popular Descentralizada",
-    "subtitle": "O super app e blockchain da economia real, feito pelo povo para o povo.",
-    "cta_primary": "Entrar no Super App (em breve)",
-    "cta_secondary": "Baixar Whitepaper"
-  },
-  "about": {
-    "title": "O que é a Bazari",
-    "text": "Bazari é uma Nação Digital descentralizada com moeda BZR e cashback LIVO, focada em feiras populares, comerciantes e autônomos. Nossa missão é democratizar a economia digital, oferecendo tecnologia de ponta e ferramentas para pequenos empreendedores."
-  },
-  "modules": {
-    "title": "Módulos Bazari",
-    "wallet": "Carteira",
-    "wallet_desc": "Wallet multi-conta com BZR e LIVO",
     "marketplace": "Marketplace",
-    "marketplace_desc": "Compre e venda com BZR",
-    "dao": "DAO",
-    "dao_desc": "Governança descentralizada",
-    "p2p": "P2P/Exchange",
-    "p2p_desc": "Troque BZR por outras moedas",
-    "dex": "DEX",
-    "dex_desc": "Exchange descentralizada (em breve)",
-    "social": "Rede Social",
-    "social_desc": "Conecte-se com outros comerciantes",
-    "studio": "Studio",
-    "studio_desc": "Crie sistemas low-code"
-  },
-  "roadmap": {
-    "title": "Roadmap",
-    "now": "Agora",
-    "next": "Próximo",
-    "future": "Futuro",
-    "now_list": ["Landing Page", "Design System", "Wallet base", "Estrutura monorepo"],
-    "next_list": ["Marketplace MVP", "DAO MVP", "Sistema de cashback LIVO", "Integração BazariChain"],
-    "future_list": ["DEX comunitária", "Expansão de SubDAOs", "App mobile nativo", "Parcerias estratégicas"]
-  },
-  "cta": {
-    "title": "Faça parte da revolução econômica",
-    "subtitle": "Acompanhe o desenvolvimento e seja um dos primeiros a usar a Bazari",
-    "button": "Quero acompanhar"
+    "wallet": "Carteira",
+    "governance": "Governança",
+    "about": "Sobre",
+    "docs": "Docs",
+    "account": "Conta",
+    "profile": "Perfil",
+    "settings": "Configurações",
+    "logout": "Sair",
+    "login": "Entrar",
+    "signup": "Cadastrar"
   },
   "footer": {
-    "rights": "© 2024 Bazari. Todos os direitos reservados",
+    "tagline": "A Nação Digital da Economia Popular",
+    "about": "Sobre o Bazari",
+    "about_desc": "Descentralização real para feiras, autônomos e pequenos comerciantes",
+    "governance": "Governança",
+    "governance_desc": "DAO democrática com voto direto dos cidadãos",
+    "technology": "Tecnologia",
+    "technology_desc": "Blockchain própria e arquitetura local-first",
+    "community": "Comunidade",
+    "telegram": "Telegram",
+    "discord": "Discord",
     "github": "GitHub",
-    "docs": "Documentação",
-    "contact": "Contato"
+    "twitter": "Twitter",
+    "made_with": "Feito com ❤️ pela Comunidade Bazari",
+    "copyright": "© 2025 Bazari. Todos os direitos reservados."
+  },
+  "hero": {
+    "title": "A Nação Digital da Economia Popular",
+    "subtitle": "Descentralização real para feiras, autônomos e pequenos comerciantes",
+    "description": "Bazari é um Super App descentralizado que conecta produtores e consumidores sem intermediários. Governança democrática, moeda própria (BZR) e soberania digital completa.",
+    "cta_primary": "Entrar no Marketplace",
+    "cta_secondary": "Conhecer a Tecnologia",
+    "join_waitlist": "Entrar na Lista de Espera",
+    "beta_badge": "Beta Fechado"
+  },
+  "modules": {
+    "title": "Módulos do Ecossistema",
+    "marketplace": {
+      "title": "Marketplace P2P",
+      "description": "Compre e venda sem intermediários. Pagamentos diretos em BZR com cashback automático em LIVO."
+    },
+    "wallet": {
+      "title": "Carteira Multi-Asset",
+      "description": "Gerencie BZR, LIVO e outros tokens. Backup descentralizado e recuperação social."
+    },
+    "governance": {
+      "title": "Governança DAO",
+      "description": "Vote em propostas, crie SubDAOs e participe das decisões da rede."
+    },
+    "studio": {
+      "title": "Bazari Studio",
+      "description": "Crie sistemas personalizados com nossa plataforma low-code descentralizada."
+    }
+  },
+  "roadmap": {
+    "title": "Roadmap de Desenvolvimento",
+    "q1_2025": {
+      "title": "Q1 2025 - Fundação",
+      "items": ["BazariChain MVP", "Carteira básica", "Marketplace alpha", "Governança inicial"]
+    },
+    "q2_2025": {
+      "title": "Q2 2025 - Crescimento",
+      "items": ["Marketplace beta", "SubDAOs", "Sistema de reputação", "App mobile"]
+    },
+    "q3_2025": {
+      "title": "Q3 2025 - Expansão",
+      "items": ["Bazari Studio", "Integração DEX", "Parcerias estratégicas", "Programas de incentivo"]
+    },
+    "q4_2025": {
+      "title": "Q4 2025 - Consolidação",
+      "items": ["Lançamento público", "Auditoria de segurança", "Escalabilidade avançada", "Comunidade global"]
+    }
+  },
+  "cta": {
+    "title": "Pronto para a Revolução da Economia Popular?",
+    "description": "Junte-se a milhares de comerciantes, produtores e consumidores construindo o futuro descentralizado do comércio.",
+    "primary": "Começar Agora",
+    "primary_aria": "Iniciar jornada no Bazari",
+    "primary_title": "Clique para começar sua jornada no Bazari",
+    "secondary": "Saber Mais",
+    "beta_notice": "Beta fechado disponível para comerciantes selecionados"
   },
   "dev": {
-    "panel": {
-      "title": "Painel de Desenvolvimento"
-    },
-    "categories": {
-      "title": "Categorias",
-      "loading": "Carregando categorias...",
-      "error": "Erro ao carregar categorias",
-      "empty": "Nenhuma categoria encontrada",
-      "name": "Nome",
-      "level": "Nível",
-      "type": "Tipo",
-      "showing": "Mostrando {{count}} de {{total}} categorias"
-    },
+    "title": "Painel do Desenvolvedor",
+    "description": "Ferramentas e informações para desenvolvimento",
+    "current_theme": "Tema atual",
+    "theme_gallery": "Galeria de Temas",
+    "theme_preview": "Clique nos temas abaixo para visualizar:",
+    "language_test": "Teste de Idiomas",
+    "components_test": "Teste de Componentes"
+  },
+  "products": {
+    "title": "Produtos"
+  },
+  "services": {
+    "title": "Serviços"
+  },
+  "categories": {
+    "error": "Erro ao carregar categorias",
+    "select_main": "Selecione a categoria principal",
+    "select_sub": "Selecione a subcategoria",
+    "select_specific": "Selecione a categoria específica",
+    "select_detail": "Selecione a especialização",
+    "level_indicator": "Nível {{current}} de {{max}}",
+    "no_subcategories": "Nenhuma subcategoria disponível",
+    "is_final_level": "Esta categoria pode ser selecionada",
+    "can_select": "Clique para selecionar",
+    "some_are_final": "Categorias com ✓ podem ser selecionadas",
+    "select_to_continue": "Selecione uma categoria para continuar",
+    "currently_selected": "Categoria selecionada:",
+    "selected": "Selecionada"
+  },
+  "forms": {
+    "required_fields": "Preencha todos os campos obrigatórios",
+    "invalid_email": "Email inválido",
+    "password_too_short": "Senha deve ter pelo menos 8 caracteres",
+    "passwords_dont_match": "Senhas não coincidem",
+    "terms_required": "Você deve aceitar os termos de uso",
     "upload": {
-      "title": "Upload de Arquivo",
-      "select_file": "Selecionar arquivo",
-      "submit": "Enviar",
-      "uploading": "Enviando...",
-      "success": "Upload realizado com sucesso!",
+      "success": "Arquivo enviado com sucesso",
       "error": "Erro no envio",
       "no_file": "Selecione um arquivo"
     }
@@ -185,38 +229,9 @@
     "basic_info": "Informações Básicas",
     "basic_info_desc": "Dados principais do seu anúncio",
     "title": "Título",
-    "title_placeholder": "Ex.: Notebook Dell Inspiron 15",
+    "title_placeholder": "Ex.: iPhone 15 Pro Max 256GB",
     "description": "Descrição",
-    "description_placeholder": "Descreva seu produto ou serviço...",
-    "price": "Preço",
-    "media": "Fotos/Vídeos",
-    "files_selected": "{{count}} arquivo(s) selecionado(s)",
-    "attributes": "Características Específicas",
-    "attributes_desc": "Preencha os campos específicos da categoria"
-  },
-  "categories": {
-    "breadcrumb": "Caminho",
-    "title": "Categorias",
-    "loading": "Carregando categorias...",
-    "error": "Erro ao carregar categorias",
-    "empty": "Nenhuma categoria encontrada",
-    "select_main": "Selecione a categoria principal",
-    "select_sub": "Selecione a subcategoria",
-    "select_specific": "Selecione a categoria específica",
-    "select_detail": "Selecione a especialização",
-    "level_indicator": "Nível {{current}} de {{max}}",
-    "can_select": "Clique para selecionar",
-    "no_subcategories": "Não há subcategorias disponíveis",
-    "is_final_level": "Esta categoria pode ser selecionada",
-    "some_are_final": "Categorias com ✓ podem ser selecionadas",
-    "select_to_continue": "Selecione uma categoria para continuar"
-  },
-  "forms": {
-    "required_fields": "Preencha todos os campos obrigatórios",
-    "select_option": "Selecione uma opção",
-    "no_schema": "Não há schema disponível"
-  },
-  "errors": {
-    "generic": "Ocorreu um erro. Tente novamente."
+    "price": "Preço em BZR",
+    "upload_photos": "Enviar Fotos"
   }
 }
