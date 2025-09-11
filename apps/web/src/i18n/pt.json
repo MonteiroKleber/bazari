@@ -4,6 +4,9 @@
     "wallet": "Carteira",
     "governance": "Governança",
     "about": "Sobre",
+    "modules": "Módulos",
+    "roadmap": "Roadmap",
+    "contact": "Contato",
     "docs": "Docs",
     "account": "Conta",
     "profile": "Perfil",
@@ -39,6 +42,20 @@
   },
   "modules": {
     "title": "Módulos do Ecossistema",
+    "wallet": "Carteira Multi-Asset",
+    "wallet_desc": "Gerencie BZR, LIVO e outros tokens. Backup descentralizado e recuperação social.",
+    "marketplace": "Marketplace P2P",
+    "marketplace_desc": "Compre e venda sem intermediários. Pagamentos diretos em BZR com cashback automático em LIVO.",
+    "dao": "Governança DAO",
+    "dao_desc": "Vote em propostas, crie SubDAOs e participe das decisões da rede.",
+    "p2p": "Câmbio P2P",
+    "p2p_desc": "Troque BZR com outros usuários sem intermediários.",
+    "dex": "Exchange Descentralizada",
+    "dex_desc": "Negocie tokens de SubDAOs em pools de liquidez automáticas.",
+    "social": "Rede Social",
+    "social_desc": "Conecte-se com comerciantes e consumidores da sua região.",
+    "studio": "Bazari Studio",
+    "studio_desc": "Crie sistemas personalizados com nossa plataforma low-code descentralizada.",
     "marketplace": {
       "title": "Marketplace P2P",
       "description": "Compre e venda sem intermediários. Pagamentos diretos em BZR com cashback automático em LIVO."
@@ -56,8 +73,33 @@
       "description": "Crie sistemas personalizados com nossa plataforma low-code descentralizada."
     }
   },
+  "about": {
+    "title": "Sobre o Bazari",
+    "text": "O Bazari é uma infraestrutura descentralizada construída especificamente para a economia popular. Nossa missão é empoderar feiras, autônomos e pequenos comerciantes com soberania digital real."
+  },
   "roadmap": {
     "title": "Roadmap de Desenvolvimento",
+    "now": "Agora",
+    "now_list": [
+      "BazariChain MVP",
+      "Carteira básica",
+      "Marketplace alpha",
+      "Governança inicial"
+    ],
+    "next": "Próximo",
+    "next_list": [
+      "Marketplace beta",
+      "SubDAOs",
+      "Sistema de reputação",
+      "App mobile"
+    ],
+    "future": "Futuro",
+    "future_list": [
+      "Bazari Studio",
+      "Integração DEX",
+      "Parcerias estratégicas",
+      "Programas de incentivo"
+    ],
     "q1_2025": {
       "title": "Q1 2025 - Fundação",
       "items": ["BazariChain MVP", "Carteira básica", "Marketplace alpha", "Governança inicial"]
@@ -91,7 +133,23 @@
     "theme_gallery": "Galeria de Temas",
     "theme_preview": "Clique nos temas abaixo para visualizar:",
     "language_test": "Teste de Idiomas",
-    "components_test": "Teste de Componentes"
+    "components_test": "Teste de Componentes",
+    "panel": {
+      "title": "Painel de Desenvolvimento"
+    },
+    "categories": {
+      "title": "Categorias",
+      "loading": "Carregando categorias...",
+      "error": "Erro ao carregar categorias",
+      "name": "Nome",
+      "level": "Nível",
+      "type": "Tipo",
+      "showing": "Mostrando {{count}} de {{total}} categorias",
+      "empty": "Nenhuma categoria encontrada"
+    },
+    "upload": {
+      "title": "Upload de Arquivos"
+    }
   },
   "products": {
     "title": "Produtos"
@@ -136,6 +194,13 @@
     "next": "Próximo",
     "previous": "Anterior",
     "page": "Página {{current}} de {{total}}"
+  },
+  "errors": {
+    "generic": "Ocorreu um erro inesperado",
+    "network": "Erro de conexão",
+    "not_found": "Não encontrado",
+    "unauthorized": "Não autorizado",
+    "server_error": "Erro do servidor"
   },
   "search": {
     "placeholder": "Buscar produtos e serviços...",
