@@ -32,19 +32,10 @@
     "copyright": "© 2025 Bazari. Todos os direitos reservados."
   },
   "hero": {
-    "title": "Sua Economia,",
-    "highlight": "Sua Moeda",
-    "subtitle": "Descentralize seu comércio com BZR",
-    "description": "Conecte-se à primeira nação digital focada na economia popular. Venda, compre e ganhe cashback usando nossa moeda nativa BZR.",
-    "cta": {
-      "primary": "Começar Agora",
-      "secondary": "Saber Mais"
-    },
-    "stats": {
-      "merchants": "Comerciantes",
-      "transactions": "Transações BZR",
-      "communities": "SubDAOs Ativas"
-    }
+    "title": "Sua Economia, Sua Moeda",
+    "subtitle": "Conecte-se à primeira nação digital focada na economia popular. Venda, compre e ganhe cashback usando nossa moeda nativa BZR.",
+    "cta_primary": "Começar Agora",
+    "cta_secondary": "Baixar Whitepaper"
   },
   "modules": {
     "title": "Ecossistema Bazari",
@@ -68,39 +59,27 @@
   },
   "roadmap": {
     "title": "Roadmap de Desenvolvimento",
-    "subtitle": "Nossa jornada rumo à economia totalmente descentralizada",
-    "phases": {
-      "mvp": {
-        "title": "MVP - Fundação",
-        "status": "Em Desenvolvimento",
-        "items": {
-          "marketplace": "Marketplace básico",
-          "wallet": "Carteira web",
-          "dao": "Governança simples",
-          "tokens": "BZR + LIVO"
-        }
-      },
-      "beta": {
-        "title": "Beta - Expansão",
-        "status": "Próximo",
-        "items": {
-          "mobile": "Apps mobile",
-          "subdaos": "SubDAOs completas",
-          "studio": "Bazari Studio",
-          "integrations": "Integrações API"
-        }
-      },
-      "production": {
-        "title": "Produção - Escala",
-        "status": "Futuro",
-        "items": {
-          "crosschain": "Pontes cross-chain",
-          "enterprise": "Soluções enterprise",
-          "global": "Expansão global",
-          "ecosystem": "Ecossistema completo"
-        }
-      }
-    }
+    "now": "Agora - MVP",
+    "next": "Próximo - Beta",
+    "future": "Futuro - Produção",
+    "now_list": [
+      "Marketplace básico",
+      "Carteira web",
+      "Governança simples",
+      "Tokens BZR + LIVO"
+    ],
+    "next_list": [
+      "Apps móveis",
+      "SubDAOs completas",
+      "Bazari Studio",
+      "Integrações API"
+    ],
+    "future_list": [
+      "Bridges cross-chain",
+      "Soluções enterprise",
+      "Expansão global",
+      "Ecossistema completo"
+    ]
   },
   "cta": {
     "title": "Pronto para Descentralizar?",
@@ -133,7 +112,11 @@
       "empty": "Nenhuma categoria encontrada"
     },
     "upload": {
-      "title": "Upload de Arquivo"
+      "title": "Upload de Arquivo",
+      "button": "Selecionar Arquivo",
+      "success": "Upload realizado com sucesso",
+      "error": "Erro no upload",
+      "placeholder": "Escolha um arquivo..."
     }
   },
   "products": {
@@ -181,14 +164,30 @@
     "page": "Página {{current}} de {{total}}",
     "yes": "Sim",
     "no": "Não",
-    "back_to_search": "Voltar à busca"
+    "back_to_search": "Voltar à busca",
+    "view_details": "Ver detalhes",
+    "edit": "Editar",
+    "delete": "Excluir",
+    "confirm": "Confirmar",
+    "close": "Fechar",
+    "error": "Erro",
+    "success": "Sucesso",
+    "warning": "Aviso",
+    "info": "Informação",
+    "all": "Todos",
+    "select": "Selecionar"
   },
   "errors": {
     "generic": "Ocorreu um erro inesperado",
     "network": "Erro de conexão",
     "not_found": "Não encontrado",
     "unauthorized": "Não autorizado",
-    "server_error": "Erro do servidor"
+    "server_error": "Erro do servidor",
+    "validation_error": "Erro de validação",
+    "required_field": "Campo obrigatório",
+    "invalid_format": "Formato inválido",
+    "min_length": "Mínimo de {{min}} caracteres",
+    "max_length": "Máximo de {{max}} caracteres"
   },
   "search": {
     "title": "Buscar Produtos e Serviços",
@@ -214,7 +213,9 @@
     "toggle_filters": "Filtros",
     "showing_results": "Mostrando {{start}}-{{end}} de {{total}} resultados",
     "no_results": "Nenhum resultado encontrado",
-    "search_placeholder": "Digite algo para buscar produtos e serviços"
+    "search_placeholder": "Digite algo para buscar produtos e serviços",
+    "results_for": "Resultados para \"{{query}}\"",
+    "loading_results": "Carregando resultados..."
   },
   "new": {
     "type": "Tipo",
@@ -232,101 +233,72 @@
     "description": "Descrição",
     "description_placeholder": "Descreva seu produto ou serviço em detalhes...",
     "price": "Preço",
+    "price_placeholder": "0.00",
     "media": "Fotos/Vídeos",
+    "media_desc": "Adicione imagens ou vídeos do seu produto",
     "attributes": "Características Específicas",
     "attributes_desc": "Preencha as informações específicas da categoria selecionada",
     "what_to_list": "O que você gostaria de anunciar?",
     "what_to_list_desc": "Escolha se você está vendendo um produto ou oferecendo um serviço",
     "success": "Sucesso",
     "success_title": "Cadastrado com sucesso!",
-    "success_message": "Seu anúncio foi publicado no marketplace",
-    "view_product": "Ver anúncio",
-    "add_another": "Cadastrar outro nesta categoria",
-    "add_new": "Novo cadastro",
-    "add_photos_now": "Adicionar fotos agora",
-    "click_to_upload": "Clique para enviar fotos",
-    "files_uploaded": "{{count}} arquivo(s) enviado(s)",
-    "max_files_error": "Máximo de 10 arquivos permitidos",
-    "upload_error": "Erro no upload",
-    "uploading_files": "Enviando arquivos...",
-    "finish": "Finalizar Cadastro",
+    "success_message": "Seu anúncio foi publicado",
+    "finish": "Finalizar",
     "dynamic": {
+      "required": "Campo obrigatório",
       "inputPlaceholder": "Digite o valor"
     },
     "dynamicFields": {
-      "tamanho": { "label": "Tamanho", "placeholder": "Selecione", "options": { "PP": "PP", "P": "P", "M": "M", "G": "G" } },
-      "cor": { "label": "Cor" },
-      "material": { "label": "Material" },
-      "tecnica": { "label": "Técnica", "options": {
-      "Óleo":"Óleo","Acrílica":"Acrílica","Aquarela":"Aquarela","Guache":"Guache","Mista":"Mista","Outros":"Outros"
-      }},
-      "suporte": { "label": "Suporte", "options": {
-        "Tela":"Tela","Papel":"Papel","Madeira":"Madeira","Metal":"Metal","Outros":"Outros"
-      }},
-      "largura_cm": { "label": "Largura (cm)" },
-      "altura_cm": { "label": "Altura (cm)" },
-      "estado_conservacao": { "label": "Estado de conservação", "options": {
-        "Novo":"Novo","Usado":"Usado","Restaurado":"Restaurado"
-      }},
-      "moldura": { "label": "Com moldura" },
-      "autenticidade": { "label": "Autenticidade", "options": {
-        "Com certificado":"Com certificado","Assinado":"Assinado","Sem comprovação":"Sem comprovação"
-      }},
-      "cores_predominantes": { "label": "Cores predominantes",
-        "options": {"Azul":"Azul","Branco":"Branco","Preto":"Preto","Vermelho":"Vermelho","Verde":"Verde","Amarelo":"Amarelo"}
+      "brand": {
+        "label": "Marca",
+        "placeholder": "Ex.: Apple, Samsung"
+      },
+      "model": {
+        "label": "Modelo",
+        "placeholder": "Ex.: iPhone 15 Pro"
+      },
+      "storage": {
+        "label": "Armazenamento",
+        "placeholder": "Ex.: 256GB"
+      },
+      "color": {
+        "label": "Cor",
+        "placeholder": "Ex.: Preto"
+      },
+      "condition": {
+        "label": "Condição",
+        "options": {
+          "new": "Novo",
+          "used": "Usado",
+          "refurbished": "Recondicionado"
+        }
+      },
+      "warranty": {
+        "label": "Garantia"
+      },
+      "size": {
+        "label": "Tamanho",
+        "placeholder": "Ex.: P, M, G"
+      },
+      "material": {
+        "label": "Material",
+        "placeholder": "Ex.: Algodão, Poliéster"
       }
     }
   },
-  "listing": {
-    "step1": "Tipo",
-    "step2": "Categoria",
-    "step3": "Informações",
-    "step4": "Atributos",
-    "product": "Produto",
-    "product_desc": "Item físico ou digital para venda",
-    "service": "Serviço",
-    "service_desc": "Prestação de serviço ou consultoria",
-    "choose_category": "Escolher Categoria",
-    "category_desc": "Selecione a categoria mais específica possível",
-    "basic_info": "Informações Básicas",
-    "basic_info_desc": "Dados principais do seu anúncio",
-    "title": "Título",
-    "title_placeholder": "Ex.: iPhone 15 Pro Max 256GB",
-    "description": "Descrição",
-    "price": "Preço em BZR",
-    "upload_photos": "Enviar Fotos"
-  },
-  "product": {
-    "description": "Descrição",
-    "characteristics": "Características",
-    "contact_seller": "Falar com vendedor",
-    "contact_seller_placeholder": "Funcionalidade em desenvolvimento",
-    "share": "Compartilhar",
-    "seller_info": "Informações do Vendedor",
-    "published_at": "Publicado em",
-    "no_images": "Sem imagens",
-    "type_product": "Produto",
-    "type_service": "Serviço",
-    "video": "Vídeo",
-    "base_price": "Preço base"
-  },
-  "upload": {
-    "page_title": "Adicionar Fotos",
-    "view_listing": "Ver anúncio",
-    "current_media": "Mídias Atuais",
-    "no_media": "Nenhuma mídia anexada ainda",
-    "media_count": "{{count}} de 10 mídias",
-    "add_more": "Adicionar Mais Mídias",
-    "limit_reached": "Limite de 10 mídias atingido",
-    "supported_formats": "Suporta: JPG, PNG, GIF, MP4 (máx 10MB cada)",
-    "new_uploads": "Novos Uploads",
-    "uploading": "Enviando...",
-    "success": "Enviado com sucesso",
-    "retry": "Tentar novamente",
-    "success_count": "enviado(s)",
-    "pending_count": "enviando...",
-    "error_count": "com erro",
-    "view_final_listing": "Ver anúncio final",
-    "create_another": "Criar outro anúncio"
+  "validation": {
+    "required": "Este campo é obrigatório",
+    "min": "Valor mínimo é {{min}}",
+    "max": "Valor máximo é {{max}}",
+    "email": "Email inválido",
+    "url": "URL inválida",
+    "number": "Deve ser um número",
+    "integer": "Deve ser um número inteiro",
+    "positive": "Deve ser um número positivo",
+    "date": "Data inválida",
+    "time": "Hora inválida",
+    "phone": "Telefone inválido",
+    "cpf": "CPF inválido",
+    "cnpj": "CNPJ inválido"
   }
 }

@@ -1,347 +1,380 @@
-// V+1: Usando ProductCard component para resultados - 2025-09-11
-// Substitui cards customizados por ProductCard reutilizável
-// Mantém toda funcionalidade de busca e filtros existente
+// V-4: SearchPage with real API data, filters, facets and i18n - 2025-09-11
+// Uses apiFetch, no mocks, complete filtering and URL sync
+// path: apps/web/src/pages/SearchPage.tsx
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router-dom';
-import { Search, Filter, Grid3X3, List } from 'lucide-react';
+import { useSearchParams, Link } from 'react-router-dom';
+import { Search, Grid3X3, List, AlertCircle } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
+import { Card, CardContent } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert';
+import { SearchFilters } from '../components/SearchFilters';
 import { useSearch } from '../hooks/useSearch';
+import { SearchParams } from '../lib/api';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
-import { Alert, AlertDescription } from '../components/ui/alert';
-import { ProductCard } from '../components/ProductCard';
-
-// Hook para carregar categorias com tradução
-import { useCategories } from '../hooks/useCategories';
 
 export function SearchPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [showFilters, setShowFilters] = useState(false);
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [searchInput, setSearchInput] = useState(searchParams.get('q') || '');
 
-  const {
-    filters,
-    results,
-    loading,
-    error,
-    updateFilters,
-    clearFilters,
-    handlePageChange
-  } = useSearch({
-    q: searchParams.get('q') || undefined,
-    kind: (searchParams.get('kind') as any) || 'all',
-    limit: 20
-  });
-
-  // Carregar todas as categorias para tradução
-  const { categories } = useCategories();
-
-  // Criar múltiplos índices para mapear categorias - MEMOIZADO
-  const categoryIndexes = useMemo(() => {
-    const byFullPath = new Map<string, any>();
-    const byPathWithoutPrefix = new Map<string, any>();
-    const byLastSlug = new Map<string, any>();
-    const byPartialPath = new Map<string, any>();
+  // Parse filters from URL
+  const filtersFromUrl = useMemo((): SearchParams => {
+    const params: SearchParams = {};
     
-    for (const cat of categories || []) {
-      // Índice 1: Path completo (ex: "products-tecnologia-eletronicos")
-      const fullKey = cat.pathSlugs?.join('-') || '';
-      if (fullKey) {
-        byFullPath.set(fullKey, cat);
-      }
-      
-      // Índice 2: Path sem prefixo (ex: "tecnologia-eletronicos")
-      const withoutPrefix = cat.pathSlugs?.slice(1).join('-') || '';
-      if (withoutPrefix) {
-        byPathWithoutPrefix.set(withoutPrefix, cat);
-      }
-      
-      // Índice 3: Último slug apenas (ex: "eletronicos")
-      const lastSlug = cat.pathSlugs?.[cat.pathSlugs.length - 1] || '';
-      if (lastSlug) {
-        byLastSlug.set(lastSlug, cat);
-      }
-      
-      // Índice 4: Cada segmento do path
-      if (cat.pathSlugs) {
-        for (let i = 1; i < cat.pathSlugs.length; i++) {
-          const partial = cat.pathSlugs.slice(i).join('-');
-          if (partial && !byPartialPath.has(partial)) {
-            byPartialPath.set(partial, cat);
-          }
+    // Basic params
+    const q = searchParams.get('q');
+    if (q) params.q = q;
+    
+    const kind = searchParams.get('kind');
+    if (kind === 'product' || kind === 'service') params.kind = kind;
+    
+    const categoryId = searchParams.get('categoryId');
+    if (categoryId) params.categoryId = categoryId;
+    
+    // Category path array
+    const categoryPath = searchParams.getAll('categoryPath[]');
+    if (categoryPath.length > 0) params.categoryPath = categoryPath;
+    
+    // Prices
+    const priceMin = searchParams.get('priceMin');
+    if (priceMin) params.priceMin = parseFloat(priceMin);
+    
+    const priceMax = searchParams.get('priceMax');
+    if (priceMax) params.priceMax = parseFloat(priceMax);
+    
+    // Pagination
+    const page = searchParams.get('page');
+    params.page = page ? parseInt(page) : 1;
+    
+    const limit = searchParams.get('limit');
+    params.limit = limit ? parseInt(limit) : 20;
+    
+    // Sort
+    const sort = searchParams.get('sort');
+    if (sort) params.sort = sort as SearchParams['sort'];
+    
+    // Dynamic attributes
+    const attributes: Record<string, string[]> = {};
+    searchParams.forEach((value, key) => {
+      const match = key.match(/^attr\[(.+)\]$/);
+      if (match) {
+        const attrKey = match[1];
+        if (!attributes[attrKey]) {
+          attributes[attrKey] = [];
         }
+        attributes[attrKey].push(value);
       }
+    });
+    
+    if (Object.keys(attributes).length > 0) {
+      params.attributes = attributes;
     }
     
-    return { byFullPath, byPathWithoutPrefix, byLastSlug, byPartialPath };
-  }, [categories]);
+    return params;
+  }, [searchParams]);
 
-  // Função para traduzir categoria - APRIMORADA com múltiplos índices
-  const getCrumbLabel = useCallback((categoryPath: string[], level: number) => {
-    if (!categoryPath || level >= categoryPath.length) return '';
-    
-    // Tentar buscar categoria pelos múltiplos índices
-    const pathToLevel = categoryPath.slice(0, level + 1);
-    const searchKeys = [
-      pathToLevel.join('-'),                    // Busca completa
-      pathToLevel.slice(1).join('-'),          // Sem prefixo products/services
-      categoryPath[level],                      // Só o slug atual
-      pathToLevel.slice(1, level + 1).join('-') // Parcial sem prefixo
-    ];
-    
-    let category: any = null;
-    const { byFullPath, byPathWithoutPrefix, byLastSlug, byPartialPath } = categoryIndexes;
-    
-    // Tentar cada índice na ordem de preferência
-    for (const key of searchKeys) {
-      if (!key) continue;
-      
-      category = byFullPath.get(key) || 
-                byPathWithoutPrefix.get(key) || 
-                byLastSlug.get(key) || 
-                byPartialPath.get(key);
-      
-      if (category) break;
-    }
-    
-    if (category) {
-      const lang = i18n.language?.split('-')[0] || 'pt';
-      switch (lang) {
-        case 'en': return category.nameEn || category.namePt;
-        case 'es': return category.nameEs || category.namePt;
-        default: return category.namePt;
-      }
-    }
-    
-    // Fallback humanizado
-    return categoryPath[level]
-      .replace(/[-_]/g, ' ')
-      .replace(/\b\w/g, (m) => m.toUpperCase());
-  }, [categoryIndexes, i18n.language]);
+  // Fetch data with current filters
+  const { data, isLoading, error } = useSearch(filtersFromUrl);
 
-  const handleSearch = useCallback((e: React.FormEvent) => {
+  // Update URL when filters change
+  const updateFilters = (newFilters: Partial<SearchParams>) => {
+    const params = new URLSearchParams();
+    
+    // Merge with existing filters
+    const merged = { ...filtersFromUrl, ...newFilters };
+    
+    // Build new URL params
+    if (merged.q) params.set('q', merged.q);
+    if (merged.kind) params.set('kind', merged.kind);
+    if (merged.categoryId) params.set('categoryId', merged.categoryId);
+    
+    if (merged.categoryPath?.length) {
+      merged.categoryPath.forEach(path => {
+        params.append('categoryPath[]', path);
+      });
+    }
+    
+    if (merged.priceMin !== undefined) params.set('priceMin', merged.priceMin.toString());
+    if (merged.priceMax !== undefined) params.set('priceMax', merged.priceMax.toString());
+    if (merged.page && merged.page > 1) params.set('page', merged.page.toString());
+    if (merged.limit && merged.limit !== 20) params.set('limit', merged.limit.toString());
+    if (merged.sort) params.set('sort', merged.sort);
+    
+    if (merged.attributes) {
+      Object.entries(merged.attributes).forEach(([key, values]) => {
+        const valueArray = Array.isArray(values) ? values : [values];
+        valueArray.forEach(value => {
+          params.append(`attr[${key}]`, value);
+        });
+      });
+    }
+    
+    setSearchParams(params);
+  };
+
+  // Handle search submit
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    updateFilters({ q: searchQuery, offset: 0 });
-    
-    // Atualizar URL
-    const newParams = new URLSearchParams(searchParams);
-    if (searchQuery) {
-      newParams.set('q', searchQuery);
+    updateFilters({ q: searchInput, page: 1 });
+  };
+
+  // Handle filter changes
+  const handleFilterChange = (filters: any) => {
+    updateFilters({ ...filters, page: 1 });
+  };
+
+  // Handle sort change
+  const handleSortChange = (sort: string) => {
+    updateFilters({ sort: sort as SearchParams['sort'], page: 1 });
+  };
+
+  // Handle kind change
+  const handleKindChange = (kind: string) => {
+    if (kind === 'all') {
+      const newFilters = { ...filtersFromUrl };
+      delete newFilters.kind;
+      updateFilters({ ...newFilters, page: 1 });
     } else {
-      newParams.delete('q');
+      updateFilters({ kind: kind as 'product' | 'service', page: 1 });
     }
-    setSearchParams(newParams);
-  }, [searchQuery, updateFilters, searchParams, setSearchParams]);
+  };
 
-  const handleKindChange = useCallback((kind: string) => {
-    updateFilters({ 
-      kind: kind === 'all' ? undefined : kind as 'product' | 'service',
-      offset: 0 
-    });
-  }, [updateFilters]);
+  // Handle pagination
+  const handlePageChange = (direction: 'prev' | 'next') => {
+    const currentPage = filtersFromUrl.page || 1;
+    if (direction === 'next') {
+      updateFilters({ page: currentPage + 1 });
+    } else if (currentPage > 1) {
+      updateFilters({ page: currentPage - 1 });
+    }
+  };
 
-  const handleSortChange = useCallback((sort: string) => {
-    updateFilters({ 
-      sort: sort as any,
-      offset: 0 
-    });
-  }, [updateFilters]);
-
-  const handleClearFilters = useCallback(() => {
-    setSearchQuery('');
-    clearFilters();
-    setSearchParams({});
-  }, [clearFilters, setSearchParams]);
+  // Format price for display
+  const formatPrice = (price: string | number) => {
+    const num = typeof price === 'string' ? parseFloat(price) : price;
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 2
+    }).format(num);
+  };
 
   return (
     <>
       <Header />
-      <div className="min-h-screen bg-background pt-16">
+      <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8">
-          
-          {/* Cabeçalho de Busca */}
-          <div className="max-w-4xl mx-auto mb-8">
-            <h1 className="text-3xl font-bold mb-6 text-center">
-              {t('search.title', 'Buscar Produtos e Serviços')}
-            </h1>
-            
-            {/* Barra de busca */}
-            <form onSubmit={handleSearch} className="flex gap-2 mb-6">
+          {/* Page Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold mb-2">{t('search.title')}</h1>
+            <p className="text-muted-foreground">{t('search.subtitle')}</p>
+          </div>
+
+          {/* Search Bar */}
+          <form onSubmit={handleSearch} className="mb-6">
+            <div className="flex gap-2">
               <Input
                 type="search"
                 placeholder={t('search.placeholder')}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 className="flex-1"
               />
-              <Button type="submit" disabled={loading}>
-                <Search className="w-4 h-4 mr-2" />
+              <Button type="submit">
+                <Search className="h-4 w-4 mr-2" />
                 {t('search.button')}
               </Button>
-            </form>
+            </div>
+          </form>
 
-            {/* Filtros rápidos */}
-            <div className="flex flex-wrap items-center gap-4 mb-6">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">{t('search.type', 'Tipo')}:</span>
-                <Select value={filters.kind || 'all'} onValueChange={handleKindChange}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t('search.all')}</SelectItem>
-                    <SelectItem value="product">{t('search.products')}</SelectItem>
-                    <SelectItem value="service">{t('search.services')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          {/* Toolbar */}
+          <div className="flex flex-wrap gap-4 items-center mb-6">
+            {/* Kind Tabs */}
+            <Tabs 
+              value={filtersFromUrl.kind || 'all'} 
+              onValueChange={handleKindChange}
+            >
+              <TabsList>
+                <TabsTrigger value="all">{t('search.all')}</TabsTrigger>
+                <TabsTrigger value="product">{t('search.kind.product')}</TabsTrigger>
+                <TabsTrigger value="service">{t('search.kind.service')}</TabsTrigger>
+              </TabsList>
+            </Tabs>
 
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">{t('search.sort_by')}:</span>
-                <Select value={filters.sort || 'createdDesc'} onValueChange={handleSortChange}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="createdDesc">{t('search.sort.newest')}</SelectItem>
-                    <SelectItem value="priceAsc">{t('search.sort.price_asc')}</SelectItem>
-                    <SelectItem value="priceDesc">{t('search.sort.price_desc')}</SelectItem>
-                    <SelectItem value="relevance">{t('search.sort.relevance')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            {/* Sort */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">{t('search.sort.label')}:</span>
+              <Select 
+                value={filtersFromUrl.sort || 'relevance'} 
+                onValueChange={handleSortChange}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="relevance">{t('search.sort.relevance')}</SelectItem>
+                  <SelectItem value="price_asc">{t('search.sort.priceAsc')}</SelectItem>
+                  <SelectItem value="price_desc">{t('search.sort.priceDesc')}</SelectItem>
+                  <SelectItem value="newest">{t('search.sort.newest')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowFilters(!showFilters)}
-                >
-                  <Filter className="w-4 h-4 mr-2" />
-                  {t('search.filters')}
-                </Button>
-                
-                {Object.keys(filters).length > 0 && (
-                  <Button variant="ghost" size="sm" onClick={handleClearFilters}>
-                    {t('search.clear')}
-                  </Button>
-                )}
-              </div>
-
-              {/* Toggle de visualização */}
-              <div className="ml-auto flex items-center gap-1 border rounded-md">
-                <Button
-                  variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setViewMode('grid')}
-                >
-                  <Grid3X3 className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant={viewMode === 'list' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setViewMode('list')}
-                >
-                  <List className="w-4 h-4" />
-                </Button>
-              </div>
+            {/* View Mode */}
+            <div className="flex gap-1 ml-auto">
+              <Button
+                variant={viewMode === 'grid' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+              >
+                <Grid3X3 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+              >
+                <List className="h-4 w-4" />
+              </Button>
             </div>
           </div>
 
-          {/* Área de resultados */}
-          <div className="max-w-6xl mx-auto">
-            {loading && (
-              <div className="text-center py-12">
-                <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-                <p className="text-muted-foreground">{t('common.loading')}</p>
-              </div>
-            )}
+          {/* Main Content */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Filters Sidebar */}
+            <div className="lg:col-span-1">
+              <SearchFilters
+                value={{
+                  categoryId: filtersFromUrl.categoryId,
+                  categoryPath: filtersFromUrl.categoryPath,
+                  priceMin: filtersFromUrl.priceMin,
+                  priceMax: filtersFromUrl.priceMax,
+                  attributes: filtersFromUrl.attributes
+                }}
+                onChange={handleFilterChange}
+                facets={data?.facets}
+              />
+            </div>
 
-            {error && (
-              <Alert className="mb-6">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            {results && results.items.length > 0 ? (
-              <div>
-                {/* Contador de resultados */}
-                <div className="flex items-center justify-between mb-6">
-                  <p className="text-sm text-muted-foreground">
-                    {t('search.showing_results', {
-                      start: results.page.offset + 1,
-                      end: Math.min(results.page.offset + results.page.limit, results.page.total),
-                      total: results.page.total
-                    })}
-                  </p>
+            {/* Results */}
+            <div className="lg:col-span-3">
+              {/* Loading State */}
+              {isLoading && (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">{t('common.loading')}</p>
                 </div>
+              )}
 
-                {/* Grid de produtos usando ProductCard */}
-                <div className={
-                  viewMode === 'grid' 
-                    ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-8"
-                    : "space-y-4 mb-8"
-                }>
-                  {results.items.map((item) => (
-                    <ProductCard
-                      key={item.id}
-                      id={item.id}
-                      kind={item.kind}
-                      title={item.title}
-                      description={item.description}
-                      priceBzr={item.priceBzr}
-                      basePriceBzr={item.basePriceBzr}
-                      categoryPath={item.categoryPath}
-                      media={item.media}
-                      className={viewMode === 'list' ? 'flex-row' : ''}
-                    />
-                  ))}
-                </div>
+              {/* Error State */}
+              {error && !isLoading && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>{t('search.results.errorTitle')}</AlertTitle>
+                  <AlertDescription>{t('search.results.errorBody')}</AlertDescription>
+                </Alert>
+              )}
 
-                {/* Pagination */}
-                {results.page.total > results.page.limit && (
-                  <div className="flex justify-center gap-2 mt-6">
-                    <Button
-                      variant="outline"
-                      disabled={results.page.offset === 0}
-                      onClick={() => handlePageChange(Math.max(0, results.page.offset - results.page.limit))}
-                    >
-                      {t('common.previous')}
-                    </Button>
-                    <span className="flex items-center px-4 text-sm">
-                      {t('common.page', {
-                        current: Math.floor(results.page.offset / results.page.limit) + 1,
-                        total: Math.ceil(results.page.total / results.page.limit)
+              {/* Empty State */}
+              {!isLoading && !error && data && data.items.length === 0 && (
+                <Alert>
+                  <AlertTitle>{t('search.results.emptyTitle')}</AlertTitle>
+                  <AlertDescription>{t('search.results.emptyBody')}</AlertDescription>
+                </Alert>
+              )}
+
+              {/* Results Grid/List */}
+              {!isLoading && !error && data && data.items.length > 0 && (
+                <>
+                  {/* Results Count */}
+                  <div className="mb-4">
+                    <p className="text-sm text-muted-foreground">
+                      {t('search.results.showing', {
+                        start: ((data.page - 1) * data.limit) + 1,
+                        end: Math.min(data.page * data.limit, data.total),
+                        total: data.total
                       })}
-                    </span>
-                    <Button
-                      variant="outline"
-                      disabled={results.page.offset + results.page.limit >= results.page.total}
-                      onClick={() => handlePageChange(results.page.offset + results.page.limit)}
-                    >
-                      {t('common.next')}
-                    </Button>
+                    </p>
                   </div>
-                )}
-              </div>
-            ) : results && !loading ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">
-                  {filters.q ? 
-                    t('search.no_results', 'Nenhum resultado encontrado') : 
-                    t('search.search_placeholder', 'Digite algo para buscar produtos e serviços')
-                  }
-                </p>
-              </div>
-            ) : null}
+
+                  {/* Items Grid/List */}
+                  <div className={
+                    viewMode === 'grid' 
+                      ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'
+                      : 'space-y-4'
+                  }>
+                    {data.items.map((item) => (
+                      <Link 
+                        key={item.id} 
+                        to={`/app/product/${item.id}`}
+                        className="block"
+                      >
+                        <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+                          <CardContent className="p-4">
+                            {/* Thumbnail */}
+                            {item.thumbnailUrl && (
+                              <div className="aspect-square mb-3 overflow-hidden rounded-lg bg-muted">
+                                <img
+                                  src={item.thumbnailUrl}
+                                  alt={item.title}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            )}
+                            
+                            {/* Title */}
+                            <h3 className="font-semibold mb-2 line-clamp-2">
+                              {item.title}
+                            </h3>
+                            
+                            {/* Price */}
+                            <p className="text-lg font-bold text-primary">
+                              {formatPrice(item.priceBzr)}
+                            </p>
+                            
+                            {/* Category Path */}
+                            {item.categoryPath && item.categoryPath.length > 0 && (
+                              <p className="text-xs text-muted-foreground mt-2">
+                                {item.categoryPath.join(' > ')}
+                              </p>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </Link>
+                    ))}
+                  </div>
+
+                  {/* Pagination */}
+                  {data.total > data.limit && (
+                    <div className="flex justify-center gap-2 mt-8">
+                      <Button
+                        variant="outline"
+                        onClick={() => handlePageChange('prev')}
+                        disabled={data.page === 1}
+                      >
+                        {t('search.pagination.prev')}
+                      </Button>
+                      <span className="flex items-center px-4 text-sm text-muted-foreground">
+                        {t('common.page', { current: data.page, total: Math.ceil(data.total / data.limit) })}
+                      </span>
+                      <Button
+                        variant="outline"
+                        onClick={() => handlePageChange('next')}
+                        disabled={data.page * data.limit >= data.total}
+                      >
+                        {t('search.pagination.next')}
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>

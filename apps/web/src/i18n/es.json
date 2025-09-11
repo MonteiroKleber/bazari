@@ -22,7 +22,7 @@
     "newsletter": {
       "title": "Recibir Actualizaciones",
       "placeholder": "Tu email",
-      "button": "Suscribirse"
+      "button": "Suscribir"
     },
     "social": {
       "twitter": "Twitter",
@@ -32,19 +32,10 @@
     "copyright": "© 2025 Bazari. Todos los derechos reservados."
   },
   "hero": {
-    "title": "Tu Economía,",
-    "highlight": "Tu Moneda",
-    "subtitle": "Descentraliza tu comercio con BZR",
-    "description": "Conéctate a la primera nación digital enfocada en la economía popular. Vende, compra y gana cashback usando nuestra moneda nativa BZR.",
-    "cta": {
-      "primary": "Comenzar Ahora",
-      "secondary": "Saber Más"
-    },
-    "stats": {
-      "merchants": "Comerciantes",
-      "transactions": "Transacciones BZR",
-      "communities": "SubDAOs Activas"
-    }
+    "title": "Tu Economía, Tu Moneda",
+    "subtitle": "Conéctate a la primera nación digital enfocada en la economía popular. Vende, compra y gana cashback usando nuestra moneda nativa BZR.",
+    "cta_primary": "Comenzar Ahora",
+    "cta_secondary": "Descargar Whitepaper"
   },
   "modules": {
     "title": "Ecosistema Bazari",
@@ -68,45 +59,33 @@
   },
   "roadmap": {
     "title": "Hoja de Ruta de Desarrollo",
-    "subtitle": "Nuestro viaje hacia la economía totalmente descentralizada",
-    "phases": {
-      "mvp": {
-        "title": "MVP - Fundación",
-        "status": "En Desarrollo",
-        "items": {
-          "marketplace": "Marketplace básico",
-          "wallet": "Billetera web",
-          "dao": "Gobernanza simple",
-          "tokens": "BZR + LIVO"
-        }
-      },
-      "beta": {
-        "title": "Beta - Expansión",
-        "status": "Próximo",
-        "items": {
-          "mobile": "Apps móviles",
-          "subdaos": "SubDAOs completas",
-          "studio": "Bazari Studio",
-          "integrations": "Integraciones API"
-        }
-      },
-      "production": {
-        "title": "Producción - Escala",
-        "status": "Futuro",
-        "items": {
-          "crosschain": "Puentes cross-chain",
-          "enterprise": "Soluciones enterprise",
-          "global": "Expansión global",
-          "ecosystem": "Ecosistema completo"
-        }
-      }
-    }
+    "now": "Ahora - MVP",
+    "next": "Próximo - Beta",
+    "future": "Futuro - Producción",
+    "now_list": [
+      "Marketplace básico",
+      "Billetera web",
+      "Gobernanza simple",
+      "Tokens BZR + LIVO"
+    ],
+    "next_list": [
+      "Apps móviles",
+      "SubDAOs completas",
+      "Bazari Studio",
+      "Integraciones API"
+    ],
+    "future_list": [
+      "Puentes cross-chain",
+      "Soluciones enterprise",
+      "Expansión global",
+      "Ecosistema completo"
+    ]
   },
   "cta": {
     "title": "¿Listo para Descentralizar?",
     "description": "Únete a miles de comerciantes, productores y consumidores construyendo el futuro descentralizado del comercio.",
     "primary": "Comenzar",
-    "primary_aria": "Iniciar viaje en Bazari",
+    "primary_aria": "Iniciar tu viaje en Bazari",
     "primary_title": "Haz clic para iniciar tu viaje en Bazari",
     "secondary": "Saber Más",
     "beta_notice": "Beta cerrado disponible para comerciantes seleccionados"
@@ -116,7 +95,7 @@
     "description": "Herramientas e información para desarrollo",
     "current_theme": "Tema actual",
     "theme_gallery": "Galería de Temas",
-    "theme_preview": "Haz clic en los temas abajo para visualizar:",
+    "theme_preview": "Haz clic en los temas abajo para previsualizar:",
     "language_test": "Prueba de Idioma",
     "components_test": "Prueba de Componentes",
     "panel": {
@@ -133,7 +112,11 @@
       "empty": "No se encontraron categorías"
     },
     "upload": {
-      "title": "Subida de Archivo"
+      "title": "Carga de Archivo",
+      "button": "Seleccionar Archivo",
+      "success": "Carga exitosa",
+      "error": "Error en la carga",
+      "placeholder": "Elige un archivo..."
     }
   },
   "products": {
@@ -144,15 +127,15 @@
   },
   "categories": {
     "error": "Error al cargar categorías",
-    "select_main": "Selecciona categoría principal",
-    "select_sub": "Selecciona subcategoría",
-    "select_specific": "Selecciona categoría específica",
-    "select_detail": "Selecciona especialización",
+    "select_main": "Seleccionar categoría principal",
+    "select_sub": "Seleccionar subcategoría",
+    "select_specific": "Seleccionar categoría específica",
+    "select_detail": "Seleccionar especialización",
     "level_indicator": "Nivel {{current}} de {{max}}",
     "no_subcategories": "No hay subcategorías disponibles",
     "is_final_level": "Esta categoría puede ser seleccionada",
     "can_select": "Haz clic para seleccionar",
-    "some_are_final": "Categorías con ✓ pueden ser seleccionadas",
+    "some_are_final": "Las categorías con ✓ pueden ser seleccionadas",
     "select_to_continue": "Selecciona una categoría para continuar",
     "currently_selected": "Categoría seleccionada:",
     "selected": "Seleccionada"
@@ -164,8 +147,8 @@
     "passwords_dont_match": "Las contraseñas no coinciden",
     "terms_required": "Debes aceptar los términos de uso",
     "upload": {
-      "success": "Archivo subido exitosamente",
-      "error": "Error en la subida",
+      "success": "Archivo cargado con éxito",
+      "error": "Error en la carga",
       "no_file": "Selecciona un archivo"
     }
   },
@@ -181,14 +164,30 @@
     "page": "Página {{current}} de {{total}}",
     "yes": "Sí",
     "no": "No",
-    "back_to_search": "Volver a la búsqueda"
+    "back_to_search": "Volver a la búsqueda",
+    "view_details": "Ver detalles",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "confirm": "Confirmar",
+    "close": "Cerrar",
+    "error": "Error",
+    "success": "Éxito",
+    "warning": "Advertencia",
+    "info": "Información",
+    "all": "Todos",
+    "select": "Seleccionar"
   },
   "errors": {
     "generic": "Ocurrió un error inesperado",
     "network": "Error de conexión",
     "not_found": "No encontrado",
     "unauthorized": "No autorizado",
-    "server_error": "Error del servidor"
+    "server_error": "Error del servidor",
+    "validation_error": "Error de validación",
+    "required_field": "Campo obligatorio",
+    "invalid_format": "Formato inválido",
+    "min_length": "Mínimo {{min}} caracteres",
+    "max_length": "Máximo {{max}} caracteres"
   },
   "search": {
     "title": "Buscar Productos y Servicios",
@@ -214,7 +213,9 @@
     "toggle_filters": "Filtros",
     "showing_results": "Mostrando {{start}}-{{end}} de {{total}} resultados",
     "no_results": "No se encontraron resultados",
-    "search_placeholder": "Escribe algo para buscar productos y servicios"
+    "search_placeholder": "Escribe algo para buscar productos y servicios",
+    "results_for": "Resultados para \"{{query}}\"",
+    "loading_results": "Cargando resultados..."
   },
   "new": {
     "type": "Tipo",
@@ -232,101 +233,72 @@
     "description": "Descripción",
     "description_placeholder": "Describe tu producto o servicio en detalle...",
     "price": "Precio",
+    "price_placeholder": "0.00",
     "media": "Fotos/Videos",
+    "media_desc": "Agrega imágenes o videos de tu producto",
     "attributes": "Características Específicas",
     "attributes_desc": "Completa la información específica de la categoría seleccionada",
     "what_to_list": "¿Qué te gustaría anunciar?",
     "what_to_list_desc": "Elige si estás vendiendo un producto u ofreciendo un servicio",
     "success": "Éxito",
-    "success_title": "¡Registrado exitosamente!",
-    "success_message": "Tu anuncio ha sido publicado en el marketplace",
-    "view_product": "Ver anuncio",
-    "add_another": "Registrar otro en esta categoría",
-    "add_new": "Nuevo registro",
-    "add_photos_now": "Agregar fotos ahora",
-    "click_to_upload": "Haz clic para subir fotos",
-    "files_uploaded": "{{count}} archivo(s) subido(s)",
-    "max_files_error": "Máximo de 10 archivos permitidos",
-    "upload_error": "Error en la subida",
-    "uploading_files": "Subiendo archivos...",
-    "finish": "Finalizar Registro",
+    "success_title": "¡Registrado con éxito!",
+    "success_message": "Tu anuncio ha sido publicado",
+    "finish": "Finalizar",
     "dynamic": {
+      "required": "Campo obligatorio",
       "inputPlaceholder": "Ingresa el valor"
     },
     "dynamicFields": {
-      "tamanho": { "label": "Talla", "placeholder": "Selecciona", "options": { "PP": "XS", "P": "S", "M": "M", "G": "L" } },
-      "cor": { "label": "Color" },
-      "material": { "label": "Material" },
-      "tecnica": { "label": "Técnica", "options": {
-      "Óleo":"Óleo","Acrílica":"Acrílica","Aquarela":"Acuarela","Guache":"Gouache","Mista":"Mixta","Outros":"Otros"
-      }},
-      "suporte": { "label": "Soporte", "options": {
-        "Tela":"Lienzo","Papel":"Papel","Madeira":"Madera","Metal":"Metal","Outros":"Otros"
-      }},
-      "largura_cm": { "label": "Ancho (cm)" },
-      "altura_cm": { "label": "Alto (cm)" },
-      "estado_conservacao": { "label": "Estado de conservación", "options": {
-        "Novo":"Nuevo","Usado":"Usado","Restaurado":"Restaurado"
-      }},
-      "moldura": { "label": "Con marco" },
-      "autenticidade": { "label": "Autenticidad", "options": {
-        "Com certificado":"Con certificado","Assinado":"Firmado","Sem comprovação":"Sin comprobación"
-      }},
-      "cores_predominantes": { "label": "Colores predominantes",
-        "options": {"Azul":"Azul","Branco":"Blanco","Preto":"Negro","Vermelho":"Rojo","Verde":"Verde","Amarelo":"Amarillo"}
+      "brand": {
+        "label": "Marca",
+        "placeholder": "Ej.: Apple, Samsung"
+      },
+      "model": {
+        "label": "Modelo",
+        "placeholder": "Ej.: iPhone 15 Pro"
+      },
+      "storage": {
+        "label": "Almacenamiento",
+        "placeholder": "Ej.: 256GB"
+      },
+      "color": {
+        "label": "Color",
+        "placeholder": "Ej.: Negro"
+      },
+      "condition": {
+        "label": "Condición",
+        "options": {
+          "new": "Nuevo",
+          "used": "Usado",
+          "refurbished": "Reacondicionado"
+        }
+      },
+      "warranty": {
+        "label": "Garantía"
+      },
+      "size": {
+        "label": "Tamaño",
+        "placeholder": "Ej.: P, M, G"
+      },
+      "material": {
+        "label": "Material",
+        "placeholder": "Ej.: Algodón, Poliéster"
       }
     }
   },
-  "listing": {
-    "step1": "Tipo",
-    "step2": "Categoría",
-    "step3": "Información",
-    "step4": "Atributos",
-    "product": "Producto",
-    "product_desc": "Artículo físico o digital para venta",
-    "service": "Servicio",
-    "service_desc": "Prestación de servicio o consultoría",
-    "choose_category": "Elegir Categoría",
-    "category_desc": "Selecciona la categoría más específica posible",
-    "basic_info": "Información Básica",
-    "basic_info_desc": "Datos principales de tu anuncio",
-    "title": "Título",
-    "title_placeholder": "Ej.: iPhone 15 Pro Max 256GB",
-    "description": "Descripción",
-    "price": "Precio en BZR",
-    "upload_photos": "Subir Fotos"
-  },
-  "product": {
-    "description": "Descripción",
-    "characteristics": "Características",
-    "contact_seller": "Contactar vendedor",
-    "contact_seller_placeholder": "Funcionalidad en desarrollo",
-    "share": "Compartir",
-    "seller_info": "Información del Vendedor",
-    "published_at": "Publicado el",
-    "no_images": "Sin imágenes",
-    "type_product": "Producto",
-    "type_service": "Servicio",
-    "video": "Video",
-    "base_price": "Precio base"
-  },
-  "upload": {
-    "page_title": "Agregar Fotos",
-    "view_listing": "Ver anuncio",
-    "current_media": "Media Actual",
-    "no_media": "Ninguna media adjuntada aún",
-    "media_count": "{{count}} de 10 media",
-    "add_more": "Agregar Más Media",
-    "limit_reached": "Límite de 10 media alcanzado",
-    "supported_formats": "Soporta: JPG, PNG, GIF, MP4 (máx 10MB cada uno)",
-    "new_uploads": "Nuevas Subidas",
-    "uploading": "Subiendo...",
-    "success": "Subido exitosamente",
-    "retry": "Intentar de nuevo",
-    "success_count": "subido(s)",
-    "pending_count": "subiendo...",
-    "error_count": "con error",
-    "view_final_listing": "Ver anuncio final",
-    "create_another": "Crear otro anuncio"
+  "validation": {
+    "required": "Este campo es obligatorio",
+    "min": "El valor mínimo es {{min}}",
+    "max": "El valor máximo es {{max}}",
+    "email": "Email inválido",
+    "url": "URL inválida",
+    "number": "Debe ser un número",
+    "integer": "Debe ser un número entero",
+    "positive": "Debe ser un número positivo",
+    "date": "Fecha inválida",
+    "time": "Hora inválida",
+    "phone": "Teléfono inválido",
+    "cpf": "CPF inválido",
+    "cnpj": "CNPJ inválido"
   }
 }
