@@ -1,7 +1,9 @@
+// V-2: Label component corrigido - 2025-09-11
+// Fixed import path for cva from class-variance-authority
 // path: apps/web/src/components/ui/label.tsx
 
 import * as React from "react"
-import { cva, type VariantProps } from "../lib/cva"
+import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "../../lib/utils"
 
 const labelVariants = cva(

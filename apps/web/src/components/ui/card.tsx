@@ -1,3 +1,5 @@
+// V-1: Card component criado - 2025-09-11
+// Standard shadcn/ui card component with Bazari theme support
 // path: apps/web/src/components/ui/card.tsx
 
 import * as React from "react"
