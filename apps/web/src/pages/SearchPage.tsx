@@ -1,8 +1,9 @@
-// V-1 (2025-09-10): Corrige tradução da lista de categorias no filtro (facet) seguindo a mesma lógica do DevPanel.
-// Fonte de dados: useCategories() -> categories (namePt/nameEn/nameEs, pathSlugs).
-// Mudanças mínimas: import do useCategories, indexação por path, helper getFacetLabel(), uso no label da faceta.
+// V-4 (2025-09-10): Versão otimizada com memoização e sem logs de debug
+// - Tradução funcionando corretamente para categorias
+// - Memoização para evitar recálculos desnecessários
+// - Tratamento melhorado para categorias não encontradas
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { Search, Filter } from 'lucide-react';
@@ -13,8 +14,9 @@ import { Badge } from '../components/ui/badge';
 import { useSearch } from '../hooks/useSearch';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
+import { Alert, AlertDescription } from '../components/ui/alert';
 
-// [ADICIONADO] Mesma fonte do DevPanel
+// Hook para carregar categorias com tradução
 import { useCategories } from '../hooks/useCategories';
 
 export function SearchPage() {
@@ -36,46 +38,143 @@ export function SearchPage() {
     limit: 20
   });
 
-  // ===================== CATEGORIAS (tradução igual ao DevPanel) =====================
-  const { categories } = useCategories(); // categories tem namePt/nameEn/nameEs e pathSlugs
+  // Carregar todas as categorias para tradução
+  const { categories } = useCategories();
 
-  // Índice: "products-foo-bar" -> category
-  const catIndex = useMemo(() => {
-    const map = new Map<string, any>();
-    for (const c of categories || []) {
-      const key = Array.isArray(c.pathSlugs) ? c.pathSlugs.join('-') : '';
-      if (key) map.set(key, c);
+  // Criar múltiplos índices para mapear categorias - MEMOIZADO
+  const categoryIndexes = useMemo(() => {
+    const byFullPath = new Map<string, any>();
+    const byPathWithoutPrefix = new Map<string, any>();
+    const byLastSlug = new Map<string, any>();
+    const byPartialPath = new Map<string, any>();
+    
+    for (const cat of categories || []) {
+      // Índice 1: Path completo (ex: "products-tecnologia-eletronicos")
+      const fullKey = cat.pathSlugs?.join('-') || '';
+      if (fullKey) {
+        byFullPath.set(fullKey, cat);
+      }
+      
+      // Índice 2: Path sem prefixo (ex: "tecnologia-eletronicos")
+      const withoutPrefix = cat.pathSlugs?.slice(1).join('-') || '';
+      if (withoutPrefix) {
+        byPathWithoutPrefix.set(withoutPrefix, cat);
+      }
+      
+      // Índice 3: Último slug apenas (ex: "eletronicos")
+      const lastSlug = cat.pathSlugs?.[cat.pathSlugs.length - 1] || '';
+      if (lastSlug && !byLastSlug.has(lastSlug)) {
+        byLastSlug.set(lastSlug, cat);
+      }
+      
+      // Índice 4: Path parcial para categorias incompletas
+      // Ex: "alimentos" sozinho ou "casa" sozinho
+      if (cat.pathSlugs?.length > 1) {
+        const firstSlugAfterPrefix = cat.pathSlugs[1];
+        if (firstSlugAfterPrefix && !byPartialPath.has(firstSlugAfterPrefix)) {
+          byPartialPath.set(firstSlugAfterPrefix, cat);
+        }
+      }
     }
-    return map;
+    
+    return { byFullPath, byPathWithoutPrefix, byLastSlug, byPartialPath };
   }, [categories]);
 
-  const humanize = (slug: string) =>
+  // Função auxiliar para humanizar slugs - MEMOIZADA
+  const humanize = useCallback((slug: string) =>
     (slug || '')
       .replace(/[-_]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim()
-      .replace(/\b\w/g, (c) => c.toUpperCase());
+      .replace(/\b\w/g, (c) => c.toUpperCase()), []);
 
-  // Mesma regra do DevPanel (switch na linguagem, usando namePt/nameEn/nameEs)
-  const getCategoryDisplayName = (category: any) => {
-    const lang = (i18n?.language || 'pt').slice(0, 2);
-    if (lang === 'en') return category?.nameEn || category?.namePt || category?.nameEs || '';
-    if (lang === 'es') return category?.nameEs || category?.namePt || category?.nameEn || '';
-    return category?.namePt || category?.nameEn || category?.nameEs || '';
-  };
-
-  // Dado um path vindo do facet (array de slugs), resolve o registro e retorna o nome no idioma
-  const getFacetLabel = (path: string[]) => {
-    const key = Array.isArray(path) ? path.join('-') : '';
-    const rec = key ? catIndex.get(key) : null;
-    if (rec) {
-      return getCategoryDisplayName(rec) || humanize(path[path.length - 1] || '');
+  // Obter nome da categoria no idioma correto - MEMOIZADA
+  const getCategoryDisplayName = useCallback((category: any) => {
+    if (!category) return '';
+    
+    const lang = (i18n?.language || 'pt').slice(0, 2).toLowerCase();
+    
+    switch (lang) {
+      case 'en':
+        return category.nameEn || category.namePt || category.nameEs || '';
+      case 'es':
+        return category.nameEs || category.namePt || category.nameEn || '';
+      default: // pt
+        return category.namePt || category.nameEn || category.nameEs || '';
     }
-    return humanize(path?.[path.length - 1] || '');
-  };
-  // ================================================================================
+  }, [i18n?.language]);
 
-  // Sincronizar com URL (mantido)
+  // Função robusta para obter label traduzido do facet - MEMOIZADA
+  const getFacetLabel = useCallback((path: string[]) => {
+    if (!path || !Array.isArray(path) || path.length === 0) {
+      return '';
+    }
+    
+    const { byFullPath, byPathWithoutPrefix, byLastSlug, byPartialPath } = categoryIndexes;
+    
+    // Tentar encontrar a categoria de várias formas
+    let category = null;
+    
+    // 1. Tentar com path completo
+    const fullKey = path.join('-');
+    category = byFullPath.get(fullKey);
+    
+    // 2. Se não encontrou e path não tem prefixo, tentar adicionar
+    if (!category && !path[0]?.includes('products') && !path[0]?.includes('services')) {
+      // Tentar com products
+      const withProducts = ['products', ...path].join('-');
+      category = byFullPath.get(withProducts);
+      
+      // Tentar com services
+      if (!category) {
+        const withServices = ['services', ...path].join('-');
+        category = byFullPath.get(withServices);
+      }
+      
+      // Tentar sem prefixo
+      if (!category) {
+        category = byPathWithoutPrefix.get(fullKey);
+      }
+    }
+    
+    // 3. Para paths de um único item (ex: ["alimentos"], ["casa"])
+    if (!category && path.length === 1) {
+      // Buscar no índice parcial
+      category = byPartialPath.get(path[0]);
+      
+      // Se não encontrou, tentar com products- ou services- prefixado
+      if (!category) {
+        category = byFullPath.get(`products-${path[0]}`) || 
+                  byFullPath.get(`services-${path[0]}`);
+      }
+    }
+    
+    // 4. Se ainda não encontrou, tentar pelo último slug
+    if (!category) {
+      const lastSlug = path[path.length - 1];
+      category = byLastSlug.get(lastSlug);
+    }
+    
+    // Retornar nome traduzido ou humanizar o último item
+    if (category) {
+      return getCategoryDisplayName(category);
+    }
+    
+    // Fallback: humanizar o último item do path
+    return humanize(path[path.length - 1] || '');
+  }, [categoryIndexes, getCategoryDisplayName, humanize]);
+
+  // Memoizar labels das categorias para evitar recálculos
+  const categoryLabels = useMemo(() => {
+    if (!results?.facets?.categories) return [];
+    
+    return results.facets.categories.slice(0, 10).map(cat => ({
+      ...cat,
+      label: getFacetLabel(cat.path)
+    }));
+  }, [results?.facets?.categories, getFacetLabel]);
+
+  // Sincronizar com URL
   useEffect(() => {
     const params: Record<string, string> = {};
     if (filters.q) params.q = filters.q;
@@ -170,19 +269,18 @@ export function SearchPage() {
                 </Button>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Category Facets */}
-                {results?.facets?.categories && results.facets.categories.length > 0 && (
+                {/* Category Facets - OTIMIZADO COM MEMOIZAÇÃO */}
+                {categoryLabels.length > 0 && (
                   <div>
                     <h4 className="font-medium mb-2">{t('search.categories')}</h4>
                     <div className="space-y-1">
-                      {results.facets.categories.slice(0, 10).map((cat, idx) => (
+                      {categoryLabels.map((cat, idx) => (
                         <button
                           key={idx}
                           className="w-full text-left text-sm hover:text-primary flex justify-between"
                           onClick={() => handleCategoryFilter(cat.path)}
                         >
-                          {/* ÚNICA mudança visual: texto do rótulo traduzido via índice de categorias */}
-                          <span>{getFacetLabel(cat.path)}</span>
+                          <span>{cat.label}</span>
                           <span className="text-muted-foreground">({cat.count})</span>
                         </button>
                       ))}
@@ -190,7 +288,7 @@ export function SearchPage() {
                   </div>
                 )}
 
-                {/* Price Range (mantido) */}
+                {/* Price Range */}
                 {results?.facets?.price && (
                   <div>
                     <h4 className="font-medium mb-2">{t('search.price_range')}</h4>
@@ -223,7 +321,7 @@ export function SearchPage() {
                   </div>
                 )}
 
-                {/* Sort (mantido) */}
+                {/* Sort */}
                 <div>
                   <h4 className="font-medium mb-2">{t('search.sort_by')}</h4>
                   <select
@@ -239,71 +337,74 @@ export function SearchPage() {
                 </div>
               </CardContent>
             </Card>
-          </div>
 
-          {/* Results */}
-          <div className="lg:col-span-3">
             {/* Mobile Filter Toggle */}
             <Button
               variant="outline"
-              className="lg:hidden mb-4"
+              className="lg:hidden w-full mt-4"
               onClick={() => setShowFilters(!showFilters)}
             >
               <Filter className="h-4 w-4 mr-2" />
               {t('search.toggle_filters')}
             </Button>
+          </div>
 
-            {error && (
-              <div className="text-red-600 text-sm mb-4">
-                {error}
+          {/* Results Grid */}
+          <div className="lg:col-span-3">
+            {loading ? (
+              <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
               </div>
-            )}
-
-            {loading && (
-              <div className="text-center py-8">
-                {t('common.loading')}
-              </div>
-            )}
-
-            {results && (
-              <>
-                {/* Results Info */}
-                <div className="mb-4 text-sm text-muted-foreground">
+            ) : error ? (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : results && results.items.length > 0 ? (
+              <div className="space-y-4">
+                {/* Results count */}
+                <p className="text-sm text-muted-foreground">
                   {t('search.showing_results', {
                     start: results.page.offset + 1,
                     end: Math.min(results.page.offset + results.page.limit, results.page.total),
                     total: results.page.total
                   })}
-                </div>
+                </p>
 
-                {/* Items Grid */}
+                {/* Results grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {results.items.map((item) => (
                     <Card key={item.id} className="hover:shadow-lg transition-shadow">
                       <CardHeader>
                         <div className="flex justify-between items-start">
-                          <CardTitle className="text-lg">{item.title}</CardTitle>
                           <Badge variant={item.kind === 'product' ? 'default' : 'secondary'}>
-                            {item.kind}
+                            {item.kind === 'product' ? t('new.product') : t('new.service')}
                           </Badge>
+                          <span className="text-lg font-bold text-primary">
+                            {formatPrice(item.priceBzr || '0')}
+                          </span>
                         </div>
                       </CardHeader>
                       <CardContent>
-                        {item.description && (
-                          <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
-                            {item.description}
-                          </p>
+                        {item.media?.[0] && (
+                          <img
+                            src={item.media[0].url}
+                            alt={item.title}
+                            className="w-full h-48 object-cover rounded-md mb-4"
+                          />
                         )}
-                        {item.priceBzr && (
-                          <p className="text-lg font-semibold text-primary">
-                            {formatPrice(item.priceBzr)}
-                          </p>
+                        <h3 className="font-semibold mb-2">{item.title}</h3>
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {item.description}
+                        </p>
+                        {item.categoryPath && item.categoryPath.length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-1">
+                            {item.categoryPath.slice(1).map((cat, idx) => (
+                              <Badge key={idx} variant="outline" className="text-xs">
+                                {cat}
+                              </Badge>
+                            ))}
+                          </div>
                         )}
-                        <div className="mt-2">
-                          <p className="text-xs text-muted-foreground">
-                            {item.categoryPath.join(' > ')}
-                          </p>
-                        </div>
                       </CardContent>
                     </Card>
                   ))}
@@ -311,7 +412,7 @@ export function SearchPage() {
 
                 {/* Pagination */}
                 {results.page.total > results.page.limit && (
-                  <div className="flex justify-center gap-2 mt-8">
+                  <div className="flex justify-center gap-2 mt-6">
                     <Button
                       variant="outline"
                       disabled={results.page.offset === 0}
@@ -319,7 +420,7 @@ export function SearchPage() {
                     >
                       {t('common.previous')}
                     </Button>
-                    <span className="flex items-center px-4">
+                    <span className="flex items-center px-4 text-sm">
                       {t('common.page', {
                         current: Math.floor(results.page.offset / results.page.limit) + 1,
                         total: Math.ceil(results.page.total / results.page.limit)
@@ -334,7 +435,15 @@ export function SearchPage() {
                     </Button>
                   </div>
                 )}
-              </>
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">
+                  {filters.q ? 
+                    'Nenhum resultado encontrado' : 
+                    'Digite algo para buscar produtos e serviços'}
+                </p>
+              </div>
             )}
           </div>
         </div>
