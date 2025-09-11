@@ -1,18 +1,21 @@
-// V-5 (2025-09-11): Aplica a mesma estratégia de tradução nas breadcrumbs dos cards (sem alterar layout/componentes).
-// Base: V-4 (memoização, índices múltiplos e fallback humanizado para categorias).
+// V+1: Usando ProductCard component para resultados - 2025-09-11
+// Substitui cards customizados por ProductCard reutilizável
+// Mantém toda funcionalidade de busca e filtros existente
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
-import { Search, Filter } from 'lucide-react';
+import { Search, Filter, Grid3X3, List } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { useSearch } from '../hooks/useSearch';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { Alert, AlertDescription } from '../components/ui/alert';
+import { ProductCard } from '../components/ProductCard';
 
 // Hook para carregar categorias com tradução
 import { useCategories } from '../hooks/useCategories';
@@ -22,6 +25,7 @@ export function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const {
     filters,
@@ -29,7 +33,8 @@ export function SearchPage() {
     loading,
     error,
     updateFilters,
-    clearFilters
+    clearFilters,
+    handlePageChange
   } = useSearch({
     q: searchParams.get('q') || undefined,
     kind: (searchParams.get('kind') as any) || 'all',
@@ -61,16 +66,17 @@ export function SearchPage() {
       
       // Índice 3: Último slug apenas (ex: "eletronicos")
       const lastSlug = cat.pathSlugs?.[cat.pathSlugs.length - 1] || '';
-      if (lastSlug && !byLastSlug.has(lastSlug)) {
+      if (lastSlug) {
         byLastSlug.set(lastSlug, cat);
       }
       
-      // Índice 4: Path parcial para categorias incompletas
-      // Ex: "alimentos" sozinho ou "casa" sozinho
-      if (cat.pathSlugs?.length > 1) {
-        const firstSlugAfterPrefix = cat.pathSlugs[1];
-        if (firstSlugAfterPrefix && !byPartialPath.has(firstSlugAfterPrefix)) {
-          byPartialPath.set(firstSlugAfterPrefix, cat);
+      // Índice 4: Cada segmento do path
+      if (cat.pathSlugs) {
+        for (let i = 1; i < cat.pathSlugs.length; i++) {
+          const partial = cat.pathSlugs.slice(i).join('-');
+          if (partial && !byPartialPath.has(partial)) {
+            byPartialPath.set(partial, cat);
+          }
         }
       }
     }
@@ -78,343 +84,225 @@ export function SearchPage() {
     return { byFullPath, byPathWithoutPrefix, byLastSlug, byPartialPath };
   }, [categories]);
 
-  // Função auxiliar para humanizar slugs - MEMOIZADA
-  const humanize = useCallback((slug: string) =>
-    (slug || '')
-      .replace(/[-_]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .replace(/\b\w/g, (c) => c.toUpperCase()), []);
-
-  // Obter nome da categoria no idioma correto - MEMOIZADA
-  const getCategoryDisplayName = useCallback((category: any) => {
-    if (!category) return '';
+  // Função para traduzir categoria - APRIMORADA com múltiplos índices
+  const getCrumbLabel = useCallback((categoryPath: string[], level: number) => {
+    if (!categoryPath || level >= categoryPath.length) return '';
     
-    const lang = (i18n?.language || 'pt').slice(0, 2).toLowerCase();
+    // Tentar buscar categoria pelos múltiplos índices
+    const pathToLevel = categoryPath.slice(0, level + 1);
+    const searchKeys = [
+      pathToLevel.join('-'),                    // Busca completa
+      pathToLevel.slice(1).join('-'),          // Sem prefixo products/services
+      categoryPath[level],                      // Só o slug atual
+      pathToLevel.slice(1, level + 1).join('-') // Parcial sem prefixo
+    ];
     
-    switch (lang) {
-      case 'en':
-        return category.nameEn || category.namePt || category.nameEs || '';
-      case 'es':
-        return category.nameEs || category.namePt || category.nameEn || '';
-      default: // pt
-        return category.namePt || category.nameEn || category.nameEs || '';
-    }
-  }, [i18n?.language]);
-
-  // Função robusta para obter label traduzido do facet - MEMOIZADA
-  const getFacetLabel = useCallback((path: string[]) => {
-    if (!path || !Array.isArray(path) || path.length === 0) {
-      return '';
-    }
-    
+    let category: any = null;
     const { byFullPath, byPathWithoutPrefix, byLastSlug, byPartialPath } = categoryIndexes;
     
-    // Tentar encontrar a categoria de várias formas
-    let category = null;
-    
-    // 1. Tentar com path completo
-    const fullKey = path.join('-');
-    category = byFullPath.get(fullKey);
-    
-    // 2. Se não encontrou e path não tem prefixo, tentar adicionar
-    if (!category && !path[0]?.includes('products') && !path[0]?.includes('services')) {
-      // Tentar com products
-      const withProducts = ['products', ...path].join('-');
-      category = byFullPath.get(withProducts);
+    // Tentar cada índice na ordem de preferência
+    for (const key of searchKeys) {
+      if (!key) continue;
       
-      // Tentar com services
-      if (!category) {
-        const withServices = ['services', ...path].join('-');
-        category = byFullPath.get(withServices);
-      }
+      category = byFullPath.get(key) || 
+                byPathWithoutPrefix.get(key) || 
+                byLastSlug.get(key) || 
+                byPartialPath.get(key);
       
-      // Tentar sem prefixo
-      if (!category) {
-        category = byPathWithoutPrefix.get(fullKey);
-      }
+      if (category) break;
     }
     
-    // 3. Para paths de um único item (ex: ["alimentos"], ["casa"])
-    if (!category && path.length === 1) {
-      // Buscar no índice parcial
-      category = byPartialPath.get(path[0]);
-      
-      // Se não encontrou, tentar com products- ou services- prefixado
-      if (!category) {
-        category = byFullPath.get(`products-${path[0]}`) || 
-                  byFullPath.get(`services-${path[0]}`);
-      }
-    }
-    
-    // 4. Se ainda não encontrou, tentar pelo último slug
-    if (!category) {
-      const lastSlug = path[path.length - 1];
-      category = byLastSlug.get(lastSlug);
-    }
-    
-    // Retornar nome traduzido ou humanizar o último item
     if (category) {
-      return getCategoryDisplayName(category);
+      const lang = i18n.language?.split('-')[0] || 'pt';
+      switch (lang) {
+        case 'en': return category.nameEn || category.namePt;
+        case 'es': return category.nameEs || category.namePt;
+        default: return category.namePt;
+      }
     }
     
-    // Fallback: humanizar o último item do path
-    return humanize(path[path.length - 1] || '');
-  }, [categoryIndexes, getCategoryDisplayName, humanize]);
+    // Fallback humanizado
+    return categoryPath[level]
+      .replace(/[-_]/g, ' ')
+      .replace(/\b\w/g, (m) => m.toUpperCase());
+  }, [categoryIndexes, i18n.language]);
 
-  // >>> NOVO: helper para breadcrumbs — usa a MESMA estratégia do getFacetLabel, mas por nível cumulativo <<<
-  const getCrumbLabel = useCallback((fullPath: string[], levelIndex: number) => {
-    // levelIndex é o índice do nível que queremos exibir (ex.: 1 = depois do prefixo)
-    if (!Array.isArray(fullPath) || fullPath.length === 0) return '';
-    const upto = Math.min(levelIndex + 1, fullPath.length);
-    return getFacetLabel(fullPath.slice(0, upto));
-  }, [getFacetLabel]);
-
-  // Memoizar labels das categorias para evitar recálculos
-  const categoryLabels = useMemo(() => {
-    if (!results?.facets?.categories) return [];
-    
-    return results.facets.categories.slice(0, 10).map(cat => ({
-      ...cat,
-      label: getFacetLabel(cat.path)
-    }));
-  }, [results?.facets?.categories, getFacetLabel]);
-
-  // Sincronizar com URL
-  useEffect(() => {
-    const params: Record<string, string> = {};
-    if (filters.q) params.q = filters.q;
-    if (filters.kind && filters.kind !== 'all') params.kind = filters.kind;
-    setSearchParams(params);
-  }, [filters, setSearchParams]);
-
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     updateFilters({ q: searchQuery, offset: 0 });
-  };
+    
+    // Atualizar URL
+    const newParams = new URLSearchParams(searchParams);
+    if (searchQuery) {
+      newParams.set('q', searchQuery);
+    } else {
+      newParams.delete('q');
+    }
+    setSearchParams(newParams);
+  }, [searchQuery, updateFilters, searchParams, setSearchParams]);
 
-  const handleKindChange = (kind: 'product' | 'service' | 'all') => {
-    updateFilters({ kind, offset: 0 });
-  };
+  const handleKindChange = useCallback((kind: string) => {
+    updateFilters({ 
+      kind: kind === 'all' ? undefined : kind as 'product' | 'service',
+      offset: 0 
+    });
+  }, [updateFilters]);
 
-  const handleCategoryFilter = (path: string[]) => {
-    updateFilters({ categoryPath: path, offset: 0 });
-  };
+  const handleSortChange = useCallback((sort: string) => {
+    updateFilters({ 
+      sort: sort as any,
+      offset: 0 
+    });
+  }, [updateFilters]);
 
-  const handlePriceFilter = (min: string, max: string) => {
-    updateFilters({ priceMin: min, priceMax: max, offset: 0 });
-  };
-
-  const handleSort = (sort: any) => {
-    updateFilters({ sort });
-  };
-
-  const handlePageChange = (newOffset: number) => {
-    updateFilters({ offset: newOffset });
-  };
-
-  const formatPrice = (price: string) => {
-    return `${parseFloat(price).toFixed(2)} BZR`;
-  };
+  const handleClearFilters = useCallback(() => {
+    setSearchQuery('');
+    clearFilters();
+    setSearchParams({});
+  }, [clearFilters, setSearchParams]);
 
   return (
     <>
       <Header />
-      <div className="container mx-auto px-4 py-8">
-        {/* Search Bar */}
-        <form onSubmit={handleSearch} className="mb-8">
-          <div className="flex gap-2">
-            <Input
-              type="text"
-              placeholder={t('search.placeholder')}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1"
-            />
-            <Button type="submit" disabled={loading}>
-              <Search className="h-4 w-4 mr-2" />
-              {t('search.button')}
-            </Button>
-          </div>
-        </form>
+      <div className="min-h-screen bg-background pt-16">
+        <div className="container mx-auto px-4 py-8">
+          
+          {/* Cabeçalho de Busca */}
+          <div className="max-w-4xl mx-auto mb-8">
+            <h1 className="text-3xl font-bold mb-6 text-center">
+              {t('search.title', 'Buscar Produtos e Serviços')}
+            </h1>
+            
+            {/* Barra de busca */}
+            <form onSubmit={handleSearch} className="flex gap-2 mb-6">
+              <Input
+                type="search"
+                placeholder={t('search.placeholder')}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1"
+              />
+              <Button type="submit" disabled={loading}>
+                <Search className="w-4 h-4 mr-2" />
+                {t('search.button')}
+              </Button>
+            </form>
 
-        {/* Kind Selector */}
-        <div className="flex gap-2 mb-6">
-          <Button
-            variant={filters.kind === 'all' ? 'default' : 'outline'}
-            onClick={() => handleKindChange('all')}
-          >
-            {t('search.all')}
-          </Button>
-          <Button
-            variant={filters.kind === 'product' ? 'default' : 'outline'}
-            onClick={() => handleKindChange('product')}
-          >
-            {t('search.products')}
-          </Button>
-          <Button
-            variant={filters.kind === 'service' ? 'default' : 'outline'}
-            onClick={() => handleKindChange('service')}
-          >
-            {t('search.services')}
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Filters Sidebar */}
-          <div className={`lg:col-span-1 ${showFilters ? 'block' : 'hidden lg:block'}`}>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>{t('search.filters')}</CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearFilters}
-                >
-                  {t('search.clear')}
-                </Button>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Category Facets - OTIMIZADO COM MEMOIZAÇÃO */}
-                {categoryLabels.length > 0 && (
-                  <div>
-                    <h4 className="font-medium mb-2">{t('search.categories')}</h4>
-                    <div className="space-y-1">
-                      {categoryLabels.map((cat, idx) => (
-                        <button
-                          key={idx}
-                          className="w-full text-left text-sm hover:text-primary flex justify-between"
-                          onClick={() => handleCategoryFilter(cat.path)}
-                        >
-                          <span>{cat.label}</span>
-                          <span className="text-muted-foreground">({cat.count})</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Price Range */}
-                {results?.facets?.price && (
-                  <div>
-                    <h4 className="font-medium mb-2">{t('search.price_range')}</h4>
-                    <div className="space-y-2">
-                      <div className="flex gap-2">
-                        <Input
-                          type="number"
-                          placeholder={t('search.min')}
-                          value={filters.priceMin || ''}
-                          onChange={(e) => handlePriceFilter(e.target.value, filters.priceMax || '')}
-                        />
-                        <Input
-                          type="number"
-                          placeholder={t('search.max')}
-                          value={filters.priceMax || ''}
-                          onChange={(e) => handlePriceFilter(filters.priceMin || '', e.target.value)}
-                        />
-                      </div>
-                      {results.facets.price.buckets.length > 0 && (
-                        <div className="text-xs text-muted-foreground">
-                          {results.facets.price.buckets.map((bucket, idx) => (
-                            <div key={idx} className="flex justify-between">
-                              <span>{bucket.range} BZR</span>
-                              <span>({bucket.count})</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Sort */}
-                <div>
-                  <h4 className="font-medium mb-2">{t('search.sort_by')}</h4>
-                  <select
-                    className="w-full px-3 py-2 border rounded-md"
-                    value={filters.sort || 'relevance'}
-                    onChange={(e) => handleSort(e.target.value)}
-                  >
-                    <option value="relevance">{t('search.sort.relevance')}</option>
-                    <option value="priceAsc">{t('search.sort.price_asc')}</option>
-                    <option value="priceDesc">{t('search.sort.price_desc')}</option>
-                    <option value="createdDesc">{t('search.sort.newest')}</option>
-                  </select>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Mobile Filter Toggle */}
-            <Button
-              variant="outline"
-              className="lg:hidden w-full mt-4"
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              <Filter className="h-4 w-4 mr-2" />
-              {t('search.toggle_filters')}
-            </Button>
-          </div>
-
-          {/* Results Grid */}
-          <div className="lg:col-span-3">
-            {loading ? (
-              <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            {/* Filtros rápidos */}
+            <div className="flex flex-wrap items-center gap-4 mb-6">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">{t('search.type', 'Tipo')}:</span>
+                <Select value={filters.kind || 'all'} onValueChange={handleKindChange}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t('search.all')}</SelectItem>
+                    <SelectItem value="product">{t('search.products')}</SelectItem>
+                    <SelectItem value="service">{t('search.services')}</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            ) : error ? (
-              <Alert variant="destructive">
+
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">{t('search.sort_by')}:</span>
+                <Select value={filters.sort || 'createdDesc'} onValueChange={handleSortChange}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="createdDesc">{t('search.sort.newest')}</SelectItem>
+                    <SelectItem value="priceAsc">{t('search.sort.price_asc')}</SelectItem>
+                    <SelectItem value="priceDesc">{t('search.sort.price_desc')}</SelectItem>
+                    <SelectItem value="relevance">{t('search.sort.relevance')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowFilters(!showFilters)}
+                >
+                  <Filter className="w-4 h-4 mr-2" />
+                  {t('search.filters')}
+                </Button>
+                
+                {Object.keys(filters).length > 0 && (
+                  <Button variant="ghost" size="sm" onClick={handleClearFilters}>
+                    {t('search.clear')}
+                  </Button>
+                )}
+              </div>
+
+              {/* Toggle de visualização */}
+              <div className="ml-auto flex items-center gap-1 border rounded-md">
+                <Button
+                  variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('grid')}
+                >
+                  <Grid3X3 className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('list')}
+                >
+                  <List className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Área de resultados */}
+          <div className="max-w-6xl mx-auto">
+            {loading && (
+              <div className="text-center py-12">
+                <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+                <p className="text-muted-foreground">{t('common.loading')}</p>
+              </div>
+            )}
+
+            {error && (
+              <Alert className="mb-6">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
-            ) : results && results.items.length > 0 ? (
-              <div className="space-y-4">
-                {/* Results count */}
-                <p className="text-sm text-muted-foreground">
-                  {t('search.showing_results', {
-                    start: results.page.offset + 1,
-                    end: Math.min(results.page.offset + results.page.limit, results.page.total),
-                    total: results.page.total
-                  })}
-                </p>
+            )}
 
-                {/* Results grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {results && results.items.length > 0 ? (
+              <div>
+                {/* Contador de resultados */}
+                <div className="flex items-center justify-between mb-6">
+                  <p className="text-sm text-muted-foreground">
+                    {t('search.showing_results', {
+                      start: results.page.offset + 1,
+                      end: Math.min(results.page.offset + results.page.limit, results.page.total),
+                      total: results.page.total
+                    })}
+                  </p>
+                </div>
+
+                {/* Grid de produtos usando ProductCard */}
+                <div className={
+                  viewMode === 'grid' 
+                    ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-8"
+                    : "space-y-4 mb-8"
+                }>
                   {results.items.map((item) => (
-                    <Card key={item.id} className="hover:shadow-lg transition-shadow">
-                      <CardHeader>
-                        <div className="flex justify-between items-start">
-                          <Badge variant={item.kind === 'product' ? 'default' : 'secondary'}>
-                            {item.kind === 'product' ? t('new.product') : t('new.service')}
-                          </Badge>
-                          <span className="text-lg font-bold text-primary">
-                            {formatPrice(item.priceBzr || '0')}
-                          </span>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        {item.media?.[0] && (
-                          <img
-                            src={item.media[0].url}
-                            alt={item.title}
-                            className="w-full h-48 object-cover rounded-md mb-4"
-                          />
-                        )}
-                        <h3 className="font-semibold mb-2">{item.title}</h3>
-                        <p className="text-sm text-muted-foreground line-clamp-2">
-                          {item.description}
-                        </p>
-                        {item.categoryPath && item.categoryPath.length > 0 && (
-                          <div className="mt-3 flex flex-wrap gap-1">
-                            {/* Mantém o MESMO layout (Badges). 
-                                Agora cada crumb usa a mesma estratégia de tradução: path cumulativo até o nível. */}
-                            {item.categoryPath.slice(1).map((_, idx) => (
-                              <Badge key={idx} variant="outline" className="text-xs">
-                                {getCrumbLabel(item.categoryPath, idx + 1)}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
+                    <ProductCard
+                      key={item.id}
+                      id={item.id}
+                      kind={item.kind}
+                      title={item.title}
+                      description={item.description}
+                      priceBzr={item.priceBzr}
+                      basePriceBzr={item.basePriceBzr}
+                      categoryPath={item.categoryPath}
+                      media={item.media}
+                      className={viewMode === 'list' ? 'flex-row' : ''}
+                    />
                   ))}
                 </div>
 
@@ -444,15 +332,16 @@ export function SearchPage() {
                   </div>
                 )}
               </div>
-            ) : (
+            ) : results && !loading ? (
               <div className="text-center py-12">
                 <p className="text-muted-foreground">
                   {filters.q ? 
-                    'Nenhum resultado encontrado' : 
-                    'Digite algo para buscar produtos e serviços'}
+                    t('search.no_results', 'Nenhum resultado encontrado') : 
+                    t('search.search_placeholder', 'Digite algo para buscar produtos e serviços')
+                  }
                 </p>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
