@@ -13,7 +13,10 @@
     "settings": "Configuración",
     "logout": "Salir",
     "login": "Ingresar",
-    "signup": "Registrarse"
+    "signup": "Registrarse",
+    "status": {
+      "online": "En línea"
+    }
   },
   "footer": {
     "tagline": "La Nación Digital de la Economía Popular",

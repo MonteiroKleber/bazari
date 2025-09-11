@@ -13,7 +13,10 @@
     "settings": "Configurações",
     "logout": "Sair",
     "login": "Entrar",
-    "signup": "Cadastrar"
+    "signup": "Cadastrar",
+    "status": {
+      "online": "Online"
+    }
   },
   "footer": {
     "tagline": "A Nação Digital da Economia Popular",
@@ -29,7 +32,10 @@
     "github": "GitHub",
     "twitter": "Twitter",
     "made_with": "Feito com ❤️ pela Comunidade Bazari",
-    "copyright": "© 2025 Bazari. Todos os direitos reservados."
+    "copyright": "© 2025 Bazari. Todos os direitos reservados.",
+    "docs": "Docs",
+    "contact": "Contato", 
+    "rights": "© 2025 Bazari. Todos os direitos reservados."
   },
   "hero": {
     "title": "A Nação Digital da Economia Popular",
@@ -124,7 +130,9 @@
     "primary_aria": "Iniciar jornada no Bazari",
     "primary_title": "Clique para começar sua jornada no Bazari",
     "secondary": "Saber Mais",
-    "beta_notice": "Beta fechado disponível para comerciantes selecionados"
+    "beta_notice": "Beta fechado disponível para comerciantes selecionados",
+    "subtitle": "Junte-se à revolução da economia popular descentralizada",
+    "button": "Entrar na Lista de Espera"
   },
   "dev": {
     "title": "Painel do Desenvolvedor",
@@ -256,7 +264,20 @@
     "max_files_error": "Máximo de 10 arquivos permitidos",
     "upload_error": "Erro no upload",
     "uploading_files": "Enviando arquivos...",
+
+
+
+    "dynamic": {
+      "inputPlaceholder": "Digite o valor",
+      "selectOption": "Selecione",
+      "hintCsv": "Separe por vírgulas",
+      "required": "Campo obrigatório"
+    },
+
+
+    
     "dynamicFields": {
+      "inputPlaceholder": "Digite o valor",
       "tamanho": { "label": "Tamanho", "placeholder": "Selecione", "options": { "PP": "PP", "P": "P", "M": "M", "G": "G" } },
       "cor": { "label": "Cor" },
       "material": { "label": "Material" },
