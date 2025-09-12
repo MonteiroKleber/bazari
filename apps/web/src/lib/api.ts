@@ -1,114 +1,190 @@
-// V-3: API functions com searchProducts e tipos - 2025-09-11
-// Uses apiFetch with correct port 3000, no direct fetch
-// path: apps/web/src/lib/api.ts
+// Cliente HTTP para comunicação com a API
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
-import { API_BASE_URL } from './config';
-
-// Tipos para busca
-export type FacetOption = { 
-  value: string; 
-  count: number;
-};
-
-export type Facets = { 
-  attributes?: Record<string, { 
-    options: FacetOption[] 
-  }> 
-};
-
-export type ProductSummary = { 
-  id: string; 
-  title: string; 
-  priceBzr: string | number; 
-  thumbnailUrl?: string | null; 
-  categoryPath?: string[];
-};
-
-export type SearchResponse = { 
-  items: ProductSummary[]; 
-  total: number; 
-  page: number; 
-  limit: number; 
-  facets?: Facets;
-};
-
-export type SearchParams = {
-  q?: string;
-  kind?: 'product' | 'service';
-  categoryId?: string;
-  categoryPath?: string[];
-  priceMin?: number;
-  priceMax?: number;
-  page?: number;
-  limit?: number;
-  sort?: 'relevance' | 'price_asc' | 'price_desc' | 'newest';
-  attributes?: Record<string, string | string[]>;
-};
-
-// Função base para fazer requests
-export async function apiFetch<T = any>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`;
-  
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-    credentials: 'include', // Para CORS com cookies
-  });
-
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status} ${response.statusText}`);
+export class ApiError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
   }
-
-  return response.json();
 }
 
-// Função para buscar produtos
-export async function searchProducts(params: SearchParams): Promise<SearchResponse> {
-  const searchParams = new URLSearchParams();
+// Função base para fazer requisições
+async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
 
-  // Parâmetros básicos
-  if (params.q) searchParams.append('q', params.q);
-  if (params.kind) searchParams.append('kind', params.kind);
-  if (params.categoryId) searchParams.append('categoryId', params.categoryId);
-  
-  // Category path array
-  if (params.categoryPath?.length) {
-    params.categoryPath.forEach(path => {
-      searchParams.append('categoryPath[]', path);
+  try {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      signal: controller.signal,
     });
-  }
-  
-  // Preços
-  if (params.priceMin !== undefined) searchParams.append('priceMin', params.priceMin.toString());
-  if (params.priceMax !== undefined) searchParams.append('priceMax', params.priceMax.toString());
-  
-  // Paginação
-  if (params.page) searchParams.append('page', params.page.toString());
-  if (params.limit) searchParams.append('limit', params.limit.toString());
-  
-  // Ordenação
-  if (params.sort) searchParams.append('sort', params.sort);
-  
-  // Atributos dinâmicos
-  if (params.attributes) {
-    Object.entries(params.attributes).forEach(([key, value]) => {
-      if (Array.isArray(value)) {
-        value.forEach(v => searchParams.append(`attr[${key}]`, v));
-      } else {
-        searchParams.append(`attr[${key}]`, value);
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new ApiError(response.status, `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const contentType = response.headers.get("content-type");
+    if (contentType?.includes("application/json")) {
+      return await response.json();
+    }
+
+    return {} as T;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    
+    if (error instanceof Error) {
+      if (error.name === "AbortError") {
+        throw new ApiError(408, "Request timeout");
       }
-    });
+      throw new ApiError(0, error.message);
+    }
+    
+    throw new ApiError(0, "Unknown error");
   }
-
-  const endpoint = `/products?${searchParams.toString()}`;
-  return apiFetch<SearchResponse>(endpoint);
 }
 
-// Re-export config
-export { API_BASE_URL } from './config';
+// Helper para GET com JSON
+export async function getJSON<T>(path: string): Promise<T> {
+  return apiFetch<T>(path, {
+    method: "GET",
+    headers: {
+      "Accept": "application/json",
+    },
+  });
+}
+
+// Helper para POST com JSON
+export async function postJSON<T>(path: string, data: unknown): Promise<T> {
+  return apiFetch<T>(path, {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+}
+
+// Helper para POST com multipart/form-data
+export async function postMultipart<T>(path: string, form: FormData): Promise<T> {
+  return apiFetch<T>(path, {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+    },
+    body: form,
+  });
+}
+
+// Helper para PUT com JSON
+export async function putJSON<T>(path: string, data: unknown): Promise<T> {
+  return apiFetch<T>(path, {
+    method: "PUT",
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+}
+
+// Helper para DELETE
+export async function deleteJSON<T>(path: string): Promise<T> {
+  return apiFetch<T>(path, {
+    method: "DELETE",
+    headers: {
+      "Accept": "application/json",
+    },
+  });
+}
+
+// Classe API para organizar melhor
+class ApiClient {
+  async get<T = any>(endpoint: string, params?: Record<string, any>): Promise<T> {
+    const queryString = params ? '?' + new URLSearchParams(params).toString() : '';
+    return getJSON<T>(`${endpoint}${queryString}`);
+  }
+  
+  async post<T = any>(endpoint: string, data?: any): Promise<T> {
+    return postJSON<T>(endpoint, data);
+  }
+  
+  async put<T = any>(endpoint: string, data?: any): Promise<T> {
+    return putJSON<T>(endpoint, data);
+  }
+  
+  async delete<T = any>(endpoint: string): Promise<T> {
+    return deleteJSON<T>(endpoint);
+  }
+  
+  async upload<T = any>(endpoint: string, file: File, additionalData?: Record<string, any>): Promise<T> {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    if (additionalData) {
+      Object.entries(additionalData).forEach(([key, value]) => {
+        formData.append(key, value);
+      });
+    }
+    
+    return postMultipart<T>(endpoint, formData);
+  }
+}
+
+// Instância exportada
+export const api = new ApiClient();
+
+// Helpers específicos do domínio
+export const apiHelpers = {
+  // Health check
+  health: () => getJSON('/health'),
+  
+  // Categories
+  getCategories: () => getJSON('/categories'),
+  getCategorySpec: (path: string) => getJSON(`/categories/effective-spec?path=${path}`),
+  getCategoryById: (id: string) => getJSON(`/categories/${id}/spec`),
+  
+  // Products
+  createProduct: (data: any) => postJSON('/products', data),
+  getProduct: (id: string) => getJSON(`/products/${id}`),
+  updateProduct: (id: string, data: any) => putJSON(`/products/${id}`, data),
+  deleteProduct: (id: string) => deleteJSON(`/products/${id}`),
+  listProducts: (params?: any) => {
+    const queryString = params ? '?' + new URLSearchParams(params).toString() : '';
+    return getJSON(`/products${queryString}`);
+  },
+  
+  // Services
+  createService: (data: any) => postJSON('/services', data),
+  getService: (id: string) => getJSON(`/services/${id}`),
+  updateService: (id: string, data: any) => putJSON(`/services/${id}`, data),
+  deleteService: (id: string) => deleteJSON(`/services/${id}`),
+  listServices: (params?: any) => {
+    const queryString = params ? '?' + new URLSearchParams(params).toString() : '';
+    return getJSON(`/services${queryString}`);
+  },
+  
+  // Media/Upload
+  uploadFile: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return postMultipart('/media/upload', formData);
+  },
+  
+  // Search
+  search: (query: string, filters?: any) => {
+    const params = { q: query, ...filters };
+    const queryString = '?' + new URLSearchParams(params).toString();
+    return getJSON(`/search${queryString}`);
+  },
+};
+
+// Exportar tipos e constantes
+export { API_BASE_URL };
+export default api;

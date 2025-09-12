@@ -1,89 +1,129 @@
-// V-3: useSearch hook with real API data only - 2025-09-11
-// No mocks, no fallbacks, uses apiFetch
 // path: apps/web/src/hooks/useSearch.ts
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { searchProducts, SearchParams, SearchResponse } from '../lib/api';
-import { DEBOUNCE_DELAY } from '../lib/config';
+import { useState, useCallback, useEffect } from 'react';
+import { API_BASE_URL } from '../config';
 
-interface UseSearchReturn {
-  data: SearchResponse | null;
-  isLoading: boolean;
-  error: Error | null;
-  refetch: () => Promise<void>;
+export interface SearchFilters {
+  q?: string;
+  kind?: 'product' | 'service' | 'all';
+  categoryPath?: string[];
+  priceMin?: string;
+  priceMax?: string;
+  attrs?: Record<string, string | string[]>;
+  limit?: number;
+  offset?: number;
+  sort?: 'relevance' | 'priceAsc' | 'priceDesc' | 'createdDesc';
 }
 
-export function useSearch(params: SearchParams): UseSearchReturn {
-  const [data, setData] = useState<SearchResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+export interface SearchItem {
+  id: string;
+  kind: 'product' | 'service';
+  title: string;
+  description?: string;
+  priceBzr?: string;
+  categoryPath: string[];
+  attributes: Record<string, any>;
+  media: Array<{ url: string; mime: string }>;
+}
 
-  const fetchData = useCallback(async () => {
-    // Cancel previous request if exists
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    // Clear previous timer
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
-    // Debounce search query
-    const shouldDebounce = params.q !== undefined;
-    const delay = shouldDebounce ? DEBOUNCE_DELAY : 0;
-
-    debounceTimerRef.current = setTimeout(async () => {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        abortControllerRef.current = new AbortController();
-        
-        const response = await searchProducts(params);
-        
-        // Check if request was aborted
-        if (!abortControllerRef.current.signal.aborted) {
-          setData(response);
-        }
-      } catch (err) {
-        // Ignore abort errors
-        if (err instanceof Error && err.name !== 'AbortError') {
-          setError(err);
-          setData(null);
-        }
-      } finally {
-        setIsLoading(false);
-        abortControllerRef.current = null;
-      }
-    }, delay);
-  }, [params]);
-
-  // Fetch on params change
-  useEffect(() => {
-    fetchData();
-
-    // Cleanup
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
+export interface SearchResult {
+  items: SearchItem[];
+  page: {
+    limit: number;
+    offset: number;
+    total: number;
+  };
+  facets: {
+    categories: Array<{ path: string[]; count: number }>;
+    price: {
+      min: string;
+      max: string;
+      buckets: Array<{ range: string; count: number }>;
     };
-  }, [fetchData]);
+    attributes: Record<string, Array<{ value: string; count: number }>>;
+  };
+}
 
-  const refetch = useCallback(async () => {
-    await fetchData();
-  }, [fetchData]);
+export function useSearch(initialFilters: SearchFilters = {}) {
+  const [filters, setFilters] = useState<SearchFilters>(initialFilters);
+  const [results, setResults] = useState<SearchResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const search = useCallback(async (newFilters?: SearchFilters) => {
+    const searchFilters = newFilters || filters;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const params = new URLSearchParams();
+      
+      // Adicionar parâmetros básicos
+      if (searchFilters.q) params.append('q', searchFilters.q);
+      if (searchFilters.kind) params.append('kind', searchFilters.kind);
+      if (searchFilters.priceMin) params.append('priceMin', searchFilters.priceMin);
+      if (searchFilters.priceMax) params.append('priceMax', searchFilters.priceMax);
+      if (searchFilters.limit) params.append('limit', searchFilters.limit.toString());
+      if (searchFilters.offset) params.append('offset', searchFilters.offset.toString());
+      if (searchFilters.sort) params.append('sort', searchFilters.sort);
+      
+      // Adicionar categoryPath
+      if (searchFilters.categoryPath) {
+        searchFilters.categoryPath.forEach(path => {
+          params.append('categoryPath', path);
+        });
+      }
+      
+      // Adicionar atributos
+      if (searchFilters.attrs) {
+        Object.entries(searchFilters.attrs).forEach(([key, value]) => {
+          if (Array.isArray(value)) {
+            value.forEach(v => params.append(`attrs.${key}`, v));
+          } else {
+            params.append(`attrs.${key}`, value);
+          }
+        });
+      }
+
+      const response = await fetch(`${API_BASE_URL}/search?${params.toString()}`);
+      
+      if (!response.ok) {
+        throw new Error('Search failed');
+      }
+
+      const data = await response.json();
+      setResults(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Search error');
+    } finally {
+      setLoading(false);
+    }
+  }, [filters]);
+
+  useEffect(() => {
+    if (Object.keys(filters).length > 0) {
+      search();
+    }
+  }, []);
+
+  const updateFilters = useCallback((newFilters: Partial<SearchFilters>) => {
+    const updated = { ...filters, ...newFilters };
+    setFilters(updated);
+    search(updated);
+  }, [filters, search]);
+
+  const clearFilters = useCallback(() => {
+    setFilters({});
+    setResults(null);
+  }, []);
 
   return {
-    data,
-    isLoading,
+    filters,
+    results,
+    loading,
     error,
-    refetch
+    search,
+    updateFilters,
+    clearFilters
   };
 }

@@ -1,13 +1,11 @@
-// V+1: Melhorias na UX pós-cadastro - 2025-09-11
-// - Garantir card de sucesso sempre aparece após 201
-// - "Cadastrar outro nesta categoria" preserva categoria (prefill)
-// - "Adicionar fotos agora" navega para /app/upload/${createdId}
-// - Mantém toda lógica existente intacta
+// V-7: Correção da navegação de categorias - limpar categoryPath ao selecionar tipo (2025-01-11)
+// Fix: handleKindSelect agora limpa categoryPath e categoryId para começar categoria do zero
+// Fix: botão voltar no step 2 também limpa categoria para permitir nova seleção
 
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Package, Briefcase, ArrowLeft, ArrowRight, CheckCircle, Upload, X, Camera } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Package, Briefcase, ArrowLeft, ArrowRight, CheckCircle, Upload, X } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
@@ -30,7 +28,6 @@ interface UploadedFile {
 export function NewListingPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   
   // Estados do wizard
   const [step, setStep] = useState(1);
@@ -50,26 +47,6 @@ export function NewListingPage() {
   // Novos estados para melhorias
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [successData, setSuccessData] = useState<any>(null);
-
-  // MELHORIA: Verificar se há prefill da categoria via query params
-  React.useEffect(() => {
-    const prefillKind = searchParams.get('kind') as 'product' | 'service' | null;
-    const prefillCategoryPath = searchParams.get('categoryPath');
-    const prefillCategoryId = searchParams.get('categoryId');
-    
-    if (prefillKind && prefillCategoryPath && prefillCategoryId) {
-      console.log('🔄 Aplicando prefill de categoria:', {
-        kind: prefillKind,
-        categoryPath: prefillCategoryPath.split(','),
-        categoryId: prefillCategoryId
-      });
-      
-      setKind(prefillKind);
-      setCategoryPath(prefillCategoryPath.split(','));
-      setCategoryId(prefillCategoryId);
-      setStep(3); // Pular para informações básicas
-    }
-  }, [searchParams]);
 
   // Carregar spec da categoria selecionada
   const { spec, loading: specLoading } = useEffectiveSpec(categoryId);
@@ -219,389 +196,446 @@ export function NewListingPage() {
       console.log('📤 Payload corrigido a ser enviado:', JSON.stringify(payload, null, 2));
       
       const endpoint = kind === 'product' ? '/products' : '/services';
+      console.log('📍 Endpoint:', endpoint);
+      
       const response = await api.post(endpoint, payload);
-      
-      console.log('✅ Resposta da API:', response);
-      
-      // MELHORIA: Garantir que sempre mostra sucesso após 201
-      setSuccessData({
-        id: response.id || response.data?.id,
-        title: basicData.title,
-        kind,
-        categoryPath,
-        categoryId
-      });
-      setStep(5); // Ir para step de sucesso
-      
+      console.log('✅ Resposta do servidor:', response);
+
+      // Sucesso - mostrar card de sucesso
+      setSuccessData(response);
+      setStep(5);
+      setSubmitting(false);
     } catch (err: any) {
-      console.error('❌ Erro na submissão:', err);
-      setError(err.response?.data?.error || err.message || t('errors.generic'));
-    } finally {
+      console.error('❌ Erro ao criar produto/serviço:', err);
+      console.error('  - Detalhes:', err.response || err.message || err);
+      
+      const errorMessage = err.response?.data?.error || err.message || t('errors.generic');
+      setError(errorMessage);
       setSubmitting(false);
     }
   };
 
-  // MELHORIA: Funções de ação pós-sucesso
-  const handleAddMorePhotos = () => {
-    if (successData?.id) {
-      navigate(`/app/upload/${successData.id}`);
-    }
+  // Cadastrar outro na mesma categoria
+  const handleAddAnother = () => {
+    console.log('➕ Cadastrar outro na mesma categoria');
+    console.log('  - Mantendo categoryPath:', categoryPath);
+    console.log('  - Mantendo categoryId:', categoryId);
+    
+    // Limpar dados mas manter categoria
+    setBasicData({
+      title: '',
+      description: '',
+      price: '',
+      daoId: 'dao-demo'
+    });
+    setAttributes({});
+    setUploadedFiles([]);
+    setSuccessData(null);
+    setError(null);
+    // Voltar para step 3 (informações básicas)
+    setStep(3);
   };
 
-  const handleAddAnotherInCategory = () => {
-    if (successData?.kind && successData?.categoryPath && successData?.categoryId) {
-      // Navegar para nova listagem com prefill da categoria
-      const params = new URLSearchParams({
-        kind: successData.kind,
-        categoryPath: successData.categoryPath.join(','),
-        categoryId: successData.categoryId
-      });
-      navigate(`/app/new?${params.toString()}`);
-    }
+  // Novo cadastro (reset completo)
+  const handleNewListing = () => {
+    console.log('🔄 Novo cadastro (reset completo)');
+    
+    // Reset completo
+    setStep(1);
+    setKind(null);
+    setCategoryId(null);
+    setCategoryPath([]);
+    setBasicData({
+      title: '',
+      description: '',
+      price: '',
+      daoId: 'dao-demo'
+    });
+    setAttributes({});
+    setUploadedFiles([]);
+    setSuccessData(null);
+    setError(null);
   };
 
-  const handleViewListing = () => {
-    if (successData?.id) {
-      navigate(`/p/${successData.id}`);
-    }
-  };
-
-  // Render baseado no step
-  if (step === 5 && successData) {
-    // MELHORIA: Card de sucesso sempre aparece e com ações melhoradas
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-              <CheckCircle className="w-8 h-8 text-green-600" />
-            </div>
-            <CardTitle className="text-xl">{t('new.success_title')}</CardTitle>
-            <CardDescription>
-              {t('new.success_message')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            
-            {/* Título do item criado */}
-            <div className="text-center p-3 bg-muted rounded">
-              <p className="font-medium">{successData.title}</p>
-              <p className="text-sm text-muted-foreground">
-                {successData.kind === 'product' ? 
-                  t('new.product', 'Produto') : 
-                  t('new.service', 'Serviço')
-                }
+  // Conteúdo por passo
+  const renderStepContent = () => {
+    switch (step) {
+      case 1:
+        // Escolher tipo
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">{t('new.what_to_list')}</h2>
+              <p className="text-muted-foreground">
+                {t('new.what_to_list_desc')}
               </p>
             </div>
 
-            {/* Ações principais */}
-            <div className="space-y-2">
-              <Button onClick={handleViewListing} className="w-full">
-                {t('new.view_product')}
-              </Button>
-              
-              <Button 
-                onClick={handleAddMorePhotos} 
-                variant="outline" 
-                className="w-full"
-              >
-                <Camera className="w-4 h-4 mr-2" />
-                {t('new.add_photos_now', 'Adicionar fotos agora')}
-              </Button>
-              
-              <Button 
-                onClick={handleAddAnotherInCategory} 
-                variant="outline" 
-                className="w-full"
-              >
-                {t('new.add_another')}
-              </Button>
-            </div>
-
-            {/* Ação secundária */}
-            <div className="pt-4 border-t">
-              <Button 
-                onClick={() => navigate('/app/new')} 
-                variant="ghost" 
-                className="w-full text-muted-foreground"
-              >
-                {t('new.add_new')}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Step 1: Escolher tipo
-  if (step === 1) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="w-full max-w-2xl">
-          <CardHeader>
-            <CardTitle>{t('new.what_to_list')}</CardTitle>
-            <CardDescription>{t('new.what_to_list_desc')}</CardDescription>
-          </CardHeader>
-          <CardContent>
             <div className="grid md:grid-cols-2 gap-4">
               <Card 
-                className="cursor-pointer hover:shadow-md transition-shadow"
+                className="cursor-pointer hover:border-primary transition-colors"
                 onClick={() => handleKindSelect('product')}
               >
-                <CardContent className="flex flex-col items-center p-6 text-center">
-                  <Package className="w-12 h-12 text-primary mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">{t('new.product')}</h3>
-                  <p className="text-sm text-muted-foreground">{t('new.product_desc')}</p>
-                </CardContent>
+                <CardHeader>
+                  <Package className="w-12 h-12 text-primary mb-2" />
+                  <CardTitle>{t('new.product')}</CardTitle>
+                  <CardDescription>
+                    {t('new.product_desc')}
+                  </CardDescription>
+                </CardHeader>
               </Card>
 
               <Card 
-                className="cursor-pointer hover:shadow-md transition-shadow"
+                className="cursor-pointer hover:border-primary transition-colors"
                 onClick={() => handleKindSelect('service')}
               >
-                <CardContent className="flex flex-col items-center p-6 text-center">
-                  <Briefcase className="w-12 h-12 text-primary mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">{t('new.service')}</h3>
-                  <p className="text-sm text-muted-foreground">{t('new.service_desc')}</p>
-                </CardContent>
+                <CardHeader>
+                  <Briefcase className="w-12 h-12 text-primary mb-2" />
+                  <CardTitle>{t('new.service')}</CardTitle>
+                  <CardDescription>
+                    {t('new.service_desc')}
+                  </CardDescription>
+                </CardHeader>
               </Card>
             </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+          </div>
+        );
 
-  // Step 2: Selecionar categoria
-  if (step === 2) {
-    return (
-      <div className="min-h-screen bg-background p-4">
-        <div className="max-w-4xl mx-auto">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-4">
-                <Button 
-                  variant="ghost" 
-                  onClick={handleBackToKindSelection}
-                  className="hover:bg-muted"
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  {t('common.back')}
-                </Button>
-                <div>
-                  <CardTitle>{t('new.select_category')}</CardTitle>
-                  <CardDescription>{t('new.category_desc')}</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <CategoryPicker
-                kind={kind!}
-                onSelect={handleCategorySelect}
-                selectedPath={categoryPath}
-              />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
+      case 2:
+        // Selecionar categoria
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">{t('new.select_category')}</h2>
+              <p className="text-muted-foreground">
+                {t('new.category_desc')}
+              </p>
+            </div>
 
-  // Step 3: Informações básicas
-  if (step === 3) {
-    return (
-      <div className="min-h-screen bg-background p-4">
-        <div className="max-w-2xl mx-auto">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-4">
-                <Button 
-                  variant="ghost" 
-                  onClick={() => setStep(2)}
-                  className="hover:bg-muted"
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  {t('common.back')}
-                </Button>
-                <div>
-                  <CardTitle>{t('new.basic_info')}</CardTitle>
-                  <CardDescription>{t('new.basic_info_desc')}</CardDescription>
-                </div>
+            <CategoryPicker
+              kind={kind!}
+              onSelect={handleCategorySelect}
+              value={categoryPath}
+            />
+
+            <div className="flex gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleBackToKindSelection}
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                {t('common.back')}
+              </Button>
+            </div>
+          </div>
+        );
+
+      case 3:
+        // Informações básicas + Upload
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">{t('new.basic_info')}</h2>
+              <p className="text-muted-foreground">
+                {t('new.basic_info_desc')}
+              </p>
+            </div>
+
+            {/* DEBUG INFO */}
+            {import.meta.env.DEV && (
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded text-xs">
+                <p className="font-bold">DEBUG INFO:</p>
+                <p>categoryPath: {JSON.stringify(categoryPath)}</p>
+                <p>categoryId: {categoryId}</p>
+                <p>kind: {kind}</p>
               </div>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleBasicSubmit} className="space-y-4">
-                {error && (
-                  <Alert>
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
+            )}
+
+            <form onSubmit={handleBasicSubmit} className="space-y-4">
+              <div>
+                <Label htmlFor="title">{t('new.title')}</Label>
+                <Input
+                  id="title"
+                  type="text"
+                  placeholder={t('new.title_placeholder')}
+                  value={basicData.title}
+                  onChange={(e) => setBasicData({...basicData, title: e.target.value})}
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="description">{t('new.description')}</Label>
+                <Textarea
+                  id="description"
+                  placeholder={t('new.description_placeholder')}
+                  value={basicData.description}
+                  onChange={(e) => setBasicData({...basicData, description: e.target.value})}
+                  rows={4}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="price">{t('new.price')} (BZR)</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  step="0.000000000001"
+                  min="0"
+                  placeholder="0.00"
+                  value={basicData.price}
+                  onChange={(e) => setBasicData({...basicData, price: e.target.value})}
+                  required
+                />
+              </div>
+
+              {/* Upload de Fotos */}
+              <div>
+                <Label>{t('new.media')}</Label>
+                <div className="mt-2">
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*,video/*"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    id="file-upload"
+                  />
+                  <label
+                    htmlFor="file-upload"
+                    className="cursor-pointer inline-flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-muted-foreground/25 rounded-lg hover:border-primary transition-colors"
+                  >
+                    <Upload className="w-4 h-4" />
+                    {t('new.click_to_upload')}
+                  </label>
+                </div>
+
+                {/* Preview dos arquivos */}
+                {uploadedFiles.length > 0 && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                    {uploadedFiles.map((file, index) => (
+                      <div key={index} className="relative">
+                        <img
+                          src={file.preview}
+                          alt={`Preview ${index + 1}`}
+                          className="w-full h-24 object-cover rounded border"
+                        />
+                        {file.uploading && (
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          </div>
+                        )}
+                        {file.error && (
+                          <div className="absolute inset-0 bg-red-500/50 flex items-center justify-center rounded">
+                            <span className="text-white text-xs">Erro</span>
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeFile(index)}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 )}
 
-                <div>
-                  <Label htmlFor="title">{t('new.title')}</Label>
-                  <Input
-                    id="title"
-                    placeholder={t('new.title_placeholder')}
-                    value={basicData.title}
-                    onChange={(e) => setBasicData({...basicData, title: e.target.value})}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="description">{t('new.description')}</Label>
-                  <Textarea
-                    id="description"
-                    placeholder={t('new.description_placeholder')}
-                    value={basicData.description}
-                    onChange={(e) => setBasicData({...basicData, description: e.target.value})}
-                    rows={4}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="price">{t('new.price')} (BZR)</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    step="0.000000000001"
-                    min="0"
-                    placeholder="0.00"
-                    value={basicData.price}
-                    onChange={(e) => setBasicData({...basicData, price: e.target.value})}
-                    required
-                  />
-                </div>
-
-                {/* Upload de Fotos */}
-                <div>
-                  <Label>{t('new.media')}</Label>
-                  <div className="mt-2">
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*,video/*"
-                      onChange={handleFileSelect}
-                      className="hidden"
-                      id="file-upload"
-                    />
-                    <label
-                      htmlFor="file-upload"
-                      className="cursor-pointer inline-flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-muted-foreground/25 rounded-lg hover:border-primary transition-colors"
-                    >
-                      <Upload className="w-4 h-4" />
-                      {t('new.click_to_upload')}
-                    </label>
-                  </div>
-
-                  {/* Preview dos arquivos */}
-                  {uploadedFiles.length > 0 && (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                      {uploadedFiles.map((file, index) => (
-                        <div key={index} className="relative">
-                          <img
-                            src={file.preview}
-                            alt={`Preview ${index + 1}`}
-                            className="w-full h-24 object-cover rounded border"
-                          />
-                          
-                          {/* Status overlay */}
-                          {file.uploading && (
-                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded">
-                              <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            </div>
-                          )}
-                          
-                          {file.mediaId && (
-                            <div className="absolute top-1 right-1">
-                              <CheckCircle className="w-4 h-4 text-green-500" />
-                            </div>
-                          )}
-                          
-                          {file.error && (
-                            <div className="absolute inset-0 bg-red-500/80 flex items-center justify-center rounded">
-                              <X className="w-4 h-4 text-white" />
-                            </div>
-                          )}
-
-                          {/* Botão remover */}
-                          <button
-                            type="button"
-                            onClick={() => removeFile(index)}
-                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <Button type="submit" className="w-full">
-                  {spec && Object.keys(spec.jsonSchema?.properties || {}).length > 0 ? 
-                    t('common.continue') : 
-                    t('new.finish')
-                  }
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  // Step 4: Atributos específicos
-  if (step === 4 && spec) {
-    return (
-      <div className="min-h-screen bg-background p-4">
-        <div className="max-w-2xl mx-auto">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-4">
-                <Button 
-                  variant="ghost" 
-                  onClick={() => setStep(3)}
-                  className="hover:bg-muted"
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  {t('common.back')}
-                </Button>
-                <div>
-                  <CardTitle>{t('new.attributes')}</CardTitle>
-                  <CardDescription>{t('new.attributes_desc')}</CardDescription>
-                </div>
+                {uploadedFiles.length > 0 && (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    {t('new.files_uploaded', { count: uploadedFiles.length })}
+                  </p>
+                )}
               </div>
-            </CardHeader>
-            <CardContent>
+
               {error && (
-                <Alert className="mb-4">
+                <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-              
+
+              <div className="flex gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep(2)}
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  {t('common.back')}
+                </Button>
+                
+                <Button type="submit" disabled={submitting}>
+                  {submitting ? t('common.saving') : t('common.continue')}
+                  {!submitting && <ArrowRight className="w-4 h-4 ml-2" />}
+                </Button>
+              </div>
+            </form>
+          </div>
+        );
+
+      case 4:
+        // Atributos específicos
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">{t('new.attributes')}</h2>
+              <p className="text-muted-foreground">
+                {t('new.attributes_desc')}
+              </p>
+            </div>
+
+            {!specLoading ? (
               <DynamicForm
                 schema={spec.jsonSchema}
                 uiSchema={spec.uiSchema}
                 onSubmit={handleFinalSubmit}
                 loading={submitting}
               />
-            </CardContent>
-          </Card>
-        </div>
+            ) : (
+              <div className="flex justify-center p-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            )}
+
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className="flex gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setStep(3)}
+                disabled={submitting}
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                {t('common.back')}
+              </Button>
+            </div>
+          </div>
+        );
+
+      case 5:
+        // Card de Sucesso
+        return (
+          <div className="space-y-6">
+            <Card className="border-green-500 bg-green-50 dark:bg-green-950/20">
+              <CardHeader className="text-center">
+                <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                <CardTitle className="text-2xl text-green-700 dark:text-green-400">
+                  {t('new.success_title', 
+                    kind === 'product' 
+                      ? 'Produto cadastrado com sucesso!' 
+                      : 'Serviço cadastrado com sucesso!'
+                  )}
+                </CardTitle>
+                <CardDescription className="text-green-600 dark:text-green-400">
+                  {t('new.success_message', 
+                    kind === 'product'
+                      ? 'Seu produto foi publicado no marketplace'
+                      : 'Seu serviço foi publicado no marketplace'
+                  )}
+                </CardDescription>
+              </CardHeader>
+              
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <Button
+                    onClick={() => navigate(`/${kind}s/${successData?.id}`)}
+                    className="w-full"
+                  >
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    {t('new.view_product', 
+                      kind === 'product' 
+                        ? 'Ver produto' : 'Ver serviço'
+                    )}
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    onClick={handleAddAnother}
+                    className="w-full"
+                  >
+                    {t('new.add_another', 'Cadastrar outro nesta categoria')}
+                  </Button>
+                  
+                  <Button
+                    variant="ghost"
+                    onClick={handleNewListing}
+                    className="w-full"
+                  >
+                    {t('new.add_new', 'Novo cadastro')}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  // Indicador de progresso
+  const renderProgress = () => {
+    // Ajustar steps baseado na existência de spec
+    const hasSpec = spec && spec.jsonSchema && Object.keys(spec.jsonSchema.properties || {}).length > 0;
+    const totalSteps = step === 5 ? 5 : (hasSpec ? 4 : 3);
+    
+    const steps = [
+      { num: 1, label: t('listing.step1') },
+      { num: 2, label: t('listing.step2') },
+      { num: 3, label: t('listing.step3') },
+      ...(hasSpec ? [{ num: 4, label: t('listing.step4') }] : []),
+      ...(step === 5 ? [{ num: 5, label: t('new.success', 'Sucesso') }] : [])
+    ];
+
+    return (
+      <div className="flex items-center justify-between mb-8">
+        {steps.map((s, index) => (
+          <React.Fragment key={s.num}>
+            <div className="flex items-center">
+              <div
+                className={`
+                  w-10 h-10 rounded-full flex items-center justify-center font-semibold
+                  ${step >= s.num 
+                    ? 'bg-primary text-primary-foreground' 
+                    : 'bg-muted text-muted-foreground'
+                  }
+                `}
+              >
+                {s.num === 5 ? '✓' : s.num}
+              </div>
+              <span className={`ml-2 text-sm ${step >= s.num ? 'text-foreground' : 'text-muted-foreground'}`}>
+                {s.label}
+              </span>
+            </div>
+            {index < steps.length - 1 && (
+              <div 
+                className={`flex-1 h-1 mx-4 ${
+                  step > s.num ? 'bg-primary' : 'bg-muted'
+                }`}
+              />
+            )}
+          </React.Fragment>
+        ))}
       </div>
     );
-  }
+  };
 
-  // Fallback
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="text-center">
-        <p className="text-muted-foreground">Carregando...</p>
-      </div>
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
+      {renderProgress()}
+      <Card>
+        <CardContent className="p-6">
+          {renderStepContent()}
+        </CardContent>
+      </Card>
     </div>
   );
 }

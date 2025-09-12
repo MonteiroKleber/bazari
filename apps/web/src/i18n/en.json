@@ -1,92 +1,131 @@
 {
   "header": {
-    "tagline": "Decentralized Popular Economy",
-    "nav": {
-      "products": "Products",
-      "services": "Services",
-      "dao": "DAO",
-      "wallet": "Wallet"
-    },
-    "cta": "Get Started"
+    "marketplace": "Marketplace",
+    "wallet": "Wallet",
+    "governance": "Governance",
+    "about": "About",
+    "modules": "Modules",
+    "roadmap": "Roadmap",
+    "contact": "Contact",
+    "docs": "Docs",
+    "account": "Account",
+    "profile": "Profile",
+    "settings": "Settings",
+    "logout": "Logout",
+    "login": "Login",
+    "signup": "Sign Up",
+    "status": {
+      "online": "Online"
+    }
   },
   "footer": {
-    "tagline": "Building the decentralized future of commerce",
-    "links": {
-      "about": "About",
-      "docs": "Documentation",
-      "community": "Community",
-      "support": "Support",
-      "terms": "Terms",
-      "privacy": "Privacy"
-    },
-    "newsletter": {
-      "title": "Get Updates",
-      "placeholder": "Your email",
-      "button": "Subscribe"
-    },
-    "social": {
-      "twitter": "Twitter",
-      "github": "GitHub",
-      "discord": "Discord"
-    },
+    "tagline": "The Digital Nation of Popular Economy",
+    "about": "About Bazari",
+    "about_desc": "Real decentralization for markets, freelancers and small merchants",
+    "governance": "Governance",
+    "governance_desc": "Democratic DAO with direct citizen voting",
+    "technology": "Technology",
+    "technology_desc": "Own blockchain and local-first architecture",
+    "community": "Community",
+    "telegram": "Telegram",
+    "discord": "Discord",
+    "github": "GitHub",
+    "twitter": "Twitter",
+    "made_with": "Made with ❤️ by Bazari Community",
     "copyright": "© 2025 Bazari. All rights reserved."
   },
   "hero": {
-    "title": "Your Economy, Your Currency",
-    "subtitle": "Connect to the first digital nation focused on popular economy. Sell, buy and earn cashback using our native currency BZR.",
-    "cta_primary": "Get Started Now",
-    "cta_secondary": "Download Whitepaper"
+    "title": "The Digital Nation of Popular Economy",
+    "subtitle": "Real decentralization for markets, freelancers and small merchants",
+    "description": "Bazari is a decentralized Super App that connects producers and consumers without intermediaries. Democratic governance, own currency (BZR) and complete digital sovereignty.",
+    "cta_primary": "Enter Marketplace",
+    "cta_secondary": "Learn About Technology",
+    "join_waitlist": "Join Waitlist",
+    "beta_badge": "Closed Beta"
   },
   "modules": {
-    "title": "Bazari Ecosystem",
-    "subtitle": "Integrated platforms for decentralized economy",
+    "title": "Ecosystem Modules",
+    "wallet": "Multi-Asset Wallet",
+    "wallet_desc": "Manage BZR, LIVO and other tokens. Decentralized backup and social recovery.",
+    "marketplace": "P2P Marketplace",
+    "marketplace_desc": "Buy and sell without intermediaries. Direct payments in BZR with automatic cashback in LIVO.",
+    "dao": "DAO Governance",
+    "dao_desc": "Vote on proposals, create SubDAOs and participate in network decisions.",
+    "p2p": "P2P Exchange",
+    "p2p_desc": "Exchange BZR with other users without intermediaries.",
+    "dex": "Decentralized Exchange",
+    "dex_desc": "Trade SubDAO tokens in automatic liquidity pools.",
+    "social": "Social Network",
+    "social_desc": "Connect with merchants and consumers in your region.",
+    "studio": "Bazari Studio",
+    "studio_desc": "Create custom systems with our decentralized low-code platform.",
     "marketplace": {
-      "title": "Marketplace",
-      "description": "Buy and sell with BZR, without centralized intermediaries"
-    },
-    "dao": {
-      "title": "DAO Governance",
-      "description": "Participate in network decisions and create your own SubDAO"
+      "title": "P2P Marketplace",
+      "description": "Buy and sell without intermediaries. Direct payments in BZR with automatic cashback in LIVO."
     },
     "wallet": {
-      "title": "Multi-Token Wallet",
-      "description": "Manage BZR, LIVO and SubDAO tokens in one wallet"
+      "title": "Multi-Asset Wallet",
+      "description": "Manage BZR, LIVO and other tokens. Decentralized backup and social recovery."
+    },
+    "governance": {
+      "title": "DAO Governance",
+      "description": "Vote on proposals, create SubDAOs and participate in network decisions."
     },
     "studio": {
       "title": "Bazari Studio",
-      "description": "Create custom systems with our low-code platform"
+      "description": "Create custom systems with our decentralized low-code platform."
     }
+  },
+  "about": {
+    "title": "About Bazari",
+    "text": "Bazari is a decentralized infrastructure built specifically for the popular economy. Our mission is to empower markets, freelancers and small merchants with real digital sovereignty."
   },
   "roadmap": {
     "title": "Development Roadmap",
-    "now": "Now - MVP",
-    "next": "Next - Beta",
-    "future": "Future - Production",
+    "now": "Now",
     "now_list": [
-      "Basic marketplace",
-      "Web wallet",
-      "Simple governance",
-      "BZR + LIVO tokens"
+      "BazariChain MVP",
+      "Basic wallet",
+      "Marketplace alpha",
+      "Initial governance"
     ],
+    "next": "Next",
     "next_list": [
-      "Mobile apps",
-      "Complete SubDAOs",
-      "Bazari Studio",
-      "API integrations"
+      "Marketplace beta",
+      "SubDAOs",
+      "Reputation system",
+      "Mobile app"
     ],
+    "future": "Future",
     "future_list": [
-      "Cross-chain bridges",
-      "Enterprise solutions",
-      "Global expansion",
-      "Complete ecosystem"
-    ]
+      "Bazari Studio",
+      "DEX integration",
+      "Strategic partnerships",
+      "Incentive programs"
+    ],
+    "q1_2025": {
+      "title": "Q1 2025 - Foundation",
+      "items": ["BazariChain MVP", "Basic wallet", "Marketplace alpha", "Initial governance"]
+    },
+    "q2_2025": {
+      "title": "Q2 2025 - Growth",
+      "items": ["Marketplace beta", "SubDAOs", "Reputation system", "Mobile app"]
+    },
+    "q3_2025": {
+      "title": "Q3 2025 - Expansion",
+      "items": ["Bazari Studio", "DEX integration", "Strategic partnerships", "Incentive programs"]
+    },
+    "q4_2025": {
+      "title": "Q4 2025 - Consolidation",
+      "items": ["Public launch", "Security audit", "Advanced scalability", "Global community"]
+    }
   },
   "cta": {
-    "title": "Ready to Decentralize?",
+    "title": "Ready for the Popular Economy Revolution?",
     "description": "Join thousands of merchants, producers and consumers building the decentralized future of commerce.",
     "primary": "Get Started",
-    "primary_aria": "Start your Bazari journey",
-    "primary_title": "Click to start your Bazari journey",
+    "primary_aria": "Start journey on Bazari",
+    "primary_title": "Click to start your journey on Bazari",
     "secondary": "Learn More",
     "beta_notice": "Closed beta available for selected merchants"
   },
@@ -112,11 +151,7 @@
       "empty": "No categories found"
     },
     "upload": {
-      "title": "File Upload",
-      "button": "Select File",
-      "success": "Upload successful",
-      "error": "Upload error",
-      "placeholder": "Choose a file..."
+      "title": "File Upload"
     }
   },
   "products": {
@@ -161,39 +196,18 @@
     "continue": "Continue",
     "next": "Next",
     "previous": "Previous",
-    "page": "Page {{current}} of {{total}}",
-    "yes": "Yes",
-    "no": "No",
-    "back_to_search": "Back to search",
-    "view_details": "View details",
-    "edit": "Edit",
-    "delete": "Delete",
-    "confirm": "Confirm",
-    "close": "Close",
-    "error": "Error",
-    "success": "Success",
-    "warning": "Warning",
-    "info": "Information",
-    "all": "All",
-    "select": "Select"
+    "page": "Page {{current}} of {{total}}"
   },
   "errors": {
     "generic": "An unexpected error occurred",
     "network": "Connection error",
     "not_found": "Not found",
     "unauthorized": "Unauthorized",
-    "server_error": "Server error",
-    "validation_error": "Validation error",
-    "required_field": "Required field",
-    "invalid_format": "Invalid format",
-    "min_length": "Minimum {{min}} characters",
-    "max_length": "Maximum {{max}} characters"
+    "server_error": "Server error"
   },
   "search": {
-    "title": "Search Products and Services",
     "placeholder": "Search products and services...",
     "button": "Search",
-    "type": "Type",
     "all": "All",
     "products": "Products",
     "services": "Services",
@@ -208,97 +222,84 @@
       "relevance": "Relevance",
       "price_asc": "Lowest price",
       "price_desc": "Highest price",
-      "newest": "Most recent"
+      "newest": "Newest"
     },
     "toggle_filters": "Filters",
-    "showing_results": "Showing {{start}}-{{end}} of {{total}} results",
-    "no_results": "No results found",
-    "search_placeholder": "Type something to search products and services",
-    "results_for": "Results for \"{{query}}\"",
-    "loading_results": "Loading results..."
+    "showing_results": "Showing {{start}}-{{end}} of {{total}} results"
   },
   "new": {
     "type": "Type",
     "product": "Product",
     "product_desc": "Sell a physical or digital product",
     "service": "Service",
-    "service_desc": "Offer a service or consulting",
+    "service_desc": "Offer a service or consultancy",
     "category": "Category",
     "select_category": "Select Category",
-    "category_desc": "Browse through 4 category levels to find the most specific",
+    "category_desc": "Navigate through 4 levels of categories to find the most specific one",
     "basic_info": "Basic Information",
-    "basic_info_desc": "Fill in the main information for your listing",
+    "basic_info_desc": "Fill in the main information of your listing",
     "title": "Title",
-    "title_placeholder": "E.g.: iPhone 15 Pro Max 256GB",
+    "title_placeholder": "Ex.: iPhone 15 Pro Max 256GB",
     "description": "Description",
     "description_placeholder": "Describe your product or service in detail...",
     "price": "Price",
-    "price_placeholder": "0.00",
     "media": "Photos/Videos",
-    "media_desc": "Add images or videos of your product",
-    "attributes": "Specific Features",
-    "attributes_desc": "Fill in the specific information for the selected category",
+    "attributes": "Specific Characteristics",
+    "attributes_desc": "Fill in the specific information of the selected category",
     "what_to_list": "What would you like to list?",
-    "what_to_list_desc": "Choose if you're selling a product or offering a service",
+    "what_to_list_desc": "Choose whether you are selling a product or offering a service",
     "success": "Success",
     "success_title": "Successfully registered!",
-    "success_message": "Your listing has been published",
-    "finish": "Finish",
-    "dynamic": {
-      "required": "Required field",
-      "inputPlaceholder": "Enter value"
-    },
+    "success_message": "Your listing has been published on the marketplace",
+    "view_product": "View listing",
+    "add_another": "Register another in this category",
+    "add_new": "New registration",
+    "click_to_upload": "Click to upload photos",
+    "files_uploaded": "{{count}} file(s) uploaded",
+    "max_files_error": "Maximum of 10 files allowed",
+    "upload_error": "Upload error",
+    "uploading_files": "Uploading files...",
     "dynamicFields": {
-      "brand": {
-        "label": "Brand",
-        "placeholder": "E.g.: Apple, Samsung"
-      },
-      "model": {
-        "label": "Model",
-        "placeholder": "E.g.: iPhone 15 Pro"
-      },
-      "storage": {
-        "label": "Storage",
-        "placeholder": "E.g.: 256GB"
-      },
-      "color": {
-        "label": "Color",
-        "placeholder": "E.g.: Black"
-      },
-      "condition": {
-        "label": "Condition",
-        "options": {
-          "new": "New",
-          "used": "Used",
-          "refurbished": "Refurbished"
-        }
-      },
-      "warranty": {
-        "label": "Warranty"
-      },
-      "size": {
-        "label": "Size",
-        "placeholder": "E.g.: S, M, L"
-      },
-      "material": {
-        "label": "Material",
-        "placeholder": "E.g.: Cotton, Polyester"
+      "tamanho": { "label": "Size", "placeholder": "Select", "options": { "PP": "XS", "P": "S", "M": "M", "G": "L" } },
+      "cor": { "label": "Color" },
+      "material": { "label": "Material" },
+      "tecnica": { "label": "Technique", "options": {
+      "Óleo":"Oil","Acrílica":"Acrylic","Aquarela":"Watercolor","Guache":"Gouache","Mista":"Mixed","Outros":"Others"
+      }},
+      "suporte": { "label": "Support", "options": {
+        "Tela":"Canvas","Papel":"Paper","Madeira":"Wood","Metal":"Metal","Outros":"Others"
+      }},
+      "largura_cm": { "label": "Width (cm)" },
+      "altura_cm": { "label": "Height (cm)" },
+      "estado_conservacao": { "label": "Conservation state", "options": {
+        "Novo":"New","Usado":"Used","Restaurado":"Restored"
+      }},
+      "moldura": { "label": "With frame" },
+      "autenticidade": { "label": "Authenticity", "options": {
+        "Com certificado":"With certificate","Assinado":"Signed","Sem comprovação":"No verification"
+      }},
+      "cores_predominantes": { "label": "Predominant colors",
+        "options": {"Azul":"Blue","Branco":"White","Preto":"Black","Vermelho":"Red","Verde":"Green","Amarelo":"Yellow"}
       }
     }
   },
-  "validation": {
-    "required": "This field is required",
-    "min": "Minimum value is {{min}}",
-    "max": "Maximum value is {{max}}",
-    "email": "Invalid email",
-    "url": "Invalid URL",
-    "number": "Must be a number",
-    "integer": "Must be an integer",
-    "positive": "Must be a positive number",
-    "date": "Invalid date",
-    "time": "Invalid time",
-    "phone": "Invalid phone",
-    "cpf": "Invalid CPF",
-    "cnpj": "Invalid CNPJ"
+  "listing": {
+    "step1": "Type",
+    "step2": "Category",
+    "step3": "Information",
+    "step4": "Attributes",
+    "product": "Product",
+    "product_desc": "Physical or digital item for sale",
+    "service": "Service",
+    "service_desc": "Service provision or consultancy",
+    "choose_category": "Choose Category",
+    "category_desc": "Select the most specific category possible",
+    "basic_info": "Basic Information",
+    "basic_info_desc": "Main data of your listing",
+    "title": "Title",
+    "title_placeholder": "Ex.: iPhone 15 Pro Max 256GB",
+    "description": "Description",
+    "price": "Price in BZR",
+    "upload_photos": "Upload Photos"
   }
 }

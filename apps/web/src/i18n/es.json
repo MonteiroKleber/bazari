@@ -1,102 +1,141 @@
 {
   "header": {
-    "tagline": "Economía Popular Descentralizada",
-    "nav": {
-      "products": "Productos",
-      "services": "Servicios",
-      "dao": "DAO",
-      "wallet": "Billetera"
-    },
-    "cta": "Comenzar"
+    "marketplace": "Marketplace",
+    "wallet": "Billetera",
+    "governance": "Gobernanza",
+    "about": "Acerca",
+    "modules": "Módulos",
+    "roadmap": "Roadmap",
+    "contact": "Contacto",
+    "docs": "Docs",
+    "account": "Cuenta",
+    "profile": "Perfil",
+    "settings": "Configuración",
+    "logout": "Salir",
+    "login": "Ingresar",
+    "signup": "Registrarse",
+    "status": {
+      "online": "En línea"
+    }
   },
   "footer": {
-    "tagline": "Construyendo el futuro descentralizado del comercio",
-    "links": {
-      "about": "Acerca",
-      "docs": "Documentación",
-      "community": "Comunidad",
-      "support": "Soporte",
-      "terms": "Términos",
-      "privacy": "Privacidad"
-    },
-    "newsletter": {
-      "title": "Recibir Actualizaciones",
-      "placeholder": "Tu email",
-      "button": "Suscribir"
-    },
-    "social": {
-      "twitter": "Twitter",
-      "github": "GitHub",
-      "discord": "Discord"
-    },
+    "tagline": "La Nación Digital de la Economía Popular",
+    "about": "Acerca de Bazari",
+    "about_desc": "Descentralización real para ferias, autónomos y pequeños comerciantes",
+    "governance": "Gobernanza",
+    "governance_desc": "DAO democrática con voto directo de los ciudadanos",
+    "technology": "Tecnología",
+    "technology_desc": "Blockchain propia y arquitectura local-first",
+    "community": "Comunidad",
+    "telegram": "Telegram",
+    "discord": "Discord",
+    "github": "GitHub",
+    "twitter": "Twitter",
+    "made_with": "Hecho con ❤️ por la Comunidad Bazari",
     "copyright": "© 2025 Bazari. Todos los derechos reservados."
   },
   "hero": {
-    "title": "Tu Economía, Tu Moneda",
-    "subtitle": "Conéctate a la primera nación digital enfocada en la economía popular. Vende, compra y gana cashback usando nuestra moneda nativa BZR.",
-    "cta_primary": "Comenzar Ahora",
-    "cta_secondary": "Descargar Whitepaper"
+    "title": "La Nación Digital de la Economía Popular",
+    "subtitle": "Descentralización real para ferias, autónomos y pequeños comerciantes",
+    "description": "Bazari es una Super App descentralizada que conecta productores y consumidores sin intermediarios. Gobernanza democrática, moneda propia (BZR) y soberanía digital completa.",
+    "cta_primary": "Entrar al Marketplace",
+    "cta_secondary": "Conocer la Tecnología",
+    "join_waitlist": "Unirse a la Lista de Espera",
+    "beta_badge": "Beta Cerrada"
   },
   "modules": {
-    "title": "Ecosistema Bazari",
-    "subtitle": "Plataformas integradas para economía descentralizada",
+    "title": "Módulos del Ecosistema",
+    "wallet": "Billetera Multi-Asset",
+    "wallet_desc": "Gestiona BZR, LIVO y otros tokens. Respaldo descentralizado y recuperación social.",
+    "marketplace": "Marketplace P2P",
+    "marketplace_desc": "Compra y vende sin intermediarios. Pagos directos en BZR con cashback automático en LIVO.",
+    "dao": "Gobernanza DAO",
+    "dao_desc": "Vota en propuestas, crea SubDAOs y participa en las decisiones de la red.",
+    "p2p": "Intercambio P2P",
+    "p2p_desc": "Intercambia BZR con otros usuarios sin intermediarios.",
+    "dex": "Exchange Descentralizado",
+    "dex_desc": "Negocia tokens de SubDAOs en pools de liquidez automáticos.",
+    "social": "Red Social",
+    "social_desc": "Conéctate con comerciantes y consumidores de tu región.",
+    "studio": "Bazari Studio",
+    "studio_desc": "Crea sistemas personalizados con nuestra plataforma low-code descentralizada.",
     "marketplace": {
-      "title": "Marketplace",
-      "description": "Compra y vende con BZR, sin intermediarios centralizados"
-    },
-    "dao": {
-      "title": "Gobernanza DAO",
-      "description": "Participa en las decisiones de la red y crea tu propia SubDAO"
+      "title": "Marketplace P2P",
+      "description": "Compra y vende sin intermediarios. Pagos directos en BZR con cashback automático en LIVO."
     },
     "wallet": {
-      "title": "Billetera Multi-Token",
-      "description": "Gestiona BZR, LIVO y tokens de SubDAOs en una sola billetera"
+      "title": "Billetera Multi-Asset",
+      "description": "Gestiona BZR, LIVO y otros tokens. Respaldo descentralizado y recuperación social."
+    },
+    "governance": {
+      "title": "Gobernanza DAO",
+      "description": "Vota en propuestas, crea SubDAOs y participa en las decisiones de la red."
     },
     "studio": {
       "title": "Bazari Studio",
-      "description": "Crea sistemas personalizados con nuestra plataforma low-code"
+      "description": "Crea sistemas personalizados con nuestra plataforma low-code descentralizada."
     }
+  },
+  "about": {
+    "title": "Acerca de Bazari",
+    "text": "Bazari es una infraestructura descentralizada construida específicamente para la economía popular. Nuestra misión es empoderar ferias, autónomos y pequeños comerciantes con soberanía digital real."
   },
   "roadmap": {
     "title": "Hoja de Ruta de Desarrollo",
-    "now": "Ahora - MVP",
-    "next": "Próximo - Beta",
-    "future": "Futuro - Producción",
+    "now": "Ahora",
     "now_list": [
-      "Marketplace básico",
-      "Billetera web",
-      "Gobernanza simple",
-      "Tokens BZR + LIVO"
+      "BazariChain MVP",
+      "Billetera básica",
+      "Marketplace alpha",
+      "Gobernanza inicial"
     ],
+    "next": "Próximo",
     "next_list": [
-      "Apps móviles",
-      "SubDAOs completas",
-      "Bazari Studio",
-      "Integraciones API"
+      "Marketplace beta",
+      "SubDAOs",
+      "Sistema de reputación",
+      "App móvil"
     ],
+    "future": "Futuro",
     "future_list": [
-      "Puentes cross-chain",
-      "Soluciones enterprise",
-      "Expansión global",
-      "Ecosistema completo"
-    ]
+      "Bazari Studio",
+      "Integración DEX",
+      "Alianzas estratégicas",
+      "Programas de incentivo"
+    ],
+    "q1_2025": {
+      "title": "Q1 2025 - Fundación",
+      "items": ["BazariChain MVP", "Billetera básica", "Marketplace alpha", "Gobernanza inicial"]
+    },
+    "q2_2025": {
+      "title": "Q2 2025 - Crecimiento",
+      "items": ["Marketplace beta", "SubDAOs", "Sistema de reputación", "App móvil"]
+    },
+    "q3_2025": {
+      "title": "Q3 2025 - Expansión",
+      "items": ["Bazari Studio", "Integración DEX", "Alianzas estratégicas", "Programas de incentivo"]
+    },
+    "q4_2025": {
+      "title": "Q4 2025 - Consolidación",
+      "items": ["Lanzamiento público", "Auditoría de seguridad", "Escalabilidad avanzada", "Comunidad global"]
+    }
   },
   "cta": {
-    "title": "¿Listo para Descentralizar?",
+    "title": "¿Listo para la Revolución de la Economía Popular?",
     "description": "Únete a miles de comerciantes, productores y consumidores construyendo el futuro descentralizado del comercio.",
-    "primary": "Comenzar",
-    "primary_aria": "Iniciar tu viaje en Bazari",
-    "primary_title": "Haz clic para iniciar tu viaje en Bazari",
+    "primary": "Comenzar Ahora",
+    "primary_aria": "Iniciar viaje en Bazari",
+    "primary_title": "Haz clic para comenzar tu viaje en Bazari",
     "secondary": "Saber Más",
-    "beta_notice": "Beta cerrado disponible para comerciantes seleccionados"
+    "beta_notice": "Beta cerrada disponible para comerciantes seleccionados"
   },
   "dev": {
-    "title": "Panel del Desarrollador",
+    "title": "Panel de Desarrollador",
     "description": "Herramientas e información para desarrollo",
     "current_theme": "Tema actual",
     "theme_gallery": "Galería de Temas",
-    "theme_preview": "Haz clic en los temas abajo para previsualizar:",
-    "language_test": "Prueba de Idioma",
+    "theme_preview": "Haz clic en los temas a continuación para previsualizar:",
+    "language_test": "Prueba de Idiomas",
     "components_test": "Prueba de Componentes",
     "panel": {
       "title": "Panel de Desarrollo"
@@ -112,11 +151,7 @@
       "empty": "No se encontraron categorías"
     },
     "upload": {
-      "title": "Carga de Archivo",
-      "button": "Seleccionar Archivo",
-      "success": "Carga exitosa",
-      "error": "Error en la carga",
-      "placeholder": "Elige un archivo..."
+      "title": "Subida de Archivos"
     }
   },
   "products": {
@@ -127,28 +162,28 @@
   },
   "categories": {
     "error": "Error al cargar categorías",
-    "select_main": "Seleccionar categoría principal",
-    "select_sub": "Seleccionar subcategoría",
-    "select_specific": "Seleccionar categoría específica",
-    "select_detail": "Seleccionar especialización",
+    "select_main": "Selecciona la categoría principal",
+    "select_sub": "Selecciona la subcategoría",
+    "select_specific": "Selecciona la categoría específica",
+    "select_detail": "Selecciona la especialización",
     "level_indicator": "Nivel {{current}} de {{max}}",
     "no_subcategories": "No hay subcategorías disponibles",
     "is_final_level": "Esta categoría puede ser seleccionada",
     "can_select": "Haz clic para seleccionar",
-    "some_are_final": "Las categorías con ✓ pueden ser seleccionadas",
+    "some_are_final": "Categorías con ✓ pueden ser seleccionadas",
     "select_to_continue": "Selecciona una categoría para continuar",
     "currently_selected": "Categoría seleccionada:",
     "selected": "Seleccionada"
   },
   "forms": {
-    "required_fields": "Completa todos los campos obligatorios",
+    "required_fields": "Llena todos los campos obligatorios",
     "invalid_email": "Email inválido",
     "password_too_short": "La contraseña debe tener al menos 8 caracteres",
     "passwords_dont_match": "Las contraseñas no coinciden",
     "terms_required": "Debes aceptar los términos de uso",
     "upload": {
-      "success": "Archivo cargado con éxito",
-      "error": "Error en la carga",
+      "success": "Archivo subido exitosamente",
+      "error": "Error en la subida",
       "no_file": "Selecciona un archivo"
     }
   },
@@ -161,39 +196,18 @@
     "continue": "Continuar",
     "next": "Siguiente",
     "previous": "Anterior",
-    "page": "Página {{current}} de {{total}}",
-    "yes": "Sí",
-    "no": "No",
-    "back_to_search": "Volver a la búsqueda",
-    "view_details": "Ver detalles",
-    "edit": "Editar",
-    "delete": "Eliminar",
-    "confirm": "Confirmar",
-    "close": "Cerrar",
-    "error": "Error",
-    "success": "Éxito",
-    "warning": "Advertencia",
-    "info": "Información",
-    "all": "Todos",
-    "select": "Seleccionar"
+    "page": "Página {{current}} de {{total}}"
   },
   "errors": {
     "generic": "Ocurrió un error inesperado",
     "network": "Error de conexión",
     "not_found": "No encontrado",
     "unauthorized": "No autorizado",
-    "server_error": "Error del servidor",
-    "validation_error": "Error de validación",
-    "required_field": "Campo obligatorio",
-    "invalid_format": "Formato inválido",
-    "min_length": "Mínimo {{min}} caracteres",
-    "max_length": "Máximo {{max}} caracteres"
+    "server_error": "Error del servidor"
   },
   "search": {
-    "title": "Buscar Productos y Servicios",
     "placeholder": "Buscar productos y servicios...",
     "button": "Buscar",
-    "type": "Tipo",
     "all": "Todos",
     "products": "Productos",
     "services": "Servicios",
@@ -206,16 +220,12 @@
     "sort_by": "Ordenar por",
     "sort": {
       "relevance": "Relevancia",
-      "price_asc": "Menor precio",
-      "price_desc": "Mayor precio",
-      "newest": "Más reciente"
+      "price_asc": "Precio menor",
+      "price_desc": "Precio mayor",
+      "newest": "Más recientes"
     },
     "toggle_filters": "Filtros",
-    "showing_results": "Mostrando {{start}}-{{end}} de {{total}} resultados",
-    "no_results": "No se encontraron resultados",
-    "search_placeholder": "Escribe algo para buscar productos y servicios",
-    "results_for": "Resultados para \"{{query}}\"",
-    "loading_results": "Cargando resultados..."
+    "showing_results": "Mostrando {{start}}-{{end}} de {{total}} resultados"
   },
   "new": {
     "type": "Tipo",
@@ -227,78 +237,69 @@
     "select_category": "Seleccionar Categoría",
     "category_desc": "Navega por los 4 niveles de categorías para encontrar la más específica",
     "basic_info": "Información Básica",
-    "basic_info_desc": "Completa la información principal de tu anuncio",
+    "basic_info_desc": "Llena la información principal de tu anuncio",
     "title": "Título",
     "title_placeholder": "Ej.: iPhone 15 Pro Max 256GB",
     "description": "Descripción",
     "description_placeholder": "Describe tu producto o servicio en detalle...",
     "price": "Precio",
-    "price_placeholder": "0.00",
     "media": "Fotos/Videos",
-    "media_desc": "Agrega imágenes o videos de tu producto",
     "attributes": "Características Específicas",
-    "attributes_desc": "Completa la información específica de la categoría seleccionada",
-    "what_to_list": "¿Qué te gustaría anunciar?",
+    "attributes_desc": "Llena la información específica de la categoría seleccionada",
+    "what_to_list": "¿Qué deseas anunciar?",
     "what_to_list_desc": "Elige si estás vendiendo un producto u ofreciendo un servicio",
     "success": "Éxito",
-    "success_title": "¡Registrado con éxito!",
-    "success_message": "Tu anuncio ha sido publicado",
-    "finish": "Finalizar",
-    "dynamic": {
-      "required": "Campo obligatorio",
-      "inputPlaceholder": "Ingresa el valor"
-    },
+    "success_title": "¡Registrado exitosamente!",
+    "success_message": "Tu anuncio ha sido publicado en el marketplace",
+    "view_product": "Ver anuncio",
+    "add_another": "Registrar otro en esta categoría",
+    "add_new": "Nuevo registro",
+    "click_to_upload": "Haz clic para subir fotos",
+    "files_uploaded": "{{count}} archivo(s) subido(s)",
+    "max_files_error": "Máximo de 10 archivos permitidos",
+    "upload_error": "Error en la subida",
+    "uploading_files": "Subiendo archivos...",
     "dynamicFields": {
-      "brand": {
-        "label": "Marca",
-        "placeholder": "Ej.: Apple, Samsung"
-      },
-      "model": {
-        "label": "Modelo",
-        "placeholder": "Ej.: iPhone 15 Pro"
-      },
-      "storage": {
-        "label": "Almacenamiento",
-        "placeholder": "Ej.: 256GB"
-      },
-      "color": {
-        "label": "Color",
-        "placeholder": "Ej.: Negro"
-      },
-      "condition": {
-        "label": "Condición",
-        "options": {
-          "new": "Nuevo",
-          "used": "Usado",
-          "refurbished": "Reacondicionado"
-        }
-      },
-      "warranty": {
-        "label": "Garantía"
-      },
-      "size": {
-        "label": "Tamaño",
-        "placeholder": "Ej.: P, M, G"
-      },
-      "material": {
-        "label": "Material",
-        "placeholder": "Ej.: Algodón, Poliéster"
+      "tamanho": { "label": "Talla", "placeholder": "Selecciona", "options": { "PP": "XS", "P": "S", "M": "M", "G": "L" } },
+      "cor": { "label": "Color" },
+      "material": { "label": "Material" },
+      "tecnica": { "label": "Técnica", "options": {
+      "Óleo":"Óleo","Acrílica":"Acrílica","Aquarela":"Acuarela","Guache":"Gouache","Mista":"Mixta","Outros":"Otros"
+      }},
+      "suporte": { "label": "Soporte", "options": {
+        "Tela":"Lienzo","Papel":"Papel","Madeira":"Madera","Metal":"Metal","Outros":"Otros"
+      }},
+      "largura_cm": { "label": "Ancho (cm)" },
+      "altura_cm": { "label": "Alto (cm)" },
+      "estado_conservacao": { "label": "Estado de conservación", "options": {
+        "Novo":"Nuevo","Usado":"Usado","Restaurado":"Restaurado"
+      }},
+      "moldura": { "label": "Con marco" },
+      "autenticidade": { "label": "Autenticidad", "options": {
+        "Com certificado":"Con certificado","Assinado":"Firmado","Sem comprovação":"Sin comprobación"
+      }},
+      "cores_predominantes": { "label": "Colores predominantes",
+        "options": {"Azul":"Azul","Branco":"Blanco","Preto":"Negro","Vermelho":"Rojo","Verde":"Verde","Amarelo":"Amarillo"}
       }
     }
   },
-  "validation": {
-    "required": "Este campo es obligatorio",
-    "min": "El valor mínimo es {{min}}",
-    "max": "El valor máximo es {{max}}",
-    "email": "Email inválido",
-    "url": "URL inválida",
-    "number": "Debe ser un número",
-    "integer": "Debe ser un número entero",
-    "positive": "Debe ser un número positivo",
-    "date": "Fecha inválida",
-    "time": "Hora inválida",
-    "phone": "Teléfono inválido",
-    "cpf": "CPF inválido",
-    "cnpj": "CNPJ inválido"
+  "listing": {
+    "step1": "Tipo",
+    "step2": "Categoría",
+    "step3": "Información",
+    "step4": "Atributos",
+    "product": "Producto",
+    "product_desc": "Artículo físico o digital para venta",
+    "service": "Servicio",
+    "service_desc": "Prestación de servicio o consultoría",
+    "choose_category": "Elegir Categoría",
+    "category_desc": "Selecciona la categoría más específica posible",
+    "basic_info": "Información Básica",
+    "basic_info_desc": "Datos principales de tu anuncio",
+    "title": "Título",
+    "title_placeholder": "Ej.: iPhone 15 Pro Max 256GB",
+    "description": "Descripción",
+    "price": "Precio en BZR",
+    "upload_photos": "Subir Fotos"
   }
 }
