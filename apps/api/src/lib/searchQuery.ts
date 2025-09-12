@@ -1,3 +1,5 @@
+// V-3 (2025-09-12): Agrega primeira mídia para Product e ServiceOffering em /search (funciona em kind='product', kind='service' e 'all'). Mantém facets e paginação.
+// path: apps/api/src/lib/searchQuery.ts
 // path: apps/api/src/lib/searchQuery.ts
 
 import { PrismaClient, Prisma } from '@prisma/client';
@@ -222,7 +224,44 @@ export class SearchQueryBuilder {
       allItems = [...productItems, ...serviceItems];
       totalCount = productCount + serviceCount;
 
-      // Aplicar paginação no resultado combinado
+    
+    // Anexar primeira mídia (se existir) para cada item pelo ownerId
+    if (allItems.length > 0) {
+      const productIds = allItems.filter((i: any) => i.kind === 'product').map((i: any) => i.id);
+      const serviceIds = allItems.filter((i: any) => i.kind === 'service').map((i: any) => i.id);
+      
+      if (productIds.length > 0 || serviceIds.length > 0) {
+        const mediaAssets = await this.prisma.mediaAsset.findMany({
+          where: {
+            OR: [
+              ...(productIds.length > 0 ? [{ ownerType: 'Product' as const, ownerId: { in: productIds } }] : []),
+              ...(serviceIds.length > 0 ? [{ ownerType: 'ServiceOffering' as const, ownerId: { in: serviceIds } }] : []),
+            ]
+          },
+          orderBy: { createdAt: 'asc' },
+          select: { id: true, url: true, ownerId: true, ownerType: true }
+        });
+
+        const firstByOwner = new Map<string, { id: string; url: string }>();
+        for (const m of mediaAssets) {
+          if (!firstByOwner.has(m.ownerId)) {
+            firstByOwner.set(m.ownerId, { id: m.id, url: m.url });
+          }
+        }
+
+        allItems = allItems.map((it: any) => {
+          const first = firstByOwner.get(it.id);
+          if (first) {
+            return {
+              ...it,
+              media: [{ id: first.id, url: first.url }]
+            };
+          }
+          return it;
+        });
+      }
+    }
+  // Aplicar paginação no resultado combinado
       allItems = allItems.slice(safeOffset, safeOffset + safeLimit);
     }
 
