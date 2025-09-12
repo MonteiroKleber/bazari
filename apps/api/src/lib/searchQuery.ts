@@ -1,4 +1,4 @@
-// V-3 (2025-09-12): Agrega primeira mídia para Product e ServiceOffering em /search (funciona em kind='product', kind='service' e 'all'). Mantém facets e paginação.
+// V-4 (2025-09-12): Agrega primeira mídia para Product e ServiceOffering em /search (funciona em kind='product', kind='service' e 'all'). Mantém facets e paginação.
 // path: apps/api/src/lib/searchQuery.ts
 // path: apps/api/src/lib/searchQuery.ts
 
@@ -223,50 +223,16 @@ export class SearchQueryBuilder {
 
       allItems = [...productItems, ...serviceItems];
       totalCount = productCount + serviceCount;
-
-    
-    // Anexar primeira mídia (se existir) para cada item pelo ownerId
-    if (allItems.length > 0) {
-      const productIds = allItems.filter((i: any) => i.kind === 'product').map((i: any) => i.id);
-      const serviceIds = allItems.filter((i: any) => i.kind === 'service').map((i: any) => i.id);
-      
-      if (productIds.length > 0 || serviceIds.length > 0) {
-        const mediaAssets = await this.prisma.mediaAsset.findMany({
-          where: {
-            OR: [
-              ...(productIds.length > 0 ? [{ ownerType: 'Product' as const, ownerId: { in: productIds } }] : []),
-              ...(serviceIds.length > 0 ? [{ ownerType: 'ServiceOffering' as const, ownerId: { in: serviceIds } }] : []),
-            ]
-          },
-          orderBy: { createdAt: 'asc' },
-          select: { id: true, url: true, ownerId: true, ownerType: true }
-        });
-
-        const firstByOwner = new Map<string, { id: string; url: string }>();
-        for (const m of mediaAssets) {
-          if (!firstByOwner.has(m.ownerId)) {
-            firstByOwner.set(m.ownerId, { id: m.id, url: m.url });
-          }
-        }
-
-        allItems = allItems.map((it: any) => {
-          const first = firstByOwner.get(it.id);
-          if (first) {
-            return {
-              ...it,
-              media: [{ id: first.id, url: first.url }]
-            };
-          }
-          return it;
-        });
-      }
-    }
-  // Aplicar paginação no resultado combinado
+    // Aplicar paginação no resultado combinado
       allItems = allItems.slice(safeOffset, safeOffset + safeLimit);
     }
 
     // Calcular facetas
-    const facets = await this.calculateFacets(whereProduct, whereService, kind);
+
+    // Anexar primeira mídia para os itens da página (produtos e serviços)
+    allItems = await this.attachFirstMedia(allItems);
+
+const facets = await this.calculateFacets(whereProduct, whereService, kind);
 
     return {
       items: allItems,
@@ -277,6 +243,40 @@ export class SearchQueryBuilder {
       },
       facets
     };
+  }
+
+  
+  // Anexa a primeira mídia (capa) a cada item (product/service) com base no ownerId/ownerType.
+  private async attachFirstMedia(allItems: any[]): Promise<any[]> {
+    if (!Array.isArray(allItems) || allItems.length === 0) return allItems;
+
+    const productIds = allItems.filter(i => i?.kind === 'product').map(i => i.id);
+    const serviceIds = allItems.filter(i => i?.kind === 'service').map(i => i.id);
+
+    if (productIds.length === 0 && serviceIds.length === 0) return allItems;
+
+    const mediaAssets = await this.prisma.mediaAsset.findMany({
+      where: {
+        OR: [
+          ...(productIds.length > 0 ? [{ ownerType: 'Product' as const, ownerId: { in: productIds } }] : []),
+          ...(serviceIds.length > 0 ? [{ ownerType: 'ServiceOffering' as const, ownerId: { in: serviceIds } }] : []),
+        ]
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, url: true, ownerId: true, ownerType: true }
+    });
+
+    const firstByOwner = new Map<string, { id: string; url: string }>();
+    for (const m of mediaAssets) {
+      if (!firstByOwner.has(m.ownerId)) {
+        firstByOwner.set(m.ownerId, { id: m.id, url: m.url });
+      }
+    }
+
+    return allItems.map(it => {
+      const first = firstByOwner.get(it.id);
+      return first ? { ...it, media: [{ id: first.id, url: first.url }] } : it;
+    });
   }
 
   private async calculateFacets(
