@@ -1,8 +1,14 @@
+// V-8 (2025-09-12): UX melhorias sem alterar layout e sem quebrar navegação de categorias.
+//  - Logs só em DEV (helper log/logError).
+//  - Drag & drop de arquivos na área de upload (mesma UI).
+//  - Cleanup de URLs de preview via useRef+useEffect (sem hooks em helpers).
+//  - Botão "Continuar" desabilitado até ter título e preço válidos.
+//  - Mensagem de erro de upload via i18n consistente (fallback).
 // V-7: Correção da navegação de categorias - limpar categoryPath ao selecionar tipo (2025-01-11)
 // Fix: handleKindSelect agora limpa categoryPath e categoryId para começar categoria do zero
 // Fix: botão voltar no step 2 também limpa categoria para permitir nova seleção
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Package, Briefcase, ArrowLeft, ArrowRight, CheckCircle, Upload, X } from 'lucide-react';
@@ -28,6 +34,10 @@ interface UploadedFile {
 export function NewListingPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+
+  // Helpers de log somente em DEV
+  const log = (...args: any[]) => { if (import.meta.env.DEV) console.log(...args); };
+  const logError = (...args: any[]) => { if (import.meta.env.DEV) console.error(...args); };
   
   // Estados do wizard
   const [step, setStep] = useState(1);
@@ -48,13 +58,28 @@ export function NewListingPage() {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [successData, setSuccessData] = useState<any>(null);
 
+  // Referência para gerenciar cleanup de URLs de preview criadas com createObjectURL
+  const previewsRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    // Cleanup global de previews ao desmontar a página
+    return () => {
+      try {
+        for (const url of previewsRef.current) {
+          URL.revokeObjectURL(url);
+        }
+        previewsRef.current = [];
+      } catch {}
+    };
+  }, []);
+
   // Carregar spec da categoria selecionada
   const { spec, loading: specLoading } = useEffectiveSpec(categoryId);
 
   // Step 1: Escolher tipo (produto ou serviço) - CORRIGIDO: limpar categoria anterior
   const handleKindSelect = (selectedKind: 'product' | 'service') => {
-    console.log('✅ Tipo selecionado:', selectedKind);
-    console.log('🧹 Limpando categoria anterior para começar do zero');
+    log('✅ Tipo selecionado:', selectedKind);
+    log('🧹 Limpando categoria anterior para começar do zero');
     
     setKind(selectedKind);
     // CORREÇÃO: Limpar categoria anterior para começar navegação do zero
@@ -66,34 +91,41 @@ export function NewListingPage() {
 
   // Step 2: Selecionar categoria - FUNÇÃO COM DEBUG
   const handleCategorySelect = (path: string[], id: string) => {
-    console.log('📍 handleCategorySelect chamado:');
-    console.log('  - path recebido:', path);
-    console.log('  - id recebido:', id);
-    console.log('  - tipo (kind):', kind);
+    log('📍 handleCategorySelect chamado:');
+    log('  - path recebido:', path);
+    log('  - id recebido:', id);
+    log('  - tipo (kind):', kind);
     
     setCategoryPath(path);
     setCategoryId(id);
     setStep(3);
     
-    console.log('✅ Estados atualizados:');
-    console.log('  - categoryPath:', path);
-    console.log('  - categoryId:', id);
-    console.log('  - próximo step:', 3);
+    log('✅ Estados atualizados:');
+    log('  - categoryPath:', path);
+    log('  - categoryId:', id);
+    log('  - próximo step:', 3);
   };
 
   // NOVA FUNÇÃO: Voltar para step 1 limpando categoria
   const handleBackToKindSelection = () => {
-    console.log('⬅️ Voltando para seleção de tipo, limpando categoria');
+    log('⬅️ Voltando para seleção de tipo, limpando categoria');
     setCategoryId(null);
     setCategoryPath([]);
     setError(null);
     setStep(1);
   };
 
+  // Validação básica para habilitar o botão "Continuar" no passo 3
+  const isBasicValid =
+    (basicData.title || '').trim().length > 0 &&
+    (basicData.price || '').trim().length > 0 &&
+    !isNaN(Number(basicData.price)) &&
+    Number(basicData.price) >= 0;
+
   // Step 3: Informações básicas
   const handleBasicSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('📋 Informações básicas submetidas:', basicData);
+    log('📋 Informações básicas submetidas:', basicData);
     
     if (!basicData.title || !basicData.price) {
       setError(t('forms.required_fields'));
@@ -103,74 +135,101 @@ export function NewListingPage() {
     
     // Se não há spec, pula direto para submissão
     if (!spec || !spec.jsonSchema || Object.keys(spec.jsonSchema.properties || {}).length === 0) {
-      console.log('⚠️ Categoria sem spec, pulando para submissão direta');
+      log('⚠️ Categoria sem spec, pulando para submissão direta');
       handleFinalSubmit({});
     } else {
-      console.log('✅ Categoria tem spec, indo para step 4');
+      log('✅ Categoria tem spec, indo para step 4');
       setStep(4);
     }
   };
 
-  // Upload de arquivos
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    
+  // --- Upload de arquivos ---
+
+  function processFiles(fileList: FileList | File[]) {
+    const files = Array.from(fileList);
+
     // Validação: máximo 10 arquivos
     if (uploadedFiles.length + files.length > 10) {
-      setError(t('new.max_files_error', 'Máximo de 10 arquivos permitidos'));
+      setError(t('new.max_files_error', { defaultValue: 'Máximo de 10 arquivos permitidos' }));
       return;
     }
 
-    // Criar previews e adicionar à lista
-    const newFiles: UploadedFile[] = files.map(file => ({
-      file,
-      preview: URL.createObjectURL(file)
-    }));
-    
-    setUploadedFiles([...uploadedFiles, ...newFiles]);
+    // (1) criar previews e entrar no estado com uploading=true
+    const next: UploadedFile[] = files.map((file) => {
+      const previewUrl = URL.createObjectURL(file);
+      previewsRef.current.push(previewUrl);
+      return {
+        file,
+        preview: previewUrl,
+        uploading: true,
+        error: null,
+      };
+    });
+
+    setUploadedFiles((prev) => [...prev, ...next]);
     setError(null);
 
-    // Upload automático em background
-    for (const fileObj of newFiles) {
-      uploadFile(fileObj);
-    }
+    // (2) fazer upload de cada arquivo
+    next.forEach(async (entry, idx) => {
+      try {
+        const res = await api.upload('/media/upload', entry.file);
+        setUploadedFiles((prev) => {
+          const copy = [...prev];
+          // índice relativo ao bloco recém-adicionado
+          const i = prev.length - next.length + idx;
+          copy[i] = { ...copy[i], uploading: false, mediaId: res.id, error: null };
+          return copy;
+        });
+        log('⬆️ Upload concluído:', res);
+      } catch (e) {
+        setUploadedFiles((prev) => {
+          const copy = [...prev];
+          const i = prev.length - next.length + idx;
+          copy[i] = { ...copy[i], uploading: false, error: t('errors.upload_failed', { defaultValue: 'Falha no upload' }) };
+          return copy;
+        });
+        logError('❌ Upload falhou:', e);
+      }
+    });
+  }
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    processFiles(e.target.files || []);
   };
 
-  const uploadFile = async (fileObj: UploadedFile) => {
-    try {
-      // Marcar como uploading
-      setUploadedFiles(prev => prev.map(f => 
-        f === fileObj ? { ...f, uploading: true } : f
-      ));
-
-      const response = await api.upload('/media/upload', fileObj.file);
-      
-      // Atualizar com mediaId
-      setUploadedFiles(prev => prev.map(f => 
-        f === fileObj ? { ...f, mediaId: response.id, uploading: false } : f
-      ));
-    } catch (err) {
-      // Marcar erro
-      setUploadedFiles(prev => prev.map(f => 
-        f === fileObj ? { ...f, error: t('new.upload_error', 'Erro no upload'), uploading: false } : f
-      ));
+  function onDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    if (e.dataTransfer?.files?.length) {
+      processFiles(e.dataTransfer.files);
     }
-  };
+  }
+  function onDragOver(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+  }
 
   const removeFile = (index: number) => {
-    const file = uploadedFiles[index];
-    URL.revokeObjectURL(file.preview);
-    setUploadedFiles(uploadedFiles.filter((_, i) => i !== index));
+    setUploadedFiles((prev) => {
+      const copy = [...prev];
+      const file = copy[index];
+      try {
+        if (file?.preview) {
+          URL.revokeObjectURL(file.preview);
+          previewsRef.current = previewsRef.current.filter((u) => u !== file.preview);
+        }
+      } catch {}
+      copy.splice(index, 1);
+      return copy;
+    });
   };
 
   // Step 4: Atributos específicos e submissão final - CORRIGIDO APENAS O PAYLOAD
   const handleFinalSubmit = async (formAttributes: any) => {
-    console.log('🚀 handleFinalSubmit chamado');
-    console.log('  - basicData:', basicData);
-    console.log('  - categoryPath:', categoryPath);
-    console.log('  - categoryId:', categoryId);
-    console.log('  - attributes:', formAttributes);
-    console.log('  - kind:', kind);
+    log('🚀 handleFinalSubmit chamado');
+    log('  - basicData:', basicData);
+    log('  - categoryPath:', categoryPath);
+    log('  - categoryId:', categoryId);
+    log('  - attributes:', formAttributes);
+    log('  - kind:', kind);
     
     setSubmitting(true);
     setError(null);
@@ -179,7 +238,7 @@ export function NewListingPage() {
       // Coletar mediaIds dos uploads bem-sucedidos
       const mediaIds = uploadedFiles
         .filter(f => f.mediaId)
-        .map(f => f.mediaId);
+        .map(f => f.mediaId as string);
 
       // CORREÇÃO: Construir payload sem campo 'price' duplicado
       const payload = {
@@ -188,26 +247,25 @@ export function NewListingPage() {
         description: basicData.description,
         categoryPath,
         attributes: formAttributes,
-        // Usar o campo correto baseado no tipo
         ...(kind === 'product' ? { priceBzr: basicData.price } : { basePriceBzr: basicData.price }),
-        ...(mediaIds.length > 0 && { mediaIds })
-      };
+        ...(mediaIds.length > 0 ? { mediaIds } : {})
+      } as any;
 
-      console.log('📤 Payload corrigido a ser enviado:', JSON.stringify(payload, null, 2));
+      log('📤 Payload corrigido a ser enviado:', JSON.stringify(payload, null, 2));
       
       const endpoint = kind === 'product' ? '/products' : '/services';
-      console.log('📍 Endpoint:', endpoint);
+      log('📍 Endpoint:', endpoint);
       
       const response = await api.post(endpoint, payload);
-      console.log('✅ Resposta do servidor:', response);
+      log('✅ Resposta do servidor:', response);
 
       // Sucesso - mostrar card de sucesso
       setSuccessData(response);
       setStep(5);
       setSubmitting(false);
     } catch (err: any) {
-      console.error('❌ Erro ao criar produto/serviço:', err);
-      console.error('  - Detalhes:', err.response || err.message || err);
+      logError('❌ Erro ao criar produto/serviço:', err);
+      logError('  - Detalhes:', err.response || err.message || err);
       
       const errorMessage = err.response?.data?.error || err.message || t('errors.generic');
       setError(errorMessage);
@@ -217,9 +275,9 @@ export function NewListingPage() {
 
   // Cadastrar outro na mesma categoria
   const handleAddAnother = () => {
-    console.log('➕ Cadastrar outro na mesma categoria');
-    console.log('  - Mantendo categoryPath:', categoryPath);
-    console.log('  - Mantendo categoryId:', categoryId);
+    log('➕ Cadastrar outro na mesma categoria');
+    log('  - Mantendo categoryPath:', categoryPath);
+    log('  - Mantendo categoryId:', categoryId);
     
     // Limpar dados mas manter categoria
     setBasicData({
@@ -238,7 +296,7 @@ export function NewListingPage() {
 
   // Novo cadastro (reset completo)
   const handleNewListing = () => {
-    console.log('🔄 Novo cadastro (reset completo)');
+    log('🔄 Novo cadastro (reset completo)');
     
     // Reset completo
     setStep(1);
@@ -342,7 +400,7 @@ export function NewListingPage() {
               </p>
             </div>
 
-            {/* DEBUG INFO */}
+            {/* DEBUG INFO (apenas em DEV) */}
             {import.meta.env.DEV && (
               <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded text-xs">
                 <p className="font-bold">DEBUG INFO:</p>
@@ -402,13 +460,17 @@ export function NewListingPage() {
                     className="hidden"
                     id="file-upload"
                   />
-                  <label
-                    htmlFor="file-upload"
-                    className="cursor-pointer inline-flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-muted-foreground/25 rounded-lg hover:border-primary transition-colors"
-                  >
-                    <Upload className="w-4 h-4" />
-                    {t('new.click_to_upload')}
-                  </label>
+                  <div onDrop={onDrop} onDragOver={onDragOver}>
+                    <label
+                      htmlFor="file-upload"
+                      className="cursor-pointer inline-flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-muted-foreground/25 rounded-lg hover:border-primary transition-colors w-full"
+                      aria-label={t('new.click_to_upload') as string}
+                      title={t('new.click_to_upload') as string}
+                    >
+                      <Upload className="w-4 h-4" />
+                      {t('new.click_to_upload')}
+                    </label>
+                  </div>
                 </div>
 
                 {/* Preview dos arquivos */}
@@ -428,13 +490,15 @@ export function NewListingPage() {
                         )}
                         {file.error && (
                           <div className="absolute inset-0 bg-red-500/50 flex items-center justify-center rounded">
-                            <span className="text-white text-xs">Erro</span>
+                            <span className="text-white text-xs">{t('errors.upload_failed', { defaultValue: 'Falha no upload' })}</span>
                           </div>
                         )}
                         <button
                           type="button"
                           onClick={() => removeFile(index)}
                           className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                          aria-label={t('common.remove') as string}
+                          title={t('common.remove') as string}
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -466,7 +530,7 @@ export function NewListingPage() {
                   {t('common.back')}
                 </Button>
                 
-                <Button type="submit" disabled={submitting}>
+                <Button type="submit" disabled={submitting || !isBasicValid} aria-disabled={submitting || !isBasicValid}>
                   {submitting ? t('common.saving') : t('common.continue')}
                   {!submitting && <ArrowRight className="w-4 h-4 ml-2" />}
                 </Button>
@@ -560,7 +624,7 @@ export function NewListingPage() {
                     onClick={handleAddAnother}
                     className="w-full"
                   >
-                    {t('new.add_another', 'Cadastrar outro nesta categoria')}
+                    {t('new.add_another', { defaultValue: 'Cadastrar outro nesta categoria' })}
                   </Button>
                   
                   <Button
@@ -568,7 +632,7 @@ export function NewListingPage() {
                     onClick={handleNewListing}
                     className="w-full"
                   >
-                    {t('new.add_new', 'Novo cadastro')}
+                    {t('new.add_new', { defaultValue: 'Novo cadastro' })}
                   </Button>
                 </div>
               </CardContent>
@@ -585,8 +649,6 @@ export function NewListingPage() {
   const renderProgress = () => {
     // Ajustar steps baseado na existência de spec
     const hasSpec = spec && spec.jsonSchema && Object.keys(spec.jsonSchema.properties || {}).length > 0;
-    const totalSteps = step === 5 ? 5 : (hasSpec ? 4 : 3);
-    
     const steps = [
       { num: 1, label: t('listing.step1') },
       { num: 2, label: t('listing.step2') },
