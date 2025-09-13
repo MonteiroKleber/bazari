@@ -1,4 +1,4 @@
-// V-8: Correção completa da rota de serviços para usar mesmo padrão dos produtos (2025-01-11)
+// V-6: Passo 3 — detalhe de serviço retorna media: [{id, url}] (2025-09-13)
 // Alinhado com a rota de produtos que já está funcionando
 // Corrige erro 400 ao criar serviços
 
@@ -219,11 +219,22 @@ export async function servicesRoutes(app: FastifyInstance, options: { prisma: Pr
       },
     });
 
+    // V-6 (2025-09-13): Passo 3 — Higiene de Mídia
     if (!service) {
       return reply.status(404).send({ error: 'Serviço não encontrado' });
     }
 
-    return reply.send(service);
+    const mediaAssets = await prisma.mediaAsset.findMany({
+      where: { ownerType: 'ServiceOffering', ownerId: service.id },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, url: true }
+    });
+
+    const media = mediaAssets.map(m => ({ id: m.id, url: m.url }));
+    const payload = { ...service, media };
+
+    return reply.send(payload);
+
   });
 
   /**

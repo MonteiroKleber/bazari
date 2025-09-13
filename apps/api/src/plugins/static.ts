@@ -1,4 +1,4 @@
-// V-1 (2025-09-12): Corrige raiz dos arquivos estáticos e alinha prefixos
+// V-3 (2025-09-13): Passo 3 — Cache-Control em /static e /uploads (prod: 1 ano, dev: 0)
 // - Root agora aponta para 'apps/api/uploads' (relativo ao arquivo), evitando depender do process.cwd().
 // - Mantém prefix principal em '/static/' (compatível com MediaAsset.url = '/static/<file>').
 // - Adiciona alias opcional '/uploads/' para compatibilidade sem quebrar rotas existentes.
@@ -32,8 +32,11 @@ export async function staticPlugin(app: FastifyInstance) {
 
   // Servir arquivos estáticos a partir de /static (CASA com MediaAsset.url)
   await app.register(fastifyStatic, {
-    root: uploadsDir,
+root: uploadsDir,
     prefix: '/static/',
+    cacheControl: true,
+    maxAge: process.env.NODE_ENV === 'production' ? 31536000 : 0,
+    immutable: process.env.NODE_ENV === 'production',
     serve: true,
     list: false,
   });
@@ -42,6 +45,9 @@ export async function staticPlugin(app: FastifyInstance) {
   await app.register(fastifyStatic, {
     root: uploadsDir,
     prefix: '/uploads/',
+    cacheControl: true,
+    maxAge: process.env.NODE_ENV === 'production' ? 31536000 : 0,
+    immutable: process.env.NODE_ENV === 'production',
     decorateReply: false, // evita conflito de decorators
     serve: true,
     list: false,
