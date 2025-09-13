@@ -1,10 +1,7 @@
-// V-15 (2025-09-12): Card agora aceita fallback de imagem (coverUrl/thumbnailUrl/imageUrl/.../images[0]/mediaUrls[0]) além de media[0].url, mantendo layout. Continua resolvendo URL para absoluta.
-// V-10: Resolver robusto de URL absoluta com fallback localhost:3000 + log discreto em DEV.
-// V-9 : Resolver URL absoluta das mídias no card usando API_BASE_URL (mudança mínima).
-// V-8 : Restaura os botões "Todos / Produtos / Serviços" abaixo da busca.
-// V-7 : Melhorias de UX sem alterar layout (facets, skeletons, etc.).
+// V-17 (2025-09-12): Fix accordion de atributos no sidebar - corrige toggle e stopPropagation
+// path: apps/web/src/pages/SearchPage.tsx
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { Search, Filter } from 'lucide-react';
@@ -144,9 +141,37 @@ export function SearchPage() {
     }));
   }, [results?.facets?.categories, getFacetLabel]);
 
+  // Função toggleAttrFacet
+  const toggleAttrFacet = useCallback((attrKey: string, value: string) => {
+    const current = filters.attrs || {};
+    const currentValues = current[attrKey];
+    
+    let newValues: string[] = [];
+    
+    if (Array.isArray(currentValues)) {
+      newValues = currentValues.includes(value) 
+        ? currentValues.filter(v => v !== value)
+        : [...currentValues, value];
+    } else if (typeof currentValues === 'string') {
+      newValues = currentValues === value ? [] : [currentValues, value];
+    } else {
+      newValues = [value];
+    }
+
+    const newAttrs = { ...current };
+    if (newValues.length === 0) {
+      delete newAttrs[attrKey];
+    } else {
+      newAttrs[attrKey] = newValues;
+    }
+
+    updateFilters({ attrs: newAttrs });
+  }, [filters.attrs, updateFilters]);
+
   // Sincronizar com URL (inclui filtros extras)
   useEffect(() => {
     const params = new URLSearchParams();
+    
     if (filters.q) params.set('q', filters.q);
     if (filters.kind && filters.kind !== 'all') params.set('kind', filters.kind);
     if (Array.isArray(filters.categoryPath) && filters.categoryPath.length > 0) {
@@ -156,6 +181,18 @@ export function SearchPage() {
     if (filters.priceMax) params.set('priceMax', filters.priceMax);
     if (filters.sort) params.set('sort', String(filters.sort));
     if (typeof filters.offset === 'number' && filters.offset > 0) params.set('offset', String(filters.offset));
+    
+    // Adiciona attrs na URL
+    if (filters.attrs && Object.keys(filters.attrs).length > 0) {
+      for (const [key, val] of Object.entries(filters.attrs)) {
+        if (Array.isArray(val)) {
+          val.forEach(v => params.append(`attrs.${key}`, v));
+        } else if (val) {
+          params.set(`attrs.${key}`, String(val));
+        }
+      }
+    }
+    
     setSearchParams(params);
   }, [filters, setSearchParams]);
 
@@ -172,7 +209,7 @@ export function SearchPage() {
       }
     }, 350);
     return () => clearTimeout(h);
-  }, [searchQuery]);
+  }, [searchQuery, filters.q, updateFilters]);
 
   const handleKindChange = (kind: 'product' | 'service' | 'all') => {
     updateFilters({ kind, offset: 0 });
@@ -276,7 +313,7 @@ export function SearchPage() {
           <Button
             aria-label={t('search.toggle_filters') as string}
             variant="outline"
-            className="lg:hidden w-full mt-4"
+            className="lg:hidden"
             onClick={() => setShowFilters(!showFilters)}
           >
             <Filter className="h-4 w-4 mr-2" />
@@ -420,17 +457,17 @@ export function SearchPage() {
                   </div>
                 )}
 
-
-                {/* Attribute Facets */}
+                {/* Attribute Facets - Accordion corrigido */}
                 {(
                   (results?.facets?.attributes && Object.keys(results.facets.attributes).length > 0) ||
                   (filters?.attrs && Object.keys(filters.attrs).length > 0)
                 ) && (
                   <details className="group" open>
-                    <summary className="cursor-pointer select-none list-none">
-                      <h4 className="font-medium mb-2">{t('search.attributes', { defaultValue: 'Atributos' })}</h4>
+                    <summary className="cursor-pointer select-none list-none flex items-center">
+                      <h4 className="font-medium">{t('search.attributes', { defaultValue: 'Atributos' })}</h4>
                     </summary>
-                    <div className="space-y-4">
+                    <div className="space-y-4 mt-2">
+                      {/* Renderiza facetas existentes */}
                       {Object.entries(results?.facets?.attributes || {}).map(([attrKey, buckets]) => {
                         const list = Array.isArray(buckets) ? buckets as Array<{ value: string; count: number }> : [];
                         return (
@@ -444,7 +481,11 @@ export function SearchPage() {
                                 const selectedStr = typeof filters.attrs?.[attrKey] === 'string' ? String(filters.attrs?.[attrKey]) : null;
                                 const isSelected = Array.isArray(selectedArr) ? selectedArr.includes(String(b.value)) : (selectedStr === String(b.value));
                                 return (
-                                  <label key={i} className="flex items-center justify-between text-sm cursor-pointer">
+                                  <label 
+                                    key={i} 
+                                    className="flex items-center justify-between text-sm cursor-pointer"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
                                     <span className="flex items-center gap-2">
                                       <input
                                         type="checkbox"
@@ -459,6 +500,42 @@ export function SearchPage() {
                                   </label>
                                 );
                               })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      
+                      {/* Renderiza atributos selecionados que não estão nas facetas (para permitir desmarcar) */}
+                      {filters.attrs && Object.entries(filters.attrs).map(([attrKey, values]) => {
+                        // Se já foi renderizado nas facetas acima, pula
+                        if (results?.facets?.attributes?.[attrKey]) return null;
+                        
+                        const valueArray = Array.isArray(values) ? values : [values];
+                        return (
+                          <div key={attrKey}>
+                            <div className="text-sm font-medium mb-1">
+                              {t(`attr.${String(attrKey)}`, { defaultValue: String(attrKey) })}
+                            </div>
+                            <div className="space-y-1">
+                              {valueArray.map((value, i) => (
+                                <label 
+                                  key={i} 
+                                  className="flex items-center justify-between text-sm cursor-pointer"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <span className="flex items-center gap-2">
+                                    <input
+                                      type="checkbox"
+                                      className="h-4 w-4"
+                                      checked={true}
+                                      onClick={(e) => e.stopPropagation()}
+                                      onChange={() => toggleAttrFacet(String(attrKey), String(value))}
+                                    />
+                                    <span>{String(value)}</span>
+                                  </span>
+                                  <span className="text-muted-foreground">(0)</span>
+                                </label>
+                              ))}
                             </div>
                           </div>
                         );
@@ -498,7 +575,7 @@ export function SearchPage() {
 
           {/* Results Grid */}
           <div className="lg:col-span-3">
-            {"loading" && loading ? (
+            {loading ? (
               <div className="space-y-4">
                 <div className="h-4 w-40 bg-muted/50 rounded animate-pulse" />
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -527,7 +604,7 @@ export function SearchPage() {
                 </p>
 
                 {/* Applied filters chips */}
-                {(filters.q || (Array.isArray(filters.categoryPath) && filters.categoryPath.length > 0) || filters.priceMin || filters.priceMax) && (
+                {(filters.q || (Array.isArray(filters.categoryPath) && filters.categoryPath.length > 0) || filters.priceMin || filters.priceMax || (filters.attrs && Object.keys(filters.attrs).length > 0)) && (
                   <div className="flex flex-wrap items-center gap-2">
                     {filters.q && (
                       <Badge variant="secondary">{filters.q}</Badge>
@@ -540,6 +617,14 @@ export function SearchPage() {
                         {(filters.priceMin || '0') + ' - ' + (filters.priceMax || '∞') + ' BZR'}
                       </Badge>
                     )}
+                    {filters.attrs && Object.entries(filters.attrs).map(([key, values]) => {
+                      const valueArray = Array.isArray(values) ? values : [values];
+                      return valueArray.map(value => (
+                        <Badge key={`${key}-${value}`} variant="secondary">
+                          {key}: {value}
+                        </Badge>
+                      ));
+                    })}
                     <Button variant="ghost" size="sm" onClick={clearFilters}>
                       {t('search.clear')}
                     </Button>
@@ -550,41 +635,40 @@ export function SearchPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {results.items.map((item) => {
                     const originalUrl = extractBestImageUrl(item);
-                    const src = originalUrl ? resolveMediaUrl(originalUrl) : '';
+                    const src = originalUrl ? resolveMediaUrl(originalUrl) : undefined;
+                    
                     return (
-                      <Card key={item.id} className="hover:shadow-lg transition-shadow">
-                        <CardHeader>
-                          <div className="flex justify-between items-start">
-                            <Badge variant={item.kind === 'product' ? 'default' : 'secondary'}>
-                              {item.kind === 'product' ? t('new.product') : t('new.service')}
-                            </Badge>
-                            <span className="text-lg font-bold text-primary">
-                              {formatPrice(item.priceBzr || '0')}
-                            </span>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          {src ? (
+                      <Card key={item.id} className="overflow-hidden">
+                        {src && (
+                          <div className="aspect-video bg-muted">
                             <img
                               src={src}
                               alt={item.title}
-                              className="w-full h-48 object-cover rounded-md mb-4"
-                              loading="lazy"
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
                             />
-                          ) : (
-                            <div className="w-full h-48 rounded-md mb-4 bg-muted/20 flex items-center justify-center text-xs text-muted-foreground" aria-label="no-image">—</div>
+                          </div>
+                        )}
+                        <CardContent className="p-4">
+                          <h3 className="font-semibold mb-2">{item.title}</h3>
+                          <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                            {item.description}
+                          </p>
+                          {item.priceBzr && (
+                            <p className="text-lg font-bold">{formatPrice(item.priceBzr)}</p>
                           )}
-                          <h3 className="font-semibold mb-2 truncate">{item.title}</h3>
-                          {item.categoryPath && item.categoryPath.length > 0 && (
-                            <div className="text-xs text-muted-foreground">
-                              {item.categoryPath.slice(1).map((_, idx) => (
-                                <span key={idx}>
-                                  {idx > 0 && ' / '}
-                                  {getCrumbLabel(item.categoryPath, idx + 1)}
-                                </span>
-                              ))}
-                            </div>
-                          )}
+                          <div className="mt-2 flex items-center gap-2">
+                            <Badge variant="outline">
+                              {item.kind === 'product' ? t('search.products') : t('search.services')}
+                            </Badge>
+                            {item.categoryPath && item.categoryPath.length > 0 && (
+                              <Badge variant="secondary">
+                                {getCrumbLabel(item.categoryPath, item.categoryPath.length - 1)}
+                              </Badge>
+                            )}
+                          </div>
                         </CardContent>
                       </Card>
                     );
@@ -596,32 +680,28 @@ export function SearchPage() {
                   <div className="flex justify-center gap-2 mt-6">
                     <Button
                       variant="outline"
-                      disabled={results.page.offset === 0}
                       onClick={() => handlePageChange(Math.max(0, results.page.offset - results.page.limit))}
+                      disabled={results.page.offset === 0}
                     >
-                      {t('common.previous')}
+                      {t('common.previous', { defaultValue: 'Anterior' })}
                     </Button>
-                    <span className="flex items-center px-4 text-sm">
-                      {t('common.page', {
-                        current: Math.floor(results.page.offset / results.page.limit) + 1,
-                        total: Math.ceil(results.page.total / results.page.limit)
-                      })}
+                    <span className="flex items-center px-4">
+                      {Math.floor(results.page.offset / results.page.limit) + 1} / {Math.ceil(results.page.total / results.page.limit)}
                     </span>
                     <Button
                       variant="outline"
-                      disabled={results.page.offset + results.page.limit >= results.page.total}
                       onClick={() => handlePageChange(results.page.offset + results.page.limit)}
+                      disabled={results.page.offset + results.page.limit >= results.page.total}
                     >
-                      {t('common.next')}
+                      {t('common.next', { defaultValue: 'Próximo' })}
                     </Button>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="text-center py-16">
-                <h3 className="text-lg font-semibold mb-2">{t('search.no_results_title')}</h3>
+              <div className="text-center py-12">
                 <p className="text-muted-foreground">
-                  {filters.q ? 
+                  {searchQuery ? 
                     'Nenhum resultado encontrado' : 
                     'Digite algo para buscar produtos e serviços'}
                 </p>

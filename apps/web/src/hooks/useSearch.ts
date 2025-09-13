@@ -1,9 +1,4 @@
-// V-15 (2025-09-12): Corrige definitivamente a exibição de imagens na SearchPage SEM tocar em api.ts.
-//  - Usa fetch nativo com API_BASE_URL (sem depender de exports de api.ts).
-//  - Normaliza URLs relativas de mídia para absolutas (ex.: "/static/..." -> "http://localhost:3000/static/...").
-//  - Enriquecimento: quando o item não traz URL de mídia mas tem mediaIds, busca GET /media/:id/url e injeta media[0].url/coverUrl.
-//  - Mantém assinatura do hook, filtros, paginação, facets e tratamento de erro i18n.
-//
+// V-16 (2025-09-12): Corrige filtro por atributos adicionando JSON.stringify(filters.attrs) nas dependências do useEffect
 // path: apps/web/src/hooks/useSearch.ts
 
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -103,7 +98,7 @@ export function useSearch(initial?: SearchFilters): UseSearchReturn {
     categoryPath: initial?.categoryPath ?? [],
     priceMin: initial?.priceMin,
     priceMax: initial?.priceMax,
-    attrs: initial?.attrs,
+    attrs: initial?.attrs || {},
     limit: initial?.limit ?? DEFAULT_LIMIT,
     offset: initial?.offset ?? 0,
     sort: initial?.sort ?? 'relevance',
@@ -116,7 +111,8 @@ export function useSearch(initial?: SearchFilters): UseSearchReturn {
   const [error, setError] = useState<string | null>(null);
   const currentController = useRef<AbortController | null>(null);
 
-  const search = useCallback(async (newFilters?: SearchFilters) => { const effective = newFilters ?? filtersRef.current;
+  const search = useCallback(async (newFilters?: SearchFilters) => {
+    const effective = newFilters ?? filtersRef.current;
     setLoading(true);
     setError(null);
 
@@ -239,7 +235,7 @@ export function useSearch(initial?: SearchFilters): UseSearchReturn {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, []);
 
   useEffect(() => {
     // dispara busca na montagem e quando filtros mudarem via updateFilters
@@ -253,7 +249,8 @@ export function useSearch(initial?: SearchFilters): UseSearchReturn {
     filters.priceMax,
     filters.sort,
     filters.limit,
-    filters.offset
+    filters.offset,
+    JSON.stringify(filters.attrs) // CORREÇÃO: Adiciona attrs nas dependências
   ]);
 
   const updateFilters = useCallback((patch: Partial<SearchFilters>) => {
@@ -274,7 +271,13 @@ export function useSearch(initial?: SearchFilters): UseSearchReturn {
   }, []);
 
   const clearFilters = useCallback(() => {
-    setFilters({});
+    setFilters({
+      kind: 'all',
+      limit: DEFAULT_LIMIT,
+      offset: 0,
+      sort: 'relevance',
+      attrs: {}
+    });
     setResults(null);
   }, []);
 
