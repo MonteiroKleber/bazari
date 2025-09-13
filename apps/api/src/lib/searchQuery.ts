@@ -1,4 +1,4 @@
-// V-4 (2025-09-12): Agrega primeira mídia para Product e ServiceOffering em /search (funciona em kind='product', kind='service' e 'all'). Mantém facets e paginação.
+// V-5 (2025-09-12): Agrega primeira mídia para Product e ServiceOffering em /search (funciona em kind='product', kind='service' e 'all'). Mantém facets e paginação.
 // path: apps/api/src/lib/searchQuery.ts
 // path: apps/api/src/lib/searchQuery.ts
 
@@ -437,13 +437,108 @@ const facets = await this.calculateFacets(whereProduct, whereService, kind);
     return { min, max, buckets };
   }
 
+  
   private async calculateAttributeFacets(
     whereProduct: Prisma.ProductWhereInput,
     whereService: Prisma.ServiceOfferingWhereInput,
     kind: 'product' | 'service' | 'all'
   ): Promise<Record<string, Array<{ value: string; count: number }>>> {
-    // Simplificado - idealmente buscaríamos indexHints das categorias relevantes
-    // Por ora, retornar facetas vazias
-    return {};
+    // V-5 (2025-09-12): Implementa facetas por atributos com base em indexHints das categorias efetivas.
+    // Estratégia incremental e segura: buscamos itens filtrados (sem paginação), coletamos categoryIds,
+    // resolvemos indexHints por categoria e agregamos contagens em memória.
+    const out: Record<string, Array<{ value: string; count: number }>> = {};
+
+    // Buscar itens conforme o kind (limitamos campos para eficiência)
+    let products: Array<{ id: string; categoryId: string; attributes: any }> = [];
+    let services: Array<{ id: string; categoryId: string; attributes: any }> = [];
+
+    if (kind === 'product') {
+      products = await this.prisma.product.findMany({
+        where: whereProduct,
+        select: { id: true, categoryId: true, attributes: true },
+        take: 5000,
+      });
+    } else if (kind === 'service') {
+      services = await this.prisma.serviceOffering.findMany({
+        where: whereService,
+        select: { id: true, categoryId: true, attributes: true },
+        take: 5000,
+      });
+    } else {
+      // all
+      products = await this.prisma.product.findMany({
+        where: whereProduct,
+        select: { id: true, categoryId: true, attributes: true },
+        take: 5000,
+      });
+      services = await this.prisma.serviceOffering.findMany({
+        where: whereService,
+        select: { id: true, categoryId: true, attributes: true },
+        take: 5000,
+      });
+    }
+
+    const allItems = [
+      ...products.map(p => ({ kind: 'product' as const, categoryId: p.categoryId, attributes: p.attributes })),
+      ...services.map(s => ({ kind: 'service' as const, categoryId: s.categoryId, attributes: s.attributes })),
+    ];
+
+    if (allItems.length === 0) return out;
+
+    // Coletar atributos a facetar a partir dos indexHints por categoria efetiva
+    const { resolveEffectiveSpecByCategoryId } = await import('./categoryResolver');
+    const catIds = Array.from(new Set(allItems.map(i => i.categoryId).filter(Boolean)));
+    const hinted = new Set<string>();
+    for (const cid of catIds) {
+      try {
+        const spec = await resolveEffectiveSpecByCategoryId(cid);
+        const hints: string[] = Array.isArray(spec?.indexHints) ? spec.indexHints : [];
+        for (const h of hints) {
+          if (h && typeof h === 'string') hinted.add(h);
+        }
+      } catch {}
+    }
+
+    if (hinted.size === 0) {
+      // fallback: inferir chaves comuns dos atributos presentes
+      const first = allItems.find(i => i.attributes && typeof i.attributes === 'object');
+      if (first) {
+        for (const k of Object.keys(first.attributes || {})) hinted.add(k);
+      }
+    }
+
+    // Agregar contagens
+    const counters: Record<string, Map<string, number>> = {};
+    for (const key of hinted) counters[key] = new Map<string, number>();
+
+    for (const item of allItems) {
+      const attrs = item.attributes && typeof item.attributes === 'object' ? item.attributes : {};
+      for (const key of hinted) {
+        const raw = (attrs as any)[key];
+        if (raw === null || raw === undefined) continue;
+
+        const add = (val: any) => {
+          let v = String(val).trim();
+          if (!v) return;
+          const m = counters[key];
+          m.set(v, (m.get(v) || 0) + 1);
+        };
+
+        if (Array.isArray(raw)) raw.forEach(add);
+        else add(raw);
+      }
+    }
+
+    // Montar saída: ordenar por count desc e limitar a 20 valores por atributo
+    for (const key of Object.keys(counters)) {
+      const arr = Array.from(counters[key].entries())
+        .map(([value, count]) => ({ value, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 20);
+      if (arr.length) out[key] = arr;
+    }
+
+    return out;
   }
+
 }

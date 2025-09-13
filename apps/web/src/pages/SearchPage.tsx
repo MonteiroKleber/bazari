@@ -1,4 +1,4 @@
-// V-11 (2025-09-12): Card agora aceita fallback de imagem (coverUrl/thumbnailUrl/imageUrl/.../images[0]/mediaUrls[0]) além de media[0].url, mantendo layout. Continua resolvendo URL para absoluta.
+// V-15 (2025-09-12): Card agora aceita fallback de imagem (coverUrl/thumbnailUrl/imageUrl/.../images[0]/mediaUrls[0]) além de media[0].url, mantendo layout. Continua resolvendo URL para absoluta.
 // V-10: Resolver robusto de URL absoluta com fallback localhost:3000 + log discreto em DEV.
 // V-9 : Resolver URL absoluta das mídias no card usando API_BASE_URL (mudança mínima).
 // V-8 : Restaura os botões "Todos / Produtos / Serviços" abaixo da busca.
@@ -418,6 +418,53 @@ export function SearchPage() {
                       )}
                     </div>
                   </div>
+                )}
+
+
+                {/* Attribute Facets */}
+                {(
+                  (results?.facets?.attributes && Object.keys(results.facets.attributes).length > 0) ||
+                  (filters?.attrs && Object.keys(filters.attrs).length > 0)
+                ) && (
+                  <details className="group" open>
+                    <summary className="cursor-pointer select-none list-none">
+                      <h4 className="font-medium mb-2">{t('search.attributes', { defaultValue: 'Atributos' })}</h4>
+                    </summary>
+                    <div className="space-y-4">
+                      {Object.entries(results?.facets?.attributes || {}).map(([attrKey, buckets]) => {
+                        const list = Array.isArray(buckets) ? buckets as Array<{ value: string; count: number }> : [];
+                        return (
+                          <div key={attrKey}>
+                            <div className="text-sm font-medium mb-1">
+                              {t(`attr.${String(attrKey)}`, { defaultValue: String(attrKey) })}
+                            </div>
+                            <div className="space-y-1">
+                              {list.map((b, i) => {
+                                const selectedArr = Array.isArray(filters.attrs?.[attrKey]) ? (filters.attrs![attrKey] as string[]) : [];
+                                const selectedStr = typeof filters.attrs?.[attrKey] === 'string' ? String(filters.attrs?.[attrKey]) : null;
+                                const isSelected = Array.isArray(selectedArr) ? selectedArr.includes(String(b.value)) : (selectedStr === String(b.value));
+                                return (
+                                  <label key={i} className="flex items-center justify-between text-sm cursor-pointer">
+                                    <span className="flex items-center gap-2">
+                                      <input
+                                        type="checkbox"
+                                        className="h-4 w-4"
+                                        checked={!!isSelected}
+                                        onClick={(e) => e.stopPropagation()}
+                                        onChange={() => toggleAttrFacet(String(attrKey), String(b.value))}
+                                      />
+                                      <span>{String(b.value)}</span>
+                                    </span>
+                                    <span className="text-muted-foreground">({b.count})</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </details>
                 )}
 
                 {/* Sort */}
