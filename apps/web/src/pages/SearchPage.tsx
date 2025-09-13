@@ -1,4 +1,4 @@
-// V-17 (2025-09-12): Fix accordion de atributos no sidebar - corrige toggle e stopPropagation
+// V-18 (2025-09-13): Toggle atributos passa offset:0 para resetar paginação; sem alteração visual
 // path: apps/web/src/pages/SearchPage.tsx
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -165,7 +165,7 @@ export function SearchPage() {
       newAttrs[attrKey] = newValues;
     }
 
-    updateFilters({ attrs: newAttrs });
+    updateFilters({ attrs: newAttrs, offset: 0 });
   }, [filters.attrs, updateFilters]);
 
   // Sincronizar com URL (inclui filtros extras)
