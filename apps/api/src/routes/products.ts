@@ -1,4 +1,4 @@
-// V-5: Correção do campo attributesSpecVersion obrigatório que causava erro 400 (2025-01-11)
+// V-6: Passo 3 — detalhe de produto retorna media: [{id, url}] (2025-09-13)
 // Adicionado o campo attributesSpecVersion na criação do produto
 
 import { FastifyInstance } from 'fastify';
@@ -219,11 +219,22 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
       },
     });
 
+    // V-6 (2025-09-13): Passo 3 — Higiene de Mídia
     if (!product) {
       return reply.status(404).send({ error: 'Produto não encontrado' });
     }
 
-    return reply.send(product);
+    const mediaAssets = await prisma.mediaAsset.findMany({
+      where: { ownerType: 'Product', ownerId: product.id },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, url: true }
+    });
+
+    const media = mediaAssets.map(m => ({ id: m.id, url: m.url }));
+    const payload = { ...product, media };
+
+    return reply.send(payload);
+
   });
 
   /**
