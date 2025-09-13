@@ -1,4 +1,4 @@
-// V-16 (2025-09-12): Corrige filtro por atributos adicionando JSON.stringify(filters.attrs) nas dependências do useEffect
+// V-17 (2025-09-13): buildQueryString usa attrs.<k>; useEffect observa attrs; updateFilters zera offset quando attrs muda
 // path: apps/web/src/hooks/useSearch.ts
 
 import { useState, useCallback, useEffect, useRef } from 'react';
