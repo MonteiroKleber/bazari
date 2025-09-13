@@ -1,4 +1,4 @@
-// V-6 (2025-09-12): Corrige definitivamente a exibição de imagens na SearchPage SEM tocar em api.ts.
+// V-15 (2025-09-12): Corrige definitivamente a exibição de imagens na SearchPage SEM tocar em api.ts.
 //  - Usa fetch nativo com API_BASE_URL (sem depender de exports de api.ts).
 //  - Normaliza URLs relativas de mídia para absolutas (ex.: "/static/..." -> "http://localhost:3000/static/...").
 //  - Enriquecimento: quando o item não traz URL de mídia mas tem mediaIds, busca GET /media/:id/url e injeta media[0].url/coverUrl.
@@ -70,9 +70,9 @@ const buildQueryString = (filters: SearchFilters): string => {
   if (filters.attrs && typeof filters.attrs === 'object') {
     for (const [k, v] of Object.entries(filters.attrs)) {
       if (Array.isArray(v)) {
-        v.forEach(val => p.append(`attr.${k}`, String(val)));
+        v.forEach(val => p.append(`attrs.${k}`, String(val)));
       } else if (v != null) {
-        p.set(`attr.${k}`, String(v));
+        p.set(`attrs.${k}`, String(v));
       }
     }
   }
@@ -110,11 +110,13 @@ export function useSearch(initial?: SearchFilters): UseSearchReturn {
   }));
   const [results, setResults] = useState<SearchResults | null>(null);
   const [loading, setLoading] = useState(false);
+  const filtersRef = useRef<SearchFilters>(filters);
+  useEffect(() => { filtersRef.current = filters; }, [filters]);
+
   const [error, setError] = useState<string | null>(null);
   const currentController = useRef<AbortController | null>(null);
 
-  const search = useCallback(async (newFilters?: SearchFilters) => {
-    const effective = newFilters ? { ...filters, ...newFilters } : filters;
+  const search = useCallback(async (newFilters?: SearchFilters) => { const effective = newFilters ?? filtersRef.current;
     setLoading(true);
     setError(null);
 
@@ -264,7 +266,8 @@ export function useSearch(initial?: SearchFilters): UseSearchReturn {
          patch.kind !== undefined ||
          patch.categoryPath !== undefined ||
          patch.priceMin !== undefined ||
-         patch.priceMax !== undefined)
+         patch.priceMax !== undefined ||
+         patch.attrs !== undefined)
           ? 0
           : (patch.offset ?? prev.offset ?? 0),
     }));
