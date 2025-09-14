@@ -1,7 +1,8 @@
-// V-2 (2025-09-14): Consulta OpenSearch com facets (categorias + atributos)
-// - Mantém filtros (q, kind, categoryPath, attrs, preço, sort)
+// V-3 (2025-09-14): Facets de categoria hierárquicas + prefix em category_path.kw
+// - Filtro de categoria usa category_path.kw com prefix para match exato
+// - Facets agregam category_path.kw e constroem hierarquia no Node
 // - Mantém contrato: { items, page:{limit,offset,total}, facets{categories,attributes} }
-// - **NOVO**: se indexHints vier vazio, faz fallback para chaves de `attrs` (ignorando `_indexFields`)
+// - Se indexHints vier vazio, faz fallback para chaves de `attrs` (ignorando `_indexFields`)
 
 import { osClient } from './opensearch';
 import { indexName } from './opensearchIndex';
@@ -40,8 +41,8 @@ function buildQuery(filters: Filters) {
 
   if (filters.categoryPath?.length) {
     const path = filters.categoryPath.join('/');
-    // hierárquico (usa analyzer cat_path_an configurado no index)
-    filter.push({ prefix: { 'category_path.path': path } });
+    // Usar category_path.kw com prefix para match hierárquico
+    filter.push({ prefix: { 'category_path.kw': path } });
   }
 
   if (filters.attrs) {
@@ -116,9 +117,9 @@ export async function osSearch(filters: Filters) {
   // 1) Amostra para decidir quais atributos facetar
   const attrKeys = await sampleAttributeKeys(baseQuery);
 
-  // 2) Aggregations (categorias L1 simplificadas + atributos dinâmicos)
+  // 2) Aggregations (categoria hierárquica via category_path.kw + atributos dinâmicos)
   const aggs: any = {
-    cat_l1: { terms: { field: 'category_slugs', size: 30 } }
+    cat_paths: { terms: { field: 'category_path.kw', size: 200 } }
   };
   for (const k of attrKeys) {
     aggs[`attr__${k}`] = { terms: { field: `attrs.${k}`, size: 30 } };
@@ -141,9 +142,30 @@ export async function osSearch(filters: Filters) {
   // mapear facets
   const facets: any = { categories: [], attributes: {} };
 
-  const l1 = res.body.aggregations?.cat_l1?.buckets ?? [];
-  facets.categories = l1.map((b: any) => ({ path: [String(b.key)], count: b.doc_count }));
+  // Construir facetas hierárquicas no Node
+  const buckets = res.body.aggregations?.cat_paths?.buckets ?? [];
+  const counts = new Map<string, number>();
+  
+  for (const b of buckets) {
+    const full = String(b.key);
+    const parts = full.split('/').filter(Boolean);
+    
+    // Limitar profundidade a 4, como no Postgres
+    for (let i = 1; i <= Math.min(parts.length, 4); i++) {
+      const k = parts.slice(0, i).join('/');
+      counts.set(k, (counts.get(k) || 0) + b.doc_count);
+    }
+  }
+  
+  // Converter para formato de resposta e limitar a 30 categorias
+  const cats = Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 30)
+    .map(([k, c]) => ({ path: k.split('/'), count: c }));
+  
+  facets.categories = cats;
 
+  // Atributos
   for (const k of attrKeys) {
     const b = res.body.aggregations?.[`attr__${k}`]?.buckets ?? [];
     facets.attributes[k] = b.map((x: any) => ({ value: String(x.key), count: x.doc_count }));
