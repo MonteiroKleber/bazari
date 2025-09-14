@@ -1,9 +1,4 @@
-// V-3 (2025-09-14): ensureOsIndex com analyzers e dynamic_templates para attrs.* como keyword
-// - Cria tokenizer 'path_tok' (path_hierarchy)
-// - Cria analyzer 'cat_path_an' baseado em 'path_tok'
-// - dynamic_templates: attrs.* => keyword (exato), indexHints.* => boolean
-// - properties: mantém id, kind, title (pt/en/es), description, category_path(.path/.kw), category_slugs, attrs, indexHints, price, createdAt
-
+// V-4 (2025-09-14): ensureOsIndex com mapping para media
 import { osClient, osEnabled } from './opensearch';
 
 export const indexName = process.env.OS_INDEX || 'bazari-items-v1';
@@ -76,6 +71,13 @@ export async function ensureOsIndex() {
           attrs: { type: 'object', enabled: true },
           indexHints: { type: 'object', enabled: true },
           price: { type: 'float' },
+          media: {
+            type: 'object',
+            properties: {
+              id: { type: 'keyword' },
+              url: { type: 'keyword' }
+            }
+          },
           createdAt: { type: 'date' }
         }
       }
