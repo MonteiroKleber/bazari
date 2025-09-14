@@ -16,6 +16,8 @@ import { categoriesRoutes } from './routes/categories.js';
 import { productsRoutes } from './routes/products.js';
 import { servicesRoutes } from './routes/services.js';
 import { searchRoutes } from './routes/search.js';
+import { osEnabled } from './lib/opensearch.js';
+import { ensureOsIndex } from './lib/opensearchIndex.js';
 
 const prisma = new PrismaClient();
 
@@ -60,6 +62,16 @@ async function buildApp() {
   await app.register(productsRoutes, { prefix: '/api', prisma });
   await app.register(servicesRoutes, { prefix: '/api', prisma });
   await app.register(searchRoutes, { prefix: '/api', prisma });
+
+  if (osEnabled) {
+    try {
+      await ensureOsIndex();
+      app.log.info('OpenSearch index verificado/criado (ensureOsIndex).');
+    } catch (err) {
+      app.log.warn({ err }, 'ensureOsIndex falhou; seguimos com Postgres (fallback).');
+    }
+  }
+
 
   // Rota raiz
   app.get('/', async (request, reply) => {

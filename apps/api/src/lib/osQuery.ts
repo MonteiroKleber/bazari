@@ -1,0 +1,157 @@
+// V-2 (2025-09-14): Consulta OpenSearch com facets (categorias + atributos)
+// - Mantém filtros (q, kind, categoryPath, attrs, preço, sort)
+// - Mantém contrato: { items, page:{limit,offset,total}, facets{categories,attributes} }
+// - **NOVO**: se indexHints vier vazio, faz fallback para chaves de `attrs` (ignorando `_indexFields`)
+
+import { osClient } from './opensearch';
+import { indexName } from './opensearchIndex';
+
+type Filters = {
+  q?: string;
+  kind?: 'product'|'service'|'all';
+  categoryPath?: string[];
+  attrs?: Record<string, string|string[]>;
+  priceMin?: number;
+  priceMax?: number;
+  sort?: 'relevance'|'price_asc'|'price_desc'|'newest';
+  limit?: number;
+  offset?: number;
+};
+
+/** Monta cláusulas must/filter a partir dos filtros atuais. */
+function buildQuery(filters: Filters) {
+  const must: any[] = [];
+  const filter: any[] = [];
+
+  if (filters.q) {
+    must.push({
+      multi_match: {
+        query: filters.q,
+        type: 'best_fields',
+        fields: ['title^3','title.kw^8','description'],
+        fuzziness: 'AUTO'
+      }
+    });
+  }
+
+  if (filters.kind && filters.kind !== 'all') {
+    filter.push({ term: { kind: filters.kind } });
+  }
+
+  if (filters.categoryPath?.length) {
+    const path = filters.categoryPath.join('/');
+    // hierárquico (usa analyzer cat_path_an configurado no index)
+    filter.push({ prefix: { 'category_path.path': path } });
+  }
+
+  if (filters.attrs) {
+    for (const [k,v] of Object.entries(filters.attrs)) {
+      const values = Array.isArray(v) ? v : [v];
+      filter.push({ terms: { [`attrs.${k}`]: values } });
+    }
+  }
+
+  if (filters.priceMin != null || filters.priceMax != null) {
+    const range: any = {}
+    if (filters.priceMin != null) range.gte = filters.priceMin;
+    if (filters.priceMax != null) range.lte = filters.priceMax;
+    filter.push({ range: { price: range } });
+  }
+
+  return { must, filter };
+}
+
+/** Amostra chaves de atributos facetáveis.
+ *  Preferência: indexHints[k] === true; Fallback: chaves reais de attrs (exceto `_indexFields`).
+ */
+async function sampleAttributeKeys(baseQuery: any): Promise<string[]> {
+  const res = await osClient!.search({
+    index: indexName,
+    body: {
+      query: baseQuery,
+      size: 50,                   // amostra pequena
+      _source: ['indexHints','attrs']
+    }
+  } as any);
+
+  const keys = new Set<string>();
+  for (const h of res.body.hits.hits) {
+    const src = h._source || {};
+    const ih = src.indexHints || {};
+    let added = 0;
+
+    for (const k of Object.keys(ih)) {
+      if (ih[k]) { keys.add(k); added++; }
+    }
+
+    // fallback: attrs.* (ignora `_indexFields`)
+    if (added === 0) {
+      const attrs = (src.attrs || {}) as Record<string, unknown>;
+      for (const k of Object.keys(attrs)) {
+        if (k === '_indexFields') continue;
+        keys.add(k);
+      }
+    }
+  }
+
+  // limitar nº de facetas por custo
+  return Array.from(keys).slice(0, 24);
+}
+
+export async function osSearch(filters: Filters) {
+  const size = Math.max(1, Math.min(filters.limit ?? 20, 100));
+  const from = Math.max(0, filters.offset ?? 0);
+
+  const { must, filter } = buildQuery(filters);
+
+  let sort: any = ['_score'];
+  switch (filters.sort) {
+    case 'price_asc': sort = [{ price: 'asc' }]; break;
+    case 'price_desc': sort = [{ price: 'desc' }]; break;
+    case 'newest': sort = [{ createdAt: 'desc' }]; break;
+  }
+
+  const baseQuery = { bool: { must, filter } };
+
+  // 1) Amostra para decidir quais atributos facetar
+  const attrKeys = await sampleAttributeKeys(baseQuery);
+
+  // 2) Aggregations (categorias L1 simplificadas + atributos dinâmicos)
+  const aggs: any = {
+    cat_l1: { terms: { field: 'category_slugs', size: 30 } }
+  };
+  for (const k of attrKeys) {
+    aggs[`attr__${k}`] = { terms: { field: `attrs.${k}`, size: 30 } };
+  }
+
+  // 3) Buscar com facets + hits paginados
+  const res = await osClient!.search({
+    index: indexName,
+    body: {
+      query: baseQuery,
+      sort, from, size,
+      aggs
+    }
+  } as any);
+
+  const hits = res.body.hits.hits || [];
+  const total = res.body.hits.total?.value ?? res.body.hits.total ?? 0;
+  const items = hits.map((h: any) => ({ ...h._source, id: h._source.id }));
+
+  // mapear facets
+  const facets: any = { categories: [], attributes: {} };
+
+  const l1 = res.body.aggregations?.cat_l1?.buckets ?? [];
+  facets.categories = l1.map((b: any) => ({ path: [String(b.key)], count: b.doc_count }));
+
+  for (const k of attrKeys) {
+    const b = res.body.aggregations?.[`attr__${k}`]?.buckets ?? [];
+    facets.attributes[k] = b.map((x: any) => ({ value: String(x.key), count: x.doc_count }));
+  }
+
+  return {
+    items,
+    page: { limit: size, offset: from, total },
+    facets
+  };
+}
