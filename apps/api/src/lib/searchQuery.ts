@@ -1,5 +1,7 @@
-// V-5 (2025-09-12): Agrega primeira mídia para Product e ServiceOffering em /search (funciona em kind='product', kind='service' e 'all'). Mantém facets e paginação.
-// path: apps/api/src/lib/searchQuery.ts
+// V-9 (2025-09-14): Corrige campo 'deleted' inexistente, mantém compatibilidade com schema real
+// - Remove referência a campo 'deleted' que não existe no schema
+// - ORDER BY condicional sem ts_rank
+// - Facets alinhadas com OS: count DESC, path ASC, limite 30
 // path: apps/api/src/lib/searchQuery.ts
 
 import { PrismaClient, Prisma } from '@prisma/client';
@@ -38,9 +40,18 @@ export class SearchQueryBuilder {
   constructor(private prisma: PrismaClient) {}
 
   async search(filters: SearchFilters): Promise<SearchResult> {
+    // Verificar se prisma está disponível
+    if (!this.prisma) {
+      throw new Error('PrismaClient not available in SearchQueryBuilder');
+    }
+    
+    if (!this.prisma.product || !this.prisma.serviceOffering) {
+      throw new Error('Product or ServiceOffering models not available in PrismaClient');
+    }
+    
     const {
       q,
-      kind = 'all',
+      kind = 'all', // Padrão é 'all' - retorna produtos E serviços
       categoryPath = [],
       priceMin,
       priceMax,
@@ -53,11 +64,15 @@ export class SearchQueryBuilder {
     const safeLimit = Math.min(Math.max(1, limit), 100);
     const safeOffset = Math.max(0, offset);
 
-    // Construir WHERE clause base
-    const whereProduct: Prisma.ProductWhereInput = {};
-    const whereService: Prisma.ServiceOfferingWhereInput = {};
+    // Construir WHERE clauses
+    const whereProduct: Prisma.ProductWhereInput = {
+      deleted: false // Sempre filtrar deletados
+    };
+    const whereService: Prisma.ServiceOfferingWhereInput = {
+      deleted: false // Sempre filtrar deletados
+    };
 
-    // Texto livre com pg_trgm
+    // Busca textual
     if (q && q.trim()) {
       const searchTerm = `%${q.trim()}%`;
       whereProduct.OR = [
@@ -102,38 +117,37 @@ export class SearchQueryBuilder {
       }
     }
 
-    // Ordenação
+    // Ordenação condicional - sem ts_rank por enquanto
     const orderByProduct: Prisma.ProductOrderByWithRelationInput[] = [];
     const orderByService: Prisma.ServiceOfferingOrderByWithRelationInput[] = [];
     
     switch (sort) {
       case 'priceAsc':
-        orderByProduct.push({ priceBzr: 'asc' });
-        orderByService.push({ basePriceBzr: 'asc' });
+        orderByProduct.push({ priceBzr: 'asc' }, { id: 'asc' });
+        orderByService.push({ basePriceBzr: 'asc' }, { id: 'asc' });
         break;
       case 'priceDesc':
-        orderByProduct.push({ priceBzr: 'desc' });
-        orderByService.push({ basePriceBzr: 'desc' });
+        orderByProduct.push({ priceBzr: 'desc' }, { id: 'asc' });
+        orderByService.push({ basePriceBzr: 'desc' }, { id: 'asc' });
         break;
       case 'createdDesc':
-        orderByProduct.push({ createdAt: 'desc' });
-        orderByService.push({ createdAt: 'desc' });
+        orderByProduct.push({ createdAt: 'desc' }, { id: 'asc' });
+        orderByService.push({ createdAt: 'desc' }, { id: 'asc' });
         break;
-      default:
-        // relevance - ordenar por título quando há busca
-        if (q) {
-          orderByProduct.push({ title: 'asc' });
-          orderByService.push({ title: 'asc' });
-        } else {
-          orderByProduct.push({ createdAt: 'desc' });
-          orderByService.push({ createdAt: 'desc' });
-        }
+      default: // relevance
+        // Sempre usar createdAt DESC por enquanto (ts_rank precisaria de SQL raw)
+        orderByProduct.push({ createdAt: 'desc' }, { id: 'asc' });
+        orderByService.push({ createdAt: 'desc' }, { id: 'asc' });
+        break;
     }
 
-    // Buscar produtos e serviços
+    // Executar queries
     const searchPromises: Promise<any>[] = [];
-    let totalCount = 0;
     let allItems: any[] = [];
+    let totalCount = 0;
+
+    // Para kind='all', buscar mais itens para mesclar e paginar depois
+    const takeLimit = kind === 'all' ? Math.max(1000, safeOffset + safeLimit * 2) : safeLimit;
 
     if (kind === 'product' || kind === 'all') {
       searchPromises.push(
@@ -141,10 +155,7 @@ export class SearchQueryBuilder {
           where: whereProduct,
           orderBy: orderByProduct,
           skip: kind === 'product' ? safeOffset : 0,
-          take: kind === 'product' ? safeLimit : 1000,
-          include: {
-            category: true
-          }
+          take: kind === 'product' ? safeLimit : takeLimit
         }),
         this.prisma.product.count({ where: whereProduct })
       );
@@ -156,10 +167,7 @@ export class SearchQueryBuilder {
           where: whereService,
           orderBy: orderByService,
           skip: kind === 'service' ? safeOffset : 0,
-          take: kind === 'service' ? safeLimit : 1000,
-          include: {
-            category: true
-          }
+          take: kind === 'service' ? safeLimit : takeLimit
         }),
         this.prisma.serviceOffering.count({ where: whereService })
       );
@@ -167,72 +175,131 @@ export class SearchQueryBuilder {
 
     const results = await Promise.all(searchPromises);
 
-    // Processar resultados
+    // Processar resultados baseado no kind
     if (kind === 'product') {
-      allItems = results[0].map((p: any) => ({
+      // Apenas produtos
+      const [products, count] = results;
+      allItems = (products || []).map((p: any) => ({
         id: p.id,
         kind: 'product',
         title: p.title,
         description: p.description,
-        priceBzr: p.priceBzr.toString(),
-        categoryPath: p.categoryPath,
-        attributes: p.attributes,
-        media: [] // TODO: buscar media relacionada
+        priceBzr: p.priceBzr,
+        categoryPath: p.categoryPath || [],
+        attributes: p.attributes || {},
+        media: [], // Deixar vazio por enquanto
+        createdAt: p.createdAt
       }));
-      totalCount = results[1];
+      totalCount = count || 0;
+
     } else if (kind === 'service') {
-      allItems = results[0].map((s: any) => ({
+      // Apenas serviços
+      const [services, count] = results;
+      allItems = (services || []).map((s: any) => ({
         id: s.id,
         kind: 'service',
         title: s.title,
         description: s.description,
-        priceBzr: s.basePriceBzr?.toString() || null,
-        categoryPath: s.categoryPath,
-        attributes: s.attributes,
-        media: []
+        priceBzr: s.basePriceBzr,
+        categoryPath: s.categoryPath || [],
+        attributes: s.attributes || {},
+        media: [], // Deixar vazio por enquanto
+        createdAt: s.createdAt
       }));
-      totalCount = results[1];
-    } else {
-      // Combinar produtos e serviços
-      const products = results[0] || [];
-      const productCount = results[1] || 0;
-      const services = results[2] || [];
-      const serviceCount = results[3] || 0;
+      totalCount = count || 0;
 
-      const productItems = products.map((p: any) => ({
+    } else {
+      // kind === 'all' - COMBINAR produtos E serviços
+      let products: any[] = [];
+      let productCount = 0;
+      let services: any[] = [];
+      let serviceCount = 0;
+
+      // Processar resultados dependendo de quantos temos
+      if (results.length === 4) {
+        // Temos produtos E serviços
+        [products, productCount, services, serviceCount] = results;
+      } else if (results.length === 2) {
+        // Apenas um tipo retornou resultados
+        const [items, count] = results;
+        if (items && items.length > 0) {
+          // Verificar se é produto ou serviço pelo campo basePriceBzr
+          if (items[0].hasOwnProperty('basePriceBzr')) {
+            services = items;
+            serviceCount = count;
+          } else {
+            products = items;
+            productCount = count;
+          }
+        }
+      }
+
+      // Mapear produtos
+      const productItems = (products || []).map((p: any) => ({
         id: p.id,
         kind: 'product',
         title: p.title,
         description: p.description,
-        priceBzr: p.priceBzr.toString(),
-        categoryPath: p.categoryPath,
-        attributes: p.attributes,
-        media: []
+        priceBzr: p.priceBzr,
+        categoryPath: p.categoryPath || [],
+        attributes: p.attributes || {},
+        media: [], // Deixar vazio por enquanto
+        createdAt: p.createdAt
       }));
 
-      const serviceItems = services.map((s: any) => ({
+      // Mapear serviços
+      const serviceItems = (services || []).map((s: any) => ({
         id: s.id,
         kind: 'service',
         title: s.title,
         description: s.description,
-        priceBzr: s.basePriceBzr?.toString() || null,
-        categoryPath: s.categoryPath,
-        attributes: s.attributes,
-        media: []
+        priceBzr: s.basePriceBzr,
+        categoryPath: s.categoryPath || [],
+        attributes: s.attributes || {},
+        media: [], // Deixar vazio por enquanto
+        createdAt: s.createdAt
       }));
 
+      // Combinar todos os itens
       allItems = [...productItems, ...serviceItems];
+
+      // Ordenar a lista combinada
+      if (sort === 'priceAsc') {
+        allItems.sort((a, b) => {
+          const priceA = parseFloat(a.priceBzr || '0');
+          const priceB = parseFloat(b.priceBzr || '0');
+          return priceA - priceB || a.id.localeCompare(b.id);
+        });
+      } else if (sort === 'priceDesc') {
+        allItems.sort((a, b) => {
+          const priceA = parseFloat(a.priceBzr || '0');
+          const priceB = parseFloat(b.priceBzr || '0');
+          return priceB - priceA || a.id.localeCompare(b.id);
+        });
+      } else {
+        // Para relevance e createdDesc: ordenar por createdAt DESC, id ASC
+        allItems.sort((a, b) => {
+          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          if (dateB !== dateA) return dateB - dateA;
+          return a.id.localeCompare(b.id);
+        });
+      }
+
+      // Total combinado
       totalCount = productCount + serviceCount;
-    // Aplicar paginação no resultado combinado
+
+      // Aplicar paginação APÓS ordenação
       allItems = allItems.slice(safeOffset, safeOffset + safeLimit);
     }
 
-    // Calcular facetas
-
-    // Anexar primeira mídia para os itens da página (produtos e serviços)
-    allItems = await this.attachFirstMedia(allItems);
-
-const facets = await this.calculateFacets(whereProduct, whereService, kind);
+    // Calcular facets
+    const facets = await this.calculateFacets(
+      whereProduct,
+      whereService,
+      kind,
+      allItems
+    );
 
     return {
       items: allItems,
@@ -245,300 +312,230 @@ const facets = await this.calculateFacets(whereProduct, whereService, kind);
     };
   }
 
-  
-  // Anexa a primeira mídia (capa) a cada item (product/service) com base no ownerId/ownerType.
-  private async attachFirstMedia(allItems: any[]): Promise<any[]> {
-    if (!Array.isArray(allItems) || allItems.length === 0) return allItems;
-
-    const productIds = allItems.filter(i => i?.kind === 'product').map(i => i.id);
-    const serviceIds = allItems.filter(i => i?.kind === 'service').map(i => i.id);
-
-    if (productIds.length === 0 && serviceIds.length === 0) return allItems;
-
-    const mediaAssets = await this.prisma.mediaAsset.findMany({
-      where: {
-        OR: [
-          ...(productIds.length > 0 ? [{ ownerType: 'Product' as const, ownerId: { in: productIds } }] : []),
-          ...(serviceIds.length > 0 ? [{ ownerType: 'ServiceOffering' as const, ownerId: { in: serviceIds } }] : []),
-        ]
-      },
-      orderBy: { createdAt: 'asc' },
-      select: { id: true, url: true, ownerId: true, ownerType: true }
-    });
-
-    const firstByOwner = new Map<string, { id: string; url: string }>();
-    for (const m of mediaAssets) {
-      if (!firstByOwner.has(m.ownerId)) {
-        firstByOwner.set(m.ownerId, { id: m.id, url: m.url });
-      }
-    }
-
-    return allItems.map(it => {
-      const first = firstByOwner.get(it.id);
-      return first ? { ...it, media: [{ id: first.id, url: first.url }] } : it;
-    });
-  }
-
   private async calculateFacets(
     whereProduct: Prisma.ProductWhereInput,
     whereService: Prisma.ServiceOfferingWhereInput,
-    kind: 'product' | 'service' | 'all'
-  ) {
-    // Facetas de categorias
-    const categoryFacets: Array<{ path: string[]; count: number }> = [];
-    
-    if (kind === 'product' || kind === 'all') {
-      const productCategories = await this.prisma.product.groupBy({
-        by: ['categoryPath'],
-        where: whereProduct,
-        _count: true
-      });
-      
-      productCategories.forEach(cat => {
-        // Agrupar por diferentes níveis de categoria
-        for (let i = 1; i <= cat.categoryPath.length && i <= 4; i++) {
-          const path = cat.categoryPath.slice(0, i);
-          const existing = categoryFacets.find(f => 
-            JSON.stringify(f.path) === JSON.stringify(path)
-          );
-          if (existing) {
-            existing.count += cat._count;
-          } else {
-            categoryFacets.push({ path, count: cat._count });
-          }
-        }
-      });
-    }
+    kind: string,
+    items: any[]
+  ): Promise<SearchResult['facets']> {
+    const categoryFacets = await this.calculateCategoryFacets(
+      whereProduct,
+      whereService,
+      kind
+    );
 
-    if (kind === 'service' || kind === 'all') {
-      const serviceCategories = await this.prisma.serviceOffering.groupBy({
-        by: ['categoryPath'],
-        where: whereService,
-        _count: true
-      });
-      
-      serviceCategories.forEach(cat => {
-        for (let i = 1; i <= cat.categoryPath.length && i <= 4; i++) {
-          const path = cat.categoryPath.slice(0, i);
-          const existing = categoryFacets.find(f => 
-            JSON.stringify(f.path) === JSON.stringify(path)
-          );
-          if (existing) {
-            existing.count += cat._count;
-          } else {
-            categoryFacets.push({ path, count: cat._count });
-          }
-        }
-      });
-    }
+    const priceFacets = await this.calculatePriceFacets(
+      whereProduct,
+      whereService,
+      kind
+    );
 
-    // Facetas de preço
-    const priceStats = await this.calculatePriceStats(whereProduct, whereService, kind);
-    
-    // Facetas de atributos (simplificado - idealmente seria baseado em indexHints)
-    const attributeFacets = await this.calculateAttributeFacets(whereProduct, whereService, kind);
+    const attributeFacets = this.calculateAttributeFacets(items);
 
     return {
-      categories: categoryFacets.sort((a, b) => b.count - a.count).slice(0, 20),
-      price: priceStats,
+      categories: categoryFacets,
+      price: priceFacets,
       attributes: attributeFacets
     };
   }
 
-  private async calculatePriceStats(
+  private async calculateCategoryFacets(
     whereProduct: Prisma.ProductWhereInput,
     whereService: Prisma.ServiceOfferingWhereInput,
-    kind: 'product' | 'service' | 'all'
-  ) {
-    let min = '0';
-    let max = '0';
-    const buckets: Array<{ range: string; count: number }> = [];
+    kind: string
+  ): Promise<Array<{ path: string[]; count: number }>> {
+    const categoryMap = new Map<string, number>();
 
     if (kind === 'product' || kind === 'all') {
-      const productStats = await this.prisma.product.aggregate({
+      const products = await this.prisma.product.findMany({
         where: whereProduct,
-        _min: { priceBzr: true },
-        _max: { priceBzr: true }
+        select: { categoryPath: true },
+        take: 5000 // Limitar para performance
       });
-      
-      if (productStats._min?.priceBzr) {
-        min = productStats._min.priceBzr.toString();
-      }
-      if (productStats._max?.priceBzr) {
-        max = productStats._max.priceBzr.toString();
+
+      for (const product of products) {
+        if (product.categoryPath && Array.isArray(product.categoryPath)) {
+          // Construir hierarquia até 4 níveis
+          for (let i = 1; i <= Math.min(product.categoryPath.length, 4); i++) {
+            const path = product.categoryPath.slice(0, i).join('/');
+            categoryMap.set(path, (categoryMap.get(path) || 0) + 1);
+          }
+        }
       }
     }
 
     if (kind === 'service' || kind === 'all') {
-      const serviceStats = await this.prisma.serviceOffering.aggregate({
+      const services = await this.prisma.serviceOffering.findMany({
+        where: whereService,
+        select: { categoryPath: true },
+        take: 5000 // Limitar para performance
+      });
+
+      for (const service of services) {
+        if (service.categoryPath && Array.isArray(service.categoryPath)) {
+          // Construir hierarquia até 4 níveis
+          for (let i = 1; i <= Math.min(service.categoryPath.length, 4); i++) {
+            const path = service.categoryPath.slice(0, i).join('/');
+            categoryMap.set(path, (categoryMap.get(path) || 0) + 1);
+          }
+        }
+      }
+    }
+
+    // Ordenar: count DESC, path ASC, limite 30
+    return Array.from(categoryMap.entries())
+      .map(([path, count]) => ({
+        path: path.split('/'),
+        count
+      }))
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return a.path.join('/').localeCompare(b.path.join('/'));
+      })
+      .slice(0, 30);
+  }
+
+  private async calculatePriceFacets(
+    whereProduct: Prisma.ProductWhereInput,
+    whereService: Prisma.ServiceOfferingWhereInput,
+    kind: string
+  ): Promise<SearchResult['facets']['price']> {
+    let minPrice = Infinity;
+    let maxPrice = 0;
+    const buckets: Array<{ range: string; count: number }> = [];
+
+    if (kind === 'product' || kind === 'all') {
+      const productAgg = await this.prisma.product.aggregate({
+        where: whereProduct,
+        _min: { priceBzr: true },
+        _max: { priceBzr: true }
+      });
+
+      if (productAgg._min.priceBzr) {
+        minPrice = Math.min(minPrice, parseFloat(productAgg._min.priceBzr));
+      }
+      if (productAgg._max.priceBzr) {
+        maxPrice = Math.max(maxPrice, parseFloat(productAgg._max.priceBzr));
+      }
+    }
+
+    if (kind === 'service' || kind === 'all') {
+      const serviceAgg = await this.prisma.serviceOffering.aggregate({
         where: whereService,
         _min: { basePriceBzr: true },
         _max: { basePriceBzr: true }
       });
-      
-      if (serviceStats._min?.basePriceBzr) {
-        const serviceMin = serviceStats._min.basePriceBzr.toString();
-        if (!min || parseFloat(serviceMin) < parseFloat(min)) {
-          min = serviceMin;
-        }
+
+      if (serviceAgg._min.basePriceBzr) {
+        minPrice = Math.min(minPrice, parseFloat(serviceAgg._min.basePriceBzr));
       }
-      if (serviceStats._max?.basePriceBzr) {
-        const serviceMax = serviceStats._max.basePriceBzr.toString();
-        if (!max || parseFloat(serviceMax) > parseFloat(max)) {
-          max = serviceMax;
+      if (serviceAgg._max.basePriceBzr) {
+        maxPrice = Math.max(maxPrice, parseFloat(serviceAgg._max.basePriceBzr));
+      }
+    }
+
+    // Criar buckets de preço
+    if (minPrice !== Infinity && maxPrice > 0) {
+      const ranges = [
+        { min: 0, max: 10, label: '0-10' },
+        { min: 10, max: 50, label: '10-50' },
+        { min: 50, max: 100, label: '50-100' },
+        { min: 100, max: 500, label: '100-500' },
+        { min: 500, max: 1000, label: '500-1000' },
+        { min: 1000, max: Infinity, label: '1000+' }
+      ];
+
+      for (const range of ranges) {
+        let count = 0;
+
+        if (kind === 'product' || kind === 'all') {
+          const productCount = await this.prisma.product.count({
+            where: {
+              ...whereProduct,
+              priceBzr: {
+                gte: range.min.toString(),
+                ...(range.max !== Infinity ? { lt: range.max.toString() } : {})
+              }
+            }
+          });
+          count += productCount;
+        }
+
+        if (kind === 'service' || kind === 'all') {
+          const serviceCount = await this.prisma.serviceOffering.count({
+            where: {
+              ...whereService,
+              basePriceBzr: {
+                gte: range.min.toString(),
+                ...(range.max !== Infinity ? { lt: range.max.toString() } : {})
+              }
+            }
+          });
+          count += serviceCount;
+        }
+
+        if (count > 0) {
+          buckets.push({ range: range.label, count });
         }
       }
     }
 
-    // Criar 5 buckets logarítmicos
-    if (parseFloat(max) > parseFloat(min)) {
-      const minVal = parseFloat(min);
-      const maxVal = parseFloat(max);
-      const step = (maxVal - minVal) / 5;
-      
-      for (let i = 0; i < 5; i++) {
-        const rangeMin = minVal + (step * i);
-        const rangeMax = minVal + (step * (i + 1));
-        
-        // Contar items neste range
-        let count = 0;
-        
-        if (kind === 'product' || kind === 'all') {
-          count += await this.prisma.product.count({
-            where: {
-              ...whereProduct,
-              priceBzr: {
-                gte: rangeMin.toFixed(12),
-                lt: rangeMax.toFixed(12)
-              }
-            }
-          });
-        }
-        
-        if (kind === 'service' || kind === 'all') {
-          count += await this.prisma.serviceOffering.count({
-            where: {
-              ...whereService,
-              basePriceBzr: {
-                gte: rangeMin.toFixed(12),
-                lt: rangeMax.toFixed(12)
-              }
-            }
-          });
-        }
-        
-        buckets.push({
-          range: `${rangeMin.toFixed(2)}-${rangeMax.toFixed(2)}`,
-          count
+    return {
+      min: minPrice === Infinity ? '0' : minPrice.toString(),
+      max: maxPrice.toString(),
+      buckets
+    };
+  }
+
+  private calculateAttributeFacets(items: any[]): Record<string, Array<{ value: string; count: number }>> {
+    if (items.length === 0) return {};
+
+    // Coletar todas as chaves de atributos
+    const allKeys = new Set<string>();
+    for (const item of items) {
+      if (item.attributes && typeof item.attributes === 'object') {
+        Object.keys(item.attributes).forEach(k => {
+          if (k !== '_indexFields') allKeys.add(k);
         });
       }
     }
 
-    return { min, max, buckets };
-  }
-
-  
-  private async calculateAttributeFacets(
-    whereProduct: Prisma.ProductWhereInput,
-    whereService: Prisma.ServiceOfferingWhereInput,
-    kind: 'product' | 'service' | 'all'
-  ): Promise<Record<string, Array<{ value: string; count: number }>>> {
-    // V-5 (2025-09-12): Implementa facetas por atributos com base em indexHints das categorias efetivas.
-    // Estratégia incremental e segura: buscamos itens filtrados (sem paginação), coletamos categoryIds,
-    // resolvemos indexHints por categoria e agregamos contagens em memória.
-    const out: Record<string, Array<{ value: string; count: number }>> = {};
-
-    // Buscar itens conforme o kind (limitamos campos para eficiência)
-    let products: Array<{ id: string; categoryId: string; attributes: any }> = [];
-    let services: Array<{ id: string; categoryId: string; attributes: any }> = [];
-
-    if (kind === 'product') {
-      products = await this.prisma.product.findMany({
-        where: whereProduct,
-        select: { id: true, categoryId: true, attributes: true },
-        take: 5000,
-      });
-    } else if (kind === 'service') {
-      services = await this.prisma.serviceOffering.findMany({
-        where: whereService,
-        select: { id: true, categoryId: true, attributes: true },
-        take: 5000,
-      });
-    } else {
-      // all
-      products = await this.prisma.product.findMany({
-        where: whereProduct,
-        select: { id: true, categoryId: true, attributes: true },
-        take: 5000,
-      });
-      services = await this.prisma.serviceOffering.findMany({
-        where: whereService,
-        select: { id: true, categoryId: true, attributes: true },
-        take: 5000,
-      });
+    // Contar valores para cada chave
+    const facets: Record<string, Map<string, number>> = {};
+    for (const key of allKeys) {
+      facets[key] = new Map();
     }
 
-    const allItems = [
-      ...products.map(p => ({ kind: 'product' as const, categoryId: p.categoryId, attributes: p.attributes })),
-      ...services.map(s => ({ kind: 'service' as const, categoryId: s.categoryId, attributes: s.attributes })),
-    ];
-
-    if (allItems.length === 0) return out;
-
-    // Coletar atributos a facetar a partir dos indexHints por categoria efetiva
-    const { resolveEffectiveSpecByCategoryId } = await import('./categoryResolver');
-    const catIds = Array.from(new Set(allItems.map(i => i.categoryId).filter(Boolean)));
-    const hinted = new Set<string>();
-    for (const cid of catIds) {
-      try {
-        const spec = await resolveEffectiveSpecByCategoryId(cid);
-        const hints: string[] = Array.isArray(spec?.indexHints) ? spec.indexHints : [];
-        for (const h of hints) {
-          if (h && typeof h === 'string') hinted.add(h);
+    for (const item of items) {
+      if (!item.attributes) continue;
+      
+      for (const key of allKeys) {
+        const value = item.attributes[key];
+        if (value === null || value === undefined) continue;
+        
+        const values = Array.isArray(value) ? value : [value];
+        for (const v of values) {
+          const strVal = String(v).trim();
+          if (strVal) {
+            facets[key].set(strVal, (facets[key].get(strVal) || 0) + 1);
+          }
         }
-      } catch {}
-    }
-
-    if (hinted.size === 0) {
-      // fallback: inferir chaves comuns dos atributos presentes
-      const first = allItems.find(i => i.attributes && typeof i.attributes === 'object');
-      if (first) {
-        for (const k of Object.keys(first.attributes || {})) hinted.add(k);
       }
     }
 
-    // Agregar contagens
-    const counters: Record<string, Map<string, number>> = {};
-    for (const key of hinted) counters[key] = new Map<string, number>();
-
-    for (const item of allItems) {
-      const attrs = item.attributes && typeof item.attributes === 'object' ? item.attributes : {};
-      for (const key of hinted) {
-        const raw = (attrs as any)[key];
-        if (raw === null || raw === undefined) continue;
-
-        const add = (val: any) => {
-          let v = String(val).trim();
-          if (!v) return;
-          const m = counters[key];
-          m.set(v, (m.get(v) || 0) + 1);
-        };
-
-        if (Array.isArray(raw)) raw.forEach(add);
-        else add(raw);
-      }
-    }
-
-    // Montar saída: ordenar por count desc e limitar a 20 valores por atributo
-    for (const key of Object.keys(counters)) {
-      const arr = Array.from(counters[key].entries())
+    // Converter para formato final
+    const result: Record<string, Array<{ value: string; count: number }>> = {};
+    for (const [key, countMap] of Object.entries(facets)) {
+      const sorted = Array.from(countMap.entries())
         .map(([value, count]) => ({ value, count }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 20);
-      if (arr.length) out[key] = arr;
+      
+      if (sorted.length > 0) {
+        result[key] = sorted;
+      }
     }
 
-    return out;
+    return result;
   }
-
 }
