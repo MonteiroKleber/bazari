@@ -1,8 +1,8 @@
-// V-3 (2025-09-14): Facets de categoria hierárquicas + prefix em category_path.kw
-// - Filtro de categoria usa category_path.kw com prefix para match exato
-// - Facets agregam category_path.kw e constroem hierarquia no Node
-// - Mantém contrato: { items, page:{limit,offset,total}, facets{categories,attributes} }
-// - Se indexHints vier vazio, faz fallback para chaves de `attrs` (ignorando `_indexFields`)
+// V-5 (2025-09-14): OpenSearch Query corrigido - padrão 'all' funcionando
+// - Kind padrão: 'all' - não filtra, retorna produtos E serviços
+// - Ordenação: _score/createdAt DESC, id ASC
+// - Facets: count DESC, path ASC, limite 30
+// path: apps/api/src/lib/osQuery.ts
 
 import { osClient } from './opensearch';
 import { indexName } from './opensearchIndex';
@@ -24,6 +24,7 @@ function buildQuery(filters: Filters) {
   const must: any[] = [];
   const filter: any[] = [];
 
+  // Busca textual
   if (filters.q) {
     must.push({
       multi_match: {
@@ -35,16 +36,20 @@ function buildQuery(filters: Filters) {
     });
   }
 
+  // Filtro de kind - só aplica se NÃO for 'all' ou não especificado
+  // Padrão é 'all' = não filtra
   if (filters.kind && filters.kind !== 'all') {
     filter.push({ term: { kind: filters.kind } });
   }
+  // Se não especificado ou 'all', NÃO adiciona filtro de kind
 
+  // Filtro de categoria
   if (filters.categoryPath?.length) {
     const path = filters.categoryPath.join('/');
-    // Usar category_path.kw com prefix para match hierárquico
     filter.push({ prefix: { 'category_path.kw': path } });
   }
 
+  // Filtro de atributos
   if (filters.attrs) {
     for (const [k,v] of Object.entries(filters.attrs)) {
       const values = Array.isArray(v) ? v : [v];
@@ -52,8 +57,9 @@ function buildQuery(filters: Filters) {
     }
   }
 
+  // Filtro de preço
   if (filters.priceMin != null || filters.priceMax != null) {
-    const range: any = {}
+    const range: any = {};
     if (filters.priceMin != null) range.gte = filters.priceMin;
     if (filters.priceMax != null) range.lte = filters.priceMax;
     filter.push({ range: { price: range } });
@@ -62,15 +68,13 @@ function buildQuery(filters: Filters) {
   return { must, filter };
 }
 
-/** Amostra chaves de atributos facetáveis.
- *  Preferência: indexHints[k] === true; Fallback: chaves reais de attrs (exceto `_indexFields`).
- */
+/** Amostra chaves de atributos facetáveis. */
 async function sampleAttributeKeys(baseQuery: any): Promise<string[]> {
   const res = await osClient!.search({
     index: indexName,
     body: {
       query: baseQuery,
-      size: 50,                   // amostra pequena
+      size: 50,
       _source: ['indexHints','attrs']
     }
   } as any);
@@ -81,21 +85,26 @@ async function sampleAttributeKeys(baseQuery: any): Promise<string[]> {
     const ih = src.indexHints || {};
     let added = 0;
 
+    // Priorizar indexHints
     for (const k of Object.keys(ih)) {
-      if (ih[k]) { keys.add(k); added++; }
+      if (ih[k]) {
+        keys.add(k);
+        added++;
+      }
     }
 
-    // fallback: attrs.* (ignora `_indexFields`)
+    // Fallback: attrs (ignorando _indexFields)
     if (added === 0) {
       const attrs = (src.attrs || {}) as Record<string, unknown>;
       for (const k of Object.keys(attrs)) {
-        if (k === '_indexFields') continue;
-        keys.add(k);
+        if (k !== '_indexFields') {
+          keys.add(k);
+        }
       }
     }
   }
 
-  // limitar nº de facetas por custo
+  // Limitar número de facetas
   return Array.from(keys).slice(0, 24);
 }
 
@@ -105,11 +114,29 @@ export async function osSearch(filters: Filters) {
 
   const { must, filter } = buildQuery(filters);
 
-  let sort: any = ['_score'];
+  // Ordenação padronizada
+  let sort: any[] = [];
+  
   switch (filters.sort) {
-    case 'price_asc': sort = [{ price: 'asc' }]; break;
-    case 'price_desc': sort = [{ price: 'desc' }]; break;
-    case 'newest': sort = [{ createdAt: 'desc' }]; break;
+    case 'price_asc':
+      sort = [{ price: 'asc' }, { id: 'asc' }];
+      break;
+    case 'price_desc':
+      sort = [{ price: 'desc' }, { id: 'asc' }];
+      break;
+    case 'newest':
+      sort = [{ createdAt: 'desc' }, { id: 'asc' }];
+      break;
+    case 'relevance':
+    default:
+      if (filters.q) {
+        // Com busca: _score DESC, createdAt DESC, id ASC
+        sort = ['_score', { createdAt: 'desc' }, { id: 'asc' }];
+      } else {
+        // Sem busca: createdAt DESC, id ASC
+        sort = [{ createdAt: 'desc' }, { id: 'asc' }];
+      }
+      break;
   }
 
   const baseQuery = { bool: { must, filter } };
@@ -117,32 +144,68 @@ export async function osSearch(filters: Filters) {
   // 1) Amostra para decidir quais atributos facetar
   const attrKeys = await sampleAttributeKeys(baseQuery);
 
-  // 2) Aggregations (categoria hierárquica via category_path.kw + atributos dinâmicos)
+  // 2) Aggregations
   const aggs: any = {
-    cat_paths: { terms: { field: 'category_path.kw', size: 200 } }
+    cat_paths: { 
+      terms: { 
+        field: 'category_path.kw', 
+        size: 200 
+      } 
+    }
   };
+  
   for (const k of attrKeys) {
-    aggs[`attr__${k}`] = { terms: { field: `attrs.${k}`, size: 30 } };
+    aggs[`attr__${k}`] = { 
+      terms: { 
+        field: `attrs.${k}`, 
+        size: 30 
+      } 
+    };
   }
 
-  // 3) Buscar com facets + hits paginados
+  // 3) Executar busca
   const res = await osClient!.search({
     index: indexName,
     body: {
       query: baseQuery,
-      sort, from, size,
+      sort,
+      from,
+      size,
       aggs
     }
   } as any);
 
   const hits = res.body.hits.hits || [];
   const total = res.body.hits.total?.value ?? res.body.hits.total ?? 0;
-  const items = hits.map((h: any) => ({ ...h._source, id: h._source.id }));
+  
+  // Mapear items mantendo todos os campos
+  const items = hits.map((h: any) => {
+    const source = h._source || {};
+    return {
+      ...source,
+      id: source.id,
+      kind: source.kind,
+      title: source.title,
+      description: source.description,
+      price: source.price,
+      priceBzr: (typeof source.priceBzr === 'number') ? source.priceBzr : (typeof source.price === 'number' ? source.price : undefined),
+      categoryPath: source.category_slugs || source.category_path?.split('/').filter(Boolean) || [],
+      category_slugs: source.category_slugs,
+      category_path: source.category_path,
+      attributes: source.attrs || {},
+      attrs: source.attrs || {},
+      media: source.media || [],
+      createdAt: source.createdAt
+    };
+  });
 
-  // mapear facets
-  const facets: any = { categories: [], attributes: {} };
+  // Processar facets
+  const facets: any = { 
+    categories: [], 
+    attributes: {} 
+  };
 
-  // Construir facetas hierárquicas no Node
+  // Facetas de categoria hierárquicas
   const buckets = res.body.aggregations?.cat_paths?.buckets ?? [];
   const counts = new Map<string, number>();
   
@@ -150,30 +213,43 @@ export async function osSearch(filters: Filters) {
     const full = String(b.key);
     const parts = full.split('/').filter(Boolean);
     
-    // Limitar profundidade a 4, como no Postgres
+    // Hierarquia até 4 níveis
     for (let i = 1; i <= Math.min(parts.length, 4); i++) {
       const k = parts.slice(0, i).join('/');
       counts.set(k, (counts.get(k) || 0) + b.doc_count);
     }
   }
   
-  // Converter para formato de resposta e limitar a 30 categorias
-  const cats = Array.from(counts.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 30)
-    .map(([k, c]) => ({ path: k.split('/'), count: c }));
-  
-  facets.categories = cats;
+  // Ordenar: count DESC, path ASC, limite 30
+  facets.categories = Array.from(counts.entries())
+    .map(([k, c]) => ({ 
+      path: k.split('/'), 
+      count: c 
+    }))
+    .sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return a.path.join('/').localeCompare(b.path.join('/'));
+    })
+    .slice(0, 30);
 
-  // Atributos
+  // Facetas de atributos
   for (const k of attrKeys) {
     const b = res.body.aggregations?.[`attr__${k}`]?.buckets ?? [];
-    facets.attributes[k] = b.map((x: any) => ({ value: String(x.key), count: x.doc_count }));
+    if (b.length > 0) {
+      facets.attributes[k] = b.map((x: any) => ({ 
+        value: String(x.key), 
+        count: x.doc_count 
+      }));
+    }
   }
 
   return {
     items,
-    page: { limit: size, offset: from, total },
+    page: { 
+      limit: size, 
+      offset: from, 
+      total 
+    },
     facets
   };
 }
