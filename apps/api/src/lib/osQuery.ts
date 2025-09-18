@@ -1,3 +1,6 @@
+// V-9 (2025-09-18): Adiciona facet de preço baseada em priceBzr no OpenSearch
+// V-8 (2025-09-18): Usa priceBzr em filtros e ordenação de preço
+// V-7 (2025-09-18): Normaliza total e buckets de aggregations para tipos dinâmicos
 // V-6 (2025-09-14): OpenSearch Query CORRIGIDO - priceBzr numérico
 // NÃO converter preço para string
 // path: apps/api/src/lib/osQuery.ts
@@ -59,7 +62,7 @@ function buildQuery(filters: Filters) {
     const range: any = {};
     if (filters.priceMin != null) range.gte = filters.priceMin;
     if (filters.priceMax != null) range.lte = filters.priceMax;
-    filter.push({ range: { price: range } });
+    filter.push({ range: { priceBzr: range } });
   }
 
   return { must, filter };
@@ -116,10 +119,10 @@ export async function osSearch(filters: Filters) {
   
   switch (filters.sort) {
     case 'price_asc':
-      sort = [{ price: 'asc' }, { id: 'asc' }];
+      sort = [{ priceBzr: 'asc' }, { id: 'asc' }];
       break;
     case 'price_desc':
-      sort = [{ price: 'desc' }, { id: 'asc' }];
+      sort = [{ priceBzr: 'desc' }, { id: 'asc' }];
       break;
     case 'newest':
       sort = [{ createdAt: 'desc' }, { id: 'asc' }];
@@ -142,12 +145,30 @@ export async function osSearch(filters: Filters) {
   const attrKeys = await sampleAttributeKeys(baseQuery);
 
   // 2) Aggregations
+  const priceRanges = [
+    { key: '0-10', to: 10 },
+    { key: '10-50', from: 10, to: 50 },
+    { key: '50-100', from: 50, to: 100 },
+    { key: '100-500', from: 100, to: 500 },
+    { key: '500-1000', from: 500, to: 1000 },
+    { key: '1000+', from: 1000 }
+  ];
+
   const aggs: any = {
     cat_paths: { 
       terms: { 
         field: 'category_path.kw', 
         size: 200 
       } 
+    },
+    price_stats: {
+      stats: { field: 'priceBzr' }
+    },
+    price_ranges: {
+      range: {
+        field: 'priceBzr',
+        ranges: priceRanges.map(r => ({ ...r }))
+      }
     }
   };
   
@@ -173,8 +194,10 @@ export async function osSearch(filters: Filters) {
     }
   } as any);
 
-  const hits = res.body.hits.hits || [];
-  const total = res.body.hits.total?.value ?? res.body.hits.total ?? 0;
+  const body: any = res.body ?? {};
+  const hits = Array.isArray(body?.hits?.hits) ? body.hits.hits : [];
+  const totalAny: any = body?.hits?.total;
+  const total: number = typeof totalAny === 'number' ? totalAny : (totalAny?.value ?? 0);
   
   // Mapear items mantendo todos os campos
   const items = hits.map((h: any) => {
@@ -207,11 +230,13 @@ export async function osSearch(filters: Filters) {
   // Processar facets
   const facets: any = { 
     categories: [], 
-    attributes: {} 
+    attributes: {},
+    price: { min: '0', max: '0', buckets: [] } 
   };
 
   // Facetas de categoria hierárquicas - MANTIDO
-  const buckets = res.body.aggregations?.cat_paths?.buckets ?? [];
+  const catAggAny: any = body?.aggregations?.cat_paths;
+  const buckets = Array.isArray(catAggAny?.buckets) ? catAggAny.buckets : [];
   const counts = new Map<string, number>();
   
   for (const b of buckets) {
@@ -239,13 +264,33 @@ export async function osSearch(filters: Filters) {
 
   // Facetas de atributos - MANTIDO: mapeamento correto
   for (const k of attrKeys) {
-    const b = res.body.aggregations?.[`attr__${k}`]?.buckets ?? [];
+    const aggBuckets: any = body?.aggregations?.[`attr__${k}`];
+    const b = Array.isArray(aggBuckets?.buckets) ? aggBuckets.buckets : [];
     if (b.length > 0) {
       facets.attributes[k] = b.map((x: any) => ({ 
         value: String(x.key), 
         count: x.doc_count 
       }));
     }
+  }
+
+  const priceStats: any = body?.aggregations?.price_stats;
+  const priceBuckets: any[] = body?.aggregations?.price_ranges?.buckets ?? [];
+  if (priceStats && typeof priceStats.count === 'number' && priceStats.count > 0) {
+    const minVal = (Number.isFinite(priceStats.min) ? priceStats.min : 0) as number;
+    const maxVal = (Number.isFinite(priceStats.max) ? priceStats.max : 0) as number;
+    const buckets = priceRanges.map(range => {
+      const bucket = priceBuckets.find((b: any) => b.key === range.key);
+      const count = bucket ? bucket.doc_count : 0;
+      return { range: range.key, count };
+    }).filter(b => b.count > 0);
+    facets.price = {
+      min: minVal === Infinity ? '0' : minVal.toString(),
+      max: maxVal === -Infinity ? '0' : maxVal.toString(),
+      buckets
+    };
+  } else {
+    facets.price = { min: '0', max: '0', buckets: [] };
   }
 
   return {

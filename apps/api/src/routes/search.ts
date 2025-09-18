@@ -1,3 +1,4 @@
+// V-6 (2025-09-18): Usa util unificado para flag USE_OPENSEARCH
 // V-5 (2025-09-14): Restaura fallback PG, parse correto de USE_OPENSEARCH, try/catch granular
 // - Parse correto da flag USE_OPENSEARCH (regex para evitar "false" truthy)
 // - Logs de debug opcionais
@@ -8,7 +9,7 @@ import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { SearchQueryBuilder } from '../lib/searchQuery.js';
-import { osEnabled as osEnabledImport } from '../lib/opensearch.js';
+import { isOsEnabled } from '../lib/opensearch.js';
 import { osSearch } from '../lib/osQuery.js';
 
 // Inicializar Prisma e SearchQueryBuilder
@@ -25,8 +26,6 @@ try {
   searchBuilder = null as any;
 }
 
-// Parse correto da flag - evita "false" ser truthy
-const USE_OPENSEARCH = /^true$/i.test(process.env.USE_OPENSEARCH ?? '');
 const DEBUG_SEARCH = /^true$/i.test(process.env.DEBUG_SEARCH ?? '');
 
 // Schema de validação - padrão é 'all'
@@ -79,11 +78,12 @@ export async function searchRoutes(app: FastifyInstance) {
   app.get('/search', async (request, reply) => {
     try {
       const query = request.query as Record<string, any>;
+      const osActive = isOsEnabled();
 
       // Debug: log da flag e query
       if (DEBUG_SEARCH) {
         app.log.info({ 
-          USE_OPENSEARCH, 
+          osEnabled: osActive,
           env: process.env.USE_OPENSEARCH,
           query 
         }, 'Search request');
@@ -110,7 +110,7 @@ export async function searchRoutes(app: FastifyInstance) {
       if (DEBUG_SEARCH) {
         app.log.info({ 
           filters,
-          USE_OPENSEARCH 
+          osEnabled: osActive
         }, 'Processed filters');
       }
 
@@ -118,7 +118,7 @@ export async function searchRoutes(app: FastifyInstance) {
       let searchEngine = 'postgres';
 
       // Decisão clara entre OpenSearch e Postgres
-      if (USE_OPENSEARCH && osEnabledImport) {
+      if (osActive) {
         try {
           if (DEBUG_SEARCH) {
             app.log.info('Using OpenSearch');

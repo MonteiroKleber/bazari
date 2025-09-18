@@ -1,9 +1,18 @@
+// V-2 (2025-09-18): Normaliza flag USE_OPENSEARCH com parsing flexível
 // V-1 (2025-09-13): OpenSearch client + feature-flag
 import type { ClientOptions } from '@opensearch-project/opensearch';
 import { Client } from '@opensearch-project/opensearch';
 
-export const osEnabled =
-  process.env.USE_OPENSEARCH === 'true' && !!process.env.OPENSEARCH_URL;
+const truthyValues = new Set(['true', '1', 'yes', 'on']);
+
+export function isOsEnabled(): boolean {
+  const raw = process.env.USE_OPENSEARCH ?? '';
+  const normalized = raw.trim().toLowerCase();
+  if (!truthyValues.has(normalized)) return false;
+  return !!process.env.OPENSEARCH_URL;
+}
+
+export const osEnabled = isOsEnabled();
 
 export const osClient = osEnabled
   ? new Client({

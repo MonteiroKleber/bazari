@@ -1,3 +1,6 @@
+// V-12 (2025-09-18): Adiciona mídia principal no fallback Postgres
+// V-11 (2025-09-18): Converte Decimals para number nas métricas de preço
+// V-10 (2025-09-18): Remove filtros 'deleted' inexistentes e normaliza busca textual
 // V-9 (2025-09-14): Corrige campo 'deleted' inexistente, mantém compatibilidade com schema real
 // - Remove referência a campo 'deleted' que não existe no schema
 // - ORDER BY condicional sem ts_rank
@@ -36,6 +39,17 @@ interface SearchResult {
   };
 }
 
+function toNum(value: unknown): number | null {
+  if (value == null) return null;
+  const maybeDecimal = value as { toNumber?: () => number } | number | string;
+  if (typeof maybeDecimal === 'object' && typeof maybeDecimal?.toNumber === 'function') {
+    const n = maybeDecimal.toNumber();
+    return Number.isFinite(n) ? n : null;
+  }
+  const n = Number(maybeDecimal as number | string);
+  return Number.isFinite(n) ? n : null;
+}
+
 export class SearchQueryBuilder {
   constructor(private prisma: PrismaClient) {}
 
@@ -65,16 +79,12 @@ export class SearchQueryBuilder {
     const safeOffset = Math.max(0, offset);
 
     // Construir WHERE clauses
-    const whereProduct: Prisma.ProductWhereInput = {
-      deleted: false // Sempre filtrar deletados
-    };
-    const whereService: Prisma.ServiceOfferingWhereInput = {
-      deleted: false // Sempre filtrar deletados
-    };
+    const whereProduct: Prisma.ProductWhereInput = {};
+    const whereService: Prisma.ServiceOfferingWhereInput = {};
 
     // Busca textual
     if (q && q.trim()) {
-      const searchTerm = `%${q.trim()}%`;
+      const searchTerm = q.trim();
       whereProduct.OR = [
         { title: { contains: searchTerm, mode: 'insensitive' } },
         { description: { contains: searchTerm, mode: 'insensitive' } }
@@ -179,6 +189,7 @@ export class SearchQueryBuilder {
     if (kind === 'product') {
       // Apenas produtos
       const [products, count] = results;
+      const mediaMap = await this.fetchFirstMediaMap('Product', (products || []).map((p: any) => p.id));
       allItems = (products || []).map((p: any) => ({
         id: p.id,
         kind: 'product',
@@ -187,7 +198,7 @@ export class SearchQueryBuilder {
         priceBzr: p.priceBzr,
         categoryPath: p.categoryPath || [],
         attributes: p.attributes || {},
-        media: [], // Deixar vazio por enquanto
+        media: mediaMap.has(p.id) ? [mediaMap.get(p.id)!] : [],
         createdAt: p.createdAt
       }));
       totalCount = count || 0;
@@ -195,6 +206,7 @@ export class SearchQueryBuilder {
     } else if (kind === 'service') {
       // Apenas serviços
       const [services, count] = results;
+      const mediaMap = await this.fetchFirstMediaMap('ServiceOffering', (services || []).map((s: any) => s.id));
       allItems = (services || []).map((s: any) => ({
         id: s.id,
         kind: 'service',
@@ -203,7 +215,7 @@ export class SearchQueryBuilder {
         priceBzr: s.basePriceBzr,
         categoryPath: s.categoryPath || [],
         attributes: s.attributes || {},
-        media: [], // Deixar vazio por enquanto
+        media: mediaMap.has(s.id) ? [mediaMap.get(s.id)!] : [],
         createdAt: s.createdAt
       }));
       totalCount = count || 0;
@@ -234,6 +246,9 @@ export class SearchQueryBuilder {
         }
       }
 
+      const productMediaMap = await this.fetchFirstMediaMap('Product', (products || []).map((p: any) => p.id));
+      const serviceMediaMap = await this.fetchFirstMediaMap('ServiceOffering', (services || []).map((s: any) => s.id));
+
       // Mapear produtos
       const productItems = (products || []).map((p: any) => ({
         id: p.id,
@@ -243,7 +258,7 @@ export class SearchQueryBuilder {
         priceBzr: p.priceBzr,
         categoryPath: p.categoryPath || [],
         attributes: p.attributes || {},
-        media: [], // Deixar vazio por enquanto
+        media: productMediaMap.has(p.id) ? [productMediaMap.get(p.id)!] : [],
         createdAt: p.createdAt
       }));
 
@@ -256,7 +271,7 @@ export class SearchQueryBuilder {
         priceBzr: s.basePriceBzr,
         categoryPath: s.categoryPath || [],
         attributes: s.attributes || {},
-        media: [], // Deixar vazio por enquanto
+        media: serviceMediaMap.has(s.id) ? [serviceMediaMap.get(s.id)!] : [],
         createdAt: s.createdAt
       }));
 
@@ -411,11 +426,13 @@ export class SearchQueryBuilder {
         _max: { priceBzr: true }
       });
 
-      if (productAgg._min.priceBzr) {
-        minPrice = Math.min(minPrice, parseFloat(productAgg._min.priceBzr));
+      const minBzr = toNum(productAgg._min.priceBzr);
+      const maxBzr = toNum(productAgg._max.priceBzr);
+      if (minBzr != null) {
+        minPrice = Math.min(minPrice, minBzr);
       }
-      if (productAgg._max.priceBzr) {
-        maxPrice = Math.max(maxPrice, parseFloat(productAgg._max.priceBzr));
+      if (maxBzr != null) {
+        maxPrice = Math.max(maxPrice, maxBzr);
       }
     }
 
@@ -426,11 +443,13 @@ export class SearchQueryBuilder {
         _max: { basePriceBzr: true }
       });
 
-      if (serviceAgg._min.basePriceBzr) {
-        minPrice = Math.min(minPrice, parseFloat(serviceAgg._min.basePriceBzr));
+      const minService = toNum(serviceAgg._min.basePriceBzr);
+      const maxService = toNum(serviceAgg._max.basePriceBzr);
+      if (minService != null) {
+        minPrice = Math.min(minPrice, minService);
       }
-      if (serviceAgg._max.basePriceBzr) {
-        maxPrice = Math.max(maxPrice, parseFloat(serviceAgg._max.basePriceBzr));
+      if (maxService != null) {
+        maxPrice = Math.max(maxPrice, maxService);
       }
     }
 
@@ -485,6 +504,31 @@ export class SearchQueryBuilder {
       max: maxPrice.toString(),
       buckets
     };
+  }
+
+  private async fetchFirstMediaMap(
+    ownerType: 'Product' | 'ServiceOffering',
+    ids: string[]
+  ): Promise<Map<string, { id: string; url: string }>> {
+    if (!ids.length) {
+      return new Map();
+    }
+
+    const mediaAssets = await this.prisma.mediaAsset.findMany({
+      where: {
+        ownerType,
+        ownerId: { in: ids }
+      },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    const map = new Map<string, { id: string; url: string }>();
+    for (const asset of mediaAssets) {
+      const ownerId = asset.ownerId;
+      if (!ownerId || map.has(ownerId)) continue;
+      map.set(ownerId, { id: asset.id, url: asset.url });
+    }
+    return map;
   }
 
   private calculateAttributeFacets(items: any[]): Record<string, Array<{ value: string; count: number }>> {

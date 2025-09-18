@@ -1,22 +1,32 @@
 {
+  "//": "V-3 (2025-09-18): Scripts dev/build/start revisados para execução direta",
   "name": "@bazari/api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "dev:sandbox": "mkdir -p .tmp && TMPDIR=$PWD/.tmp tsx watch src/server.ts",
+    "dev:nowatch": "tsx src/server.ts",
+
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
+
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "if command -v eslint >/dev/null 2>&1; then eslint . --ext .ts,.tsx --max-warnings=0; else echo 'eslint não configurado na API, pulando lint'; fi",
+    "test": "echo \"sem testes na API por enquanto\"",
+
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "seed": "tsx prisma/seed.ts",
-    "clean": "rm -rf dist node_modules .turbo",
     "prisma:reset": "prisma migrate reset",
     "prisma:reset:force": "prisma migrate reset --force",
+
+    "seed": "tsx prisma/seed.ts",
     "seed:categories": "tsx scripts/seedCategories.ts",
     "seed:specs": "tsx scripts/seedCategorySpecs.ts",
     "create-specs": "node scripts/createMissingCategorySpecs.js",
+
     "os:reindex": "tsx src/ops/os-reindex.ts"
   },
   "prisma": {
