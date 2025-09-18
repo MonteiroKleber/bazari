@@ -1,9 +1,10 @@
+// V-7 (2025-09-18): Padroniza logs e saneia updates Prisma com pruneUndefined
 // V-6: Passo 3 — detalhe de serviço retorna media: [{id, url}] (2025-09-13)
 // Alinhado com a rota de produtos que já está funcionando
 // Corrige erro 400 ao criar serviços
 
 import { FastifyInstance } from 'fastify';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { 
   processAttributes,
@@ -33,6 +34,17 @@ const updateServiceSchema = z.object({
   attributes: z.record(z.any()).optional(),
   mediaIds: z.array(z.string()).optional(),
 });
+
+function pruneUndefined<T extends Record<string, any>>(obj: T): T {
+  const out: Record<string, any> = {};
+  for (const key of Object.keys(obj)) {
+    const value = (obj as any)[key];
+    if (value !== undefined) {
+      out[key] = value;
+    }
+  }
+  return out as T;
+}
 
 export async function servicesRoutes(app: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
@@ -181,7 +193,7 @@ export async function servicesRoutes(app: FastifyInstance, options: { prisma: Pr
       app.log.info(`Serviço criado com sucesso: ${service.id}`);
       return reply.status(201).send(service);
     } catch (error) {
-      app.log.error('Erro ao criar serviço:', error);
+      app.log.error({ err: error as any }, 'Erro ao criar serviço');
 
       if (error instanceof z.ZodError) {
         return reply.status(400).send({
@@ -373,17 +385,24 @@ export async function servicesRoutes(app: FastifyInstance, options: { prisma: Pr
         }
       }
 
+      const categoryChanged = Array.isArray(body.categoryPath) && body.categoryPath.length > 0;
+
       // Atualizar serviço
+      const updateDataRaw = {
+        daoId: body.daoId,
+        title: body.title,
+        description: body.description,
+        basePriceBzr: body.basePriceBzr ? body.basePriceBzr.replace(',', '.') : undefined,
+        attributes: body.attributes ? processedAttributes : undefined,
+        categoryId: categoryChanged ? categoryId : undefined,
+        categoryPath: categoryChanged ? catPathArr : undefined,
+        attributesSpecVersion: categoryChanged ? specVersion : undefined,
+      };
+      const updateData = pruneUndefined(updateDataRaw) as Prisma.ServiceOfferingUpdateInput;
+
       const updated = await prisma.serviceOffering.update({
         where: { id },
-        data: {
-          ...(body.daoId ? { daoId: body.daoId } : {}),
-          ...(body.title ? { title: body.title } : {}),
-          ...(body.description !== undefined ? { description: body.description } : {}),
-          ...(body.basePriceBzr ? { basePriceBzr: body.basePriceBzr.replace(',', '.') } : {}),
-          ...(catPathArr ? { categoryId, categoryPath: catPathArr, attributesSpecVersion: specVersion } : {}),
-          ...(body.attributes ? { attributes: processedAttributes } : {}),
-        },
+        data: updateData,
         select: {
           id: true,
           daoId: true,
@@ -436,7 +455,7 @@ export async function servicesRoutes(app: FastifyInstance, options: { prisma: Pr
 
       return reply.send(updated);
     } catch (error) {
-      app.log.error('Erro ao atualizar serviço:', error);
+      app.log.error({ err: error as any }, 'Erro ao atualizar serviço');
 
       if (error instanceof z.ZodError) {
         return reply.status(400).send({

@@ -1,3 +1,4 @@
+// V-2 (2025-09-18): Normaliza erros do Ajv e amplia suporte a enums/string
 import Ajv from 'ajv';
 import { z } from 'zod';
 
@@ -9,7 +10,7 @@ export function validateWithAjv(schema: any, data: any): { valid: boolean; error
   const valid = validate(data);
   
   if (!valid) {
-    return { valid: false, errors: validate.errors };
+    return { valid: false, errors: validate.errors ?? [] };
   }
   
   return { valid: true };
@@ -48,11 +49,13 @@ export function jsonSchemaToZod(jsonSchema: any): z.ZodSchema {
 function convertPropertyToZod(prop: any): z.ZodSchema {
   switch (prop.type) {
     case 'string':
-      let stringSchema = z.string();
-      if (prop.enum) {
+      let stringSchema: z.ZodString | z.ZodEnum<[string, ...string[]]>;
+      if (Array.isArray(prop.enum) && prop.enum.length > 0) {
         stringSchema = z.enum(prop.enum as [string, ...string[]]);
+      } else {
+        stringSchema = z.string();
       }
-      if (prop.pattern) {
+      if (prop.pattern && stringSchema instanceof z.ZodString) {
         stringSchema = stringSchema.regex(new RegExp(prop.pattern));
       }
       return stringSchema;

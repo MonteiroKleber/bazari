@@ -1,8 +1,9 @@
+// V-7 (2025-09-18): Padroniza logs e saneia updates Prisma com pruneUndefined
 // V-6: Passo 3 — detalhe de produto retorna media: [{id, url}] (2025-09-13)
 // Adicionado o campo attributesSpecVersion na criação do produto
 
 import { FastifyInstance } from 'fastify';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { 
   processAttributes,
@@ -32,6 +33,17 @@ const updateProductSchema = z.object({
   attributes: z.record(z.any()).optional(),
   mediaIds: z.array(z.string()).optional(),
 });
+
+function pruneUndefined<T extends Record<string, any>>(obj: T): T {
+  const out: Record<string, any> = {};
+  for (const key of Object.keys(obj)) {
+    const value = (obj as any)[key];
+    if (value !== undefined) {
+      out[key] = value;
+    }
+  }
+  return out as T;
+}
 
 export async function productsRoutes(app: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
@@ -181,7 +193,7 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
       app.log.info(`Produto criado com sucesso: ${product.id}`);
       return reply.status(201).send(product);
     } catch (error) {
-      app.log.error('Erro ao criar produto:', error);
+      app.log.error({ err: error as any }, 'Erro ao criar produto');
 
       if (error instanceof z.ZodError) {
         return reply.status(400).send({
@@ -373,17 +385,24 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
         }
       }
 
+      const categoryChanged = Array.isArray(body.categoryPath) && body.categoryPath.length > 0;
+
       // Atualizar produto
+      const updateDataRaw = {
+        daoId: body.daoId,
+        title: body.title,
+        description: body.description,
+        priceBzr: body.priceBzr ? body.priceBzr.replace(',', '.') : undefined,
+        attributes: body.attributes ? processedAttributes : undefined,
+        categoryId: categoryChanged ? categoryId : undefined,
+        categoryPath: categoryChanged ? catPathArr : undefined,
+        attributesSpecVersion: categoryChanged ? specVersion : undefined,
+      };
+      const updateData = pruneUndefined(updateDataRaw) as Prisma.ProductUpdateInput;
+
       const updated = await prisma.product.update({
         where: { id },
-        data: {
-          ...(body.daoId ? { daoId: body.daoId } : {}),
-          ...(body.title ? { title: body.title } : {}),
-          ...(body.description !== undefined ? { description: body.description } : {}),
-          ...(body.priceBzr ? { priceBzr: body.priceBzr.replace(',', '.') } : {}),
-          ...(catPathArr ? { categoryId, categoryPath: catPathArr, attributesSpecVersion: specVersion } : {}),
-          ...(body.attributes ? { attributes: processedAttributes } : {}),
-        },
+        data: updateData,
         select: {
           id: true,
           daoId: true,
@@ -436,7 +455,7 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
 
       return reply.send(updated);
     } catch (error) {
-      app.log.error('Erro ao atualizar produto:', error);
+      app.log.error({ err: error as any }, 'Erro ao atualizar produto');
 
       if (error instanceof z.ZodError) {
         return reply.status(400).send({

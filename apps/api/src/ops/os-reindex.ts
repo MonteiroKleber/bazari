@@ -1,3 +1,4 @@
+// V-2 (2025-09-18): Anota coleções para evitar inferência recursiva do TS
 // V-1 (2025-09-13): Reindex (full) Postgres -> OpenSearch
 import { osClient, osEnabled } from '../lib/opensearch';
 import { ensureOsIndex, indexName } from '../lib/opensearchIndex';
@@ -21,7 +22,7 @@ async function main() {
   // produtos
   let lastId: string | null = null;
   for(;;) {
-    const rows = await prisma.product.findMany({
+    const rows: any[] = await prisma.product.findMany({
       select: { id: true },
       orderBy: { id: 'asc' },
       ...(lastId ? { cursor: { id: lastId }, skip: 1 } : {}),
@@ -42,7 +43,7 @@ async function main() {
   // serviços
   lastId = null;
   for(;;) {
-    const rows = await prisma.serviceOffering.findMany({
+    const rows: any[] = await prisma.serviceOffering.findMany({
       select: { id: true },
       orderBy: { id: 'asc' },
       ...(lastId ? { cursor: { id: lastId }, skip: 1 } : {}),

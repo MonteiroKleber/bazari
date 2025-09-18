@@ -1,3 +1,4 @@
+// V-8 (2025-09-18): Tipar retorno de specs como nullável no resolver
 // V-7: Correção para suportar categorias sem CategorySpec (2025-01-11)
 // Agora retorna spec vazio padrão quando categoria não tem spec definido
 // Corrige erro 400 em categorias como "sandalias-chinelos"
@@ -154,9 +155,12 @@ async function getLatestSpec(categoryId: string) {
   return specs[0] || null;
 }
 
-async function getLatestSpecResolvingId(maybeId: string): Promise<{
-  spec: Awaited<ReturnType<typeof getLatestSpec>>; categoryId: string | null;
-}> {
+type ResolvedLatestSpec = {
+  spec: Awaited<ReturnType<typeof getLatestSpec>> | null;
+  categoryId: string | null;
+};
+
+async function getLatestSpecResolvingId(maybeId: string): Promise<ResolvedLatestSpec> {
   const id = (maybeId || "").trim();
 
   const f = await prisma.category.findUnique({ where: { id } });

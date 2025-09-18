@@ -1,3 +1,4 @@
+// V-2 (2025-09-18): Ajusta env/storages/logger para compatibilidade de tipos
 // path: apps/api/src/server.ts
 
 import Fastify from 'fastify';
@@ -25,22 +26,14 @@ async function buildApp() {
   // Definir storage adapter
   let storage: StorageAdapter;
   if (env.STORAGE_PROVIDER === 's3') {
-    storage = new S3Storage({
-      region: env.S3_REGION,
-      bucket: env.S3_BUCKET,
-      prefix: env.S3_PREFIX,
-      kmsKeyId: env.S3_KMS_KEY_ID,
-      ttlSeconds: 60 * 10, // 10m
-    });
+    storage = new S3Storage();
   } else {
-    storage = new LocalFsStorage({
-      rootDir: env.FS_UPLOAD_DIR,
-      baseUrl: '/uploads',
-    });
+    storage = new LocalFsStorage();
   }
 
+  const loggerInstance = createLogger();
   const app = Fastify({
-    logger: createLogger(),
+    logger: loggerInstance as any,
   });
 
   // Registrar plugins

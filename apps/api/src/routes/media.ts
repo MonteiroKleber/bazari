@@ -1,3 +1,4 @@
+// V-2 (2025-09-18): Padroniza logs de erro nos uploads com objeto { err }
 import { FastifyInstance } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { StorageAdapter } from '../storage/StorageAdapter.js';
@@ -62,7 +63,7 @@ export async function mediaRoutes(
         size: mediaAsset.size,
       });
     } catch (error) {
-      app.log.error('Erro no upload:', error);
+      app.log.error({ err: error as any }, 'Erro no upload');
       return reply.status(500).send({ error: 'Erro ao processar upload' });
     }
   });
