@@ -1,4 +1,4 @@
-// V-2 (2025-09-14): Builder do documento OS com media (primeira imagem) + priceBzr no _source
+// V-3 (2025-09-14): Builder do documento OS com media + priceBzr NUMÉRICO
 // path: apps/api/src/lib/osDoc.ts
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
@@ -13,8 +13,7 @@ export type OsDoc = {
   attrs: Record<string, any>;
   indexHints: Record<string, any>;
   price?: number | null;
-  /** NOVO: preço em BZR no _source do OS (usado pelo front) */
-  priceBzr?: number | null;
+  priceBzr?: number | null; // CONFIRMADO: preço em BZR numérico
   media: Array<{ id: string; url: string }>;
   createdAt: string;
 };
@@ -39,9 +38,13 @@ export async function buildOsDoc(kind: 'product'|'service', id: string): Promise
       select: { id: true, url: true }
     });
 
-    // priceBzr: usamos o mesmo 'price' do schema atual (sem inventar fonte nova)
+    // GARANTIR: priceBzr como número (usando campo priceBzr ou price como fallback)
+    const priceBzr = (p as any).priceBzr ?? (p as any).price ?? null;
+    const priceBzrNum = priceBzr != null ? Number(priceBzr) : null;
+    
+    // price também como número para retrocompatibilidade
     const price = (p as any).price ?? null;
-    const priceBzr = price != null ? Number(price) : null;
+    const priceNum = price != null ? Number(price) : null;
 
     return {
       id: p.id,
@@ -50,10 +53,10 @@ export async function buildOsDoc(kind: 'product'|'service', id: string): Promise
       description: p.description,
       category_path,
       category_slugs: slugs,
-      attrs,
-      indexHints,
-      price,
-      priceBzr,
+      attrs, // MANTIDO: todos os atributos
+      indexHints, // MANTIDO: todas as hints
+      price: priceNum,
+      priceBzr: priceBzrNum, // ADICIONADO: preço BZR numérico
       media: firstMedia ? [{ id: firstMedia.id, url: firstMedia.url }] : [],
       createdAt: (p.createdAt as Date).toISOString()
     };
@@ -76,8 +79,12 @@ export async function buildOsDoc(kind: 'product'|'service', id: string): Promise
       select: { id: true, url: true }
     });
 
-    const price = (s as any).price ?? null;
-    const priceBzr = price != null ? Number(price) : null;
+    // GARANTIR: usar basePriceBzr para serviços, price como fallback
+    const priceBzr = (s as any).basePriceBzr ?? (s as any).price ?? null;
+    const priceBzrNum = priceBzr != null ? Number(priceBzr) : null;
+    
+    const price = (s as any).price ?? (s as any).basePriceBzr ?? null;
+    const priceNum = price != null ? Number(price) : null;
 
     return {
       id: s.id,
@@ -86,10 +93,10 @@ export async function buildOsDoc(kind: 'product'|'service', id: string): Promise
       description: s.description,
       category_path,
       category_slugs: slugs,
-      attrs,
-      indexHints,
-      price,
-      priceBzr,
+      attrs, // MANTIDO: todos os atributos
+      indexHints, // MANTIDO: todas as hints
+      price: priceNum,
+      priceBzr: priceBzrNum, // ADICIONADO: preço BZR numérico
       media: firstMedia ? [{ id: firstMedia.id, url: firstMedia.url }] : [],
       createdAt: (s.createdAt as Date).toISOString()
     };

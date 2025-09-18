@@ -1,7 +1,8 @@
-// V-4 (2025-09-14): ensureOsIndex com mapping para media
+// V-5 (2025-09-14): ensureOsIndex com mapping COMPLETO para attrs e priceBzr
+// RESTAURADO: dynamic_templates para attrs.* como keyword
 import { osClient, osEnabled } from './opensearch';
 
-export const indexName = process.env.OS_INDEX || 'bazari-items-v1';
+export const indexName = process.env.OS_INDEX || 'bazari-items-v3'; // v3 para novo mapping
 
 export async function ensureOsIndex() {
   if (!osEnabled || !osClient) return;
@@ -29,9 +30,8 @@ export async function ensureOsIndex() {
         }
       },
       mappings: {
-        dynamic: true,
-        dynamic_templates: [
-          // Qualquer string em attrs.* vira keyword para combinar com terms/aggs
+        dynamic: true, // RESTAURADO: permite campos dinâmicos
+        dynamic_templates: [ // RESTAURADO: templates para attrs e indexHints
           {
             attrs_as_keyword: {
               path_match: 'attrs.*',
@@ -39,7 +39,6 @@ export async function ensureOsIndex() {
               mapping: { type: 'keyword' }
             }
           },
-          // indexHints.* como boolean
           {
             indexhints_as_boolean: {
               path_match: 'indexHints.*',
@@ -62,15 +61,16 @@ export async function ensureOsIndex() {
           description: { type: 'text', analyzer: 'pt_an' },
           category_path: {
             type: 'text',
-            fields: {
-              path: { type: 'text', analyzer: 'cat_path_an' },
-              kw: { type: 'keyword' }
+            analyzer: 'cat_path_an', // CORRIGIDO: analyzer direto
+            fields: { 
+              kw: { type: 'keyword' } // MANTIDO: para aggregations
             }
           },
           category_slugs: { type: 'keyword' },
-          attrs: { type: 'object', enabled: true },
-          indexHints: { type: 'object', enabled: true },
-          price: { type: 'float' },
+          attrs: { type: 'object', enabled: true }, // MANTIDO: container para atributos
+          indexHints: { type: 'object', enabled: true }, // MANTIDO: container para hints
+          price: { type: 'float' }, // MANTIDO: preço original
+          priceBzr: { type: 'float' }, // ADICIONADO: campo dedicado para BZR
           media: {
             type: 'object',
             properties: {

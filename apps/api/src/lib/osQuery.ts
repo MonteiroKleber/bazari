@@ -1,7 +1,5 @@
-// V-5 (2025-09-14): OpenSearch Query corrigido - padrão 'all' funcionando
-// - Kind padrão: 'all' - não filtra, retorna produtos E serviços
-// - Ordenação: _score/createdAt DESC, id ASC
-// - Facets: count DESC, path ASC, limite 30
+// V-6 (2025-09-14): OpenSearch Query CORRIGIDO - priceBzr numérico
+// NÃO converter preço para string
 // path: apps/api/src/lib/osQuery.ts
 
 import { osClient } from './opensearch';
@@ -41,7 +39,6 @@ function buildQuery(filters: Filters) {
   if (filters.kind && filters.kind !== 'all') {
     filter.push({ term: { kind: filters.kind } });
   }
-  // Se não especificado ou 'all', NÃO adiciona filtro de kind
 
   // Filtro de categoria
   if (filters.categoryPath?.length) {
@@ -49,7 +46,7 @@ function buildQuery(filters: Filters) {
     filter.push({ prefix: { 'category_path.kw': path } });
   }
 
-  // Filtro de atributos
+  // Filtro de atributos - MANTIDO como estava
   if (filters.attrs) {
     for (const [k,v] of Object.entries(filters.attrs)) {
       const values = Array.isArray(v) ? v : [v];
@@ -154,6 +151,7 @@ export async function osSearch(filters: Filters) {
     }
   };
   
+  // MANTIDO: facets de atributos
   for (const k of attrKeys) {
     aggs[`attr__${k}`] = { 
       terms: { 
@@ -181,19 +179,26 @@ export async function osSearch(filters: Filters) {
   // Mapear items mantendo todos os campos
   const items = hits.map((h: any) => {
     const source = h._source || {};
+    
+    // CORREÇÃO CRÍTICA: NÃO converter priceBzr para string
+    // Priorizar priceBzr do _source, fallback para price
+    const priceBzrValue = (typeof source.priceBzr === 'number') 
+      ? source.priceBzr 
+      : (typeof source.price === 'number' ? source.price : undefined);
+    
     return {
-      ...source,
+      ...source, // Preservar todos os campos do _source
       id: source.id,
       kind: source.kind,
       title: source.title,
       description: source.description,
       price: source.price,
-      priceBzr: (typeof source.priceBzr === 'number') ? source.priceBzr : (typeof source.price === 'number' ? source.price : undefined),
+      priceBzr: priceBzrValue, // CORRIGIDO: sempre numérico ou undefined
       categoryPath: source.category_slugs || source.category_path?.split('/').filter(Boolean) || [],
       category_slugs: source.category_slugs,
       category_path: source.category_path,
-      attributes: source.attrs || {},
-      attrs: source.attrs || {},
+      attributes: source.attrs || {}, // MANTIDO: atributos do documento
+      attrs: source.attrs || {}, // MANTIDO: compatibilidade
       media: source.media || [],
       createdAt: source.createdAt
     };
@@ -205,7 +210,7 @@ export async function osSearch(filters: Filters) {
     attributes: {} 
   };
 
-  // Facetas de categoria hierárquicas
+  // Facetas de categoria hierárquicas - MANTIDO
   const buckets = res.body.aggregations?.cat_paths?.buckets ?? [];
   const counts = new Map<string, number>();
   
@@ -232,7 +237,7 @@ export async function osSearch(filters: Filters) {
     })
     .slice(0, 30);
 
-  // Facetas de atributos
+  // Facetas de atributos - MANTIDO: mapeamento correto
   for (const k of attrKeys) {
     const b = res.body.aggregations?.[`attr__${k}`]?.buckets ?? [];
     if (b.length > 0) {
