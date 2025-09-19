@@ -1,9 +1,10 @@
+// V-19 (2025-09-18): Wrap search results with PDP links enabling navigation without layout changes
 // V-18 (2025-09-13): Toggle atributos passa offset:0 para resetar paginação; sem alteração visual
 // path: apps/web/src/pages/SearchPage.tsx
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Search, Filter } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -636,40 +637,53 @@ export function SearchPage() {
                   {results.items.map((item) => {
                     const originalUrl = extractBestImageUrl(item);
                     const src = originalUrl ? resolveMediaUrl(originalUrl) : undefined;
+                    const href = item?.kind === 'service'
+                      ? `/app/service/${item.id}`
+                      : `/app/product/${item.id}`;
+                    const ariaLabel = typeof item?.title === 'string' && item.title.trim().length > 0
+                      ? item.title
+                      : t('search.open_detail', { defaultValue: 'Abrir detalhes' }) as string;
                     
                     return (
-                      <Card key={item.id} className="overflow-hidden">
-                        {src && (
-                          <div className="aspect-video bg-muted">
-                            <img
-                              src={src}
-                              alt={item.title}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                              }}
-                            />
-                          </div>
-                        )}
-                        <CardContent className="p-4">
-                          <h3 className="font-semibold mb-2">{item.title}</h3>
-                          <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
-                            {item.description}
-                          </p>
-                          {item.priceBzr && (
-                            <p className="text-lg font-bold">{formatPrice(item.priceBzr)}</p>
+                      <Card key={item.id ?? href} className="overflow-hidden">
+                        <Link
+                          to={href}
+                          aria-label={ariaLabel}
+                          target="_self"
+                          className="block h-full"
+                        >
+                          {src && (
+                            <div className="aspect-video bg-muted">
+                              <img
+                                src={src}
+                                alt={item.title}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                }}
+                              />
+                            </div>
                           )}
-                          <div className="mt-2 flex items-center gap-2">
-                            <Badge variant="outline">
-                              {item.kind === 'product' ? t('search.products') : t('search.services')}
-                            </Badge>
-                            {item.categoryPath && item.categoryPath.length > 0 && (
-                              <Badge variant="secondary">
-                                {getCrumbLabel(item.categoryPath, item.categoryPath.length - 1)}
-                              </Badge>
+                          <CardContent className="p-4">
+                            <h3 className="font-semibold mb-2">{item.title}</h3>
+                            <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                              {item.description}
+                            </p>
+                            {item.priceBzr && (
+                              <p className="text-lg font-bold">{formatPrice(item.priceBzr)}</p>
                             )}
-                          </div>
-                        </CardContent>
+                            <div className="mt-2 flex items-center gap-2">
+                              <Badge variant="outline">
+                                {item.kind === 'product' ? t('search.products') : t('search.services')}
+                              </Badge>
+                              {item.categoryPath && item.categoryPath.length > 0 && (
+                                <Badge variant="secondary">
+                                  {getCrumbLabel(item.categoryPath, item.categoryPath.length - 1)}
+                                </Badge>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Link>
                       </Card>
                     );
                   })}

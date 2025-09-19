@@ -1,4 +1,5 @@
 {
+  "//": "V-1 (2025-09-18): Adiciona chave pdp.related nas traduções em pt",
   "header": {
     "marketplace": "Marketplace",
     "wallet": "Carteira",
@@ -34,7 +35,7 @@
     "made_with": "Feito com ❤️ pela Comunidade Bazari",
     "copyright": "© 2025 Bazari. Todos os direitos reservados.",
     "docs": "Docs",
-    "contact": "Contato", 
+    "contact": "Contato",
     "rights": "© 2025 Bazari. Todos os direitos reservados."
   },
   "hero": {
@@ -48,9 +49,15 @@
   },
   "modules": {
     "title": "Módulos do Ecossistema",
-    "wallet": "Carteira Multi-Asset",
+    "wallet": {
+      "title": "Carteira Multi-Asset",
+      "description": "Gerencie BZR, LIVO e outros tokens. Backup descentralizado e recuperação social."
+    },
     "wallet_desc": "Gerencie BZR, LIVO e outros tokens. Backup descentralizado e recuperação social.",
-    "marketplace": "Marketplace P2P",
+    "marketplace": {
+      "title": "Marketplace P2P",
+      "description": "Compre e venda sem intermediários. Pagamentos diretos em BZR com cashback automático em LIVO."
+    },
     "marketplace_desc": "Compre e venda sem intermediários. Pagamentos diretos em BZR com cashback automático em LIVO.",
     "dao": "Governança DAO",
     "dao_desc": "Vote em propostas, crie SubDAOs e participe das decisões da rede.",
@@ -60,23 +67,14 @@
     "dex_desc": "Negocie tokens de SubDAOs em pools de liquidez automáticas.",
     "social": "Rede Social",
     "social_desc": "Conecte-se com comerciantes e consumidores da sua região.",
-    "studio": "Bazari Studio",
-    "studio_desc": "Crie sistemas personalizados com nossa plataforma low-code descentralizada.",
-    "marketplace": {
-      "title": "Marketplace P2P",
-      "description": "Compre e venda sem intermediários. Pagamentos diretos em BZR com cashback automático em LIVO."
-    },
-    "wallet": {
-      "title": "Carteira Multi-Asset",
-      "description": "Gerencie BZR, LIVO e outros tokens. Backup descentralizado e recuperação social."
-    },
-    "governance": {
-      "title": "Governança DAO",
-      "description": "Vote em propostas, crie SubDAOs e participe das decisões da rede."
-    },
     "studio": {
       "title": "Bazari Studio",
       "description": "Crie sistemas personalizados com nossa plataforma low-code descentralizada."
+    },
+    "studio_desc": "Crie sistemas personalizados com nossa plataforma low-code descentralizada.",
+    "governance": {
+      "title": "Governança DAO",
+      "description": "Vote em propostas, crie SubDAOs e participe das decisões da rede."
     }
   },
   "about": {
@@ -108,19 +106,39 @@
     ],
     "q1_2025": {
       "title": "Q1 2025 - Fundação",
-      "items": ["BazariChain MVP", "Carteira básica", "Marketplace alpha", "Governança inicial"]
+      "items": [
+        "BazariChain MVP",
+        "Carteira básica",
+        "Marketplace alpha",
+        "Governança inicial"
+      ]
     },
     "q2_2025": {
       "title": "Q2 2025 - Crescimento",
-      "items": ["Marketplace beta", "SubDAOs", "Sistema de reputação", "App mobile"]
+      "items": [
+        "Marketplace beta",
+        "SubDAOs",
+        "Sistema de reputação",
+        "App mobile"
+      ]
     },
     "q3_2025": {
       "title": "Q3 2025 - Expansão",
-      "items": ["Bazari Studio", "Integração DEX", "Parcerias estratégicas", "Programas de incentivo"]
+      "items": [
+        "Bazari Studio",
+        "Integração DEX",
+        "Parcerias estratégicas",
+        "Programas de incentivo"
+      ]
     },
     "q4_2025": {
       "title": "Q4 2025 - Consolidação",
-      "items": ["Lançamento público", "Auditoria de segurança", "Escalabilidade avançada", "Comunidade global"]
+      "items": [
+        "Lançamento público",
+        "Auditoria de segurança",
+        "Escalabilidade avançada",
+        "Comunidade global"
+      ]
     }
   },
   "cta": {
@@ -133,6 +151,31 @@
     "beta_notice": "Beta fechado disponível para comerciantes selecionados",
     "subtitle": "Junte-se à revolução da economia popular descentralizada",
     "button": "Entrar na Lista de Espera"
+  },
+  "pdp": {
+    "breadcrumb_home": "Início",
+    "loading": "Carregando item...",
+    "error": "Não foi possível carregar este item.",
+    "related": "Produtos Relacionados",
+    "noImage": "Sem imagem disponível",
+    "buy": "Comprar",
+    "hire": "Contratar",
+    "addToCart": "Adicionar ao carrinho",
+    "request_quote": "Solicitar Orçamento",
+    "chat": "Chat",
+    "favorite": "Favorito",
+    "from": "A partir de",
+    "rating": "{{stars}} ({{count}} avaliações)",
+    "specs": "Especificações Técnicas",
+    "seeMore": "Ver mais...",
+    "seeLess": "Ver menos",
+    "description": "Descrição",
+    "seller": "Vendedor",
+    "seeProfile": "Ver perfil",
+    "freight": "Calcular Frete",
+    "calculate": "Calcular",
+    "enterZipOrCity": "Informe CEP ou cidade",
+    "estimateResult": "Estimativa: {{days}} dias • Frete: {{price}}"
   },
   "dev": {
     "title": "Painel do Desenvolvedor",
@@ -264,40 +307,86 @@
     "max_files_error": "Máximo de 10 arquivos permitidos",
     "upload_error": "Erro no upload",
     "uploading_files": "Enviando arquivos...",
-
-
-
     "dynamic": {
       "inputPlaceholder": "Digite o valor",
       "selectOption": "Selecione",
       "hintCsv": "Separe por vírgulas",
       "required": "Campo obrigatório"
     },
-
-
-    
     "dynamicFields": {
       "inputPlaceholder": "Digite o valor",
-      "tamanho": { "label": "Tamanho", "placeholder": "Selecione", "options": { "PP": "PP", "P": "P", "M": "M", "G": "G" } },
-      "cor": { "label": "Cor" },
-      "material": { "label": "Material" },
-      "tecnica": { "label": "Técnica", "options": {
-      "Óleo":"Óleo","Acrílica":"Acrílica","Aquarela":"Aquarela","Guache":"Guache","Mista":"Mista","Outros":"Outros"
-      }},
-      "suporte": { "label": "Suporte", "options": {
-        "Tela":"Tela","Papel":"Papel","Madeira":"Madeira","Metal":"Metal","Outros":"Outros"
-      }},
-      "largura_cm": { "label": "Largura (cm)" },
-      "altura_cm": { "label": "Altura (cm)" },
-      "estado_conservacao": { "label": "Estado de conservação", "options": {
-        "Novo":"Novo","Usado":"Usado","Restaurado":"Restaurado"
-      }},
-      "moldura": { "label": "Com moldura" },
-      "autenticidade": { "label": "Autenticidade", "options": {
-        "Com certificado":"Com certificado","Assinado":"Assinado","Sem comprovação":"Sem comprovação"
-      }},
-      "cores_predominantes": { "label": "Cores predominantes",
-        "options": {"Azul":"Azul","Branco":"Branco","Preto":"Preto","Vermelho":"Vermelho","Verde":"Verde","Amarelo":"Amarelo"}
+      "tamanho": {
+        "label": "Tamanho",
+        "placeholder": "Selecione",
+        "options": {
+          "PP": "PP",
+          "P": "P",
+          "M": "M",
+          "G": "G"
+        }
+      },
+      "cor": {
+        "label": "Cor"
+      },
+      "material": {
+        "label": "Material"
+      },
+      "tecnica": {
+        "label": "Técnica",
+        "options": {
+          "Óleo": "Óleo",
+          "Acrílica": "Acrílica",
+          "Aquarela": "Aquarela",
+          "Guache": "Guache",
+          "Mista": "Mista",
+          "Outros": "Outros"
+        }
+      },
+      "suporte": {
+        "label": "Suporte",
+        "options": {
+          "Tela": "Tela",
+          "Papel": "Papel",
+          "Madeira": "Madeira",
+          "Metal": "Metal",
+          "Outros": "Outros"
+        }
+      },
+      "largura_cm": {
+        "label": "Largura (cm)"
+      },
+      "altura_cm": {
+        "label": "Altura (cm)"
+      },
+      "estado_conservacao": {
+        "label": "Estado de conservação",
+        "options": {
+          "Novo": "Novo",
+          "Usado": "Usado",
+          "Restaurado": "Restaurado"
+        }
+      },
+      "moldura": {
+        "label": "Com moldura"
+      },
+      "autenticidade": {
+        "label": "Autenticidade",
+        "options": {
+          "Com certificado": "Com certificado",
+          "Assinado": "Assinado",
+          "Sem comprovação": "Sem comprovação"
+        }
+      },
+      "cores_predominantes": {
+        "label": "Cores predominantes",
+        "options": {
+          "Azul": "Azul",
+          "Branco": "Branco",
+          "Preto": "Preto",
+          "Vermelho": "Vermelho",
+          "Verde": "Verde",
+          "Amarelo": "Amarelo"
+        }
       }
     }
   },
