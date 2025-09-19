@@ -1,4 +1,5 @@
 {
+  "//": "V-1 (2025-09-18): Adds pdp.related key to English translations",
   "header": {
     "marketplace": "Marketplace",
     "wallet": "Wallet",
@@ -45,9 +46,15 @@
   },
   "modules": {
     "title": "Ecosystem Modules",
-    "wallet": "Multi-Asset Wallet",
+    "wallet": {
+      "title": "Multi-Asset Wallet",
+      "description": "Manage BZR, LIVO and other tokens. Decentralized backup and social recovery."
+    },
     "wallet_desc": "Manage BZR, LIVO and other tokens. Decentralized backup and social recovery.",
-    "marketplace": "P2P Marketplace",
+    "marketplace": {
+      "title": "P2P Marketplace",
+      "description": "Buy and sell without intermediaries. Direct payments in BZR with automatic cashback in LIVO."
+    },
     "marketplace_desc": "Buy and sell without intermediaries. Direct payments in BZR with automatic cashback in LIVO.",
     "dao": "DAO Governance",
     "dao_desc": "Vote on proposals, create SubDAOs and participate in network decisions.",
@@ -57,23 +64,14 @@
     "dex_desc": "Trade SubDAO tokens in automatic liquidity pools.",
     "social": "Social Network",
     "social_desc": "Connect with merchants and consumers in your region.",
-    "studio": "Bazari Studio",
-    "studio_desc": "Create custom systems with our decentralized low-code platform.",
-    "marketplace": {
-      "title": "P2P Marketplace",
-      "description": "Buy and sell without intermediaries. Direct payments in BZR with automatic cashback in LIVO."
-    },
-    "wallet": {
-      "title": "Multi-Asset Wallet",
-      "description": "Manage BZR, LIVO and other tokens. Decentralized backup and social recovery."
-    },
-    "governance": {
-      "title": "DAO Governance",
-      "description": "Vote on proposals, create SubDAOs and participate in network decisions."
-    },
     "studio": {
       "title": "Bazari Studio",
       "description": "Create custom systems with our decentralized low-code platform."
+    },
+    "studio_desc": "Create custom systems with our decentralized low-code platform.",
+    "governance": {
+      "title": "DAO Governance",
+      "description": "Vote on proposals, create SubDAOs and participate in network decisions."
     }
   },
   "about": {
@@ -105,19 +103,39 @@
     ],
     "q1_2025": {
       "title": "Q1 2025 - Foundation",
-      "items": ["BazariChain MVP", "Basic wallet", "Marketplace alpha", "Initial governance"]
+      "items": [
+        "BazariChain MVP",
+        "Basic wallet",
+        "Marketplace alpha",
+        "Initial governance"
+      ]
     },
     "q2_2025": {
       "title": "Q2 2025 - Growth",
-      "items": ["Marketplace beta", "SubDAOs", "Reputation system", "Mobile app"]
+      "items": [
+        "Marketplace beta",
+        "SubDAOs",
+        "Reputation system",
+        "Mobile app"
+      ]
     },
     "q3_2025": {
       "title": "Q3 2025 - Expansion",
-      "items": ["Bazari Studio", "DEX integration", "Strategic partnerships", "Incentive programs"]
+      "items": [
+        "Bazari Studio",
+        "DEX integration",
+        "Strategic partnerships",
+        "Incentive programs"
+      ]
     },
     "q4_2025": {
       "title": "Q4 2025 - Consolidation",
-      "items": ["Public launch", "Security audit", "Advanced scalability", "Global community"]
+      "items": [
+        "Public launch",
+        "Security audit",
+        "Advanced scalability",
+        "Global community"
+      ]
     }
   },
   "cta": {
@@ -128,6 +146,31 @@
     "primary_title": "Click to start your journey on Bazari",
     "secondary": "Learn More",
     "beta_notice": "Closed beta available for selected merchants"
+  },
+  "pdp": {
+    "breadcrumb_home": "Home",
+    "loading": "Loading item...",
+    "error": "We couldn't load this item.",
+    "related": "Related Items",
+    "noImage": "No image available",
+    "buy": "Buy",
+    "hire": "Hire",
+    "addToCart": "Add to cart",
+    "request_quote": "Request quote",
+    "chat": "Chat",
+    "favorite": "Favorite",
+    "from": "From",
+    "rating": "{{stars}} ({{count}} reviews)",
+    "specs": "Technical Specifications",
+    "seeMore": "See more...",
+    "seeLess": "See less",
+    "description": "Description",
+    "seller": "Seller",
+    "seeProfile": "View profile",
+    "freight": "Calculate Shipping",
+    "calculate": "Calculate",
+    "enterZipOrCity": "Enter ZIP code or city",
+    "estimateResult": "Estimate: {{days}} days • Shipping: {{price}}"
   },
   "dev": {
     "title": "Developer Panel",
@@ -260,26 +303,78 @@
     "upload_error": "Upload error",
     "uploading_files": "Uploading files...",
     "dynamicFields": {
-      "tamanho": { "label": "Size", "placeholder": "Select", "options": { "PP": "XS", "P": "S", "M": "M", "G": "L" } },
-      "cor": { "label": "Color" },
-      "material": { "label": "Material" },
-      "tecnica": { "label": "Technique", "options": {
-      "Óleo":"Oil","Acrílica":"Acrylic","Aquarela":"Watercolor","Guache":"Gouache","Mista":"Mixed","Outros":"Others"
-      }},
-      "suporte": { "label": "Support", "options": {
-        "Tela":"Canvas","Papel":"Paper","Madeira":"Wood","Metal":"Metal","Outros":"Others"
-      }},
-      "largura_cm": { "label": "Width (cm)" },
-      "altura_cm": { "label": "Height (cm)" },
-      "estado_conservacao": { "label": "Conservation state", "options": {
-        "Novo":"New","Usado":"Used","Restaurado":"Restored"
-      }},
-      "moldura": { "label": "With frame" },
-      "autenticidade": { "label": "Authenticity", "options": {
-        "Com certificado":"With certificate","Assinado":"Signed","Sem comprovação":"No verification"
-      }},
-      "cores_predominantes": { "label": "Predominant colors",
-        "options": {"Azul":"Blue","Branco":"White","Preto":"Black","Vermelho":"Red","Verde":"Green","Amarelo":"Yellow"}
+      "tamanho": {
+        "label": "Size",
+        "placeholder": "Select",
+        "options": {
+          "PP": "XS",
+          "P": "S",
+          "M": "M",
+          "G": "L"
+        }
+      },
+      "cor": {
+        "label": "Color"
+      },
+      "material": {
+        "label": "Material"
+      },
+      "tecnica": {
+        "label": "Technique",
+        "options": {
+          "Óleo": "Oil",
+          "Acrílica": "Acrylic",
+          "Aquarela": "Watercolor",
+          "Guache": "Gouache",
+          "Mista": "Mixed",
+          "Outros": "Others"
+        }
+      },
+      "suporte": {
+        "label": "Support",
+        "options": {
+          "Tela": "Canvas",
+          "Papel": "Paper",
+          "Madeira": "Wood",
+          "Metal": "Metal",
+          "Outros": "Others"
+        }
+      },
+      "largura_cm": {
+        "label": "Width (cm)"
+      },
+      "altura_cm": {
+        "label": "Height (cm)"
+      },
+      "estado_conservacao": {
+        "label": "Conservation state",
+        "options": {
+          "Novo": "New",
+          "Usado": "Used",
+          "Restaurado": "Restored"
+        }
+      },
+      "moldura": {
+        "label": "With frame"
+      },
+      "autenticidade": {
+        "label": "Authenticity",
+        "options": {
+          "Com certificado": "With certificate",
+          "Assinado": "Signed",
+          "Sem comprovação": "No verification"
+        }
+      },
+      "cores_predominantes": {
+        "label": "Predominant colors",
+        "options": {
+          "Azul": "Blue",
+          "Branco": "White",
+          "Preto": "Black",
+          "Vermelho": "Red",
+          "Verde": "Green",
+          "Amarelo": "Yellow"
+        }
       }
     }
   },

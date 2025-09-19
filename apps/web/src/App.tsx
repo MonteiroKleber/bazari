@@ -1,3 +1,4 @@
+// V-1 (2025-09-18): Add PDP routes for product and service detail pages
 // path: apps/web/src/App.tsx
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
@@ -13,6 +14,8 @@ import { ThemeGallery } from './components/ThemeGallery';
 import { DevPanel } from './components/DevPanel';
 import { SearchPage } from './pages/SearchPage';
 import { NewListingPage } from './pages/NewListingPage';
+import { ProductDetailPage } from './pages/ProductDetailPage';
+import { ServiceDetailPage } from './pages/ServiceDetailPage';
 
 function LandingPage() {
   return (
@@ -75,6 +78,8 @@ function App() {
               <AppLayout>
                 <Routes>
                   <Route path="new" element={<NewListingPage />} />
+                  <Route path="product/:id" element={<ProductDetailPage />} />
+                  <Route path="service/:id" element={<ServiceDetailPage />} />
                   {/* Futuras rotas internas */}
                   {/* <Route path="dashboard" element={<Dashboard />} /> */}
                   {/* <Route path="wallet" element={<Wallet />} /> */}
