@@ -516,8 +516,13 @@ export function WalletDashboard() {
                 <ul className="space-y-2 text-sm">
                   {tokens.map((token) => (
                     <li key={token.assetId} className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2">
-                      <div>
-                        <p className="font-medium text-foreground">{token.symbol}</p>
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-medium text-foreground">{token.name ?? token.symbol}</p>
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                            {token.symbol}
+                          </span>
+                        </div>
                         <p className="text-xs text-muted-foreground">{t('wallet.tokens.assetIdDisplay', { id: token.assetId })}</p>
                       </div>
                       <Button
@@ -566,9 +571,13 @@ export function WalletDashboard() {
                 return (
                   <tr key={assetId}>
                     <td className="px-3 py-3 align-top">
-                      <div className="flex flex-col">
-                        <span className="font-medium text-foreground">{symbol}</span>
-                        {token?.name && <span className="text-xs text-muted-foreground">{token.name}</span>}
+                      <div className="flex flex-col gap-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium text-foreground">{token?.name ?? symbol}</span>
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                            {symbol}
+                          </span>
+                        </div>
                         {assetId !== 'native' && (
                           <span className="text-xs text-muted-foreground">{t('wallet.balances.assetId', { id: assetId })}</span>
                         )}

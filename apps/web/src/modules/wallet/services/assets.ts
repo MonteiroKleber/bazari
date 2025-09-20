@@ -1,3 +1,4 @@
+import { hexToU8a, isHex, u8aToString } from '@polkadot/util';
 import { getApi } from './polkadot';
 
 export interface AssetMetadata {
@@ -19,6 +20,29 @@ function normaliseId(assetId: string | number | bigint): string {
   return assetId.trim();
 }
 
+function decodeBytes(value: any): string {
+  if (!value) {
+    return '';
+  }
+
+  if (typeof value.toUtf8 === 'function') {
+    const utf8 = value.toUtf8().trim();
+    if (utf8) {
+      return utf8;
+    }
+  }
+
+  const str = typeof value.toString === 'function' ? value.toString().trim() : String(value).trim();
+  if (str && str.startsWith('0x') && isHex(str)) {
+    try {
+      return u8aToString(hexToU8a(str)).trim();
+    } catch (error) {
+      console.warn('[wallet] Failed to decode hex bytes:', error);
+    }
+  }
+  return str;
+}
+
 export async function fetchAssetMetadata(assetId: string | number | bigint): Promise<AssetMetadata | null> {
   const id = normaliseId(assetId);
   if (metadataCache.has(id)) {
@@ -35,8 +59,9 @@ export async function fetchAssetMetadata(assetId: string | number | bigint): Pro
   const metadata = await api.query.assets.metadata(id);
   const rawMetadata = (metadata as any).isSome ? (metadata as any).unwrap() : metadata;
 
-  const name = rawMetadata.name?.toString().trim();
-  const symbol = rawMetadata.symbol?.toString?.().trim() || `#${id}`;
+  const name = decodeBytes(rawMetadata.name);
+  const symbolDecoded = decodeBytes(rawMetadata.symbol);
+  const symbol = symbolDecoded || `#${id}`;
   const decimals = rawMetadata.decimals?.toNumber?.() ?? Number(rawMetadata.decimals ?? 0);
 
   const payload: AssetMetadata = {
