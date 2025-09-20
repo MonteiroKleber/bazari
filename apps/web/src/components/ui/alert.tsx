@@ -1,17 +1,15 @@
 // path: apps/web/src/components/ui/alert.tsx
 
+import * as React from "react"
 import { cn } from "../../lib/utils"
 
-interface AlertProps {
-  className?: string;
+interface AlertProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: "default" | "destructive";
-  children?: React.ReactNode;
 }
 
 export function Alert({ className, variant = "default", children, ...props }: AlertProps) {
   return (
     <div
-      role="alert"
       className={cn(
         "relative w-full rounded-lg border p-4",
         variant === "destructive" 

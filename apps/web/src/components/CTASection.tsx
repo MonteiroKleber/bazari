@@ -2,7 +2,11 @@ import { useTranslation } from 'react-i18next';
 import { Button } from './ui/button';
 import { Sparkles } from 'lucide-react';
 
-export function CTASection() {
+interface CTASectionProps {
+  onPrimaryClick?: () => void;
+}
+
+export function CTASection({ onPrimaryClick }: CTASectionProps) {
   const { t } = useTranslation();
 
   return (
@@ -21,7 +25,7 @@ export function CTASection() {
             {t('cta.subtitle')}
           </p>
           
-          <Button size="lg" className="animate-pulse">
+          <Button size="lg" className="animate-pulse" onClick={() => onPrimaryClick?.()}>
             {t('cta.button')}
           </Button>
         </div>

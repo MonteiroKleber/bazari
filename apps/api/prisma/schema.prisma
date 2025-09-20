@@ -131,3 +131,37 @@ model AuditLog {
   @@index([entity, entityId])
   @@index([createdAt])
 }
+
+model User {
+  id        String   @id @default(uuid())
+  address   String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  refreshTokens RefreshToken[]
+}
+
+model AuthNonce {
+  id        String   @id @default(uuid())
+  address   String
+  nonce     String   @unique
+  domain    String
+  uri       String
+  genesis   String
+  issuedAt  DateTime
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  @@index([address])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  createdAt DateTime @default(now())
+  revokedAt DateTime?
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}

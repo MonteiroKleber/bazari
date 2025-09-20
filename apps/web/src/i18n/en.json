@@ -147,6 +147,23 @@
     "secondary": "Learn More",
     "beta_notice": "Closed beta available for selected merchants"
   },
+  "landing": {
+    "authGate": {
+      "title": "Access the Bazari app",
+      "description": "Choose how you want to continue your journey with Bazari.",
+      "create": "Create account",
+      "createAria": "Create a new Bazari account",
+      "import": "I already have a seed",
+      "importAria": "Import an existing Bazari account",
+      "unlock": "Unlock device",
+      "unlockAria": "Unlock this device using your PIN",
+      "unlockDisabledAria": "Unlock option disabled until you save a Bazari seed on this device",
+      "checking": "Checking device…",
+      "checkingDetail": "Checking if this device already has an encrypted vault…",
+      "unlockHelper": "Create or import an account on this device to enable the Unlock option.",
+      "unlockHelperReady": "Encrypted vault detected. You can unlock this device with your PIN."
+    }
+  },
   "pdp": {
     "breadcrumb_home": "Home",
     "loading": "Loading item...",
@@ -396,5 +413,292 @@
     "description": "Description",
     "price": "Price in BZR",
     "upload_photos": "Upload Photos"
+  },
+  "auth": {
+    "loading": "Preparing secure environment...",
+    "requireAuth": {
+      "loading": "Validating your session..."
+    },
+    "create": {
+      "title": "Create Bazari Account",
+      "subtitle": "Write down your 12-word recovery phrase and keep it safe.",
+      "backupHelp": "Keep your phrase offline. Never share it with anyone.",
+      "confirmLabel": "Enter word #{{index}}"
+    },
+    "import": {
+      "title": "Import Existing Account",
+      "seedLabel": "Recovery phrase (12 words)",
+      "seedHint": "Paste the exact phrase. Words are separated by a single space."
+    },
+    "unlock": {
+      "title": "Unlock Your Vault",
+      "pinLabel": "Enter your PIN"
+    },
+    "deviceLink": {
+      "title": "Link New Device",
+      "challengeLabel": "Challenge code",
+      "pinLabel": "PIN",
+      "loading": "Signing challenge...",
+      "submit": "Sign challenge",
+      "success": "Challenge signed successfully."
+    },
+    "sessionExpired": {
+      "title": "Session expired",
+      "description": "For your security, please unlock and sign again to continue.",
+      "primaryAction": "Unlock & Sign",
+      "dismiss": "Later"
+    },
+    "actions": {
+      "confirmBackup": "I've saved it",
+      "verifyWords": "Verify words",
+      "createAccount": "Create account",
+      "creatingAccount": "Creating account...",
+      "importAccount": "Import account",
+      "connecting": "Connecting...",
+      "unlock": "Unlock",
+      "unlocking": "Unlocking..."
+    },
+    "pin": {
+      "create": "Create a PIN (6+ digits)",
+      "confirm": "Confirm PIN"
+    },
+    "errors": {
+      "title": "Attention",
+      "confirmationMismatch": "The words you entered do not match the backup phrase.",
+      "pinMismatch": "PINs do not match.",
+      "pinTooShort": "PIN must have at least {{min}} digits.",
+      "invalidSeed": "The recovery phrase is invalid.",
+      "noStoredSeed": "No encrypted seed found on this device.",
+      "generic": "Something went wrong. Please try again."
+    }
+  },
+  "wallet": {
+    "nav": {
+      "aria": "Wallet navigation",
+      "overview": "Overview",
+      "accounts": "Accounts",
+      "send": "Send",
+      "receive": "Receive"
+    },
+    "dashboard": {
+      "title": "Wallet overview",
+      "subtitle": "Monitor balances, tokens, and recent activity.",
+      "chainError": "Unable to load chain information. Data may be outdated.",
+      "noAccountTitle": "No active account",
+      "noAccountDescription": "Select or import an account to use the wallet features.",
+      "goToAccounts": "Manage accounts",
+      "accountCard": {
+        "title": "Current account",
+        "description": "Active account used for signing.",
+        "addressLabel": "Account address",
+        "statusLabel": "Status",
+        "loading": "Loading…",
+        "ready": "Ready",
+        "accountsLabel": "Stored accounts"
+      },
+      "actions": {
+        "copyAddress": "Copy address",
+        "receive": "Receive",
+        "send": "Send"
+      }
+    },
+    "tokens": {
+      "title": "Custom tokens",
+      "description": "Track additional assets registered on-chain.",
+      "assetIdLabel": "Asset ID",
+      "assetPlaceholder": "e.g. 42",
+      "checking": "Validating…",
+      "check": "Validate",
+      "inputRequired": "Enter an asset ID to continue.",
+      "alreadyAdded": "Token already added.",
+      "notFound": "Token metadata not found on chain.",
+      "addError": "Unable to add token.",
+      "added": "Token added to this account.",
+      "previewTitle": "Asset {{symbol}}",
+      "previewId": "Asset ID: {{id}}",
+      "previewDecimals": "Decimals: {{decimals}}",
+      "previewName": "Name: {{name}}",
+      "addConfirm": "Add token",
+      "cancelPreview": "Cancel",
+      "activeLabel": "Enabled tokens",
+      "empty": "No extra tokens yet. Add an asset by ID.",
+      "remove": "Remove",
+      "assetIdDisplay": "ID {{id}}"
+    },
+    "balances": {
+      "title": "Balances",
+      "description": "Live balances for the active account.",
+      "refresh": "Refresh",
+      "columns": {
+        "asset": "Asset",
+        "free": "Free",
+        "reserved": "Reserved",
+        "frozen": "Frozen",
+        "actions": "Actions"
+      },
+      "assetId": "Asset ID: {{id}}",
+      "nativeActions": "Native asset"
+    },
+    "history": {
+      "title": "Recent activity",
+      "description": "Transfers detected for this account.",
+      "loadError": "Unable to load history.",
+      "loading": "Loading history…",
+      "empty": "No transfers found yet.",
+      "columns": {
+        "time": "Time",
+        "event": "Event",
+        "counterparty": "Counterparty",
+        "amount": "Amount",
+        "hash": "Tx hash"
+      },
+      "directionIn": "Received",
+      "directionOut": "Sent",
+      "from": "From",
+      "to": "To",
+      "loadMore": "Load more",
+      "loadingMore": "Loading…"
+    },
+    "accounts": {
+      "title": "Accounts",
+      "subtitle": "Manage the local vault used for signing.",
+      "actions": {
+        "create": "Create account",
+        "import": "Import account"
+      },
+      "messages": {
+        "activeSuccess": "Active account updated.",
+        "activeError": "Unable to switch active account."
+      },
+      "listTitle": "Stored accounts",
+      "listDescription": "Select the account used for signing and persistence on this device.",
+      "loading": "Loading accounts…",
+      "empty": "No accounts stored yet. Create or import one to continue.",
+      "addedAt": "Added {{date}}",
+      "activeBadge": "Active",
+      "makeActive": "Set active",
+      "export": "Export",
+      "remove": "Remove",
+      "create": {
+        "title": "Create new account",
+        "description": "Generate a recovery phrase and protect it with a PIN.",
+        "mnemonicLabel": "Recovery phrase",
+        "copyMnemonic": "Copy phrase",
+        "regenerate": "Generate again",
+        "confirmationLabel": "Type the full phrase to confirm",
+        "confirmRequired": "Please retype the recovery phrase.",
+        "pinShort": "PIN must have at least 6 digits.",
+        "pinMismatch": "PIN confirmation does not match.",
+        "confirmMismatch": "The phrase does not match the generated words.",
+        "nameLabel": "Label (optional)",
+        "pinLabel": "PIN",
+        "pinConfirmLabel": "Confirm PIN",
+        "saving": "Saving…",
+        "submit": "Save account",
+        "cancel": "Cancel",
+        "success": "Account created and set as active.",
+        "error": "Unable to create account.",
+        "generating": "Generating recovery phrase…"
+      },
+      "import": {
+        "title": "Import account",
+        "description": "Paste an existing mnemonic to store it securely.",
+        "mnemonicLabel": "Recovery phrase",
+        "mnemonicRequired": "Enter your recovery phrase.",
+        "mnemonicInvalid": "The recovery phrase is not valid.",
+        "nameLabel": "Label (optional)",
+        "pinLabel": "PIN",
+        "pinConfirmLabel": "Confirm PIN",
+        "pinShort": "PIN must have at least 6 digits.",
+        "pinMismatch": "PIN confirmation does not match.",
+        "saving": "Saving…",
+        "submit": "Import account",
+        "cancel": "Cancel",
+        "success": "Account imported and set as active.",
+        "error": "Unable to import account."
+      },
+      "export": {
+        "pinRequired": "Enter your PIN to export.",
+        "pinLabel": "PIN",
+        "loading": "Unlocking…",
+        "submit": "Reveal phrase",
+        "close": "Close",
+        "copy": "Copy phrase",
+        "warning": "Keep this phrase secret. Anyone with it can access your funds.",
+        "error": "Unable to decrypt account."
+      },
+      "remove": {
+        "confirmText": "Type the address to confirm removal. Make sure you have a backup before proceeding.",
+        "confirmLabel": "Type address",
+        "loading": "Removing…",
+        "submit": "Remove account",
+        "cancel": "Cancel",
+        "mismatch": "The confirmation does not match the address.",
+        "success": "Account removed from this device.",
+        "error": "Unable to remove account."
+      }
+    },
+    "send": {
+      "title": "Send assets",
+      "subtitle": "Create and sign transfers directly with your local vault.",
+      "nativeName": "Native balance",
+      "errors": {
+        "noAccount": "No active account found.",
+        "assetUnknown": "Select an asset to continue.",
+        "invalidAddress": "Recipient address is invalid.",
+        "invalidAmount": "Enter a valid amount.",
+        "insufficient": "Insufficient balance for this transfer.",
+        "pinRequired": "Enter your PIN to continue.",
+        "noVault": "Encrypted vault not found on this device.",
+        "pinInvalid": "Wrong PIN. Try again."
+      },
+      "status": {
+        "signing": "Signing transaction…",
+        "broadcasting": "Broadcasting transaction…",
+        "inBlock": "Transaction included in block.",
+        "finalized": "Transaction finalized.",
+        "error": "Transaction failed: {{message}}"
+      },
+      "fields": {
+        "asset": "Asset",
+        "amount": "Amount",
+        "recipient": "Recipient",
+        "memo": "Memo"
+      },
+      "recipientPlaceholder": "Destination address",
+      "memoPlaceholder": "Optional note (140 characters)",
+      "feeLoading": "Estimating fee…",
+      "feeLabel": "Estimated fee: {{fee}}",
+      "feeUnavailable": "Fee estimate unavailable.",
+      "txHash": "Hash:",
+      "submitting": "Processing…",
+      "submit": "Send now",
+      "reset": "Reset",
+      "scan": "Scan QR",
+      "pinTitle": "Confirm with PIN",
+      "pinDescription": "Enter your vault PIN to decrypt the signing key.",
+      "pinLabel": "PIN",
+      "pinCancel": "Cancel",
+      "pinConfirm": "Confirm",
+      "pinProcessing": "Unlocking…",
+      "noAccountTitle": "No account available",
+      "noAccountDescription": "Import or create an account before sending funds.",
+      "goToAccounts": "Open accounts"
+    },
+    "receive": {
+      "title": "Receive assets",
+      "subtitle": "Share your address to receive transfers on Bazarichain.",
+      "chainError": "Unable to load network information.",
+      "addressTitle": "Current address",
+      "addressDescription": "Present this address or QR code to receive tokens.",
+      "copy": "Copy address",
+      "copied": "Copied!",
+      "share": "Share address",
+      "shareTitle": "Bazari wallet address",
+      "shareText": "This is my Bazari address.",
+      "formattedPreview": "Network prefix {{prefix}} • {{short}}",
+      "networkHint": "Only accept transfers from the Bazarichain network (token {{symbol}}).",
+      "noAccount": "Activate or import an account to display your address."
+    }
   }
 }

@@ -1,3 +1,9 @@
+import {
+  ensureFreshAccessToken,
+  getAccessToken,
+  refreshSession,
+} from '../modules/auth/session';
+
 // Cliente HTTP para comunicação com a API
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -8,44 +14,75 @@ export class ApiError extends Error {
   }
 }
 
+interface ApiOptions {
+  requireAuth?: boolean;
+  isRetry?: boolean;
+}
+
 // Função base para fazer requisições
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+async function apiFetch<T>(path: string, init: RequestInit = {}, options: ApiOptions = {}): Promise<T> {
+  const { requireAuth = true, isRetry = false } = options;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
 
   try {
+    if (requireAuth) {
+      await ensureFreshAccessToken();
+    }
+
+    const headers = new Headers(init.headers ?? {});
+    const token = requireAuth ? getAccessToken() : null;
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+
     const response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
+      headers,
       signal: controller.signal,
+      credentials: 'include',
     });
 
     clearTimeout(timeoutId);
 
-    if (!response.ok) {
-      throw new ApiError(response.status, `HTTP ${response.status}: ${response.statusText}`);
+    if (response.status === 401 && requireAuth && !isRetry) {
+      const refreshed = await refreshSession();
+      if (refreshed) {
+        return apiFetch<T>(path, init, { requireAuth, isRetry: true });
+      }
+      throw new ApiError(401, 'Unauthorized');
     }
 
-    const contentType = response.headers.get("content-type");
-    if (contentType?.includes("application/json")) {
-      return await response.json();
+    if (!response.ok) {
+      const message = await response.text();
+      throw new ApiError(response.status, message || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    if (response.status === 204) {
+      return {} as T;
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (contentType?.includes('application/json')) {
+      return (await response.json()) as T;
     }
 
     return {} as T;
   } catch (error) {
     clearTimeout(timeoutId);
-    
+
     if (error instanceof ApiError) {
       throw error;
     }
-    
+
     if (error instanceof Error) {
-      if (error.name === "AbortError") {
-        throw new ApiError(408, "Request timeout");
+      if (error.name === 'AbortError') {
+        throw new ApiError(408, 'Request timeout');
       }
       throw new ApiError(0, error.message);
     }
-    
-    throw new ApiError(0, "Unknown error");
+
+    throw new ApiError(0, 'Unknown error');
   }
 }
 
