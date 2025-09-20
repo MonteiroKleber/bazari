@@ -152,6 +152,23 @@
     "subtitle": "Junte-se à revolução da economia popular descentralizada",
     "button": "Entrar na Lista de Espera"
   },
+  "landing": {
+    "authGate": {
+      "title": "Acessar o app Bazari",
+      "description": "Escolha como deseja continuar sua jornada na Bazari.",
+      "create": "Criar conta",
+      "createAria": "Criar uma nova conta Bazari",
+      "import": "Já tenho uma seed",
+      "importAria": "Importar uma conta Bazari existente",
+      "unlock": "Desbloquear dispositivo",
+      "unlockAria": "Desbloquear este dispositivo usando seu PIN",
+      "unlockDisabledAria": "Opção de desbloqueio indisponível até salvar uma seed Bazari neste dispositivo",
+      "checking": "Verificando dispositivo…",
+      "checkingDetail": "Verificando se este dispositivo já possui um cofre criptografado…",
+      "unlockHelper": "Crie ou importe uma conta neste dispositivo para liberar o desbloqueio.",
+      "unlockHelperReady": "Cofre criptografado detectado. Você pode desbloquear o dispositivo com seu PIN."
+    }
+  },
   "pdp": {
     "breadcrumb_home": "Início",
     "loading": "Carregando item...",
@@ -408,5 +425,292 @@
     "description": "Descrição",
     "price": "Preço em BZR",
     "upload_photos": "Enviar Fotos"
+  },
+  "auth": {
+    "loading": "Preparando ambiente seguro...",
+    "requireAuth": {
+      "loading": "Validando sua sessão..."
+    },
+    "create": {
+      "title": "Criar conta Bazari",
+      "subtitle": "Anote sua frase de recuperação com 12 palavras e mantenha em segurança.",
+      "backupHelp": "Guarde sua frase offline. Nunca compartilhe com ninguém.",
+      "confirmLabel": "Digite a palavra nº {{index}}"
+    },
+    "import": {
+      "title": "Importar conta existente",
+      "seedLabel": "Frase de recuperação (12 palavras)",
+      "seedHint": "Cole a frase completa, com palavras separadas por espaço."
+    },
+    "unlock": {
+      "title": "Desbloquear cofre",
+      "pinLabel": "Informe seu PIN"
+    },
+    "deviceLink": {
+      "title": "Vincular novo dispositivo",
+      "challengeLabel": "Código de desafio",
+      "pinLabel": "PIN",
+      "loading": "Assinando desafio...",
+      "submit": "Assinar desafio",
+      "success": "Desafio assinado com sucesso."
+    },
+    "sessionExpired": {
+      "title": "Sessão expirada",
+      "description": "Por segurança, desbloqueie e assine novamente para continuar.",
+      "primaryAction": "Desbloquear e assinar",
+      "dismiss": "Depois"
+    },
+    "actions": {
+      "confirmBackup": "Já salvei",
+      "verifyWords": "Verificar palavras",
+      "createAccount": "Criar conta",
+      "creatingAccount": "Criando conta...",
+      "importAccount": "Importar conta",
+      "connecting": "Conectando...",
+      "unlock": "Desbloquear",
+      "unlocking": "Desbloqueando..."
+    },
+    "pin": {
+      "create": "Crie um PIN (6+ dígitos)",
+      "confirm": "Confirme o PIN"
+    },
+    "errors": {
+      "title": "Atenção",
+      "confirmationMismatch": "As palavras informadas não conferem com a frase salva.",
+      "pinMismatch": "Os PINs não são iguais.",
+      "pinTooShort": "O PIN deve ter pelo menos {{min}} dígitos.",
+      "invalidSeed": "A frase de recuperação é inválida.",
+      "noStoredSeed": "Nenhuma seed criptografada encontrada neste dispositivo.",
+      "generic": "Algo deu errado. Tente novamente."
+    }
+  },
+  "wallet": {
+    "nav": {
+      "aria": "Navegação da carteira",
+      "overview": "Visão geral",
+      "accounts": "Contas",
+      "send": "Enviar",
+      "receive": "Receber"
+    },
+    "dashboard": {
+      "title": "Visão geral da carteira",
+      "subtitle": "Acompanhe saldos, tokens e atividade recente.",
+      "chainError": "Não foi possível carregar as informações da rede. Os dados podem estar desatualizados.",
+      "noAccountTitle": "Nenhuma conta ativa",
+      "noAccountDescription": "Selecione ou importe uma conta para usar a carteira.",
+      "goToAccounts": "Gerenciar contas",
+      "accountCard": {
+        "title": "Conta atual",
+        "description": "Conta ativa utilizada para assinar.",
+        "addressLabel": "Endereço da conta",
+        "statusLabel": "Status",
+        "loading": "Carregando…",
+        "ready": "Pronta",
+        "accountsLabel": "Contas armazenadas"
+      },
+      "actions": {
+        "copyAddress": "Copiar endereço",
+        "receive": "Receber",
+        "send": "Enviar"
+      }
+    },
+    "tokens": {
+      "title": "Tokens personalizados",
+      "description": "Acompanhe outros ativos cadastrados na rede.",
+      "assetIdLabel": "ID do ativo",
+      "assetPlaceholder": "ex.: 42",
+      "checking": "Validando…",
+      "check": "Validar",
+      "inputRequired": "Informe um ID de ativo para continuar.",
+      "alreadyAdded": "Token já adicionado.",
+      "notFound": "Metadata do token não encontrada na rede.",
+      "addError": "Não foi possível adicionar o token.",
+      "added": "Token adicionado a esta conta.",
+      "previewTitle": "Ativo {{symbol}}",
+      "previewId": "ID do ativo: {{id}}",
+      "previewDecimals": "Decimais: {{decimals}}",
+      "previewName": "Nome: {{name}}",
+      "addConfirm": "Adicionar token",
+      "cancelPreview": "Cancelar",
+      "activeLabel": "Tokens habilitados",
+      "empty": "Nenhum token extra ainda. Adicione um ativo pelo ID.",
+      "remove": "Remover",
+      "assetIdDisplay": "ID {{id}}"
+    },
+    "balances": {
+      "title": "Saldos",
+      "description": "Saldos em tempo real da conta ativa.",
+      "refresh": "Atualizar",
+      "columns": {
+        "asset": "Ativo",
+        "free": "Livre",
+        "reserved": "Reservado",
+        "frozen": "Congelado",
+        "actions": "Ações"
+      },
+      "assetId": "ID do ativo: {{id}}",
+      "nativeActions": "Ativo nativo"
+    },
+    "history": {
+      "title": "Atividade recente",
+      "description": "Transferências detectadas para esta conta.",
+      "loadError": "Não foi possível carregar o histórico.",
+      "loading": "Carregando histórico…",
+      "empty": "Nenhuma transferência encontrada.",
+      "columns": {
+        "time": "Horário",
+        "event": "Evento",
+        "counterparty": "Contraparte",
+        "amount": "Quantidade",
+        "hash": "Tx hash"
+      },
+      "directionIn": "Recebido",
+      "directionOut": "Enviado",
+      "from": "De",
+      "to": "Para",
+      "loadMore": "Carregar mais",
+      "loadingMore": "Carregando…"
+    },
+    "accounts": {
+      "title": "Contas",
+      "subtitle": "Gerencie o cofre local utilizado para assinaturas.",
+      "actions": {
+        "create": "Criar conta",
+        "import": "Importar conta"
+      },
+      "messages": {
+        "activeSuccess": "Conta ativa atualizada.",
+        "activeError": "Não foi possível trocar a conta ativa."
+      },
+      "listTitle": "Contas armazenadas",
+      "listDescription": "Escolha qual conta será utilizada para assinar neste dispositivo.",
+      "loading": "Carregando contas…",
+      "empty": "Nenhuma conta salva. Crie ou importe uma para continuar.",
+      "addedAt": "Adicionada em {{date}}",
+      "activeBadge": "Ativa",
+      "makeActive": "Definir como ativa",
+      "export": "Exportar",
+      "remove": "Remover",
+      "create": {
+        "title": "Criar nova conta",
+        "description": "Gere uma frase de recuperação e proteja com um PIN.",
+        "mnemonicLabel": "Frase de recuperação",
+        "copyMnemonic": "Copiar frase",
+        "regenerate": "Gerar novamente",
+        "confirmationLabel": "Digite a frase completa para confirmar",
+        "confirmRequired": "Repita a frase de recuperação.",
+        "pinShort": "O PIN deve ter pelo menos 6 dígitos.",
+        "pinMismatch": "A confirmação do PIN não confere.",
+        "confirmMismatch": "A frase digitada não confere.",
+        "nameLabel": "Rótulo (opcional)",
+        "pinLabel": "PIN",
+        "pinConfirmLabel": "Confirmar PIN",
+        "saving": "Salvando…",
+        "submit": "Salvar conta",
+        "cancel": "Cancelar",
+        "success": "Conta criada e definida como ativa.",
+        "error": "Não foi possível criar a conta.",
+        "generating": "Gerando frase de recuperação…"
+      },
+      "import": {
+        "title": "Importar conta",
+        "description": "Cole uma frase existente para armazená-la com segurança.",
+        "mnemonicLabel": "Frase de recuperação",
+        "mnemonicRequired": "Informe sua frase de recuperação.",
+        "mnemonicInvalid": "A frase de recuperação é inválida.",
+        "nameLabel": "Rótulo (opcional)",
+        "pinLabel": "PIN",
+        "pinConfirmLabel": "Confirmar PIN",
+        "pinShort": "O PIN deve ter pelo menos 6 dígitos.",
+        "pinMismatch": "A confirmação do PIN não confere.",
+        "saving": "Salvando…",
+        "submit": "Importar conta",
+        "cancel": "Cancelar",
+        "success": "Conta importada e definida como ativa.",
+        "error": "Não foi possível importar a conta."
+      },
+      "export": {
+        "pinRequired": "Informe seu PIN para exportar.",
+        "pinLabel": "PIN",
+        "loading": "Desbloqueando…",
+        "submit": "Revelar frase",
+        "close": "Fechar",
+        "copy": "Copiar frase",
+        "warning": "Guarde esta frase em segurança. Com ela é possível acessar seus fundos.",
+        "error": "Não foi possível descriptografar a conta."
+      },
+      "remove": {
+        "confirmText": "Digite o endereço para confirmar a remoção. Certifique-se de ter backup antes de continuar.",
+        "confirmLabel": "Digite o endereço",
+        "loading": "Removendo…",
+        "submit": "Remover conta",
+        "cancel": "Cancelar",
+        "mismatch": "A confirmação não confere com o endereço.",
+        "success": "Conta removida deste dispositivo.",
+        "error": "Não foi possível remover a conta."
+      }
+    },
+    "send": {
+      "title": "Enviar ativos",
+      "subtitle": "Monte e assine transferências diretamente com seu cofre local.",
+      "nativeName": "Saldo nativo",
+      "errors": {
+        "noAccount": "Nenhuma conta ativa encontrada.",
+        "assetUnknown": "Selecione um ativo para continuar.",
+        "invalidAddress": "Endereço do destinatário inválido.",
+        "invalidAmount": "Informe um valor válido.",
+        "insufficient": "Saldo insuficiente para esta transferência.",
+        "pinRequired": "Informe seu PIN para continuar.",
+        "noVault": "Cofre criptografado não encontrado neste dispositivo.",
+        "pinInvalid": "PIN incorreto. Tente novamente."
+      },
+      "status": {
+        "signing": "Assinando transação…",
+        "broadcasting": "Transmitindo transação…",
+        "inBlock": "Transação incluída em bloco.",
+        "finalized": "Transação finalizada.",
+        "error": "Falha na transação: {{message}}"
+      },
+      "fields": {
+        "asset": "Ativo",
+        "amount": "Valor",
+        "recipient": "Destinatário",
+        "memo": "Memo"
+      },
+      "recipientPlaceholder": "Endereço de destino",
+      "memoPlaceholder": "Observação opcional (140 caracteres)",
+      "feeLoading": "Estimando taxa…",
+      "feeLabel": "Taxa estimada: {{fee}}",
+      "feeUnavailable": "Não foi possível estimar a taxa.",
+      "txHash": "Hash:",
+      "submitting": "Processando…",
+      "submit": "Enviar agora",
+      "reset": "Limpar",
+      "scan": "Ler QR",
+      "pinTitle": "Confirme com o PIN",
+      "pinDescription": "Digite o PIN do cofre para descriptografar a chave.",
+      "pinLabel": "PIN",
+      "pinCancel": "Cancelar",
+      "pinConfirm": "Confirmar",
+      "pinProcessing": "Desbloqueando…",
+      "noAccountTitle": "Nenhuma conta disponível",
+      "noAccountDescription": "Importe ou crie uma conta antes de enviar fundos.",
+      "goToAccounts": "Abrir contas"
+    },
+    "receive": {
+      "title": "Receber ativos",
+      "subtitle": "Compartilhe seu endereço para receber transferências na BazariChain.",
+      "chainError": "Não foi possível carregar dados da rede.",
+      "addressTitle": "Endereço atual",
+      "addressDescription": "Apresente este endereço ou QR code para receber tokens.",
+      "copy": "Copiar endereço",
+      "copied": "Copiado!",
+      "share": "Compartilhar",
+      "shareTitle": "Endereço da carteira Bazari",
+      "shareText": "Este é o meu endereço Bazari.",
+      "formattedPreview": "Prefixo {{prefix}} • {{short}}",
+      "networkHint": "Aceite transferências apenas na rede Bazari (token {{symbol}}).",
+      "noAccount": "Ative ou importe uma conta para exibir o endereço."
+    }
   }
 }

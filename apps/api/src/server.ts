@@ -5,6 +5,7 @@ import Fastify from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { env } from './env.js';
 import { createLogger } from './plugins/logger.js';
+import { cookiePlugin } from './plugins/cookie.js';
 import { corsPlugin } from './plugins/cors.js';
 import { multipartPlugin } from './plugins/multipart.js';
 import { staticPlugin } from './plugins/static.js';
@@ -17,6 +18,7 @@ import { categoriesRoutes } from './routes/categories.js';
 import { productsRoutes } from './routes/products.js';
 import { servicesRoutes } from './routes/services.js';
 import { searchRoutes } from './routes/search.js';
+import { authRoutes } from './routes/auth.js';
 import { osEnabled } from './lib/opensearch.js';
 import { ensureOsIndex } from './lib/opensearchIndex.js';
 
@@ -37,6 +39,7 @@ async function buildApp() {
   });
 
   // Registrar plugins
+  await app.register(cookiePlugin);
   await app.register(corsPlugin);
   await app.register(multipartPlugin);
   await app.register(staticPlugin);
@@ -48,6 +51,7 @@ async function buildApp() {
   await app.register(productsRoutes, { prefix: '/', prisma });
   await app.register(servicesRoutes, { prefix: '/', prisma });
   await app.register(searchRoutes, { prefix: '/', prisma });
+  await app.register(authRoutes, { prefix: '/', prisma });
   // Também expor com prefixo /api para compatibilidade com o front
   await app.register(healthRoutes, { prefix: '/api' });
   await app.register(mediaRoutes, { prefix: '/api', prisma, storage });
@@ -55,6 +59,7 @@ async function buildApp() {
   await app.register(productsRoutes, { prefix: '/api', prisma });
   await app.register(servicesRoutes, { prefix: '/api', prisma });
   await app.register(searchRoutes, { prefix: '/api', prisma });
+  await app.register(authRoutes, { prefix: '/api', prisma });
 
   if (osEnabled) {
     try {

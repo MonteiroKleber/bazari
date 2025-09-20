@@ -2,7 +2,11 @@ import { useTranslation } from 'react-i18next';
 import { Button } from './ui/button';
 import { ArrowRight, Download } from 'lucide-react';
 
-export function Hero() {
+interface HeroProps {
+  onPrimaryAction?: () => void;
+}
+
+export function Hero({ onPrimaryAction }: HeroProps) {
   const { t } = useTranslation();
 
   return (
@@ -30,7 +34,7 @@ export function Hero() {
 
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="group">
+            <Button size="lg" className="group" onClick={() => onPrimaryAction?.()}>
               {t('hero.cta_primary')}
               <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Button>
