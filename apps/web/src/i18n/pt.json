@@ -574,10 +574,12 @@
     "accounts": {
       "title": "Contas",
       "subtitle": "Gerencie o cofre local utilizado para assinaturas.",
-      "actions": {
-        "create": "Criar conta",
-        "import": "Importar conta"
-      },
+    "actions": {
+      "create": "Criar conta",
+      "import": "Importar conta",
+      "export": "Exportar",
+      "remove": "Remover"
+    },
       "messages": {
         "activeSuccess": "Conta ativa atualizada.",
         "activeError": "Não foi possível trocar a conta ativa."
@@ -589,8 +591,6 @@
       "addedAt": "Adicionada em {{date}}",
       "activeBadge": "Ativa",
       "makeActive": "Definir como ativa",
-      "export": "Exportar",
-      "remove": "Remover",
       "create": {
         "title": "Criar nova conta",
         "description": "Gere uma frase de recuperação e proteja com um PIN.",

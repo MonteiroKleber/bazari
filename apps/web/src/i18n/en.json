@@ -562,10 +562,12 @@
     "accounts": {
       "title": "Accounts",
       "subtitle": "Manage the local vault used for signing.",
-      "actions": {
-        "create": "Create account",
-        "import": "Import account"
-      },
+    "actions": {
+      "create": "Create account",
+      "import": "Import account",
+      "export": "Export",
+      "remove": "Remove"
+    },
       "messages": {
         "activeSuccess": "Active account updated.",
         "activeError": "Unable to switch active account."
@@ -577,8 +579,6 @@
       "addedAt": "Added {{date}}",
       "activeBadge": "Active",
       "makeActive": "Set active",
-      "export": "Export",
-      "remove": "Remove",
       "create": {
         "title": "Create new account",
         "description": "Generate a recovery phrase and protect it with a PIN.",
