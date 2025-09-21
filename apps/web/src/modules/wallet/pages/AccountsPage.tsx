@@ -145,7 +145,7 @@ export function AccountsPage() {
                           </Button>
                         )}
                         <Button size="sm" variant="outline" onClick={() => setExportTarget(account)}>
-                          {t('wallet.accounts.export')}
+                          {t('wallet.accounts.actions.export')}
                         </Button>
                         <Button
                           size="sm"
@@ -153,7 +153,7 @@ export function AccountsPage() {
                           className="border-destructive/40 text-destructive hover:bg-destructive/10"
                           onClick={() => setRemoveTarget(account)}
                         >
-                          {t('wallet.accounts.remove')}
+                          {t('wallet.accounts.actions.remove')}
                         </Button>
                       </div>
                     </div>
