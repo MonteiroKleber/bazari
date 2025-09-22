@@ -19,12 +19,25 @@ import { productsRoutes } from './routes/products.js';
 import { servicesRoutes } from './routes/services.js';
 import { searchRoutes } from './routes/search.js';
 import { authRoutes } from './routes/auth.js';
+import { ordersRoutes } from './routes/orders.js';
 import { osEnabled } from './lib/opensearch.js';
 import { ensureOsIndex } from './lib/opensearchIndex.js';
+import { getPaymentsConfig, getLogSafeConfig } from './config/payments.js';
+import { startPaymentsTimeoutWorker } from './workers/paymentsTimeout.js';
 
 const prisma = new PrismaClient();
 
 async function buildApp() {
+  // Validar configuração de pagamentos no boot
+  try {
+    getPaymentsConfig();
+    const logConfig = getLogSafeConfig();
+    console.log('✅ Configuração de pagamentos carregada:', logConfig);
+  } catch (err) {
+    console.error('❌ Erro na configuração de pagamentos:', err instanceof Error ? err.message : err);
+    process.exit(1);
+  }
+
   // Definir storage adapter
   let storage: StorageAdapter;
   if (env.STORAGE_PROVIDER === 's3') {
@@ -52,6 +65,7 @@ async function buildApp() {
   await app.register(servicesRoutes, { prefix: '/', prisma });
   await app.register(searchRoutes, { prefix: '/', prisma });
   await app.register(authRoutes, { prefix: '/', prisma });
+  await app.register(ordersRoutes, { prefix: '/', prisma });
   // Também expor com prefixo /api para compatibilidade com o front
   await app.register(healthRoutes, { prefix: '/api' });
   await app.register(mediaRoutes, { prefix: '/api', prisma, storage });
@@ -60,6 +74,7 @@ async function buildApp() {
   await app.register(servicesRoutes, { prefix: '/api', prisma });
   await app.register(searchRoutes, { prefix: '/api', prisma });
   await app.register(authRoutes, { prefix: '/api', prisma });
+  await app.register(ordersRoutes, { prefix: '/api', prisma });
 
   if (osEnabled) {
     try {
@@ -69,6 +84,28 @@ async function buildApp() {
       app.log.warn({ err }, 'ensureOsIndex falhou; seguimos com Postgres (fallback).');
     }
   }
+
+  // Iniciar worker de timeout em desenvolvimento
+  let timeoutWorker: NodeJS.Timeout | null = null;
+  if (process.env.NODE_ENV !== 'production') {
+    try {
+      timeoutWorker = startPaymentsTimeoutWorker(prisma, {
+        maxPendingMs: 15 * 60 * 1000, // 15 minutos
+        intervalMs: 60 * 1000, // 1 minuto
+      });
+      app.log.info('Worker de timeout de payments iniciado (dev)');
+    } catch (err) {
+      app.log.warn({ err }, 'Falha ao iniciar worker de timeout');
+    }
+  }
+
+  // Limpar worker no graceful shutdown
+  app.addHook('onClose', async () => {
+    if (timeoutWorker) {
+      clearInterval(timeoutWorker);
+      app.log.info('Worker de timeout parado');
+    }
+  });
 
 
   // Rota raiz

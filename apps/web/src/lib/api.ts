@@ -97,13 +97,15 @@ export async function getJSON<T>(path: string): Promise<T> {
 }
 
 // Helper para POST com JSON
-export async function postJSON<T>(path: string, data: unknown): Promise<T> {
+export async function postJSON<T>(path: string, data: unknown, extraHeaders?: Record<string, string>): Promise<T> {
+  const baseHeaders: Record<string, string> = {
+    "Accept": "application/json",
+    "Content-Type": "application/json",
+  };
+  const headers = extraHeaders ? { ...baseHeaders, ...extraHeaders } : baseHeaders;
   return apiFetch<T>(path, {
     method: "POST",
-    headers: {
-      "Accept": "application/json",
-      "Content-Type": "application/json",
-    },
+    headers,
     body: JSON.stringify(data),
   });
 }
@@ -220,6 +222,13 @@ export const apiHelpers = {
     const queryString = '?' + new URLSearchParams(params).toString();
     return getJSON(`/search${queryString}`);
   },
+
+  // Payments & Orders
+  getPaymentsConfig: () => getJSON('/payments/config'),
+  createPaymentIntent: (orderId: string) => postJSON(`/orders/${orderId}/payment-intent`, {}),
+  getOrder: (orderId: string) => getJSON(`/orders/${orderId}`),
+  confirmReceived: (orderId: string) => postJSON(`/orders/${orderId}/confirm-received`, {}),
+  cancelOrder: (orderId: string) => postJSON(`/orders/${orderId}/cancel`, {}),
 };
 
 // Exportar tipos e constantes

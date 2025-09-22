@@ -165,3 +165,99 @@ model RefreshToken {
 
   @@index([userId])
 }
+
+enum OrderStatus {
+  CREATED
+  PENDING
+  ESCROWED
+  SHIPPED
+  RELEASED
+  REFUNDED
+  CANCELLED
+  TIMEOUT
+}
+
+enum PaymentIntentStatus {
+  PENDING
+  FUNDS_IN
+  RELEASED
+  REFUNDED
+  TIMEOUT
+  CANCELLED
+}
+
+model Order {
+  id              String      @id @default(uuid())
+  buyerAddr       String
+  sellerAddr      String
+  sellerId        String      // DAO ID do vendedor
+  subtotalBzr     Decimal     @db.Decimal(30,0) // subtotal em planck
+  shippingBzr     Decimal     @db.Decimal(30,0) // frete em planck
+  totalBzr        Decimal     @db.Decimal(30,0) // total em planck
+  status          OrderStatus @default(CREATED)
+  shippingAddress Json?       // endereço de entrega
+  shippingOptionId String?    // ID da opção de frete
+  notes           String?     // observações do pedido
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  items          OrderItem[]
+  paymentIntents PaymentIntent[]
+  escrowLogs     EscrowLog[]
+
+  @@index([buyerAddr])
+  @@index([sellerAddr])
+  @@index([sellerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id                    String  @id @default(cuid())
+  orderId               String
+  listingId             String  // ID do produto/serviço
+  kind                  String  // 'product' | 'service'
+  qty                   Int
+  unitPriceBzrSnapshot  Decimal @db.Decimal(30,0) // preço unitário em planck no momento do pedido
+  titleSnapshot         String  // título no momento do pedido
+  lineTotalBzr          Decimal @db.Decimal(30,0) // qty * unitPrice em planck
+  createdAt             DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+  @@index([listingId])
+  @@index([kind])
+}
+
+model PaymentIntent {
+  id            String              @id @default(cuid())
+  orderId       String
+  amountBzr     Decimal             @db.Decimal(30,0) // planck
+  escrowAddress String
+  status        PaymentIntentStatus @default(PENDING)
+  txHashIn      String? // hash do depósito
+  txHashRelease String?
+  txHashRefund  String?
+  createdAt     DateTime            @default(now())
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model EscrowLog {
+  id          String   @id @default(cuid())
+  orderId     String
+  kind        String // 'RELEASE_REQUEST' | 'REFUND_REQUEST' | 'TIMEOUT' | ...
+  payloadJson Json
+  createdAt   DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+  @@index([kind])
+  @@index([createdAt])
+}
