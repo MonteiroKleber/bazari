@@ -183,11 +183,27 @@
     "seeLess": "Ver menos",
     "description": "Descripción",
     "seller": "Vendedor",
+    "sellerNameFallback": "Vendedor",
+    "sellerReputation": "Reputación {{percent}}%",
+    "sellerReputationAria": "Reputación {{percent}}%",
+    "follow": "Seguir",
+    "unfollow": "Dejar de seguir",
     "seeProfile": "Ver perfil",
     "freight": "Calcular Envío",
     "calculate": "Calcular",
     "enterZipOrCity": "Ingrese código postal o ciudad",
     "estimateResult": "Estimación: {{days}} días • Envío: {{price}}"
+  },
+  "profile": {
+    "posts": "Publicaciones",
+    "store": "Tienda",
+    "subdaos": "SubDAOs",
+    "followers": "Seguidores",
+    "following": "Siguiendo",
+    "seeMore": "Ver más",
+    "noPosts": "Sin publicaciones aún.",
+    "none": "Sin resultados.",
+    "loading": "Cargando..."
   },
   "dev": {
     "title": "Panel de Desarrollador",

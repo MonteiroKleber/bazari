@@ -183,11 +183,27 @@
     "seeLess": "See less",
     "description": "Description",
     "seller": "Seller",
+    "sellerNameFallback": "Seller",
+    "sellerReputation": "Reputation {{percent}}%",
+    "sellerReputationAria": "Reputation {{percent}}%",
+    "follow": "Follow",
+    "unfollow": "Unfollow",
     "seeProfile": "View profile",
     "freight": "Calculate Shipping",
     "calculate": "Calculate",
     "enterZipOrCity": "Enter ZIP code or city",
     "estimateResult": "Estimate: {{days}} days • Shipping: {{price}}"
+  },
+  "profile": {
+    "posts": "Posts",
+    "store": "Store",
+    "subdaos": "SubDAOs",
+    "followers": "Followers",
+    "following": "Following",
+    "seeMore": "See more",
+    "noPosts": "No posts yet.",
+    "none": "No results.",
+    "loading": "Loading..."
   },
   "dev": {
     "title": "Developer Panel",

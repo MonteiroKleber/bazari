@@ -32,6 +32,9 @@ import { Button } from './components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
 import { WalletHome } from './modules/wallet/pages/WalletHome';
 import { hasEncryptedSeed, isSessionActive } from '@/modules/auth';
+import DashboardPage from './pages/DashboardPage';
+import ProfileEditPage from './pages/ProfileEditPage';
+import ProfilePublicPage from './pages/ProfilePublicPage';
 
 function LandingPage() {
   const { t } = useTranslation();
@@ -198,6 +201,7 @@ function App() {
             {/* Rotas públicas */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/search" element={<SearchPage />} />
+            <Route path="/u/:handle" element={<ProfilePublicPage />} />
             <Route path="/auth/create" element={<CreateAccount />} />
             <Route path="/auth/import" element={<ImportAccount />} />
             <Route path="/auth/unlock" element={<Unlock />} />
@@ -210,6 +214,9 @@ function App() {
                 <RequireAuth>
                   <AppLayout>
                     <Routes>
+                      <Route index element={<DashboardPage />} />
+                      <Route path="dashboard" element={<DashboardPage />} />
+                      <Route path="profile/edit" element={<ProfileEditPage />} />
                       <Route path="new" element={<NewListingPage />} />
                       <Route path="product/:id" element={<ProductDetailPage />} />
                       <Route path="service/:id" element={<ServiceDetailPage />} />

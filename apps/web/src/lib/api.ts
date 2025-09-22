@@ -229,6 +229,34 @@ export const apiHelpers = {
   getOrder: (orderId: string) => getJSON(`/orders/${orderId}`),
   confirmReceived: (orderId: string) => postJSON(`/orders/${orderId}/confirm-received`, {}),
   cancelOrder: (orderId: string) => postJSON(`/orders/${orderId}/cancel`, {}),
+
+  // Profiles (public)
+  getPublicProfile: (handle: string) => getJSON(`/profiles/${encodeURIComponent(handle)}`),
+  getProfilePosts: (handle: string, params?: any) => {
+    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+    return getJSON(`/profiles/${encodeURIComponent(handle)}/posts${qs}`);
+  },
+  getFollowers: (handle: string, params?: any) => {
+    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+    return getJSON(`/profiles/${encodeURIComponent(handle)}/followers${qs}`);
+  },
+  getFollowing: (handle: string, params?: any) => {
+    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+    return getJSON(`/profiles/${encodeURIComponent(handle)}/following${qs}`);
+  },
+  resolveProfile: (params: { address?: string; handle?: string }) => {
+    const qs = '?' + new URLSearchParams(params as any).toString();
+    return getJSON(`/profiles/_resolve${qs}`);
+  },
+
+  // Profiles (private)
+  getMeProfile: () => getJSON('/me/profile'),
+  upsertMeProfile: (payload: any) => postJSON('/me/profile', payload),
+  upsertMeSeller: (payload: any) => postJSON('/me/seller', payload),
+  follow: (targetHandle: string) => postJSON('/social/follow', { targetHandle }),
+  unfollow: (targetHandle: string) => postJSON('/social/unfollow', { targetHandle }),
+  createPost: (payload: any) => postJSON('/posts', payload),
+  deletePost: (id: string) => deleteJSON(`/posts/${id}`),
 };
 
 // Exportar tipos e constantes

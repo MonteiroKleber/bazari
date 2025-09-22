@@ -12,6 +12,7 @@ import {
   buildCategoryPathFromId,
   resolveEffectiveSpecByCategoryId
 } from '../lib/categoryResolver.js';
+import { resolveSellerFromDaoId } from '../lib/sellerResolver.js';
 
 // Schema de validação para criação (igual ao de produtos, mas com basePriceBzr)
 const createServiceSchema = z.object({
@@ -243,7 +244,11 @@ export async function servicesRoutes(app: FastifyInstance, options: { prisma: Pr
     });
 
     const media = mediaAssets.map(m => ({ id: m.id, url: m.url }));
-    const payload = { ...service, media };
+    let seller: any = null;
+    if (service.daoId) {
+      seller = await resolveSellerFromDaoId(prisma, service.daoId);
+    }
+    const payload = { ...service, media, seller };
 
     return reply.send(payload);
 

@@ -1,14 +1,18 @@
 // V-1 (2025-09-18): Card do vendedor com reputação e link de perfil no padrão 6 temas
 
 import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { cn } from '../../lib/utils';
+import { apiHelpers } from '../../lib/api';
+import { Button } from '../ui/button';
 
 interface SellerCardProps {
   name?: string | null;
   reputationPercent?: number | null;
   profilePath?: string | null;
+  handle?: string | null; // quando informado, habilita follow/link automáticos
   className?: string;
 }
 
@@ -18,9 +22,35 @@ const normalizePercent = (value?: number | null): number | null => {
   return Math.round(clamped);
 };
 
-export function SellerCard({ name, reputationPercent, profilePath, className }: SellerCardProps) {
+export function SellerCard({ name, reputationPercent, profilePath, handle, className }: SellerCardProps) {
   const { t } = useTranslation();
   const normalizedPercent = normalizePercent(reputationPercent ?? null);
+  const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
+  const [followersCount, setFollowersCount] = useState<number | null>(null);
+  const computedProfilePath = profilePath || (handle ? `/u/${handle}` : null);
+
+  useEffect(() => {
+    let active = true;
+    if (handle) {
+      apiHelpers
+        .getPublicProfile(handle)
+        .then((res: any) => {
+          if (!active) return;
+          setFollowersCount(res?.counts?.followers ?? null);
+          setIsFollowing(res?.viewer?.isFollowing ?? false);
+        })
+        .catch(() => {
+          if (!active) return;
+          setIsFollowing(false);
+        });
+    } else {
+      setIsFollowing(null);
+      setFollowersCount(null);
+    }
+    return () => {
+      active = false;
+    };
+  }, [handle]);
 
   if (!name && normalizedPercent === null && !profilePath) {
     return null;
@@ -56,14 +86,45 @@ export function SellerCard({ name, reputationPercent, profilePath, className }: 
             </p>
           ) : null}
 
-          {profilePath ? (
-            <Link
-              to={profilePath}
-              className="inline-flex items-center text-sm font-medium text-primary underline-offset-4 hover:underline"
-            >
-              {t('pdp.seeProfile')}
-            </Link>
-          ) : null}
+          <div className="flex items-center gap-3" aria-live="polite">
+            {typeof followersCount === 'number' && (
+              <span className="text-xs text-muted-foreground">{followersCount} {t('profile.followers')}</span>
+            )}
+            {computedProfilePath ? (
+              <Link
+                to={computedProfilePath}
+                className="inline-flex items-center text-sm font-medium text-primary underline-offset-4 hover:underline"
+              >
+                {t('pdp.seeProfile')}
+              </Link>
+            ) : null}
+            {handle ? (
+              <Button
+                size="sm"
+                variant={isFollowing ? 'secondary' : 'default'}
+                onClick={async () => {
+                  if (!handle) return;
+                  try {
+                    if (!isFollowing) {
+                      setIsFollowing(true);
+                      const r: any = await apiHelpers.follow(handle);
+                      setFollowersCount(r?.counts?.target?.followers ?? followersCount);
+                    } else {
+                      setIsFollowing(false);
+                      const r: any = await apiHelpers.unfollow(handle);
+                      setFollowersCount(r?.counts?.target?.followers ?? followersCount);
+                    }
+                  } catch (e) {
+                    // reverte
+                    setIsFollowing((v) => !v);
+                  }
+                }}
+                aria-live="polite"
+              >
+                {isFollowing ? t('pdp.unfollow', { defaultValue: 'Deixar de seguir' }) : t('pdp.follow', { defaultValue: 'Seguir' })}
+              </Button>
+            ) : null}
+          </div>
         </CardContent>
       </Card>
     </section>
