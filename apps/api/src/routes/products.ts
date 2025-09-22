@@ -11,6 +11,7 @@ import {
   buildCategoryPathFromId,
   resolveEffectiveSpecByCategoryId
 } from '../lib/categoryResolver.js';
+import { resolveSellerFromDaoId } from '../lib/sellerResolver.js';
 
 // Schema de validação para criação
 const createProductSchema = z.object({
@@ -243,7 +244,11 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
     });
 
     const media = mediaAssets.map(m => ({ id: m.id, url: m.url }));
-    const payload = { ...product, media };
+    let seller: any = null;
+    if (product.daoId) {
+      seller = await resolveSellerFromDaoId(prisma, product.daoId);
+    }
+    const payload = { ...product, media, seller };
 
     return reply.send(payload);
 

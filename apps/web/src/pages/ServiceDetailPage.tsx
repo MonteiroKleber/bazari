@@ -152,8 +152,9 @@ export function ServiceDetailPage() {
             <AttributesDisplay attributes={data.attributes} categorySpec={spec} />
             <DescriptionBlock description={data.description ?? undefined} />
             <SellerCard
-              name={data.daoName ?? data.daoId}
+              name={data.seller?.shopName ?? data.daoName ?? data.daoId}
               reputationPercent={data.sellerReputation ?? null}
+              handle={data.seller?.handle ?? null}
             />
             <ShippingCalculator />
           </div>

@@ -24,6 +24,10 @@ import { osEnabled } from './lib/opensearch.js';
 import { ensureOsIndex } from './lib/opensearchIndex.js';
 import { getPaymentsConfig, getLogSafeConfig } from './config/payments.js';
 import { startPaymentsTimeoutWorker } from './workers/paymentsTimeout.js';
+import { profilesRoutes } from './routes/profiles.js';
+import { sellersRoutes } from './routes/sellers.js';
+import { socialRoutes } from './routes/social.js';
+import { postsRoutes } from './routes/posts.js';
 
 const prisma = new PrismaClient();
 
@@ -66,6 +70,10 @@ async function buildApp() {
   await app.register(searchRoutes, { prefix: '/', prisma });
   await app.register(authRoutes, { prefix: '/', prisma });
   await app.register(ordersRoutes, { prefix: '/', prisma });
+  await app.register(profilesRoutes, { prefix: '/', prisma });
+  await app.register(sellersRoutes, { prefix: '/', prisma });
+  await app.register(socialRoutes, { prefix: '/', prisma });
+  await app.register(postsRoutes, { prefix: '/', prisma });
   // Também expor com prefixo /api para compatibilidade com o front
   await app.register(healthRoutes, { prefix: '/api' });
   await app.register(mediaRoutes, { prefix: '/api', prisma, storage });
@@ -75,6 +83,10 @@ async function buildApp() {
   await app.register(searchRoutes, { prefix: '/api', prisma });
   await app.register(authRoutes, { prefix: '/api', prisma });
   await app.register(ordersRoutes, { prefix: '/api', prisma });
+  await app.register(profilesRoutes, { prefix: '/api', prisma });
+  await app.register(sellersRoutes, { prefix: '/api', prisma });
+  await app.register(socialRoutes, { prefix: '/api', prisma });
+  await app.register(postsRoutes, { prefix: '/api', prisma });
 
   if (osEnabled) {
     try {

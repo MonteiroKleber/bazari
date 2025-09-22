@@ -139,6 +139,13 @@ model User {
   updatedAt DateTime @updatedAt
 
   refreshTokens RefreshToken[]
+
+  // Perfis (1:1)
+  profile       Profile?
+  sellerProfile SellerProfile?
+
+  // Relacionamentos DAO (owner)
+  daosOwned Dao[]
 }
 
 model AuthNonce {
@@ -260,4 +267,95 @@ model EscrowLog {
   @@index([orderId])
   @@index([kind])
   @@index([createdAt])
+}
+
+/// --- Social / Profiles ---
+
+model Profile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id])
+  handle         String   @unique
+  displayName    String
+  bio            String?  @db.Text
+  avatarUrl      String?
+  bannerUrl      String?
+  externalLinks  Json?
+  followersCount Int      @default(0)
+  followingCount Int      @default(0)
+  postsCount     Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  posts     Post[]
+  followers Follow[] @relation("follows_following")
+  following Follow[] @relation("follows_follower")
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  Profile @relation("follows_follower", fields: [followerId], references: [id])
+  following Profile @relation("follows_following", fields: [followingId], references: [id])
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+}
+
+model SellerProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id])
+  shopName    String
+  shopSlug    String   @unique
+  about       String?  @db.Text
+  ratingAvg   Float    @default(0)
+  ratingCount Int      @default(0)
+  policies    Json?
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  authorId  String
+  author    Profile  @relation(fields: [authorId], references: [id])
+  kind      String   // 'text' | 'image' | 'link' (MVP: text)
+  content   String   @db.Text
+  media     Json?
+  createdAt DateTime @default(now())
+
+  @@index([authorId, createdAt])
+}
+
+model Dao {
+  id          String @id @default(cuid())
+  name        String
+  slug        String @unique
+  ownerUserId String?
+  owner       User?   @relation(fields: [ownerUserId], references: [id])
+
+  @@index([ownerUserId])
+}
+
+model SubDao {
+  id          String @id @default(cuid())
+  daoId       String
+  name        String
+  slug        String @unique
+  ownerUserId String // User.id (dono/admin)
+
+  @@index([ownerUserId])
+}
+
+model ProfileSubDao {
+  id        String   @id @default(cuid())
+  profileId String
+  subDaoId  String
+  role      String   // 'owner' | 'admin' | 'member'
+  createdAt DateTime @default(now())
+
+  @@unique([profileId, subDaoId])
 }

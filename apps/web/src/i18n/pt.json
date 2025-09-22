@@ -188,11 +188,27 @@
     "seeLess": "Ver menos",
     "description": "Descrição",
     "seller": "Vendedor",
+    "sellerNameFallback": "Vendedor",
+    "sellerReputation": "Reputação {{percent}}%",
+    "sellerReputationAria": "Reputação {{percent}}%",
+    "follow": "Seguir",
+    "unfollow": "Deixar de seguir",
     "seeProfile": "Ver perfil",
     "freight": "Calcular Frete",
     "calculate": "Calcular",
     "enterZipOrCity": "Informe CEP ou cidade",
     "estimateResult": "Estimativa: {{days}} dias • Frete: {{price}}"
+  },
+  "profile": {
+    "posts": "Posts",
+    "store": "Loja",
+    "subdaos": "SubDAOs",
+    "followers": "Seguidores",
+    "following": "Seguindo",
+    "seeMore": "Ver mais",
+    "noPosts": "Sem posts ainda.",
+    "none": "Nenhum resultado.",
+    "loading": "Carregando..."
   },
   "dev": {
     "title": "Painel do Desenvolvedor",
