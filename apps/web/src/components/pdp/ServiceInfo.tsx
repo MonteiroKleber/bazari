@@ -2,8 +2,12 @@
 
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Button } from '../ui/button';
 import PriceBzr from '../PriceBzr';
+import { useCartSellerConflict } from '@/modules/cart/cart.store';
+import { SellerConflictModal } from '@/modules/cart/components/SellerConflictModal';
 import type { ServiceDetail } from '../../hooks/useServiceDetail';
 
 interface ServiceInfoProps {
@@ -16,18 +20,77 @@ function hasMedia(media: Array<{ id: string; url: string }>) {
 
 export function ServiceInfo({ service }: ServiceInfoProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [isFavorite, setIsFavorite] = useState(false);
+  const [conflictModal, setConflictModal] = useState<{
+    isOpen: boolean;
+    currentSeller: string;
+    newSeller: string;
+    newItem: any;
+  }>({
+    isOpen: false,
+    currentSeller: '',
+    newSeller: '',
+    newItem: null,
+  });
+
+  const { addItemWithConflictCheck, confirmAndReplaceCart } = useCartSellerConflict();
 
   const ratingValue = typeof service.ratingValue === 'number' ? service.ratingValue : null;
   const ratingCount = typeof service.ratingCount === 'number' ? service.ratingCount : null;
   const hasRating = ratingValue !== null && ratingCount !== null && ratingCount > 0;
 
-  const handleHire = () => {
-    console.log('hire_now', { id: service.id });
+  const normalizePrice = (v?: string | null) => {
+    if (!v) return '0';
+    return String(v).replace(',', '.');
   };
 
-  const handleRequestQuote = () => {
-    console.log('request_quote', { id: service.id });
+  const createCartItem = () => ({
+    listingId: service.id,
+    qty: 1,
+    priceBzrSnapshot: normalizePrice(service.basePriceBzr),
+    titleSnapshot: service.title,
+    sellerId: service.daoId || 'unknown',
+    kind: 'service' as const,
+  });
+
+  const handleHire = async () => {
+    const item = createCartItem();
+    const result = await addItemWithConflictCheck(item);
+
+    if (result.needsConfirmation) {
+      setConflictModal({
+        isOpen: true,
+        currentSeller: result.currentSeller || '',
+        newSeller: result.newSeller,
+        newItem: result.newItem,
+      });
+    } else {
+      // Ir direto para checkout
+      navigate('/app/checkout');
+    }
+  };
+
+  const handleRequestQuote = async () => {
+    const item = createCartItem();
+    const result = await addItemWithConflictCheck(item);
+
+    if (result.needsConfirmation) {
+      setConflictModal({
+        isOpen: true,
+        currentSeller: result.currentSeller || '',
+        newSeller: result.newSeller,
+        newItem: result.newItem,
+      });
+    } else {
+      // Mostrar toast de sucesso
+      toast.success(t('cart.itemAdded'), {
+        action: {
+          label: t('cart.viewCart'),
+          onClick: () => navigate('/app/cart'),
+        },
+      });
+    }
   };
 
   const handleChat = () => {
@@ -36,6 +99,24 @@ export function ServiceInfo({ service }: ServiceInfoProps) {
 
   const toggleFavorite = () => {
     setIsFavorite(prev => !prev);
+  };
+
+  const handleConflictConfirm = async () => {
+    if (conflictModal.newItem) {
+      await confirmAndReplaceCart(conflictModal.newItem);
+      setConflictModal({ isOpen: false, currentSeller: '', newSeller: '', newItem: null });
+
+      toast.success(t('cart.cartReplaced'), {
+        action: {
+          label: t('cart.viewCart'),
+          onClick: () => navigate('/app/cart'),
+        },
+      });
+    }
+  };
+
+  const handleConflictCancel = () => {
+    setConflictModal({ isOpen: false, currentSeller: '', newSeller: '', newItem: null });
   };
 
   const ratingLabel = hasRating
@@ -90,6 +171,15 @@ export function ServiceInfo({ service }: ServiceInfoProps) {
       {!hasMedia(service.media) ? (
         <p className="text-sm text-muted-foreground">{t('pdp.noImage')}</p>
       ) : null}
+
+      <SellerConflictModal
+        isOpen={conflictModal.isOpen}
+        onClose={handleConflictCancel}
+        onConfirm={handleConflictConfirm}
+        currentSeller={conflictModal.currentSeller}
+        newSeller={conflictModal.newSeller}
+        newItem={conflictModal.newItem}
+      />
     </div>
   );
 }

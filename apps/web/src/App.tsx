@@ -18,6 +18,10 @@ import { SearchPage } from './pages/SearchPage';
 import { NewListingPage } from './pages/NewListingPage';
 import { ProductDetailPage } from './pages/ProductDetailPage';
 import { ServiceDetailPage } from './pages/ServiceDetailPage';
+import { OrderPage } from './pages/OrderPage';
+import { CartPage } from './modules/cart/pages/CartPage';
+import { CheckoutPage } from './modules/orders/pages/CheckoutPage';
+import { OrderPayPage } from './modules/orders/pages/OrderPayPage';
 import { CreateAccount } from './pages/auth/CreateAccount';
 import { ImportAccount } from './pages/auth/ImportAccount';
 import { Unlock } from './pages/auth/Unlock';
@@ -209,6 +213,11 @@ function App() {
                       <Route path="new" element={<NewListingPage />} />
                       <Route path="product/:id" element={<ProductDetailPage />} />
                       <Route path="service/:id" element={<ServiceDetailPage />} />
+                      <Route path="cart" element={<CartPage />} />
+                      <Route path="checkout" element={<CheckoutPage />} />
+                      <Route path="orders/:id/pay" element={<OrderPayPage />} />
+                      <Route path="orders/:id" element={<OrderPage />} />
+                      <Route path="order/:id" element={<OrderPage />} />
                       {/* Futuras rotas internas */}
                       {/* <Route path="dashboard" element={<Dashboard />} /> */}
                       {/* <Route path="wallet" element={<Wallet />} /> */}

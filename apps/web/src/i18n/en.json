@@ -700,5 +700,171 @@
       "networkHint": "Only accept transfers from the Bazarichain network (token {{symbol}}).",
       "noAccount": "Activate or import an account to display your address."
     }
+  },
+  "checkout": {
+    "title": "Complete Payment",
+    "loading": "Loading payment data...",
+    "payment": {
+      "title": "Payment Summary",
+      "description": "Review the details before confirming payment."
+    },
+    "amount": "Amount",
+    "networkFee": "Network fee",
+    "marketplaceFee": "Marketplace fee",
+    "escrowAddress": "Escrow address",
+    "txHash": "Transaction hash",
+    "pay": "Confirm Payment",
+    "processing": "Processing...",
+    "retry": "Try again",
+    "status": {
+      "idle": "Waiting",
+      "estimating": "Estimating fee...",
+      "ready": "Ready to pay",
+      "signing": "Signing transaction...",
+      "broadcasting": "Broadcasting transaction...",
+      "in_block": "Included in block",
+      "finalized": "Finalized",
+      "error": "Error"
+    },
+    "error": {
+      "invalidId": "Invalid order ID",
+      "loadFailed": "Failed to load payment data",
+      "apiNotReady": "API not connected",
+      "feeEstimationFailed": "Failed to estimate network fee",
+      "paymentFailed": "Payment failed",
+      "txFailed": "Transaction failed",
+      "txError": "Transaction error"
+    }
+  },
+  "order": {
+    "title": "Order Details",
+    "loading": "Loading order...",
+    "status": "Status",
+    "amount": "Amount",
+    "buyer": "Buyer",
+    "seller": "Seller",
+    "escrow": "Escrow",
+    "txHashIn": "Deposit hash",
+    "txHashRelease": "Release hash",
+    "txHashRefund": "Refund hash",
+    "retry": "Try again",
+    "info": {
+      "title": "Order Information"
+    },
+    "actions": {
+      "title": "Actions",
+      "description": "Manage your order status",
+      "confirmReceived": "Confirm Received",
+      "confirming": "Confirming...",
+      "cancel": "Cancel Order",
+      "cancelling": "Cancelling..."
+    },
+    "recommendation": {
+      "title": "System Recommendation"
+    },
+    "intents": {
+      "title": "Payment Intents"
+    },
+    "logs": {
+      "title": "Escrow Logs"
+    },
+    "error": {
+      "invalidId": "Invalid order ID",
+      "notFound": "Order not found",
+      "loadFailed": "Failed to load order",
+      "confirmFailed": "Failed to confirm receipt",
+      "cancelFailed": "Failed to cancel order"
+    }
+  },
+  "cart": {
+    "title": "Shopping Cart",
+    "itemCount": "{{count}} item",
+    "itemCount_other": "{{count}} items",
+    "empty": {
+      "title": "Your cart is empty",
+      "description": "Explore our catalog and add items to your cart.",
+      "browseCatalog": "Browse Catalog"
+    },
+    "items": {
+      "title": "Items"
+    },
+    "kind": {
+      "product": "Product",
+      "service": "Service"
+    },
+    "unitPrice": "Unit price",
+    "increaseQty": "Increase quantity",
+    "decreaseQty": "Decrease quantity",
+    "remove": "Remove",
+    "clearAll": "Clear All",
+    "confirmClear": "Are you sure you want to clear the entire cart?",
+    "summary": {
+      "title": "Order Summary",
+      "description": "Review totals before proceeding.",
+      "subtotal": "Subtotal",
+      "total": "Total",
+      "taxNote": "Taxes and shipping will be calculated at checkout."
+    },
+    "proceedToCheckout": "Proceed to Checkout",
+    "continueShopping": "Continue Shopping",
+    "itemAdded": "Item added to cart!",
+    "cartReplaced": "Cart updated with new seller!",
+    "viewCart": "View Cart",
+    "sellerConflict": {
+      "title": "Different Seller",
+      "description": "Your cart already contains items from another seller.",
+      "currentCart": "Current seller in cart:",
+      "newItem": "New item from:",
+      "warning": "You can only purchase from one seller at a time. Do you want to clear the cart and add this item?",
+      "cancel": "Cancel",
+      "confirm": "Yes, Clear and Add"
+    }
+  }
+  ,
+  "pay": {
+    "title": "Payment",
+    "orderNumber": "Order #{{number}}",
+    "loading": "Loading...",
+    "notFound": {
+      "title": "Order not found",
+      "description": "The order you are looking for does not exist or was removed.",
+      "backToOrders": "Back to Orders"
+    },
+    "status": { "title": "Order Status" },
+    "payment": {
+      "title": "Payment Details",
+      "description": "Confirm the details before making the payment.",
+      "amount": "Total amount",
+      "escrow": "Escrow address",
+      "fee": "Marketplace fee",
+      "insufficient": "Insufficient balance to cover amount, fee and ED.",
+      "addFunds": "Add funds",
+      "connectWallet": "Connect your wallet to continue.",
+      "payNow": "Pay Now",
+      "processing": "Processing payment...",
+      "escrowNote": "Funds will remain in escrow until delivery is confirmed."
+    },
+    "summary": {
+      "title": "Order Summary",
+      "qty": "{{qty}}x",
+      "subtotal": "Subtotal",
+      "shipping": "Shipping",
+      "total": "Total"
+    },
+    "shipping": { "title": "Shipping Address" },
+    "error": {
+      "loadFailed": "Failed to load payment data",
+      "paymentFailed": "Payment failed. Try again."
+    },
+    "enterPin": "Enter your PIN to confirm the payment"
+  },
+  "orderStatus": {
+    "created": "CREATED",
+    "escrowed": "ESCROWED",
+    "shipped": "SHIPPED",
+    "released": "RELEASED",
+    "refunded": "REFUNDED",
+    "cancelled": "CANCELLED",
+    "timeout": "TIMEOUT"
   }
 }

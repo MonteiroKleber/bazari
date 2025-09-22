@@ -712,5 +712,212 @@
       "networkHint": "Aceite transferências apenas na rede Bazari (token {{symbol}}).",
       "noAccount": "Ative ou importe uma conta para exibir o endereço."
     }
+  },
+  "checkout": {
+    "title": "Finalizar Pagamento",
+    "loading": "Carregando dados do pagamento...",
+    "payment": {
+      "title": "Resumo do Pagamento",
+      "description": "Revise os detalhes antes de confirmar o pagamento."
+    },
+    "amount": "Valor",
+    "networkFee": "Taxa de rede",
+    "marketplaceFee": "Taxa do marketplace",
+    "escrowAddress": "Endereço escrow",
+    "txHash": "Hash da transação",
+    "pay": "Confirmar Pagamento",
+    "processing": "Processando...",
+    "retry": "Tentar novamente",
+    "enterPin": "Digite seu PIN para confirmar o pagamento",
+    "status": {
+      "idle": "Aguardando",
+      "estimating": "Estimando taxa...",
+      "ready": "Pronto para pagamento",
+      "signing": "Assinando transação...",
+      "broadcasting": "Enviando transação...",
+      "in_block": "Incluído no bloco",
+      "finalized": "Finalizado",
+      "error": "Erro"
+    },
+    "error": {
+      "invalidId": "ID da order inválido",
+      "loadFailed": "Falha ao carregar dados do pagamento",
+      "apiNotReady": "API não está conectada",
+      "feeEstimationFailed": "Falha ao estimar taxa de rede",
+      "paymentFailed": "Falha no pagamento",
+      "txFailed": "Transação falhou",
+      "txError": "Erro na transação",
+      "noAccount": "Nenhuma conta ativa encontrada"
+    }
+  },
+  "order": {
+    "title": "Detalhes da Order",
+    "loading": "Carregando order...",
+    "status": "Status",
+    "amount": "Valor",
+    "buyer": "Comprador",
+    "seller": "Vendedor",
+    "escrow": "Escrow",
+    "txHashIn": "Hash depósito",
+    "txHashRelease": "Hash release",
+    "txHashRefund": "Hash refund",
+    "retry": "Tentar novamente",
+    "info": {
+      "title": "Informações da Order"
+    },
+    "actions": {
+      "title": "Ações",
+      "description": "Gerencie o status da sua order",
+      "confirmReceived": "Confirmar Recebimento",
+      "confirming": "Confirmando...",
+      "cancel": "Cancelar Order",
+      "cancelling": "Cancelando..."
+    },
+    "recommendation": {
+      "title": "Recomendação do Sistema"
+    },
+    "intents": {
+      "title": "Payment Intents"
+    },
+    "logs": {
+      "title": "Logs de Escrow"
+    },
+    "error": {
+      "invalidId": "ID da order inválido",
+      "notFound": "Order não encontrada",
+      "loadFailed": "Falha ao carregar order",
+      "confirmFailed": "Falha ao confirmar recebimento",
+      "cancelFailed": "Falha ao cancelar order"
+    }
+  },
+  "newCheckout": {
+    "title": "Finalizar Compra",
+    "empty": {
+      "title": "Carrinho vazio",
+      "description": "Adicione itens ao carrinho antes de finalizar a compra.",
+      "backToCart": "Voltar ao Carrinho"
+    },
+    "shipping": {
+      "title": "Endereço de Entrega",
+      "description": "Informe o endereço onde deseja receber seu pedido.",
+      "street": "Endereço",
+      "streetPlaceholder": "Rua, número, complemento",
+      "city": "Cidade",
+      "cityPlaceholder": "Digite a cidade",
+      "state": "Estado",
+      "statePlaceholder": "UF",
+      "zipCode": "CEP",
+      "zipCodePlaceholder": "00000-000",
+      "country": "País",
+      "countryPlaceholder": "Brasil"
+    },
+    "summary": {
+      "title": "Resumo do Pedido",
+      "description": "Confira os itens do seu pedido.",
+      "qty": "{{qty}}x",
+      "subtotal": "Subtotal",
+      "shipping": "Frete",
+      "total": "Total",
+      "note": "O valor será cobrado em BZR no momento do pagamento."
+    },
+    "createOrder": "Criar Pedido",
+    "creating": "Criando pedido...",
+    "error": {
+      "createOrderFailed": "Falha ao criar pedido. Tente novamente."
+    }
+  },
+  "pay": {
+    "title": "Pagamento",
+    "orderNumber": "Pedido #{{number}}",
+    "loading": "Carregando...",
+    "notFound": {
+      "title": "Pedido não encontrado",
+      "description": "O pedido que você está procurando não existe ou foi removido.",
+      "backToOrders": "Voltar aos Pedidos"
+    },
+    "status": {
+      "title": "Status do Pedido"
+    },
+    "payment": {
+      "title": "Detalhes do Pagamento",
+      "description": "Confirme os detalhes antes de efetuar o pagamento.",
+      "amount": "Valor total",
+      "escrow": "Endereço escrow",
+      "fee": "Taxa do marketplace",
+      "insufficient": "Saldo insuficiente para cobrir valor, taxa e ED.",
+      "addFunds": "Adicionar fundos",
+      "connectWallet": "Conecte sua carteira para continuar.",
+      "payNow": "Pagar Agora",
+      "processing": "Processando pagamento...",
+      "escrowNote": "Os fundos ficarão em garantia até a confirmação da entrega."
+    },
+    "summary": {
+      "title": "Resumo do Pedido",
+      "qty": "{{qty}}x",
+      "subtotal": "Subtotal",
+      "shipping": "Frete",
+      "total": "Total"
+    },
+    "shipping": {
+      "title": "Endereço de Entrega"
+    },
+    "error": {
+      "loadFailed": "Falha ao carregar dados do pagamento",
+      "paymentFailed": "Falha no pagamento. Tente novamente."
+    },
+    "enterPin": "Digite seu PIN para confirmar o pagamento"
+  },
+  "cart": {
+    "title": "Carrinho de Compras",
+    "itemCount": "{{count}} item",
+    "itemCount_other": "{{count}} itens",
+    "empty": {
+      "title": "Seu carrinho está vazio",
+      "description": "Explore nosso catálogo e adicione itens ao seu carrinho.",
+      "browseCatalog": "Explorar Catálogo"
+    },
+    "items": {
+      "title": "Itens"
+    },
+    "kind": {
+      "product": "Produto",
+      "service": "Serviço"
+    },
+    "unitPrice": "Preço unitário",
+    "increaseQty": "Aumentar quantidade",
+    "decreaseQty": "Diminuir quantidade",
+    "remove": "Remover",
+    "clearAll": "Limpar Tudo",
+    "confirmClear": "Tem certeza que deseja limpar todo o carrinho?",
+    "summary": {
+      "title": "Resumo do Pedido",
+      "description": "Confira os totais antes de prosseguir.",
+      "subtotal": "Subtotal",
+      "total": "Total",
+      "taxNote": "Taxas e frete serão calculados no checkout."
+    },
+    "proceedToCheckout": "Finalizar Compra",
+    "continueShopping": "Continuar Comprando",
+    "itemAdded": "Item adicionado ao carrinho!",
+    "cartReplaced": "Carrinho atualizado com o novo vendedor!",
+    "viewCart": "Ver Carrinho",
+    "sellerConflict": {
+      "title": "Vendedor Diferente",
+      "description": "Seu carrinho já contém itens de outro vendedor.",
+      "currentCart": "Vendedor atual no carrinho:",
+      "newItem": "Novo item de:",
+      "warning": "Só é possível comprar de um vendedor por vez. Deseja limpar o carrinho e adicionar este item?",
+      "cancel": "Cancelar",
+      "confirm": "Sim, Limpar e Adicionar"
+    }
+  },
+  "orderStatus": {
+    "created": "CRIADO",
+    "escrowed": "EM GARANTIA",
+    "shipped": "ENVIADO",
+    "released": "LIBERADO",
+    "refunded": "REEMBOLSADO",
+    "cancelled": "CANCELADO",
+    "timeout": "EXPIRADO"
   }
 }
