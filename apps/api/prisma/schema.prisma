@@ -77,6 +77,8 @@ model Product {
   categoryPath          String[]
   attributes            Json
   attributesSpecVersion String
+  sellerUserId          String?
+  status                ProductStatus @default(PUBLISHED)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   
@@ -90,6 +92,8 @@ model Product {
   @@index([attributes], type: Gin)
   @@index([priceBzr])
   @@index([createdAt])
+  @@index([sellerUserId])
+  @@index([status])
 }
 
 model ServiceOffering {
@@ -191,6 +195,13 @@ enum PaymentIntentStatus {
   REFUNDED
   TIMEOUT
   CANCELLED
+}
+
+// Publicação/status de produtos
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
 }
 
 model Order {
@@ -316,6 +327,8 @@ model SellerProfile {
   ratingAvg   Float    @default(0)
   ratingCount Int      @default(0)
   policies    Json?
+  avatarUrl   String?
+  bannerUrl   String?
 }
 
 model Post {

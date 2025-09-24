@@ -17,6 +17,7 @@ import { normaliseAddress } from '@/modules/wallet/utils/format';
 import { ordersApi } from '../api';
 import { getNativeBalance } from '@/modules/wallet/services/balances';
 import { BZR } from '@/utils/bzr';
+import { PinDialog } from '@/modules/wallet/components/PinDialog';
 
 interface OrderDetails {
   id: string;
@@ -79,6 +80,8 @@ export function OrderPayPage() {
   const [estimatedFee, setEstimatedFee] = useState<string | null>(null);
   const [ed, setEd] = useState<string | null>(null);
   const [freeBalance, setFreeBalance] = useState<string | null>(null);
+  const [pinOpen, setPinOpen] = useState(false);
+  const [pinError, setPinError] = useState<string | null>(null);
 
   const formatBzr = useCallback((value: string | number) => {
     const locale = BZR.normalizeLocale(i18n.language);
@@ -130,35 +133,31 @@ export function OrderPayPage() {
     loadOrderData();
   }, [loadOrderData]);
 
-  const handlePayment = useCallback(async () => {
+  const signAndPay = useCallback(async (pin: string) => {
     if (!account || !paymentIntent || !order || !chainProps) return;
 
     setPaying(true);
     setError(null);
+    setPinError(null);
 
     try {
       const api = await getApi();
-      const pin = prompt(t('pay.enterPin', 'Digite seu PIN para confirmar o pagamento'));
-      if (!pin) {
-        setPaying(false);
-        return;
-      }
-
-      const mnemonic = await decryptMnemonic(account.cipher, account.iv, account.salt, pin, account.iterations);
+      let mnemonic = await decryptMnemonic(account.cipher, account.iv, account.salt, pin, account.iterations);
       await cryptoWaitReady();
       const ss58 = chainProps?.ss58Prefix ?? 42;
       const keyring = new Keyring({ type: 'sr25519', ss58Format: ss58 });
       const pair = keyring.addFromMnemonic(mnemonic);
+      mnemonic = '';
 
       const tx = api.tx.balances.transferKeepAlive(paymentIntent.escrowAddress, paymentIntent.amountBzr);
 
       const unsubscribe = await tx.signAndSend(pair, (result) => {
-        const { status, dispatchError } = result;
+        const { status, dispatchError } = result as any;
 
         if (dispatchError) {
-          let message = dispatchError.toString();
-          if ((dispatchError as any).isModule) {
-            const metaError = api.registry.findMetaError((dispatchError as any).asModule);
+          let message = String(dispatchError);
+          if (dispatchError.isModule) {
+            const metaError = api.registry.findMetaError(dispatchError.asModule);
             message = `${metaError.section}.${metaError.name}`;
           }
           setError(message);
@@ -167,17 +166,22 @@ export function OrderPayPage() {
           return;
         }
 
-        if (status.isFinalized) {
+        if (status?.isFinalized) {
           try { (unsubscribe as unknown as () => void)(); } catch {}
           navigate(`/app/orders/${order.id}`);
         }
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('pay.error.paymentFailed'));
-    } finally {
+      const msg = err instanceof Error ? err.message : t('pay.error.paymentFailed');
+      setPinError(msg);
       setPaying(false);
     }
   }, [account, paymentIntent, order, chainProps, navigate, t]);
+
+  const handlePayment = useCallback(() => {
+    if (!account || !paymentIntent || !order || !chainProps) return;
+    setPinOpen(true);
+  }, [account, paymentIntent, order, chainProps]);
 
   if (loading) {
     return (
@@ -304,6 +308,12 @@ export function OrderPayPage() {
                   </div>
                 )}
 
+                {paying && (
+                  <div className="p-4 rounded-md bg-primary/10 border border-primary/20">
+                    <p className="text-sm">{t('pay.payment.processing')}</p>
+                  </div>
+                )}
+
                 {!hasFunds && (
                   <div className="p-4 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/40">
                     <div className="flex items-start gap-2 text-sm">
@@ -401,6 +411,21 @@ export function OrderPayPage() {
           )}
         </div>
       </div>
+      <PinDialog
+        open={pinOpen}
+        title={t('wallet.send.pinTitle')}
+        description={t('wallet.send.pinDescription')}
+        label={t('wallet.send.pinLabel')}
+        cancelText={t('wallet.send.pinCancel')}
+        confirmText={t('wallet.send.pinConfirm')}
+        loading={paying}
+        error={pinError}
+        onCancel={() => { setPinOpen(false); setPinError(null); }}
+        onConfirm={(pin) => { setPinOpen(false); void signAndPay(pin); }}
+      />
     </div>
   );
 }
+
+// Pin dialog rendered at root to match wallet signer UX
+// This must be after component return to avoid JSX nesting issues, so we export a fragment in the same tree.

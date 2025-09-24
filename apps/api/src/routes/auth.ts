@@ -10,8 +10,8 @@ import {
   hashRefreshToken,
   issueAccessToken,
   issueRefresh,
-  refreshCookieOptions,
   rotateRefresh,
+  getRefreshCookieOptions,
 } from '../lib/auth/jwt.js';
 import { authOnRequest } from '../lib/auth/middleware.js';
 import { parseMessage } from '@bazari/siws-utils';
@@ -202,7 +202,7 @@ export async function authRoutes(app: FastifyInstance, options: { prisma: Prisma
     const tokenRecord = await prisma.refreshToken.findUnique({ where: { tokenHash } });
 
     if (!tokenRecord || tokenRecord.revokedAt) {
-      reply.clearCookie(authConfig.refreshCookieName, refreshCookieOptions);
+      reply.clearCookie(authConfig.refreshCookieName, getRefreshCookieOptions());
       return reply.status(401).send({ error: 'Refresh token inválido.' });
     }
 
@@ -214,7 +214,7 @@ export async function authRoutes(app: FastifyInstance, options: { prisma: Prisma
         where: { id: tokenRecord.id },
         data: { revokedAt: new Date() },
       });
-      reply.clearCookie(authConfig.refreshCookieName, refreshCookieOptions);
+      reply.clearCookie(authConfig.refreshCookieName, getRefreshCookieOptions());
       return reply.status(401).send({ error: 'Refresh token expirado.' });
     }
 
@@ -225,7 +225,7 @@ export async function authRoutes(app: FastifyInstance, options: { prisma: Prisma
         where: { id: tokenRecord.id },
         data: { revokedAt: new Date() },
       });
-      reply.clearCookie(authConfig.refreshCookieName, refreshCookieOptions);
+      reply.clearCookie(authConfig.refreshCookieName, getRefreshCookieOptions());
       return reply.status(401).send({ error: 'Usuário não encontrado.' });
     }
 
@@ -258,7 +258,7 @@ export async function authRoutes(app: FastifyInstance, options: { prisma: Prisma
       }
     }
 
-    reply.clearCookie(authConfig.refreshCookieName, refreshCookieOptions);
+    reply.clearCookie(authConfig.refreshCookieName, getRefreshCookieOptions());
     return reply.status(204).send();
   });
 

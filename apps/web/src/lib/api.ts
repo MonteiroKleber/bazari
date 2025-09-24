@@ -133,6 +133,18 @@ export async function putJSON<T>(path: string, data: unknown): Promise<T> {
   });
 }
 
+// Helper para PATCH com JSON
+export async function patchJSON<T>(path: string, data: unknown): Promise<T> {
+  return apiFetch<T>(path, {
+    method: "PATCH",
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+}
+
 // Helper para DELETE
 export async function deleteJSON<T>(path: string): Promise<T> {
   return apiFetch<T>(path, {
@@ -253,6 +265,11 @@ export const apiHelpers = {
   getMeProfile: () => getJSON('/me/profile'),
   upsertMeProfile: (payload: any) => postJSON('/me/profile', payload),
   upsertMeSeller: (payload: any) => postJSON('/me/seller', payload),
+  getMeSeller: () => getJSON('/me/seller'),
+  getSellerPublic: (shopSlug: string, params?: any) => {
+    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+    return getJSON(`/sellers/${encodeURIComponent(shopSlug)}${qs}`);
+  },
   follow: (targetHandle: string) => postJSON('/social/follow', { targetHandle }),
   unfollow: (targetHandle: string) => postJSON('/social/unfollow', { targetHandle }),
   createPost: (payload: any) => postJSON('/posts', payload),

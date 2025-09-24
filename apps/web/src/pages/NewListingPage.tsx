@@ -22,6 +22,7 @@ import { CategoryPicker } from '../components/CategoryPicker';
 import { DynamicForm } from '../components/DynamicForm';
 import { useEffectiveSpec } from '../hooks/useEffectiveSpec';
 import { api } from '../lib/api';
+import { getSessionUser } from '@/modules/auth';
 
 interface UploadedFile {
   file: File;
@@ -48,7 +49,7 @@ export function NewListingPage() {
     title: '',
     description: '',
     price: '',
-    daoId: 'dao-demo' // Temporário
+    daoId: ''
   });
   const [attributes, setAttributes] = useState<any>({});
   const [submitting, setSubmitting] = useState(false);
@@ -62,6 +63,14 @@ export function NewListingPage() {
   const previewsRef = useRef<string[]>([]);
 
   useEffect(() => {
+    // Preencher daoId automaticamente com o address do usuário logado (fallback preservado depois)
+    try {
+      const user = getSessionUser();
+      if (user?.address) {
+        setBasicData((prev) => ({ ...prev, daoId: user.address }));
+      }
+    } catch {}
+
     // Cleanup global de previews ao desmontar a página
     return () => {
       try {
@@ -241,8 +250,16 @@ export function NewListingPage() {
         .map(f => f.mediaId as string);
 
       // CORREÇÃO: Construir payload sem campo 'price' duplicado
+      // Resolver daoId do seller/loja corretamente (nunca usar 'dao-demo')
+      const resolvedDaoId = basicData.daoId || getSessionUser()?.address || '';
+      if (!resolvedDaoId) {
+        setSubmitting(false);
+        setError(t('errors.missing_seller', { defaultValue: 'Não foi possível identificar sua loja/conta. Faça login novamente ou conclua a configuração do vendedor.' }));
+        return;
+      }
+
       const payload = {
-        daoId: basicData.daoId,
+        daoId: resolvedDaoId,
         title: basicData.title,
         description: basicData.description,
         categoryPath,
@@ -280,12 +297,12 @@ export function NewListingPage() {
     log('  - Mantendo categoryId:', categoryId);
     
     // Limpar dados mas manter categoria
-    setBasicData({
+    setBasicData((prev) => ({
       title: '',
       description: '',
       price: '',
-      daoId: 'dao-demo'
-    });
+      daoId: prev.daoId || getSessionUser()?.address || ''
+    }));
     setAttributes({});
     setUploadedFiles([]);
     setSuccessData(null);
@@ -303,12 +320,12 @@ export function NewListingPage() {
     setKind(null);
     setCategoryId(null);
     setCategoryPath([]);
-    setBasicData({
+    setBasicData((prev) => ({
       title: '',
       description: '',
       price: '',
-      daoId: 'dao-demo'
-    });
+      daoId: prev.daoId || getSessionUser()?.address || ''
+    }));
     setAttributes({});
     setUploadedFiles([]);
     setSuccessData(null);

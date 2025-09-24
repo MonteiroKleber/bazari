@@ -3,9 +3,32 @@ import type { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { authOnRequest } from '../lib/auth/middleware.js';
 import { validateSlug } from '../lib/handles.js';
+import { decodeCursor, encodeCursor } from '../lib/cursor.js';
 
 export async function sellersRoutes(app: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
+
+  // GET /me/seller — retorna perfil do vendedor autenticado (ou null)
+  app.get('/me/seller', { preHandler: authOnRequest }, async (request, reply) => {
+    const authUser = (request as any).authUser as { sub: string } | undefined;
+    if (!authUser) return reply.status(401).send({ error: 'Token inválido.' });
+
+    const existing = await prisma.sellerProfile.findUnique({
+      where: { userId: authUser.sub },
+      select: {
+        shopName: true,
+        shopSlug: true,
+        about: true,
+        policies: true,
+        avatarUrl: true,
+        bannerUrl: true,
+        ratingAvg: true,
+        ratingCount: true,
+      },
+    });
+
+    return reply.send({ sellerProfile: existing ?? null });
+  });
 
   // POST /me/seller — criar/atualizar seller profile
   const upsertSchema = z.object({
@@ -36,22 +59,152 @@ export async function sellersRoutes(app: FastifyInstance, options: { prisma: Pri
     }
   });
 
-  // GET /sellers/:shopSlug — público
+  // GET /sellers/:shopSlug — público (com produtos publicados paginados)
+  const publicQuerySchema = z.object({ cursor: z.string().optional(), limit: z.coerce.number().min(1).max(100).optional().default(24) });
   app.get<{ Params: { shopSlug: string } }>('/sellers/:shopSlug', async (request, reply) => {
     const { shopSlug } = request.params;
+    const { cursor, limit } = publicQuerySchema.parse(request.query ?? {});
     try { validateSlug(shopSlug); } catch (e) { return reply.status(400).send({ error: (e as Error).message }); }
 
-    const seller = await prisma.sellerProfile.findUnique({ where: { shopSlug }, include: { user: { select: { id: true } } } });
+    const seller = await prisma.sellerProfile.findUnique({ where: { shopSlug }, include: { user: { select: { id: true, address: true } } } });
     if (!seller) return reply.status(404).send({ error: 'Loja não encontrada' });
 
     const ownerProfile = await prisma.profile.findUnique({ where: { userId: seller.user.id }, select: { handle: true, displayName: true, avatarUrl: true } });
 
-    // Cache curto
-    reply.header('Cache-Control', 'public, max-age=30');
+    // Paginador baseado em createdAt + id
+    const c = decodeCursor(cursor ?? null);
+    const whereAnyBase: any = {}; // status may not exist in some DBs (pre-migration)
+    // Preferir sellerUserId quando disponível (migração/backfill)
+    const whereAny = { ...whereAnyBase, OR: [ { sellerUserId: seller.user.id } ] } as any;
+    // Compatibilidade: produtos vinculados via DAO do seller
+    const daos = await prisma.dao.findMany({ where: { ownerUserId: seller.user.id }, select: { id: true, slug: true } });
+    const daoIds = daos.flatMap(d => [d.id, d.slug]).filter(Boolean);
+    if (daoIds.length > 0) {
+      whereAny.OR.push({ daoId: { in: daoIds } });
+    }
+    // Fallback: produtos cujo daoId é o próprio endereço do usuário
+    if (seller.user.address) {
+      whereAny.OR.push({ daoId: seller.user.address });
+    }
+    // Fallback adicional: produtos cujo daoId é o shopSlug da loja
+    if (seller.shopSlug) {
+      whereAny.OR.push({ daoId: seller.shopSlug });
+    }
 
-    return reply.send({ sellerProfile: { shopName: seller.shopName, shopSlug: seller.shopSlug, about: seller.about, ratingAvg: seller.ratingAvg, ratingCount: seller.ratingCount }, owner: ownerProfile, catalog: { products: [] } });
+    const where = c
+      ? { AND: [ whereAny, { OR: [ { createdAt: { lt: c.createdAt } }, { createdAt: c.createdAt, id: { lt: c.id } } ] } ] }
+      : whereAny;
+
+    const pageSize = Math.min(limit ?? 24, 100);
+    async function fetchPage(includeStatus: boolean) {
+      const whereWithStatus = includeStatus ? { AND: [ { status: 'PUBLISHED' }, where ] } : where;
+      return prisma.product.findMany({
+        where: whereWithStatus,
+        orderBy: [ { createdAt: 'desc' }, { id: 'desc' } ],
+        take: pageSize + 1,
+        select: { id: true, title: true, priceBzr: true, createdAt: true },
+      });
+    }
+
+    let items: Array<{ id: string; title: string; priceBzr: any; createdAt: Date }> = [];
+    try {
+      items = await fetchPage(true);
+    } catch (err: any) {
+      const msg = String(err?.message || err);
+      if (msg.includes('Unknown argument `status`') || msg.includes('column') && msg.includes('status')) {
+        app.log.warn({ err }, 'Status column not available; falling back without status filter');
+        items = await fetchPage(false);
+      } else {
+        throw err;
+      }
+    }
+
+    let nextCursor: string | null = null;
+    if (items.length > pageSize) {
+      const tail = items.pop()!;
+      nextCursor = encodeCursor({ createdAt: (tail as any).createdAt, id: tail.id });
+    }
+
+    // Enriquecer com uma imagem de capa (primeira mídia do produto, se existir)
+    let productCovers: Record<string, string | undefined> = {};
+    if (items.length > 0) {
+      const ids = items.map(p => p.id);
+      const medias = await prisma.mediaAsset.findMany({
+        where: { ownerType: 'Product', ownerId: { in: ids } },
+        orderBy: { createdAt: 'asc' },
+        select: { ownerId: true, url: true },
+      });
+      for (const m of medias) {
+        const key = (m as any).ownerId as string;
+        if (!productCovers[key]) {
+          productCovers[key] = m.url;
+        }
+      }
+    }
+
+    const itemsWithCovers = items.map(p => ({
+      id: p.id,
+      title: p.title,
+      priceBzr: (p as any).priceBzr,
+      createdAt: (p as any).createdAt,
+      coverUrl: productCovers[p.id],
+    }));
+
+    // Cache curto
+    reply.header('Cache-Control', 'public, max-age=60');
+
+    return reply.send({
+      sellerProfile: { shopName: seller.shopName, shopSlug: seller.shopSlug, about: seller.about, ratingAvg: seller.ratingAvg, ratingCount: seller.ratingCount },
+      owner: ownerProfile,
+      catalog: { products: itemsWithCovers, page: { nextCursor, limit: pageSize } },
+    });
+  });
+
+  // GET /me/seller/orders — lista pedidos do vendedor autenticado
+  const ordersQuerySchema = z.object({ cursor: z.string().optional(), limit: z.coerce.number().min(1).max(100).optional().default(20), status: z.string().optional() });
+  app.get('/me/seller/orders', { preHandler: authOnRequest }, async (request, reply) => {
+    const authUser = (request as any).authUser as { sub: string } | undefined;
+    if (!authUser) return reply.status(401).send({ error: 'Token inválido.' });
+
+    const { cursor, limit, status } = ordersQuerySchema.parse(request.query ?? {});
+
+    // Descobrir quais sellerId (daoId/slug) pertencem ao usuário
+    const daos = await prisma.dao.findMany({ where: { ownerUserId: authUser.sub }, select: { id: true, slug: true } });
+    const sellerIds = daos.flatMap(d => [d.id, d.slug]).filter(Boolean);
+    // Também permitir match por sellerAddr = user address (compat)
+    const user = await prisma.user.findUnique({ where: { id: authUser.sub }, select: { address: true } });
+
+    if (sellerIds.length === 0 && !user?.address) {
+      return reply.send({ items: [], nextCursor: null });
+    }
+
+    const baseWhere: any = { OR: [] as any[] };
+    if (sellerIds.length > 0) baseWhere.OR.push({ sellerId: { in: sellerIds } });
+    if (user?.address) baseWhere.OR.push({ sellerAddr: user.address });
+    if (status) baseWhere.status = status;
+
+    const c = decodeCursor(cursor ?? null);
+    const where = c
+      ? { AND: [ baseWhere, { OR: [ { createdAt: { lt: c.createdAt } }, { createdAt: c.createdAt, id: { lt: c.id } } ] } ] }
+      : baseWhere;
+
+    const take = Math.min(limit ?? 20, 100);
+    const rows = await prisma.order.findMany({
+      where,
+      orderBy: [ { createdAt: 'desc' }, { id: 'desc' } ],
+      take: take + 1,
+      include: { items: { orderBy: { createdAt: 'asc' } } },
+    });
+
+    let nextCursor: string | null = null;
+    if (rows.length > take) {
+      const tail = rows.pop()!;
+      nextCursor = encodeCursor({ createdAt: (tail as any).createdAt, id: tail.id });
+    }
+
+    const items = rows.map(o => ({ id: o.id, createdAt: o.createdAt, totalBzr: o.totalBzr.toString?.() ?? String(o.totalBzr), status: o.status, items: o.items.map(i => ({ listingId: i.listingId, titleSnapshot: i.titleSnapshot, qty: i.qty, lineTotalBzr: i.lineTotalBzr.toString?.() ?? String(i.lineTotalBzr) })) }));
+    return reply.send({ items, nextCursor });
   });
 }
 
 export default sellersRoutes;
-

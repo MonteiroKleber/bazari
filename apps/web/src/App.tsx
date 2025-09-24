@@ -15,6 +15,7 @@ import { Footer } from './components/Footer';
 import { ThemeGallery } from './components/ThemeGallery';
 import { DevPanel } from './components/DevPanel';
 import { SearchPage } from './pages/SearchPage';
+import ExplorePage from './pages/ExplorePage';
 import { NewListingPage } from './pages/NewListingPage';
 import { ProductDetailPage } from './pages/ProductDetailPage';
 import { ServiceDetailPage } from './pages/ServiceDetailPage';
@@ -35,6 +36,11 @@ import { hasEncryptedSeed, isSessionActive } from '@/modules/auth';
 import DashboardPage from './pages/DashboardPage';
 import ProfileEditPage from './pages/ProfileEditPage';
 import ProfilePublicPage from './pages/ProfilePublicPage';
+import SellerSetupPage from './pages/SellerSetupPage';
+import SellerPublicPage from './pages/SellerPublicPage';
+import SellerDashboardPage from './pages/SellerDashboardPage';
+import SellerProductsPage from './pages/SellerProductsPage';
+import SellerOrdersPage from './pages/SellerOrdersPage';
 
 function LandingPage() {
   const { t } = useTranslation();
@@ -201,7 +207,9 @@ function App() {
             {/* Rotas públicas */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/search" element={<SearchPage />} />
+            <Route path="/explore" element={<ExplorePage />} />
             <Route path="/u/:handle" element={<ProfilePublicPage />} />
+            <Route path="/seller/:shopSlug" element={<SellerPublicPage />} />
             <Route path="/auth/create" element={<CreateAccount />} />
             <Route path="/auth/import" element={<ImportAccount />} />
             <Route path="/auth/unlock" element={<Unlock />} />
@@ -217,6 +225,10 @@ function App() {
                       <Route index element={<DashboardPage />} />
                       <Route path="dashboard" element={<DashboardPage />} />
                       <Route path="profile/edit" element={<ProfileEditPage />} />
+                      <Route path="seller/setup" element={<SellerSetupPage />} />
+                      <Route path="seller" element={<SellerDashboardPage />} />
+                      <Route path="seller/products" element={<SellerProductsPage />} />
+                      <Route path="seller/orders" element={<SellerOrdersPage />} />
                       <Route path="new" element={<NewListingPage />} />
                       <Route path="product/:id" element={<ProductDetailPage />} />
                       <Route path="service/:id" element={<ServiceDetailPage />} />

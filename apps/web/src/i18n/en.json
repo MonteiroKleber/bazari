@@ -1,6 +1,7 @@
 {
   "//": "V-1 (2025-09-18): Adds pdp.related key to English translations",
   "header": {
+    "explore": "Explore",
     "marketplace": "Marketplace",
     "wallet": "Wallet",
     "governance": "Governance",
@@ -17,6 +18,53 @@
     "signup": "Sign Up",
     "status": {
       "online": "Online"
+    }
+  },
+  "explore": {
+    "title": "Explore the Marketplace",
+    "subtitle": "Search for products and services or browse categories.",
+    "searchPlaceholder": "What are you looking for?",
+    "search": "Search",
+    "all": "All",
+    "products": "Products",
+    "services": "Services",
+    "browseCategories": "Categories",
+    "viewAll": "view all",
+    "errorLoading": "Failed to load categories."
+  },
+  "seller": {
+    "setup": {
+      "title": "Set up your Store"
+    },
+    "form": {
+      "shopName": "Store name",
+      "shopSlug": "Store slug",
+      "about": "About the store",
+      "slugHint": "Use only lowercase letters, numbers and hyphens.",
+      "required": "Please fill the required fields."
+    },
+    "public": {
+      "rating": "Reputation",
+      "ownerProfile": "View owner's profile"
+    },
+    "dashboard": {
+      "title": "Seller Panel",
+      "manageProducts": "My products",
+      "orders": "My sales",
+      "stats": {
+        "published": "Published",
+        "draft": "Drafts",
+        "archived": "Archived"
+      }
+    },
+    "products": {
+      "title": "My Products",
+      "publish": "Publish",
+      "archive": "Archive"
+    },
+    "orders": {
+      "title": "My Sales",
+      "view": "View order"
     }
   },
   "footer": {

@@ -18,6 +18,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<MeProfile | null>(null);
+  const [seller, setSeller] = useState<{ shopSlug: string; shopName: string } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -28,6 +29,15 @@ export default function DashboardPage() {
         const res = await apiHelpers.getMeProfile();
         if (!active) return;
         setProfile(res.profile ?? null);
+        // também tenta carregar SellerProfile do usuário
+        try {
+          const sellerRes = await apiHelpers.getMeSeller();
+          if (sellerRes?.sellerProfile?.shopSlug) {
+            setSeller({ shopSlug: sellerRes.sellerProfile.shopSlug, shopName: sellerRes.sellerProfile.shopName });
+          } else {
+            setSeller(null);
+          }
+        } catch {}
       } catch (e: any) {
         if (!active) return;
         // 404 → ainda não tem perfil (onboarding opcional)
@@ -73,6 +83,26 @@ export default function DashboardPage() {
         <ModuleCard title="Perfil" description="Gerencie suas informações públicas" actionText="Abrir" to={profile?.handle ? `/u/${profile.handle}` : '/app/profile/edit'} />
         <ModuleCard title="Wallet" description="Acesse sua carteira e tokens" actionText="Abrir" to="/app/wallet" />
         <ModuleCard title="Marketplace" description="Anuncie e compre produtos e serviços" actionText="Procurar" to="/search" />
+        <ModuleCard
+          title="Loja"
+          description={seller ? 'Acesse sua loja pública ou edite' : 'Crie sua loja para vender'}
+          actionText={seller ? 'Ver loja' : 'Configurar'}
+          to={seller ? `/seller/${seller.shopSlug}` : '/app/seller/setup'}
+        />
+        <ModuleCard
+          title="Produtos"
+          description={seller ? 'Gerencie seus anúncios publicados e rascunhos' : 'Configure sua loja para gerenciar produtos'}
+          actionText="Abrir"
+          to="/app/seller/products"
+          disabled={!seller}
+        />
+        <ModuleCard
+          title="Pedidos"
+          description={seller ? 'Acompanhe pedidos e vendas da sua loja' : 'Configure sua loja para ver pedidos'}
+          actionText="Abrir"
+          to="/app/seller/orders"
+          disabled={!seller}
+        />
         <ModuleCard title="DAO" description="Governe e participe de decisões" actionText="Abrir" to="/app/dao" disabled />
         <ModuleCard title="SubDAOs" description="Grupos e comunidades" actionText="Abrir" to="/app/subdaos" disabled />
         <ModuleCard title="DEX" description="Negocie ativos do ecossistema" actionText="Abrir" to="/app/dex" disabled />
@@ -101,4 +131,3 @@ function ModuleCard({ title, description, actionText, to, disabled }: { title: s
     </Card>
   );
 }
-
