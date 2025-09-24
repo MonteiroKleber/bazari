@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { apiHelpers } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { useTranslation } from 'react-i18next';
+import { SellerCard } from '@/components/pdp/SellerCard';
+import { Badge } from '@/components/ui/badge';
+import { API_BASE_URL } from '@/config';
 
 type PublicProfile = {
   profile: {
@@ -31,6 +34,9 @@ export default function ProfilePublicPage() {
   const [posts, setPosts] = useState<any[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [storeItems, setStoreItems] = useState<Array<{ id: string; title: string; priceBzr: string; coverUrl?: string }>>([]);
+  const [storeNextCursor, setStoreNextCursor] = useState<string | null>(null);
+  const [storeLoading, setStoreLoading] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -62,12 +68,39 @@ export default function ProfilePublicPage() {
     setNextCursor(res.nextCursor ?? null);
   }
 
+  function resolveMediaUrl(u?: string) {
+    if (!u) return '';
+    try { return new URL(u).toString(); } catch {}
+    const base = API_BASE_URL || 'http://localhost:3000';
+    return new URL(u.startsWith('/') ? u : `/${u}`, base).toString();
+  }
+
+  async function loadStore(cursor?: string) {
+    if (!data?.sellerProfile?.shopSlug) return;
+    setStoreLoading(true);
+    try {
+      const res = await apiHelpers.getSellerPublic(data.sellerProfile.shopSlug, cursor ? { cursor } : undefined);
+      const products = (res as any)?.catalog?.products ?? [];
+      setStoreItems((prev) => cursor ? [...prev, ...products] : products);
+      setStoreNextCursor((res as any)?.catalog?.page?.nextCursor ?? null);
+    } finally {
+      setStoreLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (tab === 'posts' && data && posts.length === 0) {
       loadMore();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, data]);
+
+  useEffect(() => {
+    if (tab === 'store' && data?.sellerProfile?.shopSlug && storeItems.length === 0 && !storeLoading) {
+      loadStore();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, data?.sellerProfile?.shopSlug]);
 
   async function onFollowToggle() {
     if (!data) return;
@@ -163,7 +196,61 @@ export default function ProfilePublicPage() {
       )}
 
       {tab === 'store' && (
-        <div className="text-muted-foreground">{t('profile.store')}</div>
+        <div className="space-y-4">
+          {!data.sellerProfile ? (
+            <div className="text-muted-foreground">{t('profile.store')}</div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <SellerCard
+                  name={data.sellerProfile.shopName}
+                  profilePath={`/seller/${data.sellerProfile.shopSlug}`}
+                  handle={p.handle}
+                />
+                <Link to={`/seller/${data.sellerProfile.shopSlug}`} className="shrink-0">
+                  <Button variant="outline">Ver tudo</Button>
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {storeItems.map((prod) => (
+                  <Card key={prod.id} className="overflow-hidden">
+                    <Link to={`/app/product/${prod.id}`} className="block">
+                      {prod.coverUrl ? (
+                        <img
+                          src={resolveMediaUrl(prod.coverUrl)}
+                          alt={prod.title}
+                          loading="lazy"
+                          className="w-full aspect-video object-cover bg-muted"
+                        />
+                      ) : (
+                        <div className="aspect-video bg-muted" />
+                      )}
+                      <CardContent className="p-4">
+                        <h3 className="font-semibold mb-2">{prod.title}</h3>
+                        {prod.priceBzr && (
+                          <div className="text-sm text-muted-foreground">{prod.priceBzr} BZR</div>
+                        )}
+                        <div className="mt-2"><Badge variant="outline">PUBLISHED</Badge></div>
+                      </CardContent>
+                    </Link>
+                  </Card>
+                ))}
+              </div>
+
+              {storeNextCursor && (
+                <div className="mt-2">
+                  <Button variant="outline" onClick={() => loadStore(storeNextCursor)} disabled={storeLoading}>
+                    {storeLoading ? t('profile.loading') : t('profile.seeMore')}
+                  </Button>
+                </div>
+              )}
+              {!storeNextCursor && storeItems.length === 0 && (
+                <div className="text-muted-foreground">Nenhum item na loja.</div>
+              )}
+            </>
+          )}
+        </div>
       )}
 
       {tab === 'subdaos' && (

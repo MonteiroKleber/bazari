@@ -3,12 +3,21 @@ import cors from '@fastify/cors';
 
 // Exportar como named export E default
 export const corsPlugin = fp(async function (fastify) {
+  // CORS origins by env (comma-separated), fallback to local dev defaults
+  const originsEnv = process.env.CORS_ORIGINS || '';
+  const parsed = originsEnv
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const defaultOrigins = ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'];
+  const origins = parsed.length > 0 ? parsed : defaultOrigins;
+
   await fastify.register(cors, {
-    origin: ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'],
+    origin: origins,
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'idempotency-key'],
-    exposedHeaders: ['Content-Range', 'X-Content-Range']
+    exposedHeaders: ['Content-Range', 'X-Content-Range', 'X-Request-Duration'],
   });
 });
 

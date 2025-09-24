@@ -1,6 +1,7 @@
 {
   "//": "V-1 (2025-09-18): Agrega clave pdp.related a las traducciones en es",
   "header": {
+    "explore": "Explorar",
     "marketplace": "Marketplace",
     "wallet": "Billetera",
     "governance": "Gobernanza",
@@ -17,6 +18,53 @@
     "signup": "Registrarse",
     "status": {
       "online": "En línea"
+    }
+  },
+  "explore": {
+    "title": "Explorar el Marketplace",
+    "subtitle": "Busca productos y servicios o navega por categorías.",
+    "searchPlaceholder": "¿Qué estás buscando?",
+    "search": "Buscar",
+    "all": "Todos",
+    "products": "Productos",
+    "services": "Servicios",
+    "browseCategories": "Categorías",
+    "viewAll": "ver todo",
+    "errorLoading": "Error al cargar categorías."
+  },
+  "seller": {
+    "setup": {
+      "title": "Configurar tu Tienda"
+    },
+    "form": {
+      "shopName": "Nombre de la tienda",
+      "shopSlug": "Slug de la tienda",
+      "about": "Sobre la tienda",
+      "slugHint": "Usa solo letras minúsculas, números y guiones.",
+      "required": "Completa los campos obligatorios."
+    },
+    "public": {
+      "rating": "Reputación",
+      "ownerProfile": "Ver perfil del dueño"
+    },
+    "dashboard": {
+      "title": "Panel del Vendedor",
+      "manageProducts": "Mis productos",
+      "orders": "Mis ventas",
+      "stats": {
+        "published": "Publicados",
+        "draft": "Borradores",
+        "archived": "Archivados"
+      }
+    },
+    "products": {
+      "title": "Mis Productos",
+      "publish": "Publicar",
+      "archive": "Archivar"
+    },
+    "orders": {
+      "title": "Mis Ventas",
+      "view": "Ver pedido"
     }
   },
   "footer": {

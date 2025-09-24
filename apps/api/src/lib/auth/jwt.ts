@@ -4,15 +4,16 @@ import { createHash, randomUUID } from 'node:crypto';
 import jwt, { type Secret, type SignOptions } from 'jsonwebtoken';
 import { authConfig } from '../../config/auth.js';
 
-const isProduction = process.env.NODE_ENV === 'production';
-
-export const refreshCookieOptions = {
-  httpOnly: true,
-  secure: isProduction,
-  sameSite: 'lax' as const,
-  path: '/',
-  maxAge: authConfig.refreshTokenExpiresInSeconds,
-};
+export function getRefreshCookieOptions() {
+  return {
+    httpOnly: true,
+    // Secure in any non-development environment (test/prod)
+    secure: process.env.NODE_ENV !== 'development',
+    sameSite: 'lax' as const,
+    path: '/',
+    maxAge: authConfig.refreshTokenExpiresInSeconds,
+  } as const;
+}
 
 export interface AccessTokenPayload {
   sub: string;
@@ -72,7 +73,7 @@ export async function issueRefresh(
     },
   });
 
-  reply.setCookie(authConfig.refreshCookieName, refreshToken, refreshCookieOptions);
+  reply.setCookie(authConfig.refreshCookieName, refreshToken, getRefreshCookieOptions());
 
   return created as RefreshTokenRecord;
 }

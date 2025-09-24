@@ -12,6 +12,7 @@ export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navItems = [
+    { label: t('header.explore', { defaultValue: 'Explorar' }), href: '/explore' },
     { label: t('header.about'), href: '#about' },
     { label: t('header.modules'), href: '#modules' },
     { label: t('header.roadmap'), href: '#roadmap' },
@@ -49,6 +50,7 @@ export function Header() {
               <LanguageSwitcher />
               <ThemeSwitcher />
             </div>
+            <a href="/auth/unlock" className="hidden md:inline-block text-sm font-medium hover:text-primary">{t('header.login')}</a>
             <Button
               variant="ghost"
               size="icon"
@@ -75,6 +77,7 @@ export function Header() {
               <ApiHealth compact />
               <LanguageSwitcher />
               <ThemeSwitcher />
+              <a href="/auth/unlock" className="text-sm font-medium transition-colors hover:text-primary px-2 py-1">{t('header.login')}</a>
             </div>
           </div>
         </div>

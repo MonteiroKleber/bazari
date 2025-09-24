@@ -3,10 +3,11 @@ import multipart from '@fastify/multipart';
 
 // IMPORTANTE: usar fastify-plugin para não encapsular
 export const multipartPlugin = fp(async function (fastify) {
+  const maxSizeMb = Number(process.env.UPLOAD_MAX_SIZE_MB || '10');
   await fastify.register(multipart, {
     limits: {
-      fileSize: 10 * 1024 * 1024, // 10MB
-      files: 1, // máximo 1 arquivo por vez
+      fileSize: maxSizeMb * 1024 * 1024,
+      files: 1,
     },
   });
 });

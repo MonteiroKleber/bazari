@@ -9,6 +9,7 @@ import { cookiePlugin } from './plugins/cookie.js';
 import { corsPlugin } from './plugins/cors.js';
 import { multipartPlugin } from './plugins/multipart.js';
 import { staticPlugin } from './plugins/static.js';
+import { securityPlugin } from './plugins/security.js';
 import { StorageAdapter } from './storage/StorageAdapter.js';
 import { LocalFsStorage } from './storage/LocalFsStorage.js';
 import { S3Storage } from './storage/S3Storage.js';
@@ -28,6 +29,7 @@ import { profilesRoutes } from './routes/profiles.js';
 import { sellersRoutes } from './routes/sellers.js';
 import { socialRoutes } from './routes/social.js';
 import { postsRoutes } from './routes/posts.js';
+import { meProductsRoutes } from './routes/me.products.js';
 
 const prisma = new PrismaClient();
 
@@ -58,11 +60,12 @@ async function buildApp() {
   // Registrar plugins
   await app.register(cookiePlugin);
   await app.register(corsPlugin);
+  await app.register(securityPlugin);
   await app.register(multipartPlugin);
   await app.register(staticPlugin);
 
   // Registrar rotas
-  await app.register(healthRoutes);
+  await app.register(healthRoutes, { prisma });
   await app.register(mediaRoutes, { prefix: '/', prisma, storage });
   await app.register(categoriesRoutes, { prefix: '/', prisma });
   await app.register(productsRoutes, { prefix: '/', prisma });
@@ -74,8 +77,9 @@ async function buildApp() {
   await app.register(sellersRoutes, { prefix: '/', prisma });
   await app.register(socialRoutes, { prefix: '/', prisma });
   await app.register(postsRoutes, { prefix: '/', prisma });
+  await app.register(meProductsRoutes, { prefix: '/', prisma });
   // Também expor com prefixo /api para compatibilidade com o front
-  await app.register(healthRoutes, { prefix: '/api' });
+  await app.register(healthRoutes, { prefix: '/api', prisma });
   await app.register(mediaRoutes, { prefix: '/api', prisma, storage });
   await app.register(categoriesRoutes, { prefix: '/api', prisma });
   await app.register(productsRoutes, { prefix: '/api', prisma });
@@ -87,6 +91,7 @@ async function buildApp() {
   await app.register(sellersRoutes, { prefix: '/api', prisma });
   await app.register(socialRoutes, { prefix: '/api', prisma });
   await app.register(postsRoutes, { prefix: '/api', prisma });
+  await app.register(meProductsRoutes, { prefix: '/api', prisma });
 
   if (osEnabled) {
     try {

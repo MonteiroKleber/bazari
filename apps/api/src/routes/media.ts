@@ -35,21 +35,29 @@ export async function mediaRoutes(
       const buffer = Buffer.concat(chunks);
 
       // Validar tamanho
-      if (buffer.length > 10 * 1024 * 1024) {
-        return reply.status(413).send({ error: 'Arquivo muito grande (máx 10MB)' });
+      const maxSizeMb = Number(process.env.UPLOAD_MAX_SIZE_MB || '10');
+      if (buffer.length > maxSizeMb * 1024 * 1024) {
+        return reply.status(413).send({ error: `Arquivo muito grande (máx ${maxSizeMb}MB)` });
+      }
+
+      // Validar mimetype (lista separada por vírgula ou padrão a imagens comuns)
+      const allowed = (process.env.UPLOAD_ALLOWED_MIME || 'image/jpeg,image/png,image/webp').split(',').map(s => s.trim());
+      const detectedMime = data.mimetype || mime.getType(data.filename) || 'application/octet-stream';
+      if (allowed.length > 0 && !allowed.includes(detectedMime)) {
+        return reply.status(415).send({ error: 'Tipo de arquivo não permitido' });
       }
 
       // Fazer upload via storage
       const result = await storage.put(buffer, {
         filename: data.filename,
-        mime: data.mimetype || mime.getType(data.filename) || 'application/octet-stream',
+        mime: detectedMime,
       });
 
       // Salvar metadados no banco
       const mediaAsset = await prisma.mediaAsset.create({
         data: {
           url: result.url,
-          mime: data.mimetype || mime.getType(data.filename) || 'application/octet-stream',
+          mime: detectedMime,
           size: result.size,
           contentHash: result.contentHash,
         },

@@ -1,6 +1,7 @@
 {
   "//": "V-1 (2025-09-18): Adiciona chave pdp.related nas traduções em pt",
   "header": {
+    "explore": "Explorar",
     "marketplace": "Marketplace",
     "wallet": "Carteira",
     "governance": "Governança",
@@ -17,6 +18,53 @@
     "signup": "Cadastrar",
     "status": {
       "online": "Online"
+    }
+  },
+  "explore": {
+    "title": "Explorar o Marketplace",
+    "subtitle": "Busque por produtos e serviços ou navegue por categorias.",
+    "searchPlaceholder": "O que você está procurando?",
+    "search": "Buscar",
+    "all": "Todos",
+    "products": "Produtos",
+    "services": "Serviços",
+    "browseCategories": "Categorias",
+    "viewAll": "ver tudo",
+    "errorLoading": "Erro ao carregar categorias."
+  },
+  "seller": {
+    "setup": {
+      "title": "Configurar sua Loja"
+    },
+    "form": {
+      "shopName": "Nome da loja",
+      "shopSlug": "Slug da loja",
+      "about": "Sobre a loja",
+      "slugHint": "Use apenas letras minúsculas, números e hífens.",
+      "required": "Preencha os campos obrigatórios."
+    },
+    "public": {
+      "rating": "Reputação",
+      "ownerProfile": "Ver perfil do dono"
+    },
+    "dashboard": {
+      "title": "Painel do Vendedor",
+      "manageProducts": "Meus produtos",
+      "orders": "Minhas vendas",
+      "stats": {
+        "published": "Publicados",
+        "draft": "Rascunhos",
+        "archived": "Arquivados"
+      }
+    },
+    "products": {
+      "title": "Meus Produtos",
+      "publish": "Publicar",
+      "archive": "Arquivar"
+    },
+    "orders": {
+      "title": "Minhas Vendas",
+      "view": "Ver pedido"
     }
   },
   "footer": {
