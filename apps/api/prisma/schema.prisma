@@ -78,11 +78,13 @@ model Product {
   attributes            Json
   attributesSpecVersion String
   sellerUserId          String?
+  sellerStoreId         String?
   status                ProductStatus @default(PUBLISHED)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   
   category              Category @relation(fields: [categoryId], references: [id])
+  sellerStore           SellerProfile? @relation(fields: [sellerStoreId], references: [id])
 
   @@index([daoId])
   @@index([categoryId])
@@ -94,6 +96,7 @@ model Product {
   @@index([createdAt])
   @@index([sellerUserId])
   @@index([status])
+  @@index([sellerStoreId])
 }
 
 model ServiceOffering {
@@ -106,10 +109,12 @@ model ServiceOffering {
   categoryPath          String[]
   attributes            Json
   attributesSpecVersion String
+  sellerStoreId         String?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   
   category              Category @relation(fields: [categoryId], references: [id])
+  sellerStore           SellerProfile? @relation(fields: [sellerStoreId], references: [id])
 
   @@index([daoId])
   @@index([categoryId])
@@ -119,6 +124,7 @@ model ServiceOffering {
   @@index([attributes], type: Gin)
   @@index([basePriceBzr])
   @@index([createdAt])
+  @@index([sellerStoreId])
 }
 
 model AuditLog {
@@ -144,9 +150,9 @@ model User {
 
   refreshTokens RefreshToken[]
 
-  // Perfis (1:1)
-  profile       Profile?
-  sellerProfile SellerProfile?
+  // Perfis (1:1) e Lojas (1:N)
+  profile        Profile?
+  sellerProfiles SellerProfile[]
 
   // Relacionamentos DAO (owner)
   daosOwned Dao[]
@@ -209,6 +215,7 @@ model Order {
   buyerAddr       String
   sellerAddr      String
   sellerId        String      // DAO ID do vendedor
+  sellerStoreId   String?
   subtotalBzr     Decimal     @db.Decimal(30,0) // subtotal em planck
   shippingBzr     Decimal     @db.Decimal(30,0) // frete em planck
   totalBzr        Decimal     @db.Decimal(30,0) // total em planck
@@ -226,6 +233,7 @@ model Order {
   @@index([buyerAddr])
   @@index([sellerAddr])
   @@index([sellerId])
+  @@index([sellerStoreId])
   @@index([status])
   @@index([createdAt])
 }
@@ -319,7 +327,7 @@ model Follow {
 
 model SellerProfile {
   id          String   @id @default(cuid())
-  userId      String   @unique
+  userId      String
   user        User     @relation(fields: [userId], references: [id])
   shopName    String
   shopSlug    String   @unique
@@ -329,6 +337,15 @@ model SellerProfile {
   policies    Json?
   avatarUrl   String?
   bannerUrl   String?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  products  Product[]
+  services  ServiceOffering[]
+
+  @@index([userId])
 }
 
 model Post {

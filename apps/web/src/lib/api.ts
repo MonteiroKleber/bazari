@@ -96,6 +96,16 @@ export async function getJSON<T>(path: string): Promise<T> {
   });
 }
 
+// GET sem exigir auth (para endpoints públicos)
+export async function getPublicJSON<T>(path: string): Promise<T> {
+  return apiFetch<T>(path, {
+    method: "GET",
+    headers: {
+      "Accept": "application/json",
+    },
+  }, { requireAuth: false });
+}
+
 // Helper para POST com JSON
 export async function postJSON<T>(path: string, data: unknown, extraHeaders?: Record<string, string>): Promise<T> {
   const baseHeaders: Record<string, string> = {
@@ -203,7 +213,8 @@ export const apiHelpers = {
   
   // Products
   createProduct: (data: any) => postJSON('/products', data),
-  getProduct: (id: string) => getJSON(`/products/${id}`),
+  // Produto é público; não exigir auth
+  getProduct: (id: string) => getPublicJSON(`/products/${id}`),
   updateProduct: (id: string, data: any) => putJSON(`/products/${id}`, data),
   deleteProduct: (id: string) => deleteJSON(`/products/${id}`),
   listProducts: (params?: any) => {

@@ -85,12 +85,12 @@ export async function ordersRoutes(
           if (item.kind === 'product') {
             return await prisma.product.findUnique({
               where: { id: item.listingId },
-              select: { id: true, title: true, priceBzr: true, daoId: true },
+              select: { id: true, title: true, priceBzr: true, daoId: true, sellerStoreId: true } as any,
             });
           } else {
             return await prisma.serviceOffering.findUnique({
               where: { id: item.listingId },
-              select: { id: true, title: true, basePriceBzr: true, daoId: true },
+              select: { id: true, title: true, basePriceBzr: true, daoId: true, sellerStoreId: true } as any,
             });
           }
         })
@@ -106,8 +106,8 @@ export async function ordersRoutes(
         }
       }
 
-      // Verificar regra MVP: 1 vendedor apenas
-      const sellers = listings.map(listing => listing!.daoId).filter(Boolean);
+      // Verificar regra MVP: 1 vendedor (loja) apenas
+      const sellers = listings.map(listing => (listing as any).sellerStoreId || listing!.daoId).filter(Boolean);
       const uniqueSellers = [...new Set(sellers)];
 
       if (uniqueSellers.length > 1) {
@@ -118,8 +118,9 @@ export async function ordersRoutes(
         });
       }
 
-      const sellerId = uniqueSellers[0] || 'unknown';
-      const sellerAddr = sellerId; // Por simplicidade, usar o ID como endereço
+      const sellerKey = uniqueSellers[0] || 'unknown';
+      const sellerId = String(sellerKey);
+      const sellerAddr = sellerId; // compat
 
       // Calcular valores
       let subtotalBzr = BigInt(0);
@@ -148,26 +149,26 @@ export async function ordersRoutes(
 
       // Criar order com items
       const order = await prisma.order.create({
-        data: {
+        data: ({
           buyerAddr,
           sellerAddr,
           sellerId,
+          sellerStoreId: (listings[0] as any)?.sellerStoreId ?? null,
           subtotalBzr: subtotalBzr.toString(),
           shippingBzr: shippingBzr.toString(),
           totalBzr: totalBzr.toString(),
           status: 'CREATED',
-          shippingAddress: body.shippingAddress || null,
+          shippingAddress: (body.shippingAddress as any) ?? null,
           shippingOptionId: body.shippingOptionId || 'STD',
           notes: body.notes || null,
           items: {
             create: orderItems,
           },
-        },
-        include: {
-          items: true,
-        },
+        } as any),
+        include: { items: true },
       });
 
+      const oany: any = order as any;
       const payload = {
         orderId: order.id,
         status: order.status,
@@ -176,7 +177,7 @@ export async function ordersRoutes(
           shippingBzr: order.shippingBzr,
           totalBzr: order.totalBzr,
         },
-        items: order.items.map(item => ({
+        items: (oany.items as any[]).map((item: any) => ({
           listingId: item.listingId,
           qty: item.qty,
           kind: item.kind,

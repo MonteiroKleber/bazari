@@ -22,6 +22,7 @@ import { CategoryPicker } from '../components/CategoryPicker';
 import { DynamicForm } from '../components/DynamicForm';
 import { useEffectiveSpec } from '../hooks/useEffectiveSpec';
 import { api } from '../lib/api';
+import { sellerApi } from '@/modules/seller/api';
 import { getSessionUser } from '@/modules/auth';
 
 interface UploadedFile {
@@ -54,6 +55,8 @@ export function NewListingPage() {
   const [attributes, setAttributes] = useState<any>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stores, setStores] = useState<Array<{ shopSlug: string; shopName: string }>>([]);
+  const [selectedStore, setSelectedStore] = useState<string>('');
   
   // Novos estados para melhorias
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -72,6 +75,14 @@ export function NewListingPage() {
     } catch {}
 
     // Cleanup global de previews ao desmontar a página
+    (async () => {
+      try {
+        const res = await sellerApi.listMyStores();
+        const list = res.items || [];
+        setStores(list.map((s: any) => ({ shopSlug: s.shopSlug, shopName: s.shopName })));
+        if (list.length === 1) setSelectedStore(list[0].shopSlug);
+      } catch {}
+    })();
     return () => {
       try {
         for (const url of previewsRef.current) {
@@ -265,7 +276,8 @@ export function NewListingPage() {
         categoryPath,
         attributes: formAttributes,
         ...(kind === 'product' ? { priceBzr: basicData.price } : { basePriceBzr: basicData.price }),
-        ...(mediaIds.length > 0 ? { mediaIds } : {})
+        ...(mediaIds.length > 0 ? { mediaIds } : {}),
+        ...(selectedStore ? { sellerStoreSlug: selectedStore } : {}),
       } as any;
 
       log('📤 Payload corrigido a ser enviado:', JSON.stringify(payload, null, 2));
@@ -415,6 +427,21 @@ export function NewListingPage() {
               <p className="text-muted-foreground">
                 {t('new.basic_info_desc')}
               </p>
+            </div>
+
+            {/* Seleção de Loja (obrigatória quando houver múltiplas) */}
+            <div className="grid gap-2">
+              <Label htmlFor="store">Loja</Label>
+              {stores.length === 0 ? (
+                <div className="text-sm text-muted-foreground">Você ainda não tem lojas. <a className="underline" href="/app/seller/setup">Crie uma loja</a> para anunciar.</div>
+              ) : (
+                <select id="store" className="border rounded px-3 py-2" value={selectedStore} onChange={(e) => setSelectedStore(e.target.value)} required>
+                  <option value="" disabled>Selecione a loja</option>
+                  {stores.map((s) => (
+                    <option key={s.shopSlug} value={s.shopSlug}>@{s.shopSlug} — {s.shopName}</option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* DEBUG INFO (apenas em DEV) */}

@@ -18,25 +18,7 @@ export default function SellerSetupPage() {
   const [shopSlug, setShopSlug] = useState('');
   const [about, setAbout] = useState('');
 
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const res = await sellerApi.getMe();
-        if (!active) return;
-        if (res.sellerProfile) {
-          setShopName(res.sellerProfile.shopName || '');
-          setShopSlug(res.sellerProfile.shopSlug || '');
-          setAbout(res.sellerProfile.about || '');
-        }
-      } catch (e: any) {
-        // ignore
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => { active = false; };
-  }, []);
+  useEffect(() => { setLoading(false); }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -49,7 +31,7 @@ export default function SellerSetupPage() {
         setSaving(false);
         return;
       }
-      await sellerApi.upsertMe(payload);
+      await sellerApi.createStore(payload as any);
       navigate(`/seller/${encodeURIComponent(payload.shopSlug)}`);
     } catch (e: any) {
       setError(e?.message || t('errors.generic'));
@@ -100,4 +82,3 @@ export default function SellerSetupPage() {
     </div>
   );
 }
-

@@ -16,6 +16,8 @@ import { resolveSellerFromDaoId } from '../lib/sellerResolver.js';
 // Schema de validação para criação
 const createProductSchema = z.object({
   daoId: z.string(),
+  sellerStoreSlug: z.string().optional(),
+  sellerStoreId: z.string().optional(),
   title: z.string().min(1),
   description: z.string().optional(),
   priceBzr: z.string(),
@@ -144,6 +146,15 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
         }
       }
 
+      // Resolver loja (opcional)
+      let sellerStoreId: string | null = null;
+      if (body.sellerStoreId) {
+        sellerStoreId = body.sellerStoreId;
+      } else if (body.sellerStoreSlug) {
+        const store = await prisma.sellerProfile.findUnique({ where: { shopSlug: body.sellerStoreSlug }, select: { id: true } });
+        sellerStoreId = store?.id ?? null;
+      }
+
       // Criar produto - AGORA COM attributesSpecVersion
       const product = await prisma.product.create({
         data: {
@@ -155,6 +166,7 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
           categoryPath: resolvedPath,
           attributes: processedAttributes,
           attributesSpecVersion: effectiveSpec.version, // CORREÇÃO: Campo obrigatório que faltava
+          sellerStoreId: sellerStoreId ?? undefined,
         },
         select: {
           id: true,
@@ -167,7 +179,7 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
           attributes: true,
           createdAt: true,
         },
-      });
+      } as any);
 
       // Associar mídias ao produto (se houver)
       if (body.mediaIds && body.mediaIds.length > 0) {
@@ -244,13 +256,39 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
     });
 
     const media = mediaAssets.map(m => ({ id: m.id, url: m.url }));
+    // Resolver vendedor/loja de forma robusta (multi-lojas)
     let seller: any = null;
-    if (product.daoId) {
-      seller = await resolveSellerFromDaoId(prisma, product.daoId);
-    }
-    const payload = { ...product, media, seller };
+    try {
+      if ((product as any).sellerStoreId) {
+        const store = await prisma.sellerProfile.findUnique({ where: { id: (product as any).sellerStoreId }, select: { shopSlug: true, shopName: true, userId: true } });
+        if (store) {
+          const owner = await prisma.profile.findUnique({ where: { userId: store.userId }, select: { handle: true, displayName: true, avatarUrl: true } });
+          seller = { shopSlug: store.shopSlug, shopName: store.shopName, handle: owner?.handle ?? null, displayName: owner?.displayName ?? null, avatarUrl: owner?.avatarUrl ?? null };
+        }
+      }
+      if (!seller && product.daoId) {
+        seller = await resolveSellerFromDaoId(prisma, product.daoId);
+      }
+    } catch {/* ignore seller resolution errors */}
 
-    return reply.send(payload);
+    // Sanitizar decimais para JSON
+    const safe = {
+      id: product.id,
+      daoId: (product as any).daoId,
+      title: (product as any).title,
+      description: (product as any).description ?? null,
+      priceBzr: (product as any).priceBzr?.toString?.() ?? String((product as any).priceBzr ?? ''),
+      categoryId: (product as any).categoryId,
+      categoryPath: (product as any).categoryPath ?? [],
+      attributes: (product as any).attributes ?? {},
+      createdAt: (product as any).createdAt,
+      updatedAt: (product as any).updatedAt,
+      category: product.category,
+      seller,
+      media,
+    };
+
+    return reply.send(safe as any);
 
   });
 

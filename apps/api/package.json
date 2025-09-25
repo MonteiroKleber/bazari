@@ -23,7 +23,8 @@
     "seed:categories": "tsx scripts/seedCategories.ts",
     "seed:specs": "tsx scripts/seedCategorySpecs.ts",
     "create-specs": "node scripts/createMissingCategorySpecs.js",
-    "os:reindex": "tsx src/ops/os-reindex.ts"
+    "os:reindex": "tsx src/ops/os-reindex.ts",
+    "ops:backfill-multi-stores": "tsx src/ops/backfill-multi-stores.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

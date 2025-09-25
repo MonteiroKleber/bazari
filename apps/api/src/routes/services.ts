@@ -17,6 +17,8 @@ import { resolveSellerFromDaoId } from '../lib/sellerResolver.js';
 // Schema de validação para criação (igual ao de produtos, mas com basePriceBzr)
 const createServiceSchema = z.object({
   daoId: z.string(),
+  sellerStoreSlug: z.string().optional(),
+  sellerStoreId: z.string().optional(),
   title: z.string().min(1),
   description: z.string().optional(),
   basePriceBzr: z.string().optional(), // Opcional para serviços
@@ -144,6 +146,15 @@ export async function servicesRoutes(app: FastifyInstance, options: { prisma: Pr
         }
       }
 
+      // Resolver loja (opcional)
+      let sellerStoreId: string | null = null;
+      if (body.sellerStoreId) {
+        sellerStoreId = body.sellerStoreId;
+      } else if (body.sellerStoreSlug) {
+        const store = await prisma.sellerProfile.findUnique({ where: { shopSlug: body.sellerStoreSlug }, select: { id: true } });
+        sellerStoreId = store?.id ?? null;
+      }
+
       // Criar serviço - AGORA COM attributesSpecVersion
       const service = await prisma.serviceOffering.create({
         data: {
@@ -155,6 +166,7 @@ export async function servicesRoutes(app: FastifyInstance, options: { prisma: Pr
           categoryPath: resolvedPath,
           attributes: processedAttributes,
           attributesSpecVersion: effectiveSpec.version, // CORREÇÃO: Campo obrigatório que faltava
+          sellerStoreId: sellerStoreId ?? undefined,
         },
         select: {
           id: true,
@@ -167,7 +179,7 @@ export async function servicesRoutes(app: FastifyInstance, options: { prisma: Pr
           attributes: true,
           createdAt: true,
         },
-      });
+      } as any);
 
       // Associar mídias ao serviço (se houver)
       if (body.mediaIds && body.mediaIds.length > 0) {
