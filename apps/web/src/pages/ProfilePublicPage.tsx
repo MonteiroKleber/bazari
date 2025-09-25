@@ -196,59 +196,65 @@ export default function ProfilePublicPage() {
       )}
 
       {tab === 'store' && (
-        <div className="space-y-4">
-          {!data.sellerProfile ? (
-            <div className="text-muted-foreground">{t('profile.store')}</div>
-          ) : (
-            <>
-              <div className="flex items-center justify-between">
-                <SellerCard
-                  name={data.sellerProfile.shopName}
-                  profilePath={`/seller/${data.sellerProfile.shopSlug}`}
-                  handle={p.handle}
-                />
-                <Link to={`/seller/${data.sellerProfile.shopSlug}`} className="shrink-0">
-                  <Button variant="outline">Ver tudo</Button>
-                </Link>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {storeItems.map((prod) => (
-                  <Card key={prod.id} className="overflow-hidden">
-                    <Link to={`/app/product/${prod.id}`} className="block">
-                      {prod.coverUrl ? (
-                        <img
-                          src={resolveMediaUrl(prod.coverUrl)}
-                          alt={prod.title}
-                          loading="lazy"
-                          className="w-full aspect-video object-cover bg-muted"
-                        />
-                      ) : (
-                        <div className="aspect-video bg-muted" />
-                      )}
-                      <CardContent className="p-4">
-                        <h3 className="font-semibold mb-2">{prod.title}</h3>
-                        {prod.priceBzr && (
-                          <div className="text-sm text-muted-foreground">{prod.priceBzr} BZR</div>
-                        )}
-                        <div className="mt-2"><Badge variant="outline">PUBLISHED</Badge></div>
-                      </CardContent>
-                    </Link>
-                  </Card>
-                ))}
-              </div>
-
-              {storeNextCursor && (
-                <div className="mt-2">
-                  <Button variant="outline" onClick={() => loadStore(storeNextCursor)} disabled={storeLoading}>
-                    {storeLoading ? t('profile.loading') : t('profile.seeMore')}
-                  </Button>
+        <div className="space-y-6">
+          {/* Se houver várias lojas, listar todas com link */}
+          {Array.isArray((data as any).sellerProfiles) && (data as any).sellerProfiles.length > 1 ? (
+            <div className="space-y-4">
+              {(data as any).sellerProfiles.map((sp: any) => (
+                <div key={sp.shopSlug} className="flex items-center justify-between">
+                  <SellerCard name={sp.shopName} profilePath={`/seller/${sp.shopSlug}`} handle={p.handle} />
+                  <Link to={`/seller/${sp.shopSlug}`} className="shrink-0"><Button variant="outline">Ver tudo</Button></Link>
                 </div>
+              ))}
+            </div>
+          ) : (
+            // Caso loja única, exibe card + grid de produtos
+            <div className="space-y-4">
+              {!data.sellerProfile ? (
+                <div className="text-muted-foreground">{t('profile.store')}</div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <SellerCard
+                      name={data.sellerProfile.shopName}
+                      profilePath={`/seller/${data.sellerProfile.shopSlug}`}
+                      handle={p.handle}
+                    />
+                    <Link to={`/seller/${data.sellerProfile.shopSlug}`} className="shrink-0">
+                      <Button variant="outline">Ver tudo</Button>
+                    </Link>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {storeItems.map((prod) => (
+                      <Card key={prod.id} className="overflow-hidden">
+                        <Link to={`/app/product/${prod.id}`} className="block">
+                          {prod.coverUrl ? (
+                            <img src={resolveMediaUrl(prod.coverUrl)} alt={prod.title} loading="lazy" className="w-full aspect-video object-cover bg-muted" />
+                          ) : (
+                            <div className="aspect-video bg-muted" />
+                          )}
+                          <CardContent className="p-4">
+                            <h3 className="font-semibold mb-2">{prod.title}</h3>
+                            {prod.priceBzr && (<div className="text-sm text-muted-foreground">{prod.priceBzr} BZR</div>)}
+                            <div className="mt-2"><Badge variant="outline">PUBLISHED</Badge></div>
+                          </CardContent>
+                        </Link>
+                      </Card>
+                    ))}
+                  </div>
+                  {storeNextCursor && (
+                    <div className="mt-2">
+                      <Button variant="outline" onClick={() => loadStore(storeNextCursor)} disabled={storeLoading}>
+                        {storeLoading ? t('profile.loading') : t('profile.seeMore')}
+                      </Button>
+                    </div>
+                  )}
+                  {!storeNextCursor && storeItems.length === 0 && (
+                    <div className="text-muted-foreground">Nenhum item na loja.</div>
+                  )}
+                </>
               )}
-              {!storeNextCursor && storeItems.length === 0 && (
-                <div className="text-muted-foreground">Nenhum item na loja.</div>
-              )}
-            </>
+            </div>
           )}
         </div>
       )}

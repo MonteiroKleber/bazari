@@ -1,0 +1,9 @@
+  pid  | usename | application_name | state  |                                                query                                                 | granted 
+-------+---------+------------------+--------+------------------------------------------------------------------------------------------------------+---------
+ 10093 | bazari  |                  | idle   | DROP DATABASE IF EXISTS "prisma_migrate_shadow_db_5b44368e-512b-45e4-a5dc-b6b69be00b93" WITH (FORCE) | t
+ 10603 | bazari  |                  | active | SELECT pg_advisory_lock(72707369)                                                                    | f
+ 10721 | bazari  |                  | active | SELECT pg_advisory_lock(72707369)                                                                    | f
+ 10784 | bazari  |                  | active | SELECT pg_advisory_lock(72707369)                                                                    | f
+ 10884 | bazari  |                  | active | SELECT pg_advisory_lock(72707369)                                                                    | f
+(5 rows)
+

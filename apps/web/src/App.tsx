@@ -41,6 +41,7 @@ import SellerPublicPage from './pages/SellerPublicPage';
 import SellerDashboardPage from './pages/SellerDashboardPage';
 import SellerProductsPage from './pages/SellerProductsPage';
 import SellerOrdersPage from './pages/SellerOrdersPage';
+import SellersListPage from './pages/SellersListPage';
 
 function LandingPage() {
   const { t } = useTranslation();
@@ -227,8 +228,9 @@ function App() {
                       <Route path="profile/edit" element={<ProfileEditPage />} />
                       <Route path="seller/setup" element={<SellerSetupPage />} />
                       <Route path="seller" element={<SellerDashboardPage />} />
-                      <Route path="seller/products" element={<SellerProductsPage />} />
-                      <Route path="seller/orders" element={<SellerOrdersPage />} />
+                      <Route path="sellers" element={<SellersListPage />} />
+                      <Route path="sellers/:shopSlug/products" element={<SellerProductsPage />} />
+                      <Route path="sellers/:shopSlug/orders" element={<SellerOrdersPage />} />
                       <Route path="new" element={<NewListingPage />} />
                       <Route path="product/:id" element={<ProductDetailPage />} />
                       <Route path="service/:id" element={<ServiceDetailPage />} />

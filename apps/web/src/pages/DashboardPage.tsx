@@ -18,7 +18,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<MeProfile | null>(null);
-  const [seller, setSeller] = useState<{ shopSlug: string; shopName: string } | null>(null);
+  const [sellers, setSellers] = useState<Array<{ shopSlug: string; shopName: string }>>([]);
 
   useEffect(() => {
     let active = true;
@@ -29,14 +29,11 @@ export default function DashboardPage() {
         const res = await apiHelpers.getMeProfile();
         if (!active) return;
         setProfile(res.profile ?? null);
-        // também tenta carregar SellerProfile do usuário
+        // carregar lojas do usuário (multi-lojas)
         try {
-          const sellerRes = await apiHelpers.getMeSeller();
-          if (sellerRes?.sellerProfile?.shopSlug) {
-            setSeller({ shopSlug: sellerRes.sellerProfile.shopSlug, shopName: sellerRes.sellerProfile.shopName });
-          } else {
-            setSeller(null);
-          }
+          const resStores = await (await import('@/modules/seller/api')).sellerApi.listMyStores();
+          const list = resStores?.items || [];
+          setSellers(list.map((s: any) => ({ shopSlug: s.shopSlug, shopName: s.shopName })));
         } catch {}
       } catch (e: any) {
         if (!active) return;
@@ -83,25 +80,25 @@ export default function DashboardPage() {
         <ModuleCard title="Perfil" description="Gerencie suas informações públicas" actionText="Abrir" to={profile?.handle ? `/u/${profile.handle}` : '/app/profile/edit'} />
         <ModuleCard title="Wallet" description="Acesse sua carteira e tokens" actionText="Abrir" to="/app/wallet" />
         <ModuleCard title="Marketplace" description="Anuncie e compre produtos e serviços" actionText="Procurar" to="/search" />
-        <ModuleCard
-          title="Loja"
-          description={seller ? 'Acesse sua loja pública ou edite' : 'Crie sua loja para vender'}
-          actionText={seller ? 'Ver loja' : 'Configurar'}
-          to={seller ? `/seller/${seller.shopSlug}` : '/app/seller/setup'}
+        <ModuleCard 
+          title="Lojas"
+          description={sellers.length > 0 ? 'Gerencie suas lojas' : 'Crie sua loja para vender'}
+          actionText={sellers.length > 0 ? 'Abrir' : 'Criar loja'}
+          to={sellers.length > 0 ? '/app/sellers' : '/app/seller/setup'}
         />
         <ModuleCard
           title="Produtos"
-          description={seller ? 'Gerencie seus anúncios publicados e rascunhos' : 'Configure sua loja para gerenciar produtos'}
+          description={sellers.length > 0 ? 'Escolha uma loja para gerenciar produtos' : 'Crie uma loja para gerenciar produtos'}
           actionText="Abrir"
-          to="/app/seller/products"
-          disabled={!seller}
+          to="/app/sellers"
+          disabled={sellers.length === 0}
         />
         <ModuleCard
           title="Pedidos"
-          description={seller ? 'Acompanhe pedidos e vendas da sua loja' : 'Configure sua loja para ver pedidos'}
+          description={sellers.length > 0 ? 'Escolha uma loja para ver pedidos' : 'Crie uma loja para ver pedidos'}
           actionText="Abrir"
-          to="/app/seller/orders"
-          disabled={!seller}
+          to="/app/sellers"
+          disabled={sellers.length === 0}
         />
         <ModuleCard title="DAO" description="Governe e participe de decisões" actionText="Abrir" to="/app/dao" disabled />
         <ModuleCard title="SubDAOs" description="Grupos e comunidades" actionText="Abrir" to="/app/subdaos" disabled />

@@ -73,27 +73,18 @@ export async function sellersRoutes(app: FastifyInstance, options: { prisma: Pri
 
     // Paginador baseado em createdAt + id
     const c = decodeCursor(cursor ?? null);
-    const whereAnyBase: any = {}; // status may not exist in some DBs (pre-migration)
-    // Preferir sellerUserId quando disponível (migração/backfill)
-    const whereAny = { ...whereAnyBase, OR: [ { sellerUserId: seller.user.id } ] } as any;
-    // Compatibilidade: produtos vinculados via DAO do seller
-    const daos = await prisma.dao.findMany({ where: { ownerUserId: seller.user.id }, select: { id: true, slug: true } });
-    const daoIds = daos.flatMap(d => [d.id, d.slug]).filter(Boolean);
-    if (daoIds.length > 0) {
-      whereAny.OR.push({ daoId: { in: daoIds } });
-    }
-    // Fallback: produtos cujo daoId é o próprio endereço do usuário
-    if (seller.user.address) {
-      whereAny.OR.push({ daoId: seller.user.address });
-    }
-    // Fallback adicional: produtos cujo daoId é o shopSlug da loja
-    if (seller.shopSlug) {
-      whereAny.OR.push({ daoId: seller.shopSlug });
-    }
+    // Multi-lojas: filtrar por loja específica usando sellerStoreId
+    // Compat (legado): permitir itens SEM sellerStoreId que estejam explicitamente marcados com daoId == shopSlug
+    const wherePerStore: any = {
+      OR: [
+        { sellerStoreId: (seller as any).id },
+        { AND: [ { sellerStoreId: null }, { daoId: seller.shopSlug } ] },
+      ],
+    };
 
     const where = c
-      ? { AND: [ whereAny, { OR: [ { createdAt: { lt: c.createdAt } }, { createdAt: c.createdAt, id: { lt: c.id } } ] } ] }
-      : whereAny;
+      ? { AND: [ wherePerStore, { OR: [ { createdAt: { lt: c.createdAt } }, { createdAt: c.createdAt, id: { lt: c.id } } ] } ] }
+      : wherePerStore;
 
     const pageSize = Math.min(limit ?? 24, 100);
     async function fetchPage(includeStatus: boolean) {
@@ -181,6 +172,43 @@ export async function sellersRoutes(app: FastifyInstance, options: { prisma: Pri
     const baseWhere: any = { OR: [] as any[] };
     if (sellerIds.length > 0) baseWhere.OR.push({ sellerId: { in: sellerIds } });
     if (user?.address) baseWhere.OR.push({ sellerAddr: user.address });
+    if (status) baseWhere.status = status;
+
+    const c = decodeCursor(cursor ?? null);
+    const where = c
+      ? { AND: [ baseWhere, { OR: [ { createdAt: { lt: c.createdAt } }, { createdAt: c.createdAt, id: { lt: c.id } } ] } ] }
+      : baseWhere;
+
+    const take = Math.min(limit ?? 20, 100);
+    const rows = await prisma.order.findMany({
+      where,
+      orderBy: [ { createdAt: 'desc' }, { id: 'desc' } ],
+      take: take + 1,
+      include: { items: { orderBy: { createdAt: 'asc' } } },
+    });
+
+    let nextCursor: string | null = null;
+    if (rows.length > take) {
+      const tail = rows.pop()!;
+      nextCursor = encodeCursor({ createdAt: (tail as any).createdAt, id: tail.id });
+    }
+
+    const items = rows.map(o => ({ id: o.id, createdAt: o.createdAt, totalBzr: o.totalBzr.toString?.() ?? String(o.totalBzr), status: o.status, items: o.items.map(i => ({ listingId: i.listingId, titleSnapshot: i.titleSnapshot, qty: i.qty, lineTotalBzr: i.lineTotalBzr.toString?.() ?? String(i.lineTotalBzr) })) }));
+    return reply.send({ items, nextCursor });
+  });
+
+  // GET /me/sellers/:idOrSlug/orders — lista pedidos de uma loja específica
+  app.get<{ Params: { idOrSlug: string } }>('/me/sellers/:idOrSlug/orders', { preHandler: authOnRequest }, async (request, reply) => {
+    const authUser = (request as any).authUser as { sub: string } | undefined;
+    if (!authUser) return reply.status(401).send({ error: 'Token inválido.' });
+
+    const { cursor, limit, status } = ordersQuerySchema.parse(request.query ?? {});
+
+    // Validar loja do usuário
+    const store = await prisma.sellerProfile.findFirst({ where: { userId: authUser.sub, OR: [ { id: request.params.idOrSlug }, { shopSlug: request.params.idOrSlug } ] }, select: { id: true } });
+    if (!store) return reply.status(404).send({ error: 'Loja não encontrada' });
+
+    const baseWhere: any = { sellerStoreId: store.id } as any;
     if (status) baseWhere.status = status;
 
     const c = decodeCursor(cursor ?? null);

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,7 @@ type Status = 'ALL' | 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 
 export default function SellerProductsPage() {
   const { t } = useTranslation();
+  const { shopSlug = '' } = useParams();
   const [status, setStatus] = useState<Status>('ALL');
   const [items, setItems] = useState<any[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -19,7 +21,7 @@ export default function SellerProductsPage() {
     const params: any = { limit: 20 };
     if (status !== 'ALL') params.status = status;
     if (!reset && nextCursor) params.cursor = nextCursor;
-    const res = await sellerApi.listMyProducts(params);
+    const res = await sellerApi.listStoreProducts(shopSlug, params);
     setItems((prev) => reset ? res.items : [...prev, ...res.items]);
     setNextCursor(res.nextCursor ?? null);
   }
@@ -49,9 +51,9 @@ export default function SellerProductsPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">{t('seller.products.title', { defaultValue: 'Meus Produtos' })}</h1>
+        <h1 className="text-2xl font-semibold">{t('seller.products.title', { defaultValue: 'Produtos da loja' })} <span className="text-muted-foreground">/@{shopSlug}</span></h1>
         <div className="flex gap-2">
-          <a href="/app/new"><Button>{t('seller.products.new', { defaultValue: 'Cadastrar' })}</Button></a>
+          <Link to="/app/new"><Button>{t('seller.products.new', { defaultValue: 'Cadastrar' })}</Button></Link>
           {(['ALL','DRAFT','PUBLISHED','ARCHIVED'] as const).map((s) => (
             <Button key={s} variant={status === s ? 'default' : 'outline'} onClick={() => setStatus(s)}>{s}</Button>
           ))}

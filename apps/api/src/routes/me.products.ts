@@ -90,6 +90,60 @@ export async function meProductsRoutes(app: FastifyInstance, options: { prisma: 
     return reply.send({ items, nextCursor });
   });
 
+  // GET /me/sellers/:idOrSlug/products — lista produtos de uma loja específica
+  app.get<{ Params: { idOrSlug: string } }>('/me/sellers/:idOrSlug/products', { preHandler: authOnRequest }, async (request, reply) => {
+    const authUser = (request as any).authUser as { sub: string } | undefined;
+    if (!authUser) return reply.status(401).send({ error: 'Token inválido.' });
+    const { cursor, limit } = listQuerySchema.parse(request.query ?? {});
+    const status = normalizeStatus((request.query as any)?.status);
+
+    const store = await prisma.sellerProfile.findFirst({ where: { userId: authUser.sub, OR: [ { id: request.params.idOrSlug }, { shopSlug: request.params.idOrSlug } ] }, select: { id: true } });
+    if (!store) return reply.status(404).send({ error: 'Loja não encontrada' });
+    const storeId = store.id;
+
+    const baseWhere: any = { sellerStoreId: store.id } as any;
+    if (status) baseWhere.status = status as any;
+    const c = decodeCursor(cursor ?? null);
+    const where = c
+      ? { AND: [ baseWhere, { OR: [ { createdAt: { lt: c.createdAt } }, { createdAt: c.createdAt, id: { lt: c.id } } ] } ] }
+      : baseWhere;
+
+    const take = Math.min(limit ?? 20, 100);
+    async function fetchList(includeStatus: boolean) {
+      const whereWithStatus = includeStatus && baseWhere.status ? { AND: [ { status: baseWhere.status }, { sellerStoreId: storeId } ] } : { sellerStoreId: storeId };
+      const w = c
+        ? { AND: [ whereWithStatus, { OR: [ { createdAt: { lt: c.createdAt } }, { createdAt: c.createdAt, id: { lt: c.id } } ] } ] }
+        : whereWithStatus;
+      return prisma.product.findMany({
+        where: w as any,
+        orderBy: [ { createdAt: 'desc' }, { id: 'desc' } ],
+        take: take + 1,
+        select: { id: true, title: true, priceBzr: true, status: true, categoryPath: true, updatedAt: true, createdAt: true },
+      });
+    }
+
+    let items: any[] = [];
+    try {
+      items = await fetchList(true);
+    } catch (err: any) {
+      const msg = String(err?.message || err);
+      if (msg.includes('Unknown argument `status`') || msg.includes('column') && msg.includes('status')) {
+        app.log?.warn?.({ err }, 'Status column not available; listing without status filter');
+        items = await fetchList(false);
+      } else {
+        throw err;
+      }
+    }
+
+    let nextCursor: string | null = null;
+    if (items.length > take) {
+      const tail = items.pop()!;
+      nextCursor = encodeCursor({ createdAt: (tail as any).createdAt, id: tail.id });
+    }
+
+    return reply.send({ items, nextCursor });
+  });
+
   // Helper: checa se o usuário é dono do produto
   async function ensureOwner(productId: string, userId: string): Promise<boolean> {
     const prod = await prisma.product.findUnique({ where: { id: productId }, select: { sellerUserId: true, daoId: true } });

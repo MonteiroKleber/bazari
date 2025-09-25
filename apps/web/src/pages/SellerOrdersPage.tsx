@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,13 +8,14 @@ import { sellerApi } from '@/modules/seller/api';
 
 export default function SellerOrdersPage() {
   const { t } = useTranslation();
+  const { shopSlug = '' } = useParams();
   const [items, setItems] = useState<any[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   async function load(cursor?: string) {
-    const res = await sellerApi.listMyOrders(cursor ? { cursor } : undefined);
+    const res = await sellerApi.listStoreOrders(shopSlug, cursor ? { cursor } : undefined);
     setItems((prev) => cursor ? [...prev, ...res.items] : res.items);
     setNextCursor(res.nextCursor ?? null);
   }
@@ -28,7 +29,7 @@ export default function SellerOrdersPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">{t('seller.orders.title', { defaultValue: 'Minhas Vendas' })}</h1>
+        <h1 className="text-2xl font-semibold">{t('seller.orders.title', { defaultValue: 'Vendas da loja' })} <span className="text-muted-foreground">/@{shopSlug}</span></h1>
       </div>
 
       {loading && items.length === 0 ? (
@@ -69,4 +70,3 @@ export default function SellerOrdersPage() {
     </div>
   );
 }
-

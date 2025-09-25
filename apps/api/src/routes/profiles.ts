@@ -46,16 +46,19 @@ export async function profilesRoutes(app: FastifyInstance, options: { prisma: Pr
       return reply.status(404).send({ error: 'Perfil não encontrado' });
     }
 
-    const sellerProfile = await prisma.sellerProfile.findUnique({
+    const sellerProfiles = await prisma.sellerProfile.findMany({
       where: { userId: profile.userId },
+      orderBy: [{ isDefault: 'desc' as any }, { createdAt: 'asc' as any }] as any,
       select: {
         shopName: true,
         shopSlug: true,
         about: true,
         ratingAvg: true,
         ratingCount: true,
+        isDefault: true,
       },
-    });
+    } as any);
+    const sellerProfile = sellerProfiles[0] ?? null;
 
     // viewer (opcional): se Authorization presente, retorna isSelf/isFollowing
     let viewer: { isSelf: boolean; isFollowing: boolean } | null = null;
@@ -99,6 +102,7 @@ export async function profilesRoutes(app: FastifyInstance, options: { prisma: Pr
     return reply.send({
       profile,
       sellerProfile: sellerProfile ?? null,
+      sellerProfiles,
       counts: {
         followers: profile.followersCount,
         following: profile.followingCount,
@@ -241,8 +245,9 @@ export async function profilesRoutes(app: FastifyInstance, options: { prisma: Pr
       return reply.send({ handle: null, address: address ?? null, profileId: null, shopSlug: null, exists: false });
     }
 
-    const seller = await prisma.sellerProfile.findUnique({ where: { userId: profile.userId }, select: { shopSlug: true } });
-    return reply.send({ handle: profile.handle, address: address ?? null, profileId: profile.id, shopSlug: seller?.shopSlug ?? null, exists: true });
+    const shops = await prisma.sellerProfile.findMany({ where: { userId: profile.userId }, select: { shopSlug: true, shopName: true, isDefault: true } } as any);
+    const defaultShop = shops.find(s => (s as any).isDefault) || shops[0] || null;
+    return reply.send({ handle: profile.handle, address: address ?? null, profileId: profile.id, shops, defaultShopSlug: defaultShop?.shopSlug ?? null, exists: true });
   });
 
   // GET /me/profile — autenticado
