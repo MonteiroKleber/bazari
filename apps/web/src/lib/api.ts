@@ -2,6 +2,7 @@ import {
   ensureFreshAccessToken,
   getAccessToken,
   refreshSession,
+  isReauthInProgress,
 } from '../modules/auth/session';
 
 // Cliente HTTP para comunicação com a API
@@ -26,7 +27,7 @@ async function apiFetch<T>(path: string, init: RequestInit = {}, options: ApiOpt
   const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
 
   try {
-    if (requireAuth) {
+    if (requireAuth && !isReauthInProgress()) {
       await ensureFreshAccessToken();
     }
 
@@ -46,9 +47,11 @@ async function apiFetch<T>(path: string, init: RequestInit = {}, options: ApiOpt
     clearTimeout(timeoutId);
 
     if (response.status === 401 && requireAuth && !isRetry) {
-      const refreshed = await refreshSession();
-      if (refreshed) {
-        return apiFetch<T>(path, init, { requireAuth, isRetry: true });
+      if (!isReauthInProgress()) {
+        const refreshed = await refreshSession();
+        if (refreshed) {
+          return apiFetch<T>(path, init, { requireAuth, isRetry: true });
+        }
       }
       throw new ApiError(401, 'Unauthorized');
     }

@@ -930,5 +930,124 @@
     "refunded": "REFUNDED",
     "cancelled": "CANCELLED",
     "timeout": "TIMEOUT"
+  },
+  "p2p": {
+    "tabs": { "buyBzr": "Comprar BZR", "sellBzr": "Vender BZR" },
+    "cta": { "createOffer": "Crear oferta" },
+    "filters": { "minBRL": "Monto mínimo (R$)", "maxBRL": "Monto máximo (R$)" },
+    "actions": { "applyFilters": "Aplicar filtros", "buy": "Comprar", "sell": "Vender" },
+    "badge": { "selling": "Vendiendo BZR", "buying": "Comprando BZR" },
+    "empty": "No se encontraron ofertas.",
+    "mine": {
+      "title": "Mis ofertas",
+      "view": "Ver",
+      "empty": "Aún no has creado ofertas."
+    },
+    "new": {
+      "title": "Nueva oferta P2P",
+      "needPix": "Debes configurar una clave PIX para publicar ofertas.",
+      "addPix": "Agregar PIX",
+      "sideSell": "Vender BZR",
+      "sideBuy": "Comprar BZR",
+      "phase1": "fase 1",
+      "price": "Precio (R$/BZR)",
+      "minBRL": "Mínimo por orden (R$)",
+      "maxBRL": "Máximo por orden (R$)",
+      "autoReply": "Respuesta automática",
+      "autoReplyPh": "Instrucciones iniciales para la contraparte",
+      "promptPixKey": "Ingrese su clave PIX"
+    },
+    "room": {
+      "status": {
+        "awaitingEscrow": "Esperando escrow de BZR",
+        "awaitingFiat": "Esperando pago PIX",
+        "awaitingConfirm": "Esperando confirmación",
+        "released": "Liberado",
+        "expired": "Expirada",
+        "cancelled": "Cancelada"
+      },
+      "summary": {
+        "price": "Precio",
+        "amountBZR": "Cantidad BZR",
+        "amountBRL": "Valor BRL"
+      },
+      "steps": {
+        "title": "Pasos",
+        "lock": "Bloquear BZR en escrow",
+        "pay": "Pagar vía PIX",
+        "confirm": "Confirmar recibo"
+      },
+      "actions": {
+        "markPaid": "Marcar como pagado",
+        "confirmReceived": "Confirmar recibo",
+        "needProof": "Adjunta al menos un comprobante antes de marcar como pagado"
+      },
+      "escrow": {
+        "title": "Escrow de BZR",
+        "getIntent": "Obtener instrucciones",
+        "address": "Dirección de escrow",
+        "amount": "Cantidad a enviar (BZR)",
+        "copyAddress": "Copiar dirección",
+        "copyAmount": "Copiar cantidad",
+        "note": "Firma la transacción en la billetera (balances.transfer_keep_alive).",
+        "confirm": "Confirmar escrow",
+        "promptHash": "Ingrese el hash de la transacción de escrow"
+      },
+      "pix": {
+        "key": "Clave PIX",
+        "hidden": "Disponible después del escrow",
+        "copy": "Copiar clave",
+        "wait": "La clave PIX será visible después del escrow.",
+        "promptProof": "URL del comprobante (opcional)"
+      },
+      "proofs": {
+        "title": "Comprobantes adjuntos",
+        "uploaded": "Comprobante enviado",
+        "removed": "Comprobante eliminado",
+        "cleared": "Comprobantes limpiados",
+        "remove": "Eliminar",
+        "clearAll": "Limpiar adjuntos"
+      },
+      "chat": {
+        "title": "Chat",
+        "placeholder": "Escribe un mensaje...",
+        "send": "Enviar",
+        "rateLimitedShort": "Espera",
+        "system": {
+          "escrowConfirmed": "Escrow confirmado",
+          "paidMarked": "Pago marcado por el pagador",
+          "released": "Escrow liberado"
+        },
+        "rateLimited": "Has alcanzado el límite de mensajes. Inténtalo de nuevo en breve."
+      }
+    },
+    "security": {
+      "escrowFirst": "La clave PIX es visible después del escrow de BZR."
+    },
+    "timer": {
+      "label": "Tiempo restante"
+    },
+    "offerPublic": {
+      "validation": { "outOfRange": "Valor fuera del rango de esta oferta." },
+      "rangeBadge": "Rango permitido: R$ {{min}} – R$ {{max}}"
+    },
+    "offer": {
+      "price": "Precio por BZR",
+      "range": "Rango",
+      "toast": {
+        "published": "Oferta publicada",
+        "publishError": "Error al publicar oferta",
+        "invalidPrice": "Precio inválido",
+        "invalidRange": "Rango inválido",
+        "rangeOrder": "El máximo debe ser mayor o igual al mínimo",
+        "pixSaved": "PIX guardado"
+      }
+    },
+    "order": {
+      "toast": {
+        "created": "Pedido creado",
+        "createError": "Error al crear pedido"
+      }
+    }
   }
 }

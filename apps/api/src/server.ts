@@ -25,12 +25,17 @@ import { osEnabled } from './lib/opensearch.js';
 import { ensureOsIndex } from './lib/opensearchIndex.js';
 import { getPaymentsConfig, getLogSafeConfig } from './config/payments.js';
 import { startPaymentsTimeoutWorker } from './workers/paymentsTimeout.js';
+import { startP2PTimeoutWorker } from './workers/p2pTimeout.js';
 import { profilesRoutes } from './routes/profiles.js';
 import { sellersRoutes } from './routes/sellers.js';
 import { socialRoutes } from './routes/social.js';
 import { postsRoutes } from './routes/posts.js';
 import { meProductsRoutes } from './routes/me.products.js';
 import { meSellersRoutes } from './routes/me.sellers.js';
+import { p2pOffersRoutes } from './routes/p2p.offers.js';
+import { p2pOrdersRoutes } from './routes/p2p.orders.js';
+import { p2pPaymentProfileRoutes } from './routes/p2p.paymentProfile.js';
+import { p2pMessagesRoutes } from './routes/p2p.messages.js';
 
 const prisma = new PrismaClient();
 
@@ -80,6 +85,10 @@ async function buildApp() {
   await app.register(postsRoutes, { prefix: '/', prisma });
   await app.register(meProductsRoutes, { prefix: '/', prisma });
   await app.register(meSellersRoutes, { prefix: '/', prisma });
+  await app.register(p2pOffersRoutes, { prefix: '/', prisma });
+  await app.register(p2pOrdersRoutes, { prefix: '/', prisma });
+  await app.register(p2pPaymentProfileRoutes, { prefix: '/', prisma });
+  await app.register(p2pMessagesRoutes, { prefix: '/', prisma });
   // Também expor com prefixo /api para compatibilidade com o front
   await app.register(healthRoutes, { prefix: '/api', prisma });
   await app.register(mediaRoutes, { prefix: '/api', prisma, storage });
@@ -95,6 +104,31 @@ async function buildApp() {
   await app.register(postsRoutes, { prefix: '/api', prisma });
   await app.register(meProductsRoutes, { prefix: '/api', prisma });
   await app.register(meSellersRoutes, { prefix: '/api', prisma });
+  await app.register(p2pOffersRoutes, { prefix: '/api', prisma });
+  await app.register(p2pOrdersRoutes, { prefix: '/api', prisma });
+  await app.register(p2pPaymentProfileRoutes, { prefix: '/api', prisma });
+  await app.register(p2pMessagesRoutes, { prefix: '/api', prisma });
+
+  // Error handler (dev): log detalhado para diagnosticar 500
+  if (process.env.NODE_ENV !== 'production') {
+    app.setErrorHandler((err, req, reply) => {
+      app.log.error({
+        msg: 'Unhandled error',
+        url: req.url,
+        method: req.method,
+        params: req.params,
+        query: req.query,
+        // Não logar bodies por segurança; se precisar, habilitar com cuidado.
+        err: {
+          message: err.message,
+          stack: err.stack,
+          code: (err as any).code,
+          name: err.name,
+        },
+      });
+      reply.status((err as any).statusCode || 500).send({ statusCode: 500, error: 'Internal Server Error', message: err.message });
+    });
+  }
 
   if (osEnabled) {
     try {
@@ -107,6 +141,7 @@ async function buildApp() {
 
   // Iniciar worker de timeout em desenvolvimento
   let timeoutWorker: NodeJS.Timeout | null = null;
+  let p2pTimeoutWorker: NodeJS.Timeout | null = null;
   if (process.env.NODE_ENV !== 'production') {
     try {
       timeoutWorker = startPaymentsTimeoutWorker(prisma, {
@@ -117,6 +152,17 @@ async function buildApp() {
     } catch (err) {
       app.log.warn({ err }, 'Falha ao iniciar worker de timeout');
     }
+    try {
+      p2pTimeoutWorker = startP2PTimeoutWorker(prisma, {
+        escrowMs: 10 * 60 * 1000,
+        paymentMs: 30 * 60 * 1000,
+        confirmMs: 30 * 60 * 1000,
+        intervalMs: 60 * 1000,
+      });
+      app.log.info('Worker de timeout de P2P iniciado (dev)');
+    } catch (err) {
+      app.log.warn({ err }, 'Falha ao iniciar worker de timeout P2P');
+    }
   }
 
   // Limpar worker no graceful shutdown
@@ -124,6 +170,10 @@ async function buildApp() {
     if (timeoutWorker) {
       clearInterval(timeoutWorker);
       app.log.info('Worker de timeout parado');
+    }
+    if (p2pTimeoutWorker) {
+      clearInterval(p2pTimeoutWorker);
+      app.log.info('Worker de timeout P2P parado');
     }
   });
 

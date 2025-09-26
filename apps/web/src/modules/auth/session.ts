@@ -17,6 +17,7 @@ export type SessionEvent = 'expired' | 'cleared';
 let state: SessionState | null = null;
 let refreshPromise: Promise<boolean> | null = null;
 const listeners = new Set<(event: SessionEvent) => void>();
+let reauthInProgress = false;
 
 function notify(event: SessionEvent) {
   listeners.forEach((listener) => listener(event));
@@ -27,6 +28,18 @@ export function subscribeSession(listener: (event: SessionEvent) => void) {
   return () => {
     listeners.delete(listener);
   };
+}
+
+export function beginReauth() {
+  reauthInProgress = true;
+}
+
+export function endReauth() {
+  reauthInProgress = false;
+}
+
+export function isReauthInProgress() {
+  return reauthInProgress;
 }
 
 export function getSessionUser() {

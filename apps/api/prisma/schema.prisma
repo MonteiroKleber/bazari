@@ -389,3 +389,118 @@ model ProfileSubDao {
 
   @@unique([profileId, subDaoId])
 }
+
+/// --- P2P (Offers / Orders) ---
+
+enum P2POfferSide {
+  BUY_BZR
+  SELL_BZR
+}
+enum P2POfferStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+enum P2POrderStatus {
+  DRAFT
+  AWAITING_ESCROW
+  AWAITING_FIAT_PAYMENT
+  AWAITING_CONFIRMATION
+  RELEASED
+  EXPIRED
+  CANCELLED
+  DISPUTE_OPEN
+  DISPUTE_RESOLVED_BUYER
+  DISPUTE_RESOLVED_SELLER
+}
+enum P2PPaymentMethod {
+  PIX
+}
+
+model P2PPaymentProfile {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  pixKey       String?
+  bankName     String?
+  accountName  String?
+  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now())
+}
+
+model P2POffer {
+  id             String   @id @default(cuid())
+  ownerId        String
+  side           P2POfferSide
+  priceBRLPerBZR Decimal  @db.Decimal(18,2)
+  minBRL         Decimal  @db.Decimal(18,2)
+  maxBRL         Decimal  @db.Decimal(18,2)
+  method         P2PPaymentMethod
+  autoReply      String?
+  status         P2POfferStatus @default(ACTIVE)
+  stats          Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([ownerId, status, side])
+}
+
+model P2POrder {
+  id               String   @id @default(cuid())
+  offerId          String
+  makerId          String
+  takerId          String
+  side             P2POfferSide
+  priceBRLPerBZR   Decimal  @db.Decimal(18,2)
+  amountBZR        Decimal  @db.Decimal(38,18)
+  amountBRL        Decimal  @db.Decimal(18,2)
+  method           P2PPaymentMethod
+  status           P2POrderStatus @default(DRAFT)
+
+  escrowTxHash     String?
+  escrowAt         DateTime?
+  releasedTxHash   String?
+  releasedAt       DateTime?
+
+  pixKeySnapshot   String?
+  payerDeclaredAt  DateTime?
+  proofUrls        Json?
+
+  expiresAt        DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([makerId, takerId, status])
+  @@index([offerId])
+}
+
+model P2PMessage {
+  id        String   @id @default(cuid())
+  orderId   String
+  senderId  String
+  body      String   @db.Text
+  kind      String
+  createdAt DateTime @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+model P2PDispute {
+  id         String   @id @default(cuid())
+  orderId    String   @unique
+  openedById String
+  reason     String
+  evidence   Json?
+  status     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model P2PReview {
+  id        String  @id @default(cuid())
+  orderId   String  @unique
+  raterId   String
+  rateeId   String
+  stars     Int
+  comment   String?
+  createdAt DateTime @default(now())
+}

@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Keyring } from '@polkadot/keyring';
 import { cryptoWaitReady } from '@polkadot/util-crypto';
 import { Button } from '@/components/ui/button';
+import { PinDialog } from '@/modules/wallet/components/PinDialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { apiHelpers } from '@/lib/api';
@@ -120,7 +121,11 @@ export function CheckoutPage() {
     };
   }, [intent, estimatedFee, t]);
 
-  const handlePayment = useCallback(async () => {
+  const [pinOpen, setPinOpen] = useState(false);
+  const [pinLoading, setPinLoading] = useState(false);
+  const [pinError, setPinError] = useState<string | null>(null);
+
+  const signWithPin = useCallback(async (pin: string) => {
     if (!intent) return;
 
     const activeAccount = getActiveAccount();
@@ -132,13 +137,6 @@ export function CheckoutPage() {
     try {
       resetState();
       setTxStatus('signing');
-
-      // Solicitar PIN para decrypt mnemonic (simplificado para demo)
-      const pin = prompt(t('checkout.enterPin')); // Em produção, usar modal de PIN
-      if (!pin) {
-        setTxStatus('error');
-        return;
-      }
 
       const mnemonic = await decryptMnemonic(activeAccount.encryptedMnemonic, pin);
 
@@ -185,6 +183,11 @@ export function CheckoutPage() {
       setTxStatus('error');
     }
   }, [intent, chainProps, t, resetState, navigate]);
+
+  const handlePayment = useCallback(async () => {
+    setPinError(null);
+    setPinOpen(true);
+  }, []);
 
   const formatBzr = useCallback((planck: string) => {
     // Assumindo 12 decimais para BZR
@@ -301,6 +304,18 @@ export function CheckoutPage() {
             )}
           </CardContent>
         </Card>
+        <PinDialog
+          open={pinOpen}
+          title={t('wallet.send.pinTitle', 'Digite seu PIN')}
+          description={t('wallet.send.pinDescription', 'Desbloqueie para assinar a transação')}
+          label={t('wallet.send.pinLabel', 'PIN')}
+          cancelText={t('wallet.send.pinCancel', 'Cancelar')}
+          confirmText={t('wallet.send.pinConfirm', 'Confirmar')}
+          loading={pinLoading}
+          error={pinError || undefined}
+          onCancel={() => { setPinOpen(false); setPinError(null); }}
+          onConfirm={async (pin) => { setPinOpen(false); setPinLoading(true); try { await signWithPin(pin); } catch (e) { setPinError((e as Error).message || 'Erro'); } finally { setPinLoading(false); } }}
+        />
       </div>
     </div>
   );

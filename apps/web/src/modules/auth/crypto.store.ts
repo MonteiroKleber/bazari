@@ -248,6 +248,23 @@ export async function hasAccounts(): Promise<boolean> {
   return count > 0;
 }
 
+export async function updateAccountName(address: string, name: string | undefined): Promise<VaultAccountRecord> {
+  const db = await getDb();
+  const tx = db.transaction([ACCOUNTS_STORE], 'readwrite');
+  const store = tx.objectStore(ACCOUNTS_STORE);
+  const existing = (await store.get(address)) as RawAccountRecord | undefined;
+  const record = normalizeRecord(existing);
+  if (!record) {
+    await tx.done;
+    throw new Error('Active account not found');
+  }
+  const updated: VaultAccountRecord = { ...record, name: (name && name.trim()) ? name.trim() : undefined };
+  await store.put(updated);
+  await tx.done;
+  notifySubscribers();
+  return updated;
+}
+
 export async function getEncryptedSeed() {
   return getActiveAccount();
 }

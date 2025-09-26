@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { subscribeSession } from '@/modules/auth';
+import { isReauthInProgress } from '@/modules/auth/session';
+import { PinService } from '@/modules/wallet/pin/PinService';
 
 export function SessionBoundary() {
   const { t } = useTranslation();
@@ -15,6 +17,10 @@ export function SessionBoundary() {
   useEffect(() => {
     const unsubscribe = subscribeSession((event) => {
       if (event === 'expired') {
+        if (isReauthInProgress() || PinService.isOpen()) {
+          // Ignore overlay while a controlled reauth flow is in progress
+          return;
+        }
         const nextTarget = location.pathname + location.search + location.hash;
         setTarget(nextTarget || '/app');
         setIsOpen(true);
