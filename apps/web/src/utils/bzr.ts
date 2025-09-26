@@ -1,6 +1,6 @@
 // Utility to format BZR amounts consistently across the app
 
-const BZR_DECIMALS = 12n;
+const BZR_DECIMALS = 12; // avoid BigInt for legacy/browser compat
 
 export function normalizeLocale(lang?: string): string {
   switch ((lang || '').toLowerCase()) {
@@ -25,15 +25,19 @@ export function formatBzrDecimal(value: string | number, locale = 'en-US', withP
   return withPrefix ? `BZR ${formatted}` : formatted;
 }
 
-export function formatBzrPlanck(planck: string | bigint, locale = 'en-US', withPrefix = true) {
+export function formatBzrPlanck(planck: string | number, locale = 'en-US', withPrefix = true) {
   try {
-    const raw = typeof planck === 'bigint' ? planck : BigInt(String(planck).replace(/[^0-9-]/g, ''));
-    const divisor = 10n ** BZR_DECIMALS;
-    const integer = raw / divisor;
-    const fraction = raw % divisor;
-    const num = Number(integer) + Number(fraction) / Number(divisor);
+    const rawStr = String(planck).replace(/[^0-9-]/g, '');
+    const negative = rawStr.startsWith('-');
+    const absStr = negative ? rawStr.slice(1) : rawStr;
+    // Pad left to ensure at least BZR_DECIMALS digits
+    const padded = absStr.padStart(BZR_DECIMALS + 1, '0');
+    const intPart = padded.slice(0, padded.length - BZR_DECIMALS);
+    const fracPart = padded.slice(padded.length - BZR_DECIMALS);
+    const num = Number(intPart) + Number(`0.${fracPart}`);
+    const signed = negative ? -num : num;
     const formatted = new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
-      Number.isFinite(num) ? num : 0
+      Number.isFinite(signed) ? signed : 0
     );
     return withPrefix ? `BZR ${formatted}` : formatted;
   } catch {

@@ -28,6 +28,7 @@ import { ImportAccount } from './pages/auth/ImportAccount';
 import { Unlock } from './pages/auth/Unlock';
 import { DeviceLink } from './pages/auth/DeviceLink';
 import { SessionBoundary } from './components/auth/SessionBoundary';
+import { PinProvider } from './modules/wallet/pin/PinProvider';
 import { RequireAuth } from './components/auth/RequireAuth';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
@@ -42,6 +43,11 @@ import SellerDashboardPage from './pages/SellerDashboardPage';
 import SellerProductsPage from './pages/SellerProductsPage';
 import SellerOrdersPage from './pages/SellerOrdersPage';
 import SellersListPage from './pages/SellersListPage';
+import P2PHomePage from './modules/p2p/pages/P2PHomePage';
+import P2POfferNewPage from './modules/p2p/pages/P2POfferNewPage';
+import P2POfferPublicPage from './modules/p2p/pages/P2POfferPublicPage';
+import P2POrderRoomPage from './modules/p2p/pages/P2POrderRoomPage';
+import P2PMyOrdersPage from './modules/p2p/pages/P2PMyOrdersPage';
 
 function LandingPage() {
   const { t } = useTranslation();
@@ -196,6 +202,7 @@ function App() {
       <BrowserRouter>
         <div className="min-h-screen bg-background">
           <SessionBoundary />
+          <PinProvider />
           <Routes>
             <Route
               path="/app/wallet/*"
@@ -239,6 +246,11 @@ function App() {
                       <Route path="orders/:id/pay" element={<OrderPayPage />} />
                       <Route path="orders/:id" element={<OrderPage />} />
                       <Route path="order/:id" element={<OrderPage />} />
+                      <Route path="p2p" element={<P2PHomePage />} />
+                      <Route path="p2p/my-orders" element={<P2PMyOrdersPage />} />
+                      <Route path="p2p/offers/new" element={<P2POfferNewPage />} />
+                      <Route path="p2p/offers/:id" element={<P2POfferPublicPage />} />
+                      <Route path="p2p/orders/:id" element={<P2POrderRoomPage />} />
                       {/* Futuras rotas internas */}
                       {/* <Route path="dashboard" element={<Dashboard />} /> */}
                       {/* <Route path="wallet" element={<Wallet />} /> */}

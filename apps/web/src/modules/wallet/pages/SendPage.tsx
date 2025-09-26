@@ -17,6 +17,7 @@ import { useChainProps } from '../hooks/useChainProps';
 import { useTokens, type WalletToken } from '../store/tokens.store';
 import { getNativeBalance, subscribeNativeBalance, getAssetBalance, subscribeAssetBalance, type BalanceSnapshot } from '../services/balances';
 import { getActiveAccount, decryptMnemonic } from '@/modules/auth';
+import { PinService } from '@/modules/wallet/pin/PinService';
 import { getApi } from '../services/polkadot';
 import { parseAmountToPlanck, formatBalance, isValidAddress, normaliseAddress, shortenAddress } from '../utils/format';
 import { Scanner } from '../components/Scanner';
@@ -47,9 +48,7 @@ export function SendPage() {
   const [fee, setFee] = useState<FeeState | null>(null);
   const [estimatingFee, setEstimatingFee] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
-  const [pinDialogOpen, setPinDialogOpen] = useState(false);
-  const [pinValue, setPinValue] = useState('');
-  const [pinError, setPinError] = useState<string | null>(null);
+  // PIN via PinService
   const [isProcessing, setIsProcessing] = useState(false);
   const pendingValuesRef = useRef<FormValues | null>(null);
 
@@ -240,25 +239,34 @@ export function SendPage() {
     setStatusMessage(null);
     setTxHash(null);
     pendingValuesRef.current = values;
-    setPinDialogOpen(true);
-  });
-
-  const handleConfirmPin = async () => {
-    if (!pendingValuesRef.current || !activeAddress) {
+    const acct = await getActiveAccount();
+    if (!acct) {
+      setErrorMessage(t('wallet.send.errors.noVault'));
       return;
     }
-    if (!pinValue) {
-      setPinError(t('wallet.send.errors.pinRequired'));
+    const pin = await PinService.getPin({
+      title: t('wallet.send.pinTitle'),
+      description: t('wallet.send.pinDescription'),
+      validate: async (p) => {
+        try { await decryptMnemonic(acct.cipher, acct.iv, acct.salt, p, acct.iterations); return null; }
+        catch { return t('wallet.send.errors.pinInvalid') as string; }
+      },
+    });
+    await handleConfirmPin(pin);
+  });
+
+  const handleConfirmPin = async (pin: string) => {
+    if (!pendingValuesRef.current || !activeAddress) {
       return;
     }
 
     try {
       setIsProcessing(true);
-      setPinError(null);
+      setErrorMessage(null);
 
       const account = await getActiveAccount();
       if (!account) {
-        setPinError(t('wallet.send.errors.noVault'));
+        setErrorMessage(t('wallet.send.errors.noVault'));
         setIsProcessing(false);
         return;
       }
@@ -267,12 +275,9 @@ export function SendPage() {
         account.cipher,
         account.iv,
         account.salt,
-        pinValue,
+        pin,
         account.iterations
       );
-
-      setPinDialogOpen(false);
-      setPinValue('');
 
       await cryptoWaitReady();
       const ss58 = chainProps?.ss58Prefix ?? 42;
@@ -333,7 +338,7 @@ export function SendPage() {
       keyring.removePair(pair.address);
     } catch (error) {
       console.error(error);
-      setPinError(t('wallet.send.errors.pinInvalid'));
+      setErrorMessage(t('wallet.send.errors.pinInvalid'));
       setIsProcessing(false);
     }
   };
@@ -485,42 +490,7 @@ export function SendPage() {
         </CardContent>
       </Card>
 
-      {pinDialogOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-        >
-          <Card className="w-full max-w-md shadow-lg">
-            <CardHeader>
-              <CardTitle>{t('wallet.send.pinTitle')}</CardTitle>
-              <CardDescription>{t('wallet.send.pinDescription')}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="pin-input">{t('wallet.send.pinLabel')}</Label>
-                <Input
-                  id="pin-input"
-                  type="password"
-                  inputMode="numeric"
-                  value={pinValue}
-                  onChange={(event) => setPinValue(event.target.value)}
-                  disabled={isProcessing}
-                />
-                {pinError && <p className="text-xs text-destructive">{pinError}</p>}
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="ghost" onClick={() => setPinDialogOpen(false)} disabled={isProcessing}>
-                  {t('wallet.send.pinCancel')}
-                </Button>
-                <Button onClick={() => void handleConfirmPin()} disabled={isProcessing}>
-                  {isProcessing ? t('wallet.send.pinProcessing') : t('wallet.send.pinConfirm')}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {/* PIN handled globally via PinProvider */}
     </section>
   );
 }

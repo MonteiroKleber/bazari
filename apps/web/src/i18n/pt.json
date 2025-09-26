@@ -984,4 +984,124 @@
     "cancelled": "CANCELADO",
     "timeout": "EXPIRADO"
   }
+  ,
+  "p2p": {
+    "tabs": { "buyBzr": "Comprar BZR", "sellBzr": "Vender BZR" },
+    "cta": { "createOffer": "Criar oferta" },
+    "filters": { "minBRL": "Valor mínimo (R$)", "maxBRL": "Valor máximo (R$)" },
+    "actions": { "applyFilters": "Aplicar filtros", "buy": "Comprar", "sell": "Vender" },
+    "badge": { "selling": "Vendendo BZR", "buying": "Comprando BZR" },
+    "empty": "Nenhuma oferta encontrada.",
+    "mine": {
+      "title": "Minhas ofertas",
+      "view": "Ver",
+      "empty": "Você ainda não criou ofertas."
+    },
+    "new": {
+      "title": "Nova oferta P2P",
+      "needPix": "Você precisa configurar uma chave PIX para publicar ofertas.",
+      "addPix": "Adicionar PIX",
+      "sideSell": "Vender BZR",
+      "sideBuy": "Comprar BZR",
+      "phase1": "fase 1",
+      "price": "Preço (R$/BZR)",
+      "minBRL": "Mínimo por ordem (R$)",
+      "maxBRL": "Máximo por ordem (R$)",
+      "autoReply": "Mensagem automática",
+      "autoReplyPh": "Instruções iniciais para a contraparte",
+      "promptPixKey": "Informe sua chave PIX"
+    },
+    "room": {
+      "status": {
+        "awaitingEscrow": "Aguardando escrow de BZR",
+        "awaitingFiat": "Aguardando pagamento PIX",
+        "awaitingConfirm": "Aguardando confirmação",
+        "released": "Liberado",
+        "expired": "Expirada",
+        "cancelled": "Cancelada"
+      },
+      "summary": {
+        "price": "Preço",
+        "amountBZR": "Quantidade BZR",
+        "amountBRL": "Valor BRL"
+      },
+      "steps": {
+        "title": "Passos",
+        "lock": "Travar BZR em escrow",
+        "pay": "Pagar via PIX",
+        "confirm": "Confirmar recebimento"
+      },
+      "actions": {
+        "markPaid": "Marcar como pago",
+        "confirmReceived": "Confirmar recebimento",
+        "needProof": "Anexe ao menos um comprovante para marcar como pago"
+      },
+      "escrow": {
+        "title": "Escrow de BZR",
+        "getIntent": "Obter instruções",
+        "address": "Endereço escrow",
+        "amount": "Quantidade a enviar (BZR)",
+        "copyAddress": "Copiar endereço",
+        "copyAmount": "Copiar quantidade",
+        "note": "Assine a transação na carteira (balances.transfer_keep_alive).",
+        "confirm": "Confirmar escrow",
+        "promptHash": "Informe o hash da transação de escrow"
+      },
+      "pix": {
+        "key": "Chave PIX",
+        "hidden": "Disponível após escrow",
+        "copy": "Copiar chave",
+        "wait": "A chave PIX ficará visível após o escrow.",
+        "promptProof": "URL do comprovante (opcional)"
+      },
+      "proofs": {
+        "title": "Comprovantes anexados",
+        "uploaded": "Comprovante enviado",
+        "removed": "Comprovante removido",
+        "cleared": "Comprovantes limpos",
+        "remove": "Remover",
+        "clearAll": "Limpar anexos"
+      },
+      "chat": {
+        "title": "Chat",
+        "placeholder": "Escreva uma mensagem...",
+        "send": "Enviar",
+        "rateLimitedShort": "Aguarde",
+        "system": {
+          "escrowConfirmed": "Escrow confirmado",
+          "paidMarked": "Pagamento marcado pelo pagante",
+          "released": "Escrow liberado"
+        },
+        "rateLimited": "Você atingiu o limite de mensagens. Tente novamente em instantes."
+      }
+    },
+    "security": {
+      "escrowFirst": "A chave PIX fica visível após o escrow de BZR."
+    },
+    "timer": {
+      "label": "Tempo restante"
+    },
+    "offerPublic": {
+      "validation": { "outOfRange": "Valor fora da faixa desta oferta." },
+      "rangeBadge": "Faixa permitida: R$ {{min}} – R$ {{max}}"
+    },
+    "offer": {
+      "price": "Preço por BZR",
+      "range": "Faixa",
+      "toast": {
+        "published": "Oferta publicada",
+        "publishError": "Erro ao publicar oferta",
+        "invalidPrice": "Preço inválido",
+        "invalidRange": "Faixa inválida",
+        "rangeOrder": "Máximo deve ser maior ou igual ao mínimo",
+        "pixSaved": "PIX salvo"
+      }
+    },
+    "order": {
+      "toast": {
+        "created": "Ordem criada",
+        "createError": "Erro ao criar ordem"
+      }
+    }
+  }
 }

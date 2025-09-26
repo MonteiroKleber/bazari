@@ -17,7 +17,7 @@ import { normaliseAddress } from '@/modules/wallet/utils/format';
 import { ordersApi } from '../api';
 import { getNativeBalance } from '@/modules/wallet/services/balances';
 import { BZR } from '@/utils/bzr';
-import { PinDialog } from '@/modules/wallet/components/PinDialog';
+import { PinService } from '@/modules/wallet/pin/PinService';
 
 interface OrderDetails {
   id: string;
@@ -80,8 +80,7 @@ export function OrderPayPage() {
   const [estimatedFee, setEstimatedFee] = useState<string | null>(null);
   const [ed, setEd] = useState<string | null>(null);
   const [freeBalance, setFreeBalance] = useState<string | null>(null);
-  const [pinOpen, setPinOpen] = useState(false);
-  const [pinError, setPinError] = useState<string | null>(null);
+  // PIN handled via global PinService
 
   const formatBzr = useCallback((value: string | number) => {
     const locale = BZR.normalizeLocale(i18n.language);
@@ -178,10 +177,20 @@ export function OrderPayPage() {
     }
   }, [account, paymentIntent, order, chainProps, navigate, t]);
 
-  const handlePayment = useCallback(() => {
-    if (!account || !paymentIntent || !order || !chainProps) return;
-    setPinOpen(true);
-  }, [account, paymentIntent, order, chainProps]);
+  const handlePayment = useCallback(async () => {
+    if (!paymentIntent || !order || !chainProps) return;
+    const acct = await getActiveAccount();
+    if (!acct) return;
+    const pin = await PinService.getPin({
+      title: t('wallet.send.pinTitle'),
+      description: t('wallet.send.pinDescription'),
+      validate: async (p) => {
+        try { await decryptMnemonic(acct.cipher, acct.iv, acct.salt, p, acct.iterations); return null; }
+        catch { return t('wallet.send.errors.pinInvalid') as string; }
+      },
+    });
+    await signAndPay(pin);
+  }, [paymentIntent, order, chainProps, t, signAndPay]);
 
   if (loading) {
     return (
@@ -411,18 +420,7 @@ export function OrderPayPage() {
           )}
         </div>
       </div>
-      <PinDialog
-        open={pinOpen}
-        title={t('wallet.send.pinTitle')}
-        description={t('wallet.send.pinDescription')}
-        label={t('wallet.send.pinLabel')}
-        cancelText={t('wallet.send.pinCancel')}
-        confirmText={t('wallet.send.pinConfirm')}
-        loading={paying}
-        error={pinError}
-        onCancel={() => { setPinOpen(false); setPinError(null); }}
-        onConfirm={(pin) => { setPinOpen(false); void signAndPay(pin); }}
-      />
+      {/* PIN handled globally via PinProvider */}
     </div>
   );
 }

@@ -930,5 +930,124 @@
     "refunded": "REFUNDED",
     "cancelled": "CANCELLED",
     "timeout": "TIMEOUT"
+  },
+  "p2p": {
+    "tabs": { "buyBzr": "Buy BZR", "sellBzr": "Sell BZR" },
+    "cta": { "createOffer": "Create offer" },
+    "filters": { "minBRL": "Min amount (R$)", "maxBRL": "Max amount (R$)" },
+    "actions": { "applyFilters": "Apply filters", "buy": "Buy", "sell": "Sell" },
+    "badge": { "selling": "Selling BZR", "buying": "Buying BZR" },
+    "empty": "No offers found.",
+    "mine": {
+      "title": "My offers",
+      "view": "View",
+      "empty": "You haven't created any offers yet."
+    },
+    "new": {
+      "title": "New P2P offer",
+      "needPix": "You must set a PIX key to publish offers.",
+      "addPix": "Add PIX",
+      "sideSell": "Sell BZR",
+      "sideBuy": "Buy BZR",
+      "phase1": "phase 1",
+      "price": "Price (R$/BZR)",
+      "minBRL": "Min per order (R$)",
+      "maxBRL": "Max per order (R$)",
+      "autoReply": "Auto reply",
+      "autoReplyPh": "Initial instructions for the counterparty",
+      "promptPixKey": "Enter your PIX key"
+    },
+    "room": {
+      "status": {
+        "awaitingEscrow": "Awaiting BZR escrow",
+        "awaitingFiat": "Awaiting PIX payment",
+        "awaitingConfirm": "Awaiting confirmation",
+        "released": "Released",
+        "expired": "Expired",
+        "cancelled": "Cancelled"
+      },
+      "summary": {
+        "price": "Price",
+        "amountBZR": "Amount BZR",
+        "amountBRL": "Amount BRL"
+      },
+      "steps": {
+        "title": "Steps",
+        "lock": "Lock BZR in escrow",
+        "pay": "Pay via PIX",
+        "confirm": "Confirm receipt"
+      },
+      "actions": {
+        "markPaid": "Mark as paid",
+        "confirmReceived": "Confirm receipt",
+        "needProof": "Attach at least one receipt before marking as paid"
+      },
+      "escrow": {
+        "title": "BZR Escrow",
+        "getIntent": "Get instructions",
+        "address": "Escrow address",
+        "amount": "Amount to send (BZR)",
+        "copyAddress": "Copy address",
+        "copyAmount": "Copy amount",
+        "note": "Sign the transaction in your wallet (balances.transfer_keep_alive).",
+        "confirm": "Confirm escrow",
+        "promptHash": "Enter escrow transaction hash"
+      },
+      "pix": {
+        "key": "PIX key",
+        "hidden": "Available after escrow",
+        "copy": "Copy key",
+        "wait": "PIX key will be visible after escrow.",
+        "promptProof": "Receipt URL (optional)"
+      },
+      "proofs": {
+        "title": "Attached receipts",
+        "uploaded": "Receipt uploaded",
+        "removed": "Receipt removed",
+        "cleared": "Receipts cleared",
+        "remove": "Remove",
+        "clearAll": "Clear attachments"
+      },
+      "chat": {
+        "title": "Chat",
+        "placeholder": "Write a message...",
+        "send": "Send",
+        "rateLimitedShort": "Wait",
+        "system": {
+          "escrowConfirmed": "Escrow confirmed",
+          "paidMarked": "Payment marked by payer",
+          "released": "Escrow released"
+        },
+        "rateLimited": "You have reached the message limit. Please try again shortly."
+      }
+    },
+    "security": {
+      "escrowFirst": "PIX key is visible after BZR escrow."
+    },
+    "timer": {
+      "label": "Time left"
+    },
+    "offerPublic": {
+      "validation": { "outOfRange": "Amount out of this offer range." },
+      "rangeBadge": "Allowed range: R$ {{min}} – R$ {{max}}"
+    },
+    "offer": {
+      "price": "Price per BZR",
+      "range": "Range",
+      "toast": {
+        "published": "Offer published",
+        "publishError": "Failed to publish offer",
+        "invalidPrice": "Invalid price",
+        "invalidRange": "Invalid range",
+        "rangeOrder": "Max must be greater than or equal to Min",
+        "pixSaved": "PIX saved"
+      }
+    },
+    "order": {
+      "toast": {
+        "created": "Order created",
+        "createError": "Failed to create order"
+      }
+    }
   }
 }

@@ -9,16 +9,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Loader2, Copy, Check } from 'lucide-react';
 import {
   decryptMnemonic,
   encryptMnemonic,
   removeAccount,
   saveAccount,
   setActiveAccount,
+  updateAccountName,
   type VaultAccountRecord,
 } from '@/modules/auth';
 import { useKeyring } from '@/modules/auth/useKeyring';
 import { useVaultAccounts } from '../hooks/useVaultAccounts';
+import { fetchNonce, buildSiwsMessage, loginSiws } from '@/modules/auth';
+import { PinService } from '@/modules/wallet/pin/PinService';
+import { beginReauth, endReauth } from '@/modules/auth/session';
+import { toast } from 'sonner';
 
 type Panel = 'create' | 'import' | null;
 
@@ -32,10 +38,17 @@ const MIN_PIN_LENGTH = 6;
 export function AccountsPage() {
   const { t } = useTranslation();
   const { accounts, active, loading } = useVaultAccounts();
+  const { signMessage } = useKeyring();
+  const [pendingAddress, setPendingAddress] = useState<string | null>(null);
+  const [activating, setActivating] = useState<string | null>(null);
   const [panel, setPanel] = useState<Panel>(null);
   const [formState, setFormState] = useState<FormState>({ error: null, success: null });
   const [exportTarget, setExportTarget] = useState<VaultAccountRecord | null>(null);
   const [removeTarget, setRemoveTarget] = useState<VaultAccountRecord | null>(null);
+  const [editingLabel, setEditingLabel] = useState<string | null>(null);
+  const [labelValue, setLabelValue] = useState('');
+  const [savingLabel, setSavingLabel] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
 
   const handleSelectPanel = (next: Panel) => {
     setPanel((current) => (current === next ? null : next));
@@ -46,11 +59,63 @@ export function AccountsPage() {
 
   const handleSetActive = async (address: string) => {
     try {
-      await setActiveAccount(address);
-      setFormState({ error: null, success: t('wallet.accounts.messages.activeSuccess') });
+      beginReauth();
+      setActivating(address);
+      // Não trocar a conta ativa ainda. Só após validar PIN e SIWS.
+      setPendingAddress(address);
+      const acct = accounts.find((a) => a.address === address);
+      const pin = await PinService.getPin({
+        title: t('wallet.send.pinTitle', 'Digite seu PIN'),
+        description: t('wallet.send.pinDescription', 'Desbloqueie para assinar a sessão'),
+        validate: async (pinTry: string) => {
+          if (!acct) return t('wallet.accounts.messages.activeError', 'Conta não encontrada.');
+          try {
+            await decryptMnemonic(acct.cipher, acct.iv, acct.salt, pinTry, acct.iterations);
+            return null;
+          } catch (e) {
+            return t('wallet.accounts.messages.pinAccountMismatch', 'PIN não pertence a esta conta.');
+          }
+        },
+      });
+      await handleConfirmPin(address, pin);
     } catch (error) {
       console.error(error);
       setFormState({ error: t('wallet.accounts.messages.activeError'), success: null });
+      endReauth();
+    } finally {
+      setActivating(null);
+    }
+  };
+
+  const handleConfirmPin = async (address: string, pin: string) => {
+    const acct = accounts.find((a) => a.address === address);
+    if (!acct) { setPendingAddress(null); return; }
+    try {
+      const mnemonic = await decryptMnemonic(acct.cipher, acct.iv, acct.salt, pin, acct.iterations);
+      const nonce = await fetchNonce(address);
+      const message = buildSiwsMessage(address, nonce);
+      const signature = await signMessage(mnemonic, message);
+      await loginSiws({ address, message, signature });
+      // Agora, com a sessão da conta selecionada ativa, podemos persistir a conta ativa no cofre local
+      await setActiveAccount(address);
+      setFormState({ error: null, success: t('wallet.accounts.messages.activeSuccess', 'Conta definida como ativa.') });
+      toast.success(t('wallet.accounts.messages.activeAndLinked', 'Conta ativa e sessão vinculada ao perfil da conta.'));
+      setPendingAddress(null);
+      endReauth();
+      setTimeout(() => window.location.reload(), 300);
+    } catch (err) {
+      console.error(err);
+      // Mensagem específica para PIN incorreto/seed não decriptada
+      const anyErr = err as any;
+      const name = anyErr?.name || '';
+      const msg = (anyErr?.message as string) || '';
+      const pinMismatch = /OperationError/i.test(name) || /OperationError/i.test(msg) || /decrypt/i.test(msg);
+      if (pinMismatch) {
+        toast.error(t('wallet.accounts.messages.pinAccountMismatch', 'PIN não pertence a esta conta.'));
+      } else {
+        toast.error(t('wallet.accounts.messages.activeLinkFailed', 'Conta trocada, mas não foi possível atualizar a sessão. Faça login novamente.'));
+      }
+      endReauth();
     }
   };
 
@@ -119,12 +184,98 @@ export function AccountsPage() {
                   >
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                       <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-foreground break-all">{account.address}</p>
-                          {account.name && (
-                            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                              {account.name}
-                            </span>
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-foreground break-all">{account.address}</p>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6"
+                              title={t('wallet.accounts.copyAddress', 'Copiar endereço')}
+                              aria-label={t('wallet.accounts.copyAddress', 'Copiar endereço')}
+                              onClick={() => {
+                                if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                                  navigator.clipboard.writeText(account.address)
+                                    .then(() => {
+                                      setCopied(account.address);
+                                      setTimeout(() => setCopied(null), 1500);
+                                    })
+                                    .catch((err) => console.error('[wallet] copy address failed', err));
+                                }
+                              }}
+                              >
+                              {copied === account.address ? (
+                                <Check className="h-4 w-4 text-green-600" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
+                            </Button>
+                            {copied === account.address && (
+                              <span
+                                role="tooltip"
+                                className="text-[11px] rounded bg-emerald-600 text-white px-2 py-0.5 shadow"
+                              >
+                                {t('wallet.accounts.copied', 'Copiado!')}
+                              </span>
+                            )}
+                          </div>
+                          {editingLabel === account.address ? (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                className="h-8 max-w-xs"
+                                placeholder={t('wallet.accounts.label.placeholder', 'Rótulo (opcional)')}
+                                value={labelValue}
+                                onChange={(e) => setLabelValue(e.target.value)}
+                              />
+                              <Button
+                                size="sm"
+                                onClick={async () => {
+                                  try {
+                                    setSavingLabel(account.address);
+                                    await updateAccountName(account.address, labelValue.trim() || undefined);
+                                    setEditingLabel(null);
+                                    setLabelValue('');
+                                  } catch (err) {
+                                    console.error(err);
+                                    setFormState({ error: t('wallet.accounts.label.error', 'Falha ao salvar rótulo'), success: null });
+                                  } finally {
+                                    setSavingLabel(null);
+                                  }
+                                }}
+                                disabled={savingLabel === account.address}
+                              >
+                                {savingLabel === account.address ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    {t('common.saving', 'Salvando...')}
+                                  </>
+                                ) : t('common.save', 'Salvar')}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => { setEditingLabel(null); setLabelValue(''); }}
+                              >
+                                {t('common.cancel', 'Cancelar')}
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              {account.name ? (
+                                <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                                  {account.name}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">{t('wallet.accounts.label.empty', 'Sem rótulo')}</span>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => { setEditingLabel(account.address); setLabelValue(account.name || ''); }}
+                              >
+                                {t('wallet.accounts.label.edit', 'Editar rótulo')}
+                              </Button>
+                            </div>
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground">
@@ -140,8 +291,21 @@ export function AccountsPage() {
                             {t('wallet.accounts.activeBadge')}
                           </span>
                         ) : (
-                          <Button size="sm" variant="secondary" onClick={() => void handleSetActive(account.address)}>
-                            {t('wallet.accounts.makeActive')}
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => void handleSetActive(account.address)}
+                            disabled={activating === account.address}
+                            aria-busy={activating === account.address}
+                          >
+                            {activating === account.address ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                {t('wallet.accounts.makingActive', 'Ativando...')}
+                              </>
+                            ) : (
+                              t('wallet.accounts.makeActive')
+                            )}
                           </Button>
                         )}
                         <Button size="sm" variant="outline" onClick={() => setExportTarget(account)}>
@@ -181,6 +345,8 @@ export function AccountsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* PinDialog centralizado via PinProvider; nada aqui */}
     </section>
   );
 }
@@ -348,8 +514,15 @@ function CreateAccountPanel({ onClose, onSuccess, onError }: PanelProps) {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button type="submit" disabled={submitting}>
-              {submitting ? t('wallet.accounts.create.saving') : t('wallet.accounts.create.submit')}
+            <Button type="submit" disabled={submitting} aria-busy={submitting}>
+              {submitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t('wallet.accounts.create.saving')}
+                </>
+              ) : (
+                t('wallet.accounts.create.submit')
+              )}
             </Button>
             <Button variant="ghost" type="button" onClick={onClose} disabled={submitting}>
               {t('wallet.accounts.create.cancel')}
@@ -471,8 +644,15 @@ function ImportAccountPanel({ onClose, onSuccess, onError }: ImportPanelProps) {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button type="submit" disabled={submitting}>
-              {submitting ? t('wallet.accounts.import.saving') : t('wallet.accounts.import.submit')}
+            <Button type="submit" disabled={submitting} aria-busy={submitting}>
+              {submitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t('wallet.accounts.import.saving')}
+                </>
+              ) : (
+                t('wallet.accounts.import.submit')
+              )}
             </Button>
             <Button variant="ghost" type="button" onClick={onClose} disabled={submitting}>
               {t('wallet.accounts.import.cancel')}

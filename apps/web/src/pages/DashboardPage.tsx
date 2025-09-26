@@ -103,7 +103,7 @@ export default function DashboardPage() {
         <ModuleCard title="DAO" description="Governe e participe de decisões" actionText="Abrir" to="/app/dao" disabled />
         <ModuleCard title="SubDAOs" description="Grupos e comunidades" actionText="Abrir" to="/app/subdaos" disabled />
         <ModuleCard title="DEX" description="Negocie ativos do ecossistema" actionText="Abrir" to="/app/dex" disabled />
-        <ModuleCard title="Câmbio P2P" description="Troque BZR diretamente com outros" actionText="Abrir" to="/app/p2p" disabled />
+        <ModuleCard title="Câmbio P2P" description="Troque BZR diretamente com outros" actionText="Abrir" to="/app/p2p" />
       </div>
     </section>
   );
