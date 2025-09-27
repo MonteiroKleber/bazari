@@ -13,6 +13,10 @@ const envSchema = z.object({
   RATE_LIMIT_FOLLOW: z.string().default('30').transform((v) => Number(v)),
   RATE_LIMIT_POST: z.string().default('30').transform((v) => Number(v)),
   PAGE_SIZE_DEFAULT: z.string().default('20').transform((v) => Number(v)),
+  STORE_ONCHAIN_V1: z
+    .string()
+    .optional()
+    .transform((v) => (v ? /^true$/i.test(v) || v === '1' : false)),
   
   // S3 config (obrigatório apenas se STORAGE_PROVIDER === 's3')
   S3_REGION: z.string().optional(),

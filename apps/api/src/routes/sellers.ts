@@ -145,7 +145,17 @@ export async function sellersRoutes(app: FastifyInstance, options: { prisma: Pri
     reply.header('Cache-Control', 'public, max-age=60');
 
     return reply.send({
-      sellerProfile: { shopName: seller.shopName, shopSlug: seller.shopSlug, about: seller.about, ratingAvg: seller.ratingAvg, ratingCount: seller.ratingCount },
+      sellerProfile: {
+        id: seller.id,
+        shopName: seller.shopName,
+        shopSlug: seller.shopSlug,
+        about: seller.about,
+        ratingAvg: seller.ratingAvg,
+        ratingCount: seller.ratingCount,
+        policies: (seller as any).policies ?? null,
+        avatarUrl: seller.avatarUrl,
+        bannerUrl: seller.bannerUrl
+      },
       owner: ownerProfile,
       catalog: { products: itemsWithCovers, page: { nextCursor, limit: pageSize } },
     });

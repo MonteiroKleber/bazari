@@ -67,6 +67,9 @@ export async function ensureOsIndex() {
             }
           },
           category_slugs: { type: 'keyword' },
+          sellerStoreId: { type: 'keyword' },
+          storeSlug: { type: 'keyword' },
+          daoId: { type: 'keyword' },
           attrs: { type: 'object', enabled: true }, // MANTIDO: container para atributos
           indexHints: { type: 'object', enabled: true }, // MANTIDO: container para hints
           price: { type: 'float' }, // MANTIDO: preço original

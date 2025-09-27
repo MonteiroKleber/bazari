@@ -1,6 +1,7 @@
 import { getJSON, postJSON, patchJSON } from '@/lib/api';
 
 export interface SellerProfileDto {
+  id?: string;
   shopName: string;
   shopSlug: string;
   about?: string | null;

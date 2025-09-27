@@ -16,13 +16,19 @@ export type OsDoc = {
   priceBzr?: number | null; // CONFIRMADO: preço em BZR numérico
   media: Array<{ id: string; url: string }>;
   createdAt: string;
+  sellerStoreId?: string | null;
+  storeSlug?: string | null;
+  daoId?: string | null;
 };
 
 export async function buildOsDoc(kind: 'product'|'service', id: string): Promise<OsDoc | null> {
   if (kind === 'product') {
     const p = await prisma.product.findUnique({
       where: { id },
-      include: { category: { select: { pathSlugs: true } } }
+      include: {
+        category: { select: { pathSlugs: true } },
+        sellerStore: { select: { id: true, shopSlug: true } }
+      }
     });
     if (!p) return null;
 
@@ -46,6 +52,9 @@ export async function buildOsDoc(kind: 'product'|'service', id: string): Promise
     const price = (p as any).price ?? null;
     const priceNum = price != null ? Number(price) : null;
 
+    const sellerStoreId = (p as any).sellerStoreId ?? (p.sellerStore?.id ?? null);
+    const storeSlug = p.sellerStore?.shopSlug ?? ((p as any).daoId ?? null);
+
     return {
       id: p.id,
       kind: 'product',
@@ -58,12 +67,18 @@ export async function buildOsDoc(kind: 'product'|'service', id: string): Promise
       price: priceNum,
       priceBzr: priceBzrNum, // ADICIONADO: preço BZR numérico
       media: firstMedia ? [{ id: firstMedia.id, url: firstMedia.url }] : [],
-      createdAt: (p.createdAt as Date).toISOString()
+      createdAt: (p.createdAt as Date).toISOString(),
+      sellerStoreId,
+      storeSlug,
+      daoId: (p as any).daoId ?? null
     };
   } else {
     const s = await prisma.serviceOffering.findUnique({
       where: { id },
-      include: { category: { select: { pathSlugs: true } } }
+      include: {
+        category: { select: { pathSlugs: true } },
+        sellerStore: { select: { id: true, shopSlug: true } }
+      }
     });
     if (!s) return null;
 
@@ -86,6 +101,9 @@ export async function buildOsDoc(kind: 'product'|'service', id: string): Promise
     const price = (s as any).price ?? (s as any).basePriceBzr ?? null;
     const priceNum = price != null ? Number(price) : null;
 
+    const sellerStoreId = (s as any).sellerStoreId ?? (s.sellerStore?.id ?? null);
+    const storeSlug = s.sellerStore?.shopSlug ?? ((s as any).daoId ?? null);
+
     return {
       id: s.id,
       kind: 'service',
@@ -98,7 +116,10 @@ export async function buildOsDoc(kind: 'product'|'service', id: string): Promise
       price: priceNum,
       priceBzr: priceBzrNum, // ADICIONADO: preço BZR numérico
       media: firstMedia ? [{ id: firstMedia.id, url: firstMedia.url }] : [],
-      createdAt: (s.createdAt as Date).toISOString()
+      createdAt: (s.createdAt as Date).toISOString(),
+      sellerStoreId,
+      storeSlug,
+      daoId: (s as any).daoId ?? null
     };
   }
 }

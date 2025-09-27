@@ -14,6 +14,8 @@ export interface SearchFilters {
   limit?: number;
   offset?: number;
   sort?: 'relevance' | 'priceAsc' | 'priceDesc' | 'createdDesc';
+  storeId?: string;
+  storeSlug?: string;
 }
 
 export interface SearchResults {
@@ -34,6 +36,14 @@ type UseSearchReturn = {
 };
 
 const DEFAULT_LIMIT = 20;
+const CACHE_TTL_MS = 60_000;
+
+type CacheEntry = {
+  data: SearchResults;
+  timestamp: number;
+};
+
+const searchCache = new Map<string, CacheEntry>();
 
 const absolutize = (u?: string): string => {
   if (!u) return '';
@@ -62,6 +72,8 @@ const buildQueryString = (filters: SearchFilters): string => {
   if (filters.sort) p.set('sort', String(filters.sort));
   if (typeof filters.limit === 'number') p.set('limit', String(filters.limit));
   if (typeof filters.offset === 'number') p.set('offset', String(filters.offset));
+  if (filters.storeId) p.set('storeId', String(filters.storeId));
+  if (filters.storeSlug) p.set('storeSlug', String(filters.storeSlug));
   if (filters.attrs && typeof filters.attrs === 'object') {
     for (const [k, v] of Object.entries(filters.attrs)) {
       if (Array.isArray(v)) {
@@ -72,6 +84,51 @@ const buildQueryString = (filters: SearchFilters): string => {
     }
   }
   return p.toString();
+};
+
+const normalizeAttrs = (attrs?: Record<string, string | string[]>) => {
+  if (!attrs) return undefined;
+  const sortedKeys = Object.keys(attrs).sort();
+  const normalized: Record<string, string[]> = {};
+  for (const key of sortedKeys) {
+    const value = attrs[key];
+    if (Array.isArray(value)) {
+      normalized[key] = [...value].map(String).sort();
+    } else if (value != null) {
+      normalized[key] = [String(value)];
+    }
+  }
+  return normalized;
+};
+
+const buildCacheKey = (filters: SearchFilters) => {
+  const {
+    storeId,
+    storeSlug,
+    q,
+    kind,
+    categoryPath,
+    priceMin,
+    priceMax,
+    attrs,
+    limit,
+    offset,
+    sort
+  } = filters;
+
+  return JSON.stringify({
+    storeId,
+    storeSlug,
+    q: q ?? '',
+    kind,
+    categoryPath: Array.isArray(categoryPath) ? [...categoryPath] : undefined,
+    priceMin: priceMin ?? null,
+    priceMax: priceMax ?? null,
+    attrs: normalizeAttrs(attrs),
+    limit,
+    offset,
+    sort,
+  });
 };
 
 // Busca URL de mídia por ID usando a rota da API
@@ -102,6 +159,8 @@ export function useSearch(initial?: SearchFilters): UseSearchReturn {
     limit: initial?.limit ?? DEFAULT_LIMIT,
     offset: initial?.offset ?? 0,
     sort: initial?.sort ?? 'relevance',
+    storeId: initial?.storeId,
+    storeSlug: initial?.storeSlug,
   }));
   const [results, setResults] = useState<SearchResults | null>(null);
   const [loading, setLoading] = useState(false);
@@ -115,6 +174,19 @@ export function useSearch(initial?: SearchFilters): UseSearchReturn {
     const effective = newFilters ?? filtersRef.current;
     setLoading(true);
     setError(null);
+
+    const cacheKey = buildCacheKey(effective);
+    const cached = searchCache.get(cacheKey);
+    const now = Date.now();
+
+    if (cached) {
+      setResults(cached.data);
+      if (now - cached.timestamp < CACHE_TTL_MS) {
+        setLoading(false);
+        return;
+      }
+      // stale cache: show cached data immediately, but continue revalidation
+    }
 
     try {
       // Cancela request anterior (se houver)
@@ -224,6 +296,10 @@ export function useSearch(initial?: SearchFilters): UseSearchReturn {
       }
 
       setResults(normalized);
+      searchCache.set(cacheKey, {
+        data: normalized,
+        timestamp: Date.now(),
+      });
     } catch (err: any) {
       if (err?.name === 'AbortError') {
         // busca cancelada — não sinaliza erro
@@ -250,7 +326,9 @@ export function useSearch(initial?: SearchFilters): UseSearchReturn {
     filters.sort,
     filters.limit,
     filters.offset,
-    JSON.stringify(filters.attrs) // CORREÇÃO: Adiciona attrs nas dependências
+    JSON.stringify(filters.attrs), // CORREÇÃO: Adiciona attrs nas dependências
+    filters.storeId,
+    filters.storeSlug
   ]);
 
   const updateFilters = useCallback((patch: Partial<SearchFilters>) => {
@@ -264,20 +342,27 @@ export function useSearch(initial?: SearchFilters): UseSearchReturn {
          patch.categoryPath !== undefined ||
          patch.priceMin !== undefined ||
          patch.priceMax !== undefined ||
-         patch.attrs !== undefined)
+         patch.attrs !== undefined ||
+         patch.storeId !== undefined ||
+         patch.storeSlug !== undefined)
           ? 0
           : (patch.offset ?? prev.offset ?? 0),
     }));
   }, []);
 
   const clearFilters = useCallback(() => {
-    setFilters({
+    setFilters(prev => ({
+      ...prev,
+      q: undefined,
       kind: 'all',
+      categoryPath: [],
+      priceMin: undefined,
+      priceMax: undefined,
+      attrs: {},
       limit: DEFAULT_LIMIT,
       offset: 0,
-      sort: 'relevance',
-      attrs: {}
-    });
+      sort: 'relevance'
+    }));
     setResults(null);
   }, []);
 

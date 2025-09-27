@@ -19,6 +19,8 @@ interface SearchFilters {
   limit?: number;
   offset?: number;
   sort?: 'relevance' | 'priceAsc' | 'priceDesc' | 'createdDesc';
+  storeId?: string;
+  storeSlug?: string;
 }
 
 interface SearchResult {
@@ -72,7 +74,9 @@ export class SearchQueryBuilder {
       attrs = {},
       limit = 20,
       offset = 0,
-      sort = 'relevance'
+      sort = 'relevance',
+      storeId,
+      storeSlug
     } = filters;
 
     const safeLimit = Math.min(Math.max(1, limit), 100);
@@ -81,6 +85,8 @@ export class SearchQueryBuilder {
     // Construir WHERE clauses
     const whereProduct: Prisma.ProductWhereInput = {};
     const whereService: Prisma.ServiceOfferingWhereInput = {};
+    const productAnd: Prisma.ProductWhereInput[] = [];
+    const serviceAnd: Prisma.ServiceOfferingWhereInput[] = [];
 
     // Busca textual
     if (q && q.trim()) {
@@ -122,9 +128,57 @@ export class SearchQueryBuilder {
         }
       }
       if (attrFilters.length > 0) {
-        whereProduct.AND = attrFilters;
-        whereService.AND = attrFilters;
+        productAnd.push(...(attrFilters as Prisma.ProductWhereInput[]));
+        serviceAnd.push(...(attrFilters as Prisma.ServiceOfferingWhereInput[]));
       }
+    }
+
+    // Filtro por loja
+    if (storeId || storeSlug) {
+      const productStoreClauses: Prisma.ProductWhereInput[] = [];
+      const serviceStoreClauses: Prisma.ServiceOfferingWhereInput[] = [];
+
+      if (storeId) {
+        productStoreClauses.push({ sellerStoreId: storeId });
+        serviceStoreClauses.push({ sellerStoreId: storeId });
+      }
+
+      if (storeSlug) {
+        productStoreClauses.push({ sellerStore: { shopSlug: storeSlug } });
+        productStoreClauses.push({
+          AND: [
+            { sellerStoreId: null },
+            { daoId: storeSlug }
+          ]
+        });
+        serviceStoreClauses.push({ sellerStore: { shopSlug: storeSlug } });
+        serviceStoreClauses.push({
+          AND: [
+            { sellerStoreId: null },
+            { daoId: storeSlug }
+          ]
+        });
+      }
+
+      if (productStoreClauses.length === 1) {
+        productAnd.push(productStoreClauses[0]);
+      } else if (productStoreClauses.length > 1) {
+        productAnd.push({ OR: productStoreClauses });
+      }
+
+      if (serviceStoreClauses.length === 1) {
+        serviceAnd.push(serviceStoreClauses[0]);
+      } else if (serviceStoreClauses.length > 1) {
+        serviceAnd.push({ OR: serviceStoreClauses });
+      }
+    }
+
+    if (productAnd.length > 0) {
+      whereProduct.AND = productAnd;
+    }
+
+    if (serviceAnd.length > 0) {
+      whereService.AND = serviceAnd;
     }
 
     // Ordenação condicional - sem ts_rank por enquanto
@@ -198,6 +252,7 @@ export class SearchQueryBuilder {
         priceBzr: p.priceBzr,
         categoryPath: p.categoryPath || [],
         attributes: p.attributes || {},
+        sellerStoreId: p.sellerStoreId ?? null,
         media: mediaMap.has(p.id) ? [mediaMap.get(p.id)!] : [],
         createdAt: p.createdAt
       }));
@@ -215,6 +270,7 @@ export class SearchQueryBuilder {
         priceBzr: s.basePriceBzr,
         categoryPath: s.categoryPath || [],
         attributes: s.attributes || {},
+        sellerStoreId: s.sellerStoreId ?? null,
         media: mediaMap.has(s.id) ? [mediaMap.get(s.id)!] : [],
         createdAt: s.createdAt
       }));
@@ -258,6 +314,7 @@ export class SearchQueryBuilder {
         priceBzr: p.priceBzr,
         categoryPath: p.categoryPath || [],
         attributes: p.attributes || {},
+        sellerStoreId: p.sellerStoreId ?? null,
         media: productMediaMap.has(p.id) ? [productMediaMap.get(p.id)!] : [],
         createdAt: p.createdAt
       }));
@@ -271,6 +328,7 @@ export class SearchQueryBuilder {
         priceBzr: s.basePriceBzr,
         categoryPath: s.categoryPath || [],
         attributes: s.attributes || {},
+        sellerStoreId: s.sellerStoreId ?? null,
         media: serviceMediaMap.has(s.id) ? [serviceMediaMap.get(s.id)!] : [],
         createdAt: s.createdAt
       }));
