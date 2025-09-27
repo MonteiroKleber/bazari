@@ -18,6 +18,8 @@ type Filters = {
   sort?: 'relevance'|'price_asc'|'price_desc'|'newest';
   limit?: number;
   offset?: number;
+  storeId?: string;
+  storeSlug?: string;
 };
 
 /** Monta cláusulas must/filter a partir dos filtros atuais. */
@@ -47,6 +49,23 @@ function buildQuery(filters: Filters) {
   if (filters.categoryPath?.length) {
     const path = filters.categoryPath.join('/');
     filter.push({ prefix: { 'category_path.kw': path } });
+  }
+
+  // Filtro por loja (storeId ou slug)
+  if (filters.storeId || filters.storeSlug) {
+    const storeClauses: any[] = [];
+    if (filters.storeId) {
+      storeClauses.push({ term: { sellerStoreId: filters.storeId } });
+    }
+    if (filters.storeSlug) {
+      storeClauses.push({ term: { storeSlug: filters.storeSlug } });
+    }
+
+    if (storeClauses.length === 1) {
+      filter.push(storeClauses[0]);
+    } else if (storeClauses.length > 1) {
+      filter.push({ bool: { should: storeClauses, minimum_should_match: 1 } });
+    }
   }
 
   // Filtro de atributos - MANTIDO como estava

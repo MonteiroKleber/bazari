@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { SearchQueryBuilder } from '../lib/searchQuery.js';
 import { isOsEnabled } from '../lib/opensearch.js';
 import { osSearch } from '../lib/osQuery.js';
+import { validateSlug } from '../lib/handles.js';
 
 // Inicializar Prisma e SearchQueryBuilder
 let prisma: PrismaClient;
@@ -37,7 +38,9 @@ const searchQuerySchema = z.object({
   priceMax: z.string().regex(/^\d+\.?\d*$/).optional(),
   limit: z.coerce.number().min(1).max(100).optional().default(20),
   offset: z.coerce.number().min(0).optional().default(0),
-  sort: z.enum(['relevance', 'priceAsc', 'priceDesc', 'createdDesc']).optional().default('relevance')
+  sort: z.enum(['relevance', 'priceAsc', 'priceDesc', 'createdDesc']).optional().default('relevance'),
+  storeId: z.string().trim().min(1).optional(),
+  storeSlug: z.string().trim().min(3).max(64).optional()
 });
 
 type Validated = z.infer<typeof searchQuerySchema>;
@@ -70,7 +73,9 @@ function toFilters(validated: Validated, attrs: Record<string, string | string[]
     priceMax: validated.priceMax != null ? Number(validated.priceMax) : undefined,
     sort: mapSortToOs(validated.sort),
     limit: validated.limit,
-    offset: validated.offset
+    offset: validated.offset,
+    storeId: validated.storeId?.trim() || undefined,
+    storeSlug: validated.storeSlug?.trim() || undefined
   };
 }
 
@@ -106,6 +111,63 @@ export async function searchRoutes(app: FastifyInstance) {
 
       // Converter para filtros normalizados
       const filters = toFilters(validated, attrs);
+
+      let storeId = filters.storeId;
+      let storeSlug = filters.storeSlug;
+
+      if (storeSlug) {
+        try {
+          validateSlug(storeSlug);
+        } catch (err: any) {
+          return reply.status(400).send({
+            error: 'Invalid storeSlug',
+            message: err?.message ?? 'Invalid store slug'
+          });
+        }
+      }
+
+      if (storeId && !storeSlug) {
+        try {
+          const store = prisma
+            ? await prisma.sellerProfile.findUnique({
+                where: { id: storeId },
+                select: { id: true, shopSlug: true }
+              })
+            : null;
+          if (store?.shopSlug) {
+            storeSlug = store.shopSlug;
+          }
+        } catch (lookupError) {
+          app.log.warn({ err: lookupError }, 'Failed to resolve storeSlug from storeId');
+        }
+      }
+
+      if (!storeId && storeSlug) {
+        const store = prisma
+          ? await prisma.sellerProfile.findUnique({
+              where: { shopSlug: storeSlug },
+              select: { id: true, shopSlug: true }
+            })
+          : null;
+        if (!store) {
+          return reply.status(404).send({
+            error: 'store.not_found',
+            message: 'Store not found'
+          });
+        }
+        storeId = store.id;
+        storeSlug = store.shopSlug ?? storeSlug;
+      }
+
+      if (filters.storeSlug && storeSlug && filters.storeSlug !== storeSlug) {
+        return reply.status(400).send({
+          error: 'store.mismatch',
+          message: 'Provided storeSlug does not match store reference'
+        });
+      }
+
+      if (storeId) filters.storeId = storeId;
+      if (storeSlug) filters.storeSlug = storeSlug;
 
       if (DEBUG_SEARCH) {
         app.log.info({ 
@@ -156,7 +218,9 @@ export async function searchRoutes(app: FastifyInstance) {
             attrs,
             limit: validated.limit,
             offset: validated.offset,
-            sort: validated.sort
+            sort: validated.sort,
+            storeId: filters.storeId,
+            storeSlug: filters.storeSlug
           });
           
           searchEngine = 'postgres';
@@ -180,6 +244,7 @@ export async function searchRoutes(app: FastifyInstance) {
 
       // Adicionar header indicando qual motor foi usado
       reply.header('X-Search-Engine', searchEngine);
+      reply.header('Cache-Control', 'public, max-age=30, stale-while-revalidate=30');
       
       // Retornar resultados
       return reply.send(results);

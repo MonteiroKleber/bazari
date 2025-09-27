@@ -19,6 +19,12 @@ export default {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
+        store: {
+          bg: "hsl(var(--store-bg))",
+          ink: "hsl(var(--store-ink))",
+          brand: "hsl(var(--store-brand))",
+          accent: "hsl(var(--store-accent))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
