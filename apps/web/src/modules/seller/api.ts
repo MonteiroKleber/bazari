@@ -10,6 +10,9 @@ export interface SellerProfileDto {
   bannerUrl?: string | null;
   ratingAvg: number;
   ratingCount: number;
+  onChainStoreId?: string | number | null;
+  ownerAddress?: string | null;
+  operatorAddresses?: string[] | null;
 }
 
 export const sellerApi = {
@@ -21,13 +24,24 @@ export const sellerApi = {
   listMyStores: async () => {
     return getJSON<{ items: Array<{ id: string; shopName: string; shopSlug: string; isDefault?: boolean }> }>(`/me/sellers`);
   },
-  createStore: async (payload: { shopName: string; shopSlug: string; about?: string; policies?: Record<string, any> }) => {
+  createStore: async (payload: { shopName: string; shopSlug: string; about?: string; policies?: Record<string, any>; onChainStoreId?: string | number | null; ownerAddress?: string | null; operatorAddresses?: string[] | null }) => {
     return postJSON<{ sellerProfile: SellerProfileDto & { id: string; isDefault?: boolean } }>(`/me/sellers`, payload);
   },
   getMyStore: async (idOrSlug: string) => {
     return getJSON<{ sellerProfile: SellerProfileDto & { id: string; isDefault?: boolean } }>(`/me/sellers/${encodeURIComponent(idOrSlug)}`);
   },
-  updateMyStore: async (idOrSlug: string, payload: Partial<{ shopName: string; shopSlug: string; about: string; policies: Record<string, any> }>) => {
+  updateMyStore: async (
+    idOrSlug: string,
+    payload: Partial<{
+      shopName: string;
+      shopSlug: string;
+      about: string;
+      policies: Record<string, any>;
+      onChainStoreId: string | number | null;
+      ownerAddress: string | null;
+      operatorAddresses: string[] | null;
+    }>
+  ) => {
     return patchJSON<{ sellerProfile: SellerProfileDto & { id: string; isDefault?: boolean } }>(`/me/sellers/${encodeURIComponent(idOrSlug)}`, payload as any);
   },
   setDefaultStore: async (idOrSlug: string) => {

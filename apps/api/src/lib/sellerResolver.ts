@@ -18,7 +18,7 @@ export async function resolveSellerFromDaoId(prisma: PrismaClient, daoId: string
 
   const [profile, seller] = await Promise.all([
     prisma.profile.findUnique({ where: { userId: ownerUserId }, select: { handle: true, displayName: true, avatarUrl: true } }),
-    prisma.sellerProfile.findUnique({ where: { userId: ownerUserId }, select: { shopSlug: true, shopName: true } }),
+    prisma.sellerProfile.findFirst({ where: { userId: ownerUserId }, select: { shopSlug: true, shopName: true } }),
   ]);
 
   if (!profile && !seller) return null;

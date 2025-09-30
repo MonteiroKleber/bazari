@@ -1,17 +1,21 @@
-Loja Bazari — Implementação On‑Chain em Fases (pallet-uniques + universal-registry)
+Loja Bazari — Implementação On‑Chain em Fases (pallet-uniques + registry HEAD a definir)
+
+Estrutura de Repositórios
+- Chain (Substrate/Rust/pallets/runtime): `/home/bazari/bazari-chain`
+- DApp (Web/API/Prisma): `/home/bazari/bazari`
+- Regra: alterações de blockchain (pallets, runtime, Rust/Substrate) acontecem somente em `bazari-chain`; alterações de DApp (Web/API, Prisma) acontecem somente em `bazari`.
 
 Estado atual (resumo)
 - Web/API (repo: bazari)
   - Lojas off‑chain em `SellerProfile` e páginas por slug, catálogo/Busca já filtram por loja (`storeId`/`storeSlug`).
   - Carteira e Polkadot API prontas no front para assinar extrinsics.
 - Chain (repo: bazari-chain)
-  - `pallet-universal-registry`: HEAD por namespace e `(namespace,id) -> cid` para metadados IPFS (genérico).
-  - `pallet-establishment`: lista CIDs por conta (não transferível; não usaremos para Loja).
+  - Registry universal (HEAD por namespace) — não há template limpo aprovado no momento. Será necessário criar uma funcionalidade/pallet próprio para isso em subfase posterior; Fase 1 deve funcionar sem esse acoplamento.
 
 Objetivo
 - Loja como ativo on-chain transferível (NFT-like), com:
   - Identidade/ownership transferível e operadores autorizados.
-  - Metadados versionáveis via IPFS, com HEAD no universal-registry.
+- Metadados versionáveis via IPFS; HEAD em registry universal é opcional (a ser criado na subfase 1D).
   - Reputação on‑chain mínima (acumuladores), alimentada por eventos off‑chain no MVP.
   - Compatibilidade com rotas/slug existentes e busca.
 
@@ -20,6 +24,17 @@ Diretrizes gerais
 - Feature flags no web/API para “v1_onchain_stores”, desligado por padrão até concluir Fases 1–3.
 - Escopar mudanças no mínimo possível; não refatorar módulos fora do necessário.
 - CID/bytes bounds: seguir limites do runtime para evitar extrinsic failures.
+ - Node template do bazari-chain compila e roda em dev; política de validação: local usar `cargo check --locked`; reservar `cargo build` e `cargo run -- --dev` para aceite/CI (garantir que continuem possíveis).
+- Escopo de repositórios: TODO código de pallet/Runtime/Rust/Substrate deve ficar no repo raiz `/home/bazari/bazari-chain`; TODO código de DApp Web/API/Prisma deve ficar no repo raiz `/home/bazari/bazari`.
+ - Toolchain Rust (bazari-chain): `rustc 1.88.0` (stable) — versão instalada e compilada com sucesso nos testes.
+
+Relatório de Impacto (obrigatório antes de implementar)
+- Antes de iniciar qualquer codificação em bazari ou bazari-chain, retornar um relatório contendo:
+  - Arquivos/locais a serem alterados e o motivo.
+  - Invariantes e compatibilidade: como garantir que Web/API/Busca legados não quebrem.
+  - Riscos e mitigação (incluindo plano de rollback/feature flag).
+  - Testes a criar/ajustar e validações manuais.
+- Validação: local `cargo check --locked` no bazari-chain; em aceite/CI rodar `cargo build` e `cargo run -- --dev`. Apps atuais continuam subindo sem flag ligada.
 
 Fase 0 — Preparação e Guardrails
 - Feature flags
@@ -31,18 +46,43 @@ Fase 0 — Preparação e Guardrails
 - Branch/CI
   - Trabalhar em branch `feat/loja-onchain-v1` nos dois repos.
 
-Fase 1 — Chain: NFT de Loja com pallet-uniques + Pallet fino “stores”
+Fase 1 — Chain em Subfases: Loja NFT com pallet-uniques + Pallet “stores” (sem registry no início)
 Arquivos (repo: bazari-chain)
 - Novo pallet: `pallets/stores/src/lib.rs`
 - Runtime: `runtime/src/lib.rs`
+ - Toolchain: Rust 1.88.0 (stable) — confirmar `rustc --version` antes de buildar.
 
-1.1 Adicionar pallet-uniques ao runtime
-- Dependência e `construct_runtime!` para `pallet_uniques`.
+1A) Somente `pallet-uniques` no runtime (sem impacto externo)
+- Adicionar dependência e `construct_runtime!` para `pallet_uniques`.
 - Tipos sugeridos: `type CollectionId = u32; type ItemId = u64`.
 - Parâmetros: depósitos moderados para metadata/item, limites seguros (evitar DoS por armazenamento).
+- Garantir que `cargo check --locked` passe e que build/execução `--dev` permaneçam possíveis (build/run reservados para aceite/CI); sem alterar pallets existentes.
 
-1.2 Criar pallet “stores” (fino), responsável por operadores, reputação e integração
-Storage (sugestão)
+1B) Pallet “stores” mínimo (criação e metadados, sem operadores/reputação)
+Extrinsics mínimos
+- `create_store(cid: Vec<u8>) -> StoreId`
+  - reserve() do depósito mínimo; mint do `pallet_uniques` em `BazariStoresCollectionId` com `item_id = store_id`.
+  - gravar `MetadataCid[store_id] = cid`; emitir `StoreCreated`.
+- `update_metadata(store_id: u64, cid: Vec<u8>)`
+  - Origin: owner; atualiza `MetadataCid`; opcionalmente `pallet_uniques::set_metadata` (bounded).
+
+Storage (mínimo)
+- `BazariStoresCollectionId: CollectionId` (constante configurável no runtime).
+- `MetadataCid: map StoreId -> BoundedVec<u8, MaxCidLen>`
+
+Eventos (mínimos)
+- `StoreCreated { owner, store_id, cid }`
+- `StoreMetadataUpdated { who, store_id, cid }`
+
+Aceite 1B
+- Criar loja (mint) e atualizar CID funcionando; eventos visíveis; build/run dev OK.
+
+1C) Expandir `stores`: operadores, transferência 2‑passos e reputação
+- Operadores: `add_operator`/`remove_operator`; ACL para `update_metadata`.
+- Transferência: `begin_transfer`/`accept_transfer` (duas etapas) com `pallet_uniques::transfer`.
+- Reputação (agregados): `bump_reputation(...)` com `EnsureOrigin` configurável (pode começar permissivo no dev).
+
+Storage (completo)
 - `BazariStoresCollectionId: CollectionId` (constante configurável no runtime).
 - `Operators: map StoreId(u64) -> BoundedVec<AccountId, MaxOps>`
 - `MetadataCid: map StoreId -> BoundedVec<u8, MaxCidLen>`
@@ -58,38 +98,33 @@ Eventos
 - `StoreTransferred { old_owner, new_owner, store_id }`
 - `StoreReputationUpdated { who, store_id, sales_delta, pos_delta, neg_delta, volume_delta }`
 
-Extrinsics (assinaturas sugeridas)
+Extrinsics (completos após 1C)
 - `create_store(cid: Vec<u8>) -> StoreId`
-  - reserve() do depósito mínimo, mint do `pallet_uniques` em `BazariStoresCollectionId` com `item_id = store_id`.
-  - gravar `MetadataCid[store_id] = cid`; emitir `StoreCreated`.
-- `update_metadata(store_id: u64, cid: Vec<u8>)`
-  - Origin: owner ou operator.
-  - Atualiza `MetadataCid`; chama opcionalmente `pallet_uniques::set_metadata` (bounded) e o `universal_registry::set_head(b"stores/{id}", cid)`.
+- `update_metadata(store_id: u64, cid: Vec<u8>)` (owner ou operator)
 - `add_operator(store_id: u64, operator: AccountId)` / `remove_operator(...)`
-  - Origin: owner.
 - `begin_transfer(store_id: u64, new_owner: AccountId)` / `accept_transfer(store_id: u64)`
-  - Dupla confirmação.
-  - Em `accept_transfer`, efetivar `pallet_uniques::transfer`.
 - `bump_reputation(store_id: u64, sales_delta: u64, pos_delta: u64, neg_delta: u64, volume_delta: u128)`
-  - Origin recomendado: `EnsureOrigin` configurado (por ex., uma conta de serviço da API) — MVP pode ser livre mas não recomendado.
 
-1.3 Integração opcional com universal-registry
-- Ao `update_metadata`, atualizar `HEAD` em `namespace = b"stores/{store_id}"` via `pallet-universal-registry`.
-- Não bloquear extrinsic se registry falhar (evitar coupling duro).
+1D) Registry universal (novo pallet/funcionalidade) e integração (opcional)
+- Situação: não existe template limpo adotável. Criação de `pallet-universal-registry` (ou módulo equivalente) prevista aqui, isolada do core de `stores`.
+- Função: manter `HEAD` por namespace (ex.: `stores/{store_id}`) apontando para `cid` atual.
+- Integração: em `update_metadata`, atualizar `HEAD`; erros não devem falhar o extrinsic (desacoplamento forte).
+- Feature flag no runtime para ativar/desativar o registry até estabilizar.
 
-1.4 Genesis
+Genesis (após 1A ou 1B)
 - Criar coleção `Bazari Stores` com `collection_id = X` no `pallet_uniques` (por sudo/root) e configurar `BazariStoresCollectionId = X` no pallet `stores`.
 
-Aceite Fase 1
-- Mint/transfer/approve funcionando para itens da coleção.
-- Operators e update de CID obedecem ACL.
-- Eventos disparados e visíveis.
+Aceite Fase 1 (geral)
+- 1A: runtime com `pallet-uniques` compila (`cargo check --locked`) localmente e roda `--dev` em aceite/CI sem regressões.
+- 1B: create/update funcionam; eventos visíveis; compat preservada.
+- 1C: operadores/transferência/reputação com ACLs corretas.
+- 1D: registry integrado sob flag, falhas não quebram fluxo principal.
 
 Fase 2 — API: leitura pública on‑chain + IPFS
 Arquivos (repo: bazari)
 - Rotas novas:
   - `GET /stores/:id`
-    - Retorna: `{ storeId, owner, operators[], reputation, metadata: {...} | null, cid, source: 'registry'|'stores'|'placeholder' }`.
+    - Retorna: `{ storeId, owner, operators[], reputation, metadata: {...} | null, cid, source: 'registry'|'stores'|'placeholder' }` (o valor `'registry'` só se aplica quando a subfase 1D estiver ativa).
     - Leitura de chain: owner via `pallet_uniques`, operators/reputation/metadata via `pallet-stores`.
     - IPFS: buscar JSON por `cid` (timeout curto). Se falhar, retornar placeholders (nome “sem título”, capa genérica).
   - `GET /users/:address/stores-owned` e `/users/:address/stores-operated`
@@ -195,8 +230,9 @@ Roteiro de rollback
 
 Apêndice — Assinaturas e caminhos
 - Chain (bazari-chain)
-  - `pallets/stores/src/lib.rs` — define Storage/Calls/Event conforme Fase 1.2
+  - `pallets/stores/src/lib.rs` — define Storage/Calls/Event conforme subfases 1B/1C
   - `runtime/src/lib.rs` — adiciona `pallet_uniques` e `stores` ao `construct_runtime!` e parâmetros.
+  - (Opcional 1D) `pallets/universal-registry/` — novo pallet para manter HEAD por namespace.
 - API (bazari)
   - Rotas novas: `apps/api/src/routes/stores.ts` (novo arquivo)
   - Ajustes leve em `apps/api/src/routes/sellers.ts` para propagar `onChainStoreId`.
@@ -215,12 +251,14 @@ Onde criar/editar (por fase)
 - Localização dos repositórios
   - Chain: `/home/bazari/bazari-chain`
   - API/Web: `/home/bazari/bazari`
+  - Nota: qualquer implementação de pallet/Runtime/Rust/Substrate acontece exclusivamente em `bazari-chain`; qualquer implementação de DApp Web/API/Prisma acontece exclusivamente em `bazari`.
 
 - Fase 1 — Blockchain (bazari-chain)
   - Criar diretório: `/home/bazari/bazari-chain/pallets/stores/` e `/home/bazari/bazari-chain/pallets/stores/src/`
   - Criar arquivo: `/home/bazari/bazari-chain/pallets/stores/src/lib.rs`
   - Ajustar: `/home/bazari/bazari-chain/runtime/src/lib.rs` (incluir `pallet_uniques` e `stores`)
   - Ajustar (se necessário): `/home/bazari/bazari-chain/Cargo.toml`, `/home/bazari/bazari-chain/runtime/Cargo.toml`
+  - Opcional (1D, sob flag): criar `pallets/universal-registry/` e integrar atualização de HEAD em `update_metadata`.
 
 - Fase 2 — API (bazari)
   - Criar arquivo: `/home/bazari/bazari/apps/api/src/routes/stores.ts`

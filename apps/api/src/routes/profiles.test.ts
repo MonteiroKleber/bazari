@@ -23,6 +23,12 @@ class MockPrisma {
   };
   sellerProfile = {
     findUnique: async ({ where, select }: any) => this.sellersByUser.get(where.userId) ?? null,
+    findMany: async ({ where, select }: any) => {
+      if (!where?.userId) return [];
+      const seller = this.sellersByUser.get(where.userId);
+      if (!seller) return [];
+      return [seller];
+    },
   };
   follow = {
     findMany: async ({ where, orderBy, take, select }: any) => {
@@ -111,4 +117,3 @@ describe('profiles routes (public)', () => {
     expect(body.items[0].author.handle).toBe('kleber');
   });
 });
-

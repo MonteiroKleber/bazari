@@ -30,6 +30,7 @@ import { profilesRoutes } from './routes/profiles.js';
 import { sellersRoutes } from './routes/sellers.js';
 import { socialRoutes } from './routes/social.js';
 import { postsRoutes } from './routes/posts.js';
+import { storesRoutes } from './routes/stores.js';
 import { meProductsRoutes } from './routes/me.products.js';
 import { meSellersRoutes } from './routes/me.sellers.js';
 import { p2pOffersRoutes } from './routes/p2p.offers.js';
@@ -83,6 +84,9 @@ async function buildApp() {
   await app.register(sellersRoutes, { prefix: '/', prisma });
   await app.register(socialRoutes, { prefix: '/', prisma });
   await app.register(postsRoutes, { prefix: '/', prisma });
+  if (env.STORE_ONCHAIN_V1) {
+    await app.register(storesRoutes, { prefix: '/', prisma });
+  }
   await app.register(meProductsRoutes, { prefix: '/', prisma });
   await app.register(meSellersRoutes, { prefix: '/', prisma });
   await app.register(p2pOffersRoutes, { prefix: '/', prisma });
@@ -102,6 +106,9 @@ async function buildApp() {
   await app.register(sellersRoutes, { prefix: '/api', prisma });
   await app.register(socialRoutes, { prefix: '/api', prisma });
   await app.register(postsRoutes, { prefix: '/api', prisma });
+  if (env.STORE_ONCHAIN_V1) {
+    await app.register(storesRoutes, { prefix: '/api', prisma });
+  }
   await app.register(meProductsRoutes, { prefix: '/api', prisma });
   await app.register(meSellersRoutes, { prefix: '/api', prisma });
   await app.register(p2pOffersRoutes, { prefix: '/api', prisma });

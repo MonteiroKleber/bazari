@@ -48,6 +48,7 @@ import P2POfferNewPage from './modules/p2p/pages/P2POfferNewPage';
 import P2POfferPublicPage from './modules/p2p/pages/P2POfferPublicPage';
 import P2POrderRoomPage from './modules/p2p/pages/P2POrderRoomPage';
 import P2PMyOrdersPage from './modules/p2p/pages/P2PMyOrdersPage';
+import StorePublicPage from './pages/StorePublicPage';
 import { FEATURE_FLAGS } from './config';
 
 function LandingPage() {
@@ -221,6 +222,9 @@ function App() {
             <Route path="/seller/:shopSlug" element={<SellerPublicPage />} />
             {FEATURE_FLAGS.store_branded_v1 && (
               <Route path="/s/:shopSlug" element={<SellerPublicPage mode="branded" />} />
+            )}
+            {FEATURE_FLAGS.store_onchain_v1 && (
+              <Route path="/loja/:id" element={<StorePublicPage />} />
             )}
             <Route path="/auth/create" element={<CreateAccount />} />
             <Route path="/auth/import" element={<ImportAccount />} />

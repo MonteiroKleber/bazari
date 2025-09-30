@@ -79,6 +79,7 @@ model Product {
   attributesSpecVersion String
   sellerUserId          String?
   sellerStoreId         String?
+  onChainStoreId        BigInt?  @db.BigInt
   status                ProductStatus @default(PUBLISHED)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -97,6 +98,7 @@ model Product {
   @@index([sellerUserId])
   @@index([status])
   @@index([sellerStoreId])
+  @@index([onChainStoreId])
 }
 
 model ServiceOffering {
@@ -110,6 +112,7 @@ model ServiceOffering {
   attributes            Json
   attributesSpecVersion String
   sellerStoreId         String?
+  onChainStoreId        BigInt?  @db.BigInt
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   
@@ -125,6 +128,7 @@ model ServiceOffering {
   @@index([basePriceBzr])
   @@index([createdAt])
   @@index([sellerStoreId])
+  @@index([onChainStoreId])
 }
 
 model AuditLog {
@@ -338,6 +342,9 @@ model SellerProfile {
   avatarUrl   String?
   bannerUrl   String?
   isDefault   Boolean  @default(false)
+  onChainStoreId   BigInt?  @db.BigInt
+  ownerAddress     String?
+  operatorAddresses String[] @default([])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -346,6 +353,9 @@ model SellerProfile {
   services  ServiceOffering[]
 
   @@index([userId])
+  @@index([onChainStoreId])
+  @@index([ownerAddress])
+  @@index([operatorAddresses], type: Gin)
 }
 
 model Post {

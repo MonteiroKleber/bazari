@@ -18,10 +18,17 @@ class MockPrisma {
       const statuses = (where.AND ? where.AND[0] : where).status;
       const targets = new Set<string>();
       for (const cond of ors) {
-        if (cond.sellerUserId) targets.add(`seller:${cond.sellerUserId}`);
+        if (cond.sellerUserId) targets.add(`user:${cond.sellerUserId}`);
+        if (cond.sellerStoreId) targets.add(`store:${cond.sellerStoreId}`);
         if (cond.daoId?.in) for (const id of cond.daoId.in) targets.add(`dao:${id}`);
+        if (typeof cond.daoId === 'string') targets.add(`dao:${cond.daoId}`);
       }
-      let filtered = this.products.filter((p) => targets.has(`seller:${p.sellerUserId}`) || targets.has(`dao:${p.daoId}`));
+      let filtered = this.products.filter((p) =>
+        targets.size === 0 ||
+        targets.has(`user:${p.sellerUserId}`) ||
+        targets.has(`store:${p.sellerStoreId}`) ||
+        (!p.sellerStoreId && targets.has(`dao:${p.daoId}`))
+      );
       if (statuses) filtered = filtered.filter((p) => p.status === statuses);
       filtered.sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : a.id < b.id ? 1 : -1));
       const slice = filtered.slice(0, (take || 20));
@@ -34,6 +41,16 @@ class MockPrisma {
       Object.assign(p, data);
       return { id: p.id, status: p.status };
     },
+  };
+  sellerProfile = {
+    findFirst: async ({ where }: any) => {
+      const match = this.daos.find((d) => d.ownerUserId === where.userId);
+      if (!match) return null;
+      return { id: 'store-1', userId: match.ownerUserId };
+    },
+  };
+  user = {
+    findUnique: async ({ where }: any) => ({ id: where.id, address: 'addr1' }),
   };
 }
 
@@ -53,8 +70,8 @@ describe('me.products routes', () => {
     prisma.daos.push({ id: 'dao-1', slug: 'my-dao', ownerUserId: u });
     const now = Date.now();
     prisma.products.push(
-      { id: 'pa', title: 'A', priceBzr: '10', status: 'PUBLISHED', sellerUserId: u, daoId: 'dao-1', categoryPath: [], createdAt: new Date(now - 1000), updatedAt: new Date(now - 800) },
-      { id: 'pb', title: 'B', priceBzr: '20', status: 'DRAFT', sellerUserId: u, daoId: 'dao-1', categoryPath: [], createdAt: new Date(now - 500), updatedAt: new Date(now - 400) },
+      { id: 'pa', title: 'A', priceBzr: '10', status: 'PUBLISHED', sellerUserId: u, sellerStoreId: 'store-1', daoId: 'dao-1', categoryPath: [], createdAt: new Date(now - 1000), updatedAt: new Date(now - 800) },
+      { id: 'pb', title: 'B', priceBzr: '20', status: 'DRAFT', sellerUserId: u, sellerStoreId: 'store-1', daoId: 'dao-1', categoryPath: [], createdAt: new Date(now - 500), updatedAt: new Date(now - 400) },
     );
     await app.register(meProductsRoutes, { prisma: prisma as unknown as PrismaClient });
     await app.ready();
@@ -82,4 +99,3 @@ describe('me.products routes', () => {
     expect(arc.statusCode).toBe(200);
   });
 });
-
