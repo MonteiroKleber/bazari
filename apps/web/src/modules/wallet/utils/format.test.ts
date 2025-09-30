@@ -1,9 +1,13 @@
-import { describe, it, expect, beforeAll } from 'vitest';
-import { decodeAddress, encodeAddress, cryptoWaitReady } from '@polkadot/util-crypto';
+import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
+import * as utilCrypto from '@polkadot/util-crypto';
 import { formatBalance, parseAmountToPlanck, shortenAddress, normaliseAddress } from './format';
 
 beforeAll(async () => {
-  await cryptoWaitReady();
+  await utilCrypto.cryptoWaitReady();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe('wallet format utilities', () => {
@@ -27,10 +31,15 @@ describe('wallet format utilities', () => {
 
   it('normalises addresses to target prefix', () => {
     const original = '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY';
-    const decoded = decodeAddress(original);
-    const prefix2 = encodeAddress(decoded, 2);
+    const decoded = new Uint8Array([1, 2, 3, 4]);
 
-    const normalised = normaliseAddress(prefix2, 42);
-    expect(normalised).toBe(original);
+    const decodeSpy = vi.spyOn(utilCrypto, 'decodeAddress').mockReturnValue(decoded);
+    const encodeSpy = vi.spyOn(utilCrypto, 'encodeAddress').mockReturnValue(original);
+
+    const result = normaliseAddress('encoded-with-prefix-2', 42);
+
+    expect(decodeSpy).toHaveBeenCalledWith('encoded-with-prefix-2');
+    expect(encodeSpy).toHaveBeenCalledWith(decoded, 42);
+    expect(result).toBe(original);
   });
 });

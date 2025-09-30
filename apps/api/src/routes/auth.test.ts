@@ -232,7 +232,7 @@ describe('auth routes integration', () => {
     expect(loginResponse.statusCode).toBe(200);
     const loginBody = loginResponse.json();
     expect(loginBody.user.address).toBe(pair.address);
-    const refreshCookieRecord = loginResponse.cookies?.find((cookie) => cookie.name === 'bazari_refresh');
+    const refreshCookieRecord = loginResponse.cookies?.find((cookie: any) => cookie.name === 'bazari_refresh');
     const cookieFromHeader = refreshCookieRecord
       ? `${refreshCookieRecord.name}=${refreshCookieRecord.value}`
       : getCookieValue(loginResponse.headers['set-cookie']);
@@ -305,7 +305,7 @@ describe('auth routes integration', () => {
     expect(prisma.refreshTokens.length).toBe(2);
     expect(prisma.refreshTokens[0].revokedAt).toBeInstanceOf(Date);
 
-    const newCookieRecord = refreshResponse.cookies?.find((cookie) => cookie.name === 'bazari_refresh');
+    const newCookieRecord = refreshResponse.cookies?.find((cookie: any) => cookie.name === 'bazari_refresh');
     const newCookie = newCookieRecord
       ? `${newCookieRecord.name}=${newCookieRecord.value}`
       : getCookieValue(refreshResponse.headers['set-cookie']);

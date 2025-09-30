@@ -13,6 +13,13 @@ const envSchema = z.object({
   RATE_LIMIT_FOLLOW: z.string().default('30').transform((v) => Number(v)),
   RATE_LIMIT_POST: z.string().default('30').transform((v) => Number(v)),
   PAGE_SIZE_DEFAULT: z.string().default('20').transform((v) => Number(v)),
+  BAZARICHAIN_WS: z.string().default('ws://127.0.0.1:9944'),
+  IPFS_GATEWAY_URL: z.string().default('https://ipfs.io/ipfs/'),
+  IPFS_TIMEOUT_MS: z.string().default('2000').transform((v) => Number(v)),
+  STORES_REGISTRY_ENABLED: z
+    .string()
+    .optional()
+    .transform((v) => (v ? /^true$/i.test(v) || v === '1' : false)),
   STORE_ONCHAIN_V1: z
     .string()
     .optional()

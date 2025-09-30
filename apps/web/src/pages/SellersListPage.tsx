@@ -52,10 +52,19 @@ export default function SellersListPage() {
                   {s.isDefault ? <span className="text-xs text-muted-foreground">({t('seller.myStores.default', { defaultValue: 'padrão' })})</span> : null}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-x-2">
-                <Link to={`/seller/${s.shopSlug}`}><Button variant="outline">{t('seller.myStores.public', { defaultValue: 'Ver pública' })}</Button></Link>
-                <Link to={`/app/sellers/${s.shopSlug}/products`}><Button variant="outline">{t('seller.products.title', { defaultValue: 'Produtos' })}</Button></Link>
-                <Link to={`/app/sellers/${s.shopSlug}/orders`}><Button variant="outline">{t('seller.orders.title', { defaultValue: 'Pedidos' })}</Button></Link>
+              <CardContent className="flex flex-wrap gap-2">
+                <Link to={`/app/seller/setup?store=${encodeURIComponent(s.id)}`}>
+                  <Button variant="outline">{t('seller.myStores.edit', { defaultValue: 'Editar' })}</Button>
+                </Link>
+                <Link to={`/seller/${s.shopSlug}`}>
+                  <Button variant="outline">{t('seller.myStores.public', { defaultValue: 'Ver pública' })}</Button>
+                </Link>
+                <Link to={`/app/sellers/${s.shopSlug}/products`}>
+                  <Button variant="outline">{t('seller.products.title', { defaultValue: 'Produtos' })}</Button>
+                </Link>
+                <Link to={`/app/sellers/${s.shopSlug}/orders`}>
+                  <Button variant="outline">{t('seller.orders.title', { defaultValue: 'Pedidos' })}</Button>
+                </Link>
               </CardContent>
             </Card>
           ))}
@@ -64,4 +73,3 @@ export default function SellersListPage() {
     </div>
   );
 }
-

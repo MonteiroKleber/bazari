@@ -19,6 +19,24 @@ class MockPrisma {
       }
       return null;
     },
+    findFirst: async ({ where, select }: any) => {
+      if (where?.userId) {
+        for (const s of this.sellerBySlug.values()) if (s.user?.id === where.userId) return s;
+      }
+      if (where?.OR) {
+        for (const cond of where.OR) {
+          if (cond.id) {
+            const byId = Array.from(this.sellerBySlug.values()).find((s) => s.id === cond.id);
+            if (byId) return byId;
+          }
+          if (cond.shopSlug) {
+            const bySlug = this.sellerBySlug.get(cond.shopSlug);
+            if (bySlug) return bySlug;
+          }
+        }
+      }
+      return null;
+    },
     create: async ({ data }: any) => {
       const row = { id: 's1', user: { id: data.userId }, userId: data.userId, shopName: data.shopName, shopSlug: data.shopSlug, about: data.about ?? null, ratingAvg: 0, ratingCount: 0, policies: data.policies ?? null };
       this.sellerBySlug.set(row.shopSlug, row);
@@ -43,18 +61,43 @@ class MockPrisma {
 
   product = {
     findMany: async ({ where, orderBy, take, select }: any) => {
-      // Basic filter: status === 'PUBLISHED' and (sellerUserId == userId OR daoId in daoIds)
-      const statusOk = (p: any) => (where.AND ? where.AND[0].status === 'PUBLISHED' : where.status === 'PUBLISHED');
       const compound = (where.AND ? where.AND[0] : where) as any;
       const ors = compound.OR || [];
-      const targets = new Set<string>();
-      for (const cond of ors) {
-        if (cond.sellerUserId) targets.add(`seller:${cond.sellerUserId}`);
-        if (cond.daoId?.in) for (const id of cond.daoId.in) targets.add(`dao:${id}`);
-        if (typeof cond.daoId === 'string') targets.add(`dao:${cond.daoId}`);
+      const statusFilter = compound.status;
+
+      const targets = ors.map((cond: any) => {
+        if (typeof cond.sellerStoreId !== 'undefined') {
+          return { type: 'store', value: cond.sellerStoreId };
+        }
+        if (Array.isArray(cond.AND)) {
+          const daoCond = cond.AND.find((c: any) => c.daoId);
+          if (daoCond?.daoId) {
+            return { type: 'dao', value: daoCond.daoId };
+          }
+        }
+        if (typeof cond.daoId === 'string') {
+          return { type: 'dao', value: cond.daoId };
+        }
+        return null;
+      }).filter(Boolean) as Array<{ type: 'store' | 'dao'; value: string | null }>;
+
+      let filtered = this.products.filter((p) => {
+        if (targets.length === 0) return true;
+        return targets.some((target) => {
+          if (target.type === 'store') {
+            return p.sellerStoreId === target.value;
+          }
+          if (target.type === 'dao') {
+            return (!p.sellerStoreId || p.sellerStoreId === null) && p.daoId === target.value;
+          }
+          return false;
+        });
+      });
+
+      if (statusFilter) {
+        filtered = filtered.filter((p) => p.status === statusFilter);
       }
-      const filtered = this.products.filter((p) => statusOk(p) && (targets.has(`seller:${p.sellerUserId}`) || targets.has(`dao:${p.daoId}`)));
-      // order by createdAt desc then id desc
+
       filtered.sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : a.id < b.id ? 1 : -1));
       const slice = filtered.slice(0, (take || 24));
       return slice.map((p) => ({ id: p.id, title: p.title, priceBzr: p.priceBzr, createdAt: p.createdAt }));
@@ -99,10 +142,10 @@ describe('sellers routes', () => {
 
     // products: 3 published under that seller (by sellerUserId) and 1 via daoId match
     prisma.products.push(
-      { id: 'p1', title: 'Prod 1', priceBzr: '10', status: 'PUBLISHED', sellerUserId: userId, daoId: 'x', createdAt: new Date(now.getTime() - 1000) },
-      { id: 'p2', title: 'Prod 2', priceBzr: '20', status: 'PUBLISHED', sellerUserId: userId, daoId: 'x', createdAt: new Date(now.getTime() - 500) },
-      { id: 'p3', title: 'Prod 3', priceBzr: '30', status: 'PUBLISHED', sellerUserId: userId, daoId: 'x', createdAt: new Date(now.getTime() - 200) },
-      { id: 'p4', title: 'Prod 4', priceBzr: '40', status: 'PUBLISHED', sellerUserId: 'other', daoId: 'dao-1', createdAt: new Date(now.getTime() - 50) },
+      { id: 'p1', title: 'Prod 1', priceBzr: '10', status: 'PUBLISHED', sellerStoreId: 's1', daoId: 'x', createdAt: new Date(now.getTime() - 1000) },
+      { id: 'p2', title: 'Prod 2', priceBzr: '20', status: 'PUBLISHED', sellerStoreId: 's1', daoId: 'x', createdAt: new Date(now.getTime() - 500) },
+      { id: 'p3', title: 'Prod 3', priceBzr: '30', status: 'PUBLISHED', sellerStoreId: 's1', daoId: 'x', createdAt: new Date(now.getTime() - 200) },
+      { id: 'p4', title: 'Prod 4', priceBzr: '40', status: 'PUBLISHED', sellerStoreId: null, daoId: 'dao-1', createdAt: new Date(now.getTime() - 50) },
     );
 
     await app.register(sellersRoutes, { prisma: prisma as unknown as PrismaClient });
@@ -127,7 +170,7 @@ describe('sellers routes', () => {
   it('includes products where daoId equals shopSlug (fallback)', async () => {
     // Add product tied only via daoId === shop slug
     const now = new Date();
-    (prisma as any).products.push({ id: 'p5', title: 'Prod 5', priceBzr: '50', status: 'PUBLISHED', sellerUserId: 'another', daoId: 'loja-1', createdAt: new Date(now.getTime() - 25) });
+    (prisma as any).products.push({ id: 'p5', title: 'Prod 5', priceBzr: '50', status: 'PUBLISHED', sellerStoreId: null, daoId: 'loja-1', createdAt: new Date(now.getTime() - 25) });
     const res = await app.inject({ method: 'GET', url: '/sellers/loja-1?limit=50' });
     expect(res.statusCode).toBe(200);
     const body = res.json();

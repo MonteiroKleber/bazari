@@ -13,7 +13,7 @@ export async function sellersRoutes(app: FastifyInstance, options: { prisma: Pri
     const authUser = (request as any).authUser as { sub: string } | undefined;
     if (!authUser) return reply.status(401).send({ error: 'Token inválido.' });
 
-    const existing = await prisma.sellerProfile.findUnique({
+    const existing = await prisma.sellerProfile.findFirst({
       where: { userId: authUser.sub },
       select: {
         shopName: true,
@@ -24,6 +24,9 @@ export async function sellersRoutes(app: FastifyInstance, options: { prisma: Pri
         bannerUrl: true,
         ratingAvg: true,
         ratingCount: true,
+        onChainStoreId: true,
+        ownerAddress: true,
+        operatorAddresses: true,
       },
     });
 
@@ -46,7 +49,7 @@ export async function sellersRoutes(app: FastifyInstance, options: { prisma: Pri
     try { body = upsertSchema.parse(request.body); } catch (e) { return reply.status(400).send({ error: (e as Error).message }); }
     try { validateSlug(body.shopSlug); } catch (e) { return reply.status(400).send({ error: (e as Error).message }); }
 
-    const existing = await prisma.sellerProfile.findUnique({ where: { userId: authUser.sub } });
+    const existing = await prisma.sellerProfile.findFirst({ where: { userId: authUser.sub } });
     try {
       const saved = existing
         ? await prisma.sellerProfile.update({ where: { id: existing.id }, data: { shopName: body.shopName, shopSlug: body.shopSlug, about: body.about, policies: body.policies as any } })
@@ -133,10 +136,10 @@ export async function sellersRoutes(app: FastifyInstance, options: { prisma: Pri
       }
     }
 
-    const itemsWithCovers = items.map(p => ({
+    const itemsWithCovers = items.map((p) => ({
       id: p.id,
       title: p.title,
-      priceBzr: (p as any).priceBzr,
+      priceBzr: (p as any).priceBzr?.toString?.() ?? String((p as any).priceBzr ?? ''),
       createdAt: (p as any).createdAt,
       coverUrl: productCovers[p.id],
     }));
@@ -154,7 +157,11 @@ export async function sellersRoutes(app: FastifyInstance, options: { prisma: Pri
         ratingCount: seller.ratingCount,
         policies: (seller as any).policies ?? null,
         avatarUrl: seller.avatarUrl,
-        bannerUrl: seller.bannerUrl
+        bannerUrl: seller.bannerUrl,
+        onChainStoreId:
+          (seller as any).onChainStoreId == null
+            ? null
+            : (seller as any).onChainStoreId.toString(),
       },
       owner: ownerProfile,
       catalog: { products: itemsWithCovers, page: { nextCursor, limit: pageSize } },

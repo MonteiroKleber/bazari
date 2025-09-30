@@ -37,11 +37,12 @@ async function main() {
     },
   });
 
-  await prisma.sellerProfile.upsert({
-    where: { userId: user1.id },
-    update: { shopName: 'Loja do Kleber', shopSlug: 'loja-kleber' },
-    create: { userId: user1.id, shopName: 'Loja do Kleber', shopSlug: 'loja-kleber' },
-  });
+  const existingSeller = await prisma.sellerProfile.findFirst({ where: { userId: user1.id } });
+  if (existingSeller) {
+    await prisma.sellerProfile.update({ where: { id: existingSeller.id }, data: { shopName: 'Loja do Kleber', shopSlug: 'loja-kleber' } });
+  } else {
+    await prisma.sellerProfile.create({ data: { userId: user1.id, shopName: 'Loja do Kleber', shopSlug: 'loja-kleber' } });
+  }
 
   // seguir: ana -> kleber
   await prisma.follow.upsert({
@@ -97,4 +98,3 @@ main().catch((e) => {
   console.error(e);
   process.exit(1);
 });
-
