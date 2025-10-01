@@ -26,6 +26,7 @@ import { ensureOsIndex } from './lib/opensearchIndex.js';
 import { getPaymentsConfig, getLogSafeConfig } from './config/payments.js';
 import { startPaymentsTimeoutWorker } from './workers/paymentsTimeout.js';
 import { startP2PTimeoutWorker } from './workers/p2pTimeout.js';
+import { startReputationWorker } from './workers/reputation.worker.js';
 import { profilesRoutes } from './routes/profiles.js';
 import { sellersRoutes } from './routes/sellers.js';
 import { socialRoutes } from './routes/social.js';
@@ -149,6 +150,7 @@ async function buildApp() {
   // Iniciar worker de timeout em desenvolvimento
   let timeoutWorker: NodeJS.Timeout | null = null;
   let p2pTimeoutWorker: NodeJS.Timeout | null = null;
+  let reputationWorker: NodeJS.Timeout | null = null;
   if (process.env.NODE_ENV !== 'production') {
     try {
       timeoutWorker = startPaymentsTimeoutWorker(prisma, {
@@ -172,6 +174,12 @@ async function buildApp() {
     }
   }
 
+  try {
+    reputationWorker = startReputationWorker(prisma, { logger: app.log });
+  } catch (err) {
+    app.log.warn({ err }, 'Falha ao iniciar worker de reputação');
+  }
+
   // Limpar worker no graceful shutdown
   app.addHook('onClose', async () => {
     if (timeoutWorker) {
@@ -181,6 +189,10 @@ async function buildApp() {
     if (p2pTimeoutWorker) {
       clearInterval(p2pTimeoutWorker);
       app.log.info('Worker de timeout P2P parado');
+    }
+    if (reputationWorker) {
+      clearInterval(reputationWorker);
+      app.log.info('Worker de reputação parado');
     }
   });
 

@@ -21,6 +21,7 @@ interface SearchFilters {
   sort?: 'relevance' | 'priceAsc' | 'priceDesc' | 'createdDesc';
   storeId?: string;
   storeSlug?: string;
+  onChainStoreId?: string;
 }
 
 interface SearchResult {
@@ -76,7 +77,8 @@ export class SearchQueryBuilder {
       offset = 0,
       sort = 'relevance',
       storeId,
-      storeSlug
+      storeSlug,
+      onChainStoreId
     } = filters;
 
     const safeLimit = Math.min(Math.max(1, limit), 100);
@@ -171,6 +173,13 @@ export class SearchQueryBuilder {
       } else if (serviceStoreClauses.length > 1) {
         serviceAnd.push({ OR: serviceStoreClauses });
       }
+    }
+
+    // Filtro por onChainStoreId
+    if (onChainStoreId) {
+      const onChainStoreIdBigInt = BigInt(onChainStoreId);
+      productAnd.push({ onChainStoreId: onChainStoreIdBigInt });
+      serviceAnd.push({ onChainStoreId: onChainStoreIdBigInt });
     }
 
     if (productAnd.length > 0) {

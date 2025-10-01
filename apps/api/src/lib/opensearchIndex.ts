@@ -69,6 +69,7 @@ export async function ensureOsIndex() {
           category_slugs: { type: 'keyword' },
           sellerStoreId: { type: 'keyword' },
           storeSlug: { type: 'keyword' },
+          onChainStoreId: { type: 'keyword' },
           daoId: { type: 'keyword' },
           attrs: { type: 'object', enabled: true }, // MANTIDO: container para atributos
           indexHints: { type: 'object', enabled: true }, // MANTIDO: container para hints

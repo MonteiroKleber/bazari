@@ -20,6 +20,7 @@ type Filters = {
   offset?: number;
   storeId?: string;
   storeSlug?: string;
+  onChainStoreId?: string; // Filtro por ID da store on-chain
 };
 
 /** Monta cláusulas must/filter a partir dos filtros atuais. */
@@ -51,14 +52,17 @@ function buildQuery(filters: Filters) {
     filter.push({ prefix: { 'category_path.kw': path } });
   }
 
-  // Filtro por loja (storeId ou slug)
-  if (filters.storeId || filters.storeSlug) {
+  // Filtro por loja (storeId, slug ou onChainStoreId)
+  if (filters.storeId || filters.storeSlug || filters.onChainStoreId) {
     const storeClauses: any[] = [];
     if (filters.storeId) {
       storeClauses.push({ term: { sellerStoreId: filters.storeId } });
     }
     if (filters.storeSlug) {
       storeClauses.push({ term: { storeSlug: filters.storeSlug } });
+    }
+    if (filters.onChainStoreId) {
+      storeClauses.push({ term: { onChainStoreId: filters.onChainStoreId } });
     }
 
     if (storeClauses.length === 1) {

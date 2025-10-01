@@ -17,9 +17,21 @@ export interface ServiceDetail {
   attributes: Record<string, unknown>;
   media: Array<{ id: string; url: string }>;
   mediaNormalized: Array<{ id?: string; url: string }>;
+  seller?: {
+    shopName?: string | null;
+    shopSlug?: string | null;
+    handle?: string | null;
+  } | null;
   ratingValue?: number | null;
   ratingCount?: number | null;
   sellerReputation?: number | null;
+  onChainStoreId?: string | null;
+  onChainReputation?: {
+    sales: number;
+    positive: number;
+    negative: number;
+    volumePlanck?: string | null;
+  } | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -140,7 +152,24 @@ export function useServiceDetail(id?: string) {
       .then((data: any) => {
         if (cancelled) return;
         const mediaNormalized = normalizeMedia(data);
-
+        const onChainStoreId = data.onChainStoreId ?? data.sellerStoreId ?? null;
+        const onChainReputationRaw = data.onChainReputation ?? null;
+        const normalizedOnChainReputation = onChainReputationRaw && typeof onChainReputationRaw === 'object'
+          ? {
+              sales: toNumberOrNull(onChainReputationRaw.sales) ?? 0,
+              positive: toNumberOrNull(onChainReputationRaw.positive) ?? 0,
+              negative: toNumberOrNull(onChainReputationRaw.negative) ?? 0,
+              volumePlanck: onChainReputationRaw.volumePlanck ?? null,
+            }
+          : null;
+        const onChainFeedbackTotal = normalizedOnChainReputation
+          ? (normalizedOnChainReputation.positive ?? 0) + (normalizedOnChainReputation.negative ?? 0)
+          : null;
+        const onChainPercent = normalizedOnChainReputation && onChainFeedbackTotal && onChainFeedbackTotal > 0
+          ? Math.round(((normalizedOnChainReputation.positive ?? 0) / onChainFeedbackTotal) * 100)
+          : null;
+        const fallbackPercent = toNumberOrNull(data.reputation ?? data.providerReputation);
+        const sellerReputationPercent = onChainPercent ?? fallbackPercent;
         const normalized: ServiceDetail = {
           id: data.id,
           daoId: data.daoId,
@@ -157,9 +186,12 @@ export function useServiceDetail(id?: string) {
                 .filter(entry => entry.url.length > 0)
             : [],
           mediaNormalized,
+          seller: data.seller ?? null,
           ratingValue: toNumberOrNull(data.ratingValue ?? data.providerRating ?? data.reputation),
-          ratingCount: toNumberOrNull(data.ratingCount ?? data.reviewCount),
-          sellerReputation: toNumberOrNull(data.reputation ?? data.providerReputation),
+          ratingCount: onChainFeedbackTotal ?? toNumberOrNull(data.ratingCount ?? data.reviewCount),
+          sellerReputation: sellerReputationPercent,
+          onChainStoreId: onChainStoreId == null ? null : String(onChainStoreId),
+          onChainReputation: normalizedOnChainReputation,
           createdAt: data.createdAt,
           updatedAt: data.updatedAt,
         };

@@ -35,7 +35,7 @@ import type { KeyringPair } from '@polkadot/keyring/types';
 import { cryptoWaitReady } from '@polkadot/util-crypto';
 import type { SubmittableExtrinsic } from '@polkadot/api/types';
 import type { ApiPromise } from '@polkadot/api';
-import { AlertCircle, Loader2, ShieldCheck, Users, Wallet, ArrowRight, Copy, Info, Trash2 } from 'lucide-react';
+import { AlertCircle, Loader2, ShieldCheck, Users, Wallet, ArrowRight, Copy, Info, Trash2, Layers } from 'lucide-react';
 
 const DEFAULT_THEME: StoreTheme = {
   bg: '#0f172a',
@@ -173,6 +173,7 @@ export default function SellerSetupPage() {
   const [transferInput, setTransferInput] = useState('');
   const [transferSubmitting, setTransferSubmitting] = useState(false);
   const [acceptingTransfer, setAcceptingTransfer] = useState(false);
+  const [syncingCatalog, setSyncingCatalog] = useState(false);
 
   const themeLabels = useMemo(
     () => ({
@@ -728,6 +729,105 @@ export default function SellerSetupPage() {
     }
   }, [handleOperationError, onChainEnabled, onChainStoreId, persistSellerProfile, refreshOnChainData, t, withSigner]);
 
+  const handleSyncCatalog = useCallback(async () => {
+    if (!onChainEnabled || !onChainStoreId || !storeIdentifier) return;
+
+    try {
+      setSyncingCatalog(true);
+      setError(null);
+
+      // 1. Chamar API para gerar catálogo
+      const response = await sellerApi.syncCatalog(storeIdentifier);
+      const catalog = response.catalog;
+
+      console.log('[sync-catalog] Catálogo recebido:', catalog);
+
+      if (catalog.itemCount === 0) {
+        toast.info(
+          t('store.onchain.catalogEmpty', {
+            defaultValue: 'Não há produtos ou serviços para sincronizar.',
+          }),
+        );
+        return;
+      }
+
+      toast.info(
+        t('store.onchain.catalogCount', {
+          defaultValue: '{{count}} item no catálogo',
+          defaultValue_other: '{{count}} itens no catálogo',
+          count: catalog.itemCount,
+        }),
+      );
+
+      // 2. Enviar catálogo para IPFS
+      console.log('[sync-catalog] Enviando catálogo para IPFS...');
+      const catalogCid = await uploadMetadataToIpfs(catalog);
+      console.log('[sync-catalog] Catálogo enviado ao IPFS:', catalogCid);
+      toast.success(
+        t('store.onchain.catalogUploaded', {
+          defaultValue: 'Catálogo enviado ao IPFS: {{cid}}',
+          cid: catalogCid,
+        }),
+      );
+
+      // 3. Atualizar metadata on-chain incluindo catalogCid
+      console.log('[sync-catalog] Construindo metadata atualizado...');
+      const updatedMetadata = buildStoreMetadata({
+        name: shopName,
+        description: about || undefined,
+        categories: primaryCategories,
+        theme: themeEnabled ? theme : undefined,
+      });
+
+      // Adicionar catalogCid ao metadata
+      const metadataWithCatalog = {
+        ...updatedMetadata,
+        catalog: catalogCid,
+      };
+
+      console.log('[sync-catalog] Enviando metadata atualizado para IPFS...');
+      const metadataCid = await uploadMetadataToIpfs(metadataWithCatalog);
+      console.log('[sync-catalog] Metadata enviado ao IPFS:', metadataCid);
+
+      console.log('[sync-catalog] Solicitando assinatura do usuário...');
+      await withSigner(async ({ api, pair }) => {
+        const tx = api.tx.stores.updateMetadata(onChainStoreId, Array.from(new TextEncoder().encode(metadataCid)));
+        await signAndSend(api, tx, pair);
+      });
+      console.log('[sync-catalog] Transação assinada e enviada!');
+
+      console.log('[sync-catalog] Atualizando dados on-chain...');
+      await refreshOnChainData(onChainStoreId);
+      console.log('[sync-catalog] Dados atualizados!');
+
+      console.log('[sync-catalog] Mostrando mensagem de sucesso...');
+      const message = t('store.onchain.catalogSynced', {
+        defaultValue: 'Catálogo sincronizado com sucesso!',
+      });
+      console.log('[sync-catalog] Mensagem:', message);
+      toast.success(message);
+      console.log('[sync-catalog] toast.success() chamado!');
+    } catch (err) {
+      console.error('[sync-catalog] Erro capturado:', err);
+      handleOperationError(err);
+    } finally {
+      setSyncingCatalog(false);
+    }
+  }, [
+    about,
+    handleOperationError,
+    onChainEnabled,
+    onChainStoreId,
+    primaryCategories,
+    refreshOnChainData,
+    shopName,
+    storeIdentifier,
+    t,
+    theme,
+    themeEnabled,
+    withSigner,
+  ]);
+
   const ownerAddress = onChainStore?.payload.owner ?? null;
   const operators = onChainStore?.payload.operators ?? [];
   const metadataCid = onChainStore?.payload.cid ?? null;
@@ -1049,6 +1149,43 @@ export default function SellerSetupPage() {
             )}
           </CardContent>
         </Card>
+
+        {onChainEnabled && onChainStoreId && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Layers className="h-5 w-5" />
+                {t('store.onchain.catalogTitle', { defaultValue: 'Catálogo da Loja' })}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                {t('store.onchain.catalogDescription', {
+                  defaultValue: 'Publique seu catálogo de produtos e serviços no IPFS',
+                })}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleSyncCatalog}
+                disabled={syncingCatalog}
+                className="w-full sm:w-auto"
+              >
+                {syncingCatalog ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {t('store.onchain.syncingCatalog', { defaultValue: 'Sincronizando catálogo...' })}
+                  </>
+                ) : (
+                  <>
+                    <Layers className="mr-2 h-4 w-4" />
+                    {t('store.onchain.syncCatalog', { defaultValue: 'Sincronizar Catálogo' })}
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {onChainEnabled && (
           <Card>

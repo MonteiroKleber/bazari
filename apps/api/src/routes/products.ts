@@ -12,6 +12,8 @@ import {
   resolveEffectiveSpecByCategoryId
 } from '../lib/categoryResolver.js';
 import { resolveSellerFromDaoId } from '../lib/sellerResolver.js';
+import { env } from '../env.js';
+import { getStore } from '../lib/storesChain.js';
 
 // Schema de validação para criação
 const createProductSchema = z.object({
@@ -146,16 +148,26 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
         }
       }
 
-      // Resolver loja (opcional)
+      // Resolver loja (opcional) e onChainStoreId
       let sellerStoreId: string | null = null;
+      let onChainStoreId: bigint | null = null;
       if (body.sellerStoreId) {
-        sellerStoreId = body.sellerStoreId;
-      } else if (body.sellerStoreSlug) {
-        const store = await prisma.sellerProfile.findUnique({ where: { shopSlug: body.sellerStoreSlug }, select: { id: true } });
+        const store = await prisma.sellerProfile.findUnique({
+          where: { id: body.sellerStoreId },
+          select: { id: true, onChainStoreId: true }
+        });
         sellerStoreId = store?.id ?? null;
+        onChainStoreId = store?.onChainStoreId ?? null;
+      } else if (body.sellerStoreSlug) {
+        const store = await prisma.sellerProfile.findUnique({
+          where: { shopSlug: body.sellerStoreSlug },
+          select: { id: true, onChainStoreId: true }
+        });
+        sellerStoreId = store?.id ?? null;
+        onChainStoreId = store?.onChainStoreId ?? null;
       }
 
-      // Criar produto - AGORA COM attributesSpecVersion
+      // Criar produto - AGORA COM attributesSpecVersion e onChainStoreId
       const product = await prisma.product.create({
         data: {
           daoId: body.daoId,
@@ -167,6 +179,7 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
           attributes: processedAttributes,
           attributesSpecVersion: effectiveSpec.version, // CORREÇÃO: Campo obrigatório que faltava
           sellerStoreId: sellerStoreId ?? undefined,
+          onChainStoreId: onChainStoreId ?? undefined,
         },
         select: {
           id: true,
@@ -258,10 +271,18 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
     const media = mediaAssets.map(m => ({ id: m.id, url: m.url }));
     // Resolver vendedor/loja de forma robusta (multi-lojas)
     let seller: any = null;
+    let onChainStoreId: string | null = null;
+    let onChainReputation: {
+      sales: number;
+      positive: number;
+      negative: number;
+      volumePlanck: string;
+    } | null = null;
     try {
       if ((product as any).sellerStoreId) {
-        const store = await prisma.sellerProfile.findUnique({ where: { id: (product as any).sellerStoreId }, select: { shopSlug: true, shopName: true, userId: true } });
+        const store = await prisma.sellerProfile.findUnique({ where: { id: (product as any).sellerStoreId }, select: { shopSlug: true, shopName: true, userId: true, onChainStoreId: true } });
         if (store) {
+          onChainStoreId = store.onChainStoreId ? store.onChainStoreId.toString() : null;
           const owner = await prisma.profile.findUnique({ where: { userId: store.userId }, select: { handle: true, displayName: true, avatarUrl: true } });
           seller = { shopSlug: store.shopSlug, shopName: store.shopName, handle: owner?.handle ?? null, displayName: owner?.displayName ?? null, avatarUrl: owner?.avatarUrl ?? null };
         }
@@ -270,6 +291,28 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
         seller = await resolveSellerFromDaoId(prisma, product.daoId);
       }
     } catch {/* ignore seller resolution errors */}
+
+    if (!onChainStoreId && seller && typeof seller.shopSlug === 'string') {
+      try {
+        const store = await prisma.sellerProfile.findUnique({ where: { shopSlug: seller.shopSlug }, select: { onChainStoreId: true } });
+        if (store?.onChainStoreId) {
+          onChainStoreId = store.onChainStoreId.toString();
+        }
+      } catch {
+        // ignore fallback errors
+      }
+    }
+
+    if (env.STORE_ONCHAIN_V1 && onChainStoreId) {
+      try {
+        const store = await getStore(onChainStoreId);
+        if (store) {
+          onChainReputation = store.reputation;
+        }
+      } catch (err) {
+        app.log?.warn?.({ err, onChainStoreId }, 'Falha ao consultar reputação on-chain para produto');
+      }
+    }
 
     // Sanitizar decimais para JSON
     const safe = {
@@ -286,6 +329,8 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
       category: product.category,
       seller,
       media,
+      onChainStoreId,
+      onChainReputation,
     };
 
     return reply.send(safe as any);
@@ -430,6 +475,23 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
 
       const categoryChanged = Array.isArray(body.categoryPath) && body.categoryPath.length > 0;
 
+      // Resolver onChainStoreId se loja mudou (permitir atualização)
+      // Nota: Apenas para casos onde produto precisa ser reatribuído a outra loja
+      let onChainStoreId: bigint | null | undefined = undefined;
+      if (body.sellerStoreId) {
+        const store = await prisma.sellerProfile.findUnique({
+          where: { id: body.sellerStoreId },
+          select: { onChainStoreId: true }
+        });
+        onChainStoreId = store?.onChainStoreId ?? null;
+      } else if (body.sellerStoreSlug) {
+        const store = await prisma.sellerProfile.findUnique({
+          where: { shopSlug: body.sellerStoreSlug },
+          select: { onChainStoreId: true }
+        });
+        onChainStoreId = store?.onChainStoreId ?? null;
+      }
+
       // Atualizar produto
       const updateDataRaw = {
         daoId: body.daoId,
@@ -440,6 +502,7 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
         categoryId: categoryChanged ? categoryId : undefined,
         categoryPath: categoryChanged ? catPathArr : undefined,
         attributesSpecVersion: categoryChanged ? specVersion : undefined,
+        onChainStoreId: onChainStoreId,
       };
       const updateData = pruneUndefined(updateDataRaw) as Prisma.ProductUpdateInput;
 

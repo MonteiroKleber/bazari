@@ -155,6 +155,9 @@ export function ServiceDetailPage() {
               name={data.seller?.shopName ?? data.daoName ?? data.daoId}
               reputationPercent={data.sellerReputation ?? null}
               handle={data.seller?.handle ?? null}
+              profilePath={data.seller?.shopSlug ? `/seller/${data.seller.shopSlug}` : undefined}
+              onChainStats={data.onChainReputation ?? null}
+              onChainStoreId={data.onChainStoreId ?? null}
             />
             <ShippingCalculator />
           </div>

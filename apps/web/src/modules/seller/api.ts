@@ -13,6 +13,12 @@ export interface SellerProfileDto {
   onChainStoreId?: string | number | null;
   ownerAddress?: string | null;
   operatorAddresses?: string[] | null;
+  onChainReputation?: {
+    sales?: number | null;
+    positive?: number | null;
+    negative?: number | null;
+    volumePlanck?: string | number | null;
+  } | null;
 }
 
 export const sellerApi = {
@@ -76,6 +82,9 @@ export const sellerApi = {
   listStoreOrders: async (idOrSlug: string, params?: { status?: string; cursor?: string; limit?: number }) => {
     const qs = params ? '?' + new URLSearchParams(params as any).toString() : '';
     return getJSON<{ items: Array<{ id: string; createdAt: string; totalBzr: string; status: string; items: Array<{ listingId: string; titleSnapshot: string; qty: number; lineTotalBzr: string }> }>; nextCursor?: string }>(`/me/sellers/${encodeURIComponent(idOrSlug)}/orders${qs}`);
+  },
+  syncCatalog: async (idOrSlug: string) => {
+    return postJSON<{ catalog: { version: string; storeId: string; itemCount: number; items: any[] }; message: string }>(`/me/sellers/${encodeURIComponent(idOrSlug)}/sync-catalog`, {});
   },
 };
 

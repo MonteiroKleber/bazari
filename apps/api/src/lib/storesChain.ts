@@ -38,6 +38,10 @@ async function getApi(): Promise<ApiPromise> {
   return apiPromise;
 }
 
+export async function getStoresApi(): Promise<ApiPromise> {
+  return getApi();
+}
+
 function getCollectionId(api: ApiPromise): bigint {
   const constValue = (api.consts as any)?.stores?.bazariStoresCollectionId;
   if (constValue) {
@@ -70,12 +74,25 @@ async function fetchStoreFromChain(api: ApiPromise, storeId: bigint) {
   const itemId = api.createType('u64', storeId.toString());
   const collection = api.createType('u32', collectionId.toString());
 
-  const item = (await api.query.uniques.item(collection, itemId)) as Option<any>;
-  if (item.isNone) {
+  const uniquesQuery: any = (api.query as any)?.uniques;
+  if (!uniquesQuery) {
+    throw new Error('pallet_uniques not available in runtime');
+  }
+
+  const itemOption: Option<any> = uniquesQuery.asset
+    ? ((await uniquesQuery.asset(collection, itemId)) as Option<any>)
+    : ((await uniquesQuery.item(collection, itemId)) as Option<any>);
+
+  if (!itemOption || itemOption.isNone) {
     return null;
   }
-  const itemValue = item.unwrap() as any;
-  const owner = accountToSs58(itemValue.owner);
+
+  const itemValue = itemOption.unwrap() as any;
+  const ownerValue = itemValue.owner ?? itemValue.ownerId ?? itemValue.account;
+  if (!ownerValue) {
+    throw new Error('Unable to resolve owner from uniques storage');
+  }
+  const owner = accountToSs58(ownerValue);
 
   const [operatorsRaw, reputationRaw] = await Promise.all([
     api.query.stores.operators(storeId.toString()) as Promise<Vec<any>>,

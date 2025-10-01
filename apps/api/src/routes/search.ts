@@ -40,7 +40,8 @@ const searchQuerySchema = z.object({
   offset: z.coerce.number().min(0).optional().default(0),
   sort: z.enum(['relevance', 'priceAsc', 'priceDesc', 'createdDesc']).optional().default('relevance'),
   storeId: z.string().trim().min(1).optional(),
-  storeSlug: z.string().trim().min(3).max(64).optional()
+  storeSlug: z.string().trim().min(3).max(64).optional(),
+  onChainStoreId: z.string().trim().min(1).optional()
 });
 
 type Validated = z.infer<typeof searchQuerySchema>;
@@ -75,7 +76,8 @@ function toFilters(validated: Validated, attrs: Record<string, string | string[]
     limit: validated.limit,
     offset: validated.offset,
     storeId: validated.storeId?.trim() || undefined,
-    storeSlug: validated.storeSlug?.trim() || undefined
+    storeSlug: validated.storeSlug?.trim() || undefined,
+    onChainStoreId: validated.onChainStoreId?.trim() || undefined
   };
 }
 
@@ -220,7 +222,8 @@ export async function searchRoutes(app: FastifyInstance) {
             offset: validated.offset,
             sort: validated.sort,
             storeId: filters.storeId,
-            storeSlug: filters.storeSlug
+            storeSlug: filters.storeSlug,
+            onChainStoreId: filters.onChainStoreId
           });
           
           searchEngine = 'postgres';

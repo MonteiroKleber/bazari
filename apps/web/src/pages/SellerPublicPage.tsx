@@ -694,6 +694,8 @@ export default function SellerPublicPage({ mode = 'default' }: SellerPublicPageP
               seller={profile as StoreProfile | null}
               owner={owner}
               primaryCategories={primaryCategories}
+              onChainReputation={profile?.onChainReputation ?? null}
+              onChainStoreId={profile?.onChainStoreId != null ? String(profile.onChainStoreId) : null}
             />
           )}
 
