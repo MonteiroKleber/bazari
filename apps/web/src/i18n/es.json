@@ -67,6 +67,25 @@
       "view": "Ver pedido"
     }
   },
+  "store": {
+    "onchain": {
+      "repSales": "Ventas",
+      "repPositive": "Feedback positivo",
+      "openPublic": "Ver tienda on-chain",
+      "catalogPublished": "Catálogo publicado on-chain",
+      "syncCatalog": "Sincronizar Catálogo",
+      "syncingCatalog": "Sincronizando catálogo...",
+      "catalogSynced": "Catálogo sincronizado con éxito",
+      "catalogSyncError": "Error al sincronizar catálogo",
+      "catalogDescription": "Publica tu catálogo de productos y servicios en IPFS",
+      "catalogCount": "{{count}} artículo en el catálogo",
+      "catalogCount_other": "{{count}} artículos en el catálogo"
+    },
+    "results": {
+      "empty": "No se encontraron resultados",
+      "start": "Escribe algo para explorar la tienda"
+    }
+  },
   "footer": {
     "tagline": "La Nación Digital de la Economía Popular",
     "about": "Acerca de Bazari",

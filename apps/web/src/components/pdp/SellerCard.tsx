@@ -14,6 +14,12 @@ interface SellerCardProps {
   profilePath?: string | null;
   handle?: string | null; // quando informado, habilita follow/link automáticos
   className?: string;
+  onChainStats?: {
+    sales?: number | null;
+    positive?: number | null;
+    negative?: number | null;
+  } | null;
+  onChainStoreId?: string | null;
 }
 
 const normalizePercent = (value?: number | null): number | null => {
@@ -22,9 +28,16 @@ const normalizePercent = (value?: number | null): number | null => {
   return Math.round(clamped);
 };
 
-export function SellerCard({ name, reputationPercent, profilePath, handle, className }: SellerCardProps) {
+export function SellerCard({ name, reputationPercent, profilePath, handle, className, onChainStats, onChainStoreId }: SellerCardProps) {
   const { t } = useTranslation();
-  const normalizedPercent = normalizePercent(reputationPercent ?? null);
+  const totalOnChainFeedback = onChainStats
+    ? (Number(onChainStats.positive ?? 0) || 0) + (Number(onChainStats.negative ?? 0) || 0)
+    : 0;
+  const onChainPercent = totalOnChainFeedback > 0 && onChainStats
+    ? (Number(onChainStats.positive ?? 0) / totalOnChainFeedback) * 100
+    : null;
+  const onChainPercentRounded = normalizePercent(onChainPercent ?? null);
+  const normalizedPercent = normalizePercent(reputationPercent ?? onChainPercent ?? null);
   const [isFollowing, setIsFollowing] = useState<boolean | null>(null);
   const [followersCount, setFollowersCount] = useState<number | null>(null);
   const computedProfilePath = profilePath || (handle ? `/u/${handle}` : null);
@@ -86,6 +99,20 @@ export function SellerCard({ name, reputationPercent, profilePath, handle, class
             </p>
           ) : null}
 
+          {onChainStats && (onChainStats.sales || onChainStats.positive || onChainStats.negative) ? (
+            <div className="rounded-md border border-border/60 bg-muted/30 p-3 text-xs text-muted-foreground">
+              {typeof onChainStats.sales === 'number' && onChainStats.sales > 0 && (
+                <p>{t('store.onchain.repSales', { defaultValue: 'Vendas' })}: {onChainStats.sales}</p>
+              )}
+              {totalOnChainFeedback > 0 && (
+                <p>
+                  {t('store.onchain.repPositive', { defaultValue: 'Feedback positivo' })}:{' '}
+                  {onChainPercentRounded != null ? `${onChainPercentRounded}%` : '—'} ({totalOnChainFeedback})
+                </p>
+              )}
+            </div>
+          ) : null}
+
           <div className="flex items-center gap-3" aria-live="polite">
             {typeof followersCount === 'number' && (
               <span className="text-xs text-muted-foreground">{followersCount} {t('profile.followers')}</span>
@@ -96,6 +123,14 @@ export function SellerCard({ name, reputationPercent, profilePath, handle, class
                 className="inline-flex items-center text-sm font-medium text-primary underline-offset-4 hover:underline"
               >
                 {t('pdp.seeProfile')}
+              </Link>
+            ) : null}
+            {onChainStoreId ? (
+              <Link
+                to={`/loja/${onChainStoreId}`}
+                className="inline-flex items-center text-sm font-medium text-primary/80 underline-offset-4 hover:underline"
+              >
+                {t('store.onchain.openPublic', { defaultValue: 'Ver loja on-chain' })}
               </Link>
             ) : null}
             {handle ? (

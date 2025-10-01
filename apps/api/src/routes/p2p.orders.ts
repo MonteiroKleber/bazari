@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { authOnRequest } from '../lib/auth/middleware.js';
 import { getPaymentsConfig } from '../config/payments.js';
 import { decodeCursor } from '../lib/cursor.js';
+import { runReputationSync } from '../workers/reputation.worker.js';
 
 export async function p2pOrdersRoutes(app: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
@@ -171,9 +172,18 @@ export async function p2pOrdersRoutes(app: FastifyInstance, options: { prisma: P
     if (receiverId !== authUser.sub) return reply.status(403).send({ error: 'Apenas o recebedor pode confirmar.' });
     if (order.status !== 'AWAITING_CONFIRMATION') return reply.status(400).send({ error: 'Estado inválido' });
     const updated = await prisma.p2POrder.update({ where: { id }, data: { status: 'RELEASED' as P2POrderStatus, releasedAt: new Date() } as any });
+
     // System message
     try { await prisma.p2PMessage.create({ data: { orderId: id, senderId: authUser.sub, kind: 'system', body: `RELEASED` } as any } as any); } catch {}
-    // TODO: criar log para instruir transferência de liberação on-chain
+
+    // Gatilho imediato de reputação on-chain (P2P não usa sellerStoreId, mas tentamos de qualquer forma)
+    try {
+      await runReputationSync(prisma, { logger: app.log });
+      app.log.info({ p2pOrderId: id }, 'Reputação atualizada imediatamente após P2P RELEASED');
+    } catch (err) {
+      app.log.warn({ err, p2pOrderId: id }, 'Falha ao atualizar reputação imediata (P2P) - worker periódico atualizará');
+    }
+
     return reply.send(updated);
   });
 

@@ -17,6 +17,7 @@ export type OsDoc = {
   media: Array<{ id: string; url: string }>;
   createdAt: string;
   sellerStoreId?: string | null;
+  onChainStoreId?: string | null; // ID da store on-chain (blockchain)
   storeSlug?: string | null;
   daoId?: string | null;
 };
@@ -55,6 +56,11 @@ export async function buildOsDoc(kind: 'product'|'service', id: string): Promise
     const sellerStoreId = (p as any).sellerStoreId ?? (p.sellerStore?.id ?? null);
     const storeSlug = p.sellerStore?.shopSlug ?? ((p as any).daoId ?? null);
 
+    // Usar onChainStoreId direto do Product (otimização: evita query extra)
+    const onChainStoreId = (p as any).onChainStoreId
+      ? String((p as any).onChainStoreId)
+      : null;
+
     return {
       id: p.id,
       kind: 'product',
@@ -69,6 +75,7 @@ export async function buildOsDoc(kind: 'product'|'service', id: string): Promise
       media: firstMedia ? [{ id: firstMedia.id, url: firstMedia.url }] : [],
       createdAt: (p.createdAt as Date).toISOString(),
       sellerStoreId,
+      onChainStoreId, // NOVO: ID da store on-chain
       storeSlug,
       daoId: (p as any).daoId ?? null
     };
@@ -104,6 +111,11 @@ export async function buildOsDoc(kind: 'product'|'service', id: string): Promise
     const sellerStoreId = (s as any).sellerStoreId ?? (s.sellerStore?.id ?? null);
     const storeSlug = s.sellerStore?.shopSlug ?? ((s as any).daoId ?? null);
 
+    // Usar onChainStoreId direto do ServiceOffering (otimização: evita query extra)
+    const onChainStoreId = (s as any).onChainStoreId
+      ? String((s as any).onChainStoreId)
+      : null;
+
     return {
       id: s.id,
       kind: 'service',
@@ -118,6 +130,7 @@ export async function buildOsDoc(kind: 'product'|'service', id: string): Promise
       media: firstMedia ? [{ id: firstMedia.id, url: firstMedia.url }] : [],
       createdAt: (s.createdAt as Date).toISOString(),
       sellerStoreId,
+      onChainStoreId, // NOVO: ID da store on-chain
       storeSlug,
       daoId: (s as any).daoId ?? null
     };

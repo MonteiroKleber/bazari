@@ -64,13 +64,16 @@ function absolutize(url?: string | null): string | undefined {
 
 function pickCover(item: CatalogItem): string | undefined {
   if (item.coverUrl) {
-    const resolved = resolveIpfsUrl(item.coverUrl);
-    return resolved ?? absolutize(item.coverUrl);
+    const ipfsResolved = resolveIpfsUrl(item.coverUrl);
+    return absolutize(ipfsResolved || item.coverUrl);
   }
   if (Array.isArray(item.media)) {
     for (const entry of item.media) {
-      const resolved = resolveIpfsUrl(entry?.url || undefined) ?? absolutize(entry?.url || undefined);
-      if (resolved) return resolved;
+      const url = entry?.url;
+      if (!url) continue;
+      const ipfsResolved = resolveIpfsUrl(url);
+      const absoluteUrl = absolutize(ipfsResolved || url);
+      if (absoluteUrl) return absoluteUrl;
     }
   }
   return undefined;
@@ -114,9 +117,9 @@ function formatBigInt(value: string | null | undefined): string {
   }
 }
 
-function buildCatalogUrl(storeId: string, limit = 24) {
+function buildCatalogUrl(onChainStoreId: string, limit = 24) {
   const params = new URLSearchParams();
-  params.set('storeId', storeId);
+  params.set('onChainStoreId', onChainStoreId);
   params.set('limit', String(limit));
   params.set('kind', 'all');
   params.set('sort', 'createdDesc');
@@ -335,9 +338,20 @@ export default function StorePublicPage() {
                   <div className="flex flex-col gap-6 p-6 sm:p-8">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                       <div className="space-y-3">
-                        <div className="flex items-center gap-2 text-sm text-store-ink/60">
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-store-ink/60">
                           <StoreIcon className="h-4 w-4" />
                           <span>{t('store.onchain.storeIdLabel', { defaultValue: 'Loja on-chain' })} #{store.payload.storeId}</span>
+                          {(() => {
+                            const hasCatalog = !!(metadata.raw as any)?.catalog;
+                            console.log('[store-public] metadata.raw:', metadata.raw);
+                            console.log('[store-public] hasCatalog:', hasCatalog);
+                            return hasCatalog ? (
+                              <Badge variant="secondary" className="border-store-ink/20 bg-store-brand/20 text-store-ink">
+                                <Layers className="mr-1 h-3 w-3" />
+                                {t('store.onchain.catalogPublished', { defaultValue: 'Catálogo publicado on-chain' })}
+                              </Badge>
+                            ) : null;
+                          })()}
                         </div>
                         <h1 className="text-3xl font-bold text-store-ink sm:text-4xl">{metadata.name}</h1>
                         {metadata.description && (

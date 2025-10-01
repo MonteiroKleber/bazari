@@ -47,6 +47,9 @@ importers:
       '@polkadot/types':
         specifier: ^16.4.7
         version: 16.4.8
+      '@polkadot/keyring':
+        specifier: ^13.5.6
+        version: 13.5.6(@polkadot/util-crypto@13.5.6(@polkadot/util@13.5.6))(@polkadot/util@13.5.6)
       '@polkadot/util':
         specifier: ^13.5.6
         version: 13.5.6

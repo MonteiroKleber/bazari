@@ -4,6 +4,9 @@ import { z } from 'zod';
 import { authOnRequest } from '../lib/auth/middleware.js';
 import { validateSlug } from '../lib/handles.js';
 import { decodeCursor, encodeCursor } from '../lib/cursor.js';
+import { env } from '../env.js';
+import { getStore } from '../lib/storesChain.js';
+import { buildCatalogForStore } from '../lib/catalogBuilder.js';
 
 export async function sellersRoutes(app: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
@@ -73,6 +76,25 @@ export async function sellersRoutes(app: FastifyInstance, options: { prisma: Pri
     if (!seller) return reply.status(404).send({ error: 'Loja não encontrada' });
 
     const ownerProfile = await prisma.profile.findUnique({ where: { userId: seller.user.id }, select: { handle: true, displayName: true, avatarUrl: true } });
+
+    let onChainReputation: {
+      sales: number;
+      positive: number;
+      negative: number;
+      volumePlanck: string;
+    } | null = null;
+
+    if (env.STORE_ONCHAIN_V1 && (seller as any).onChainStoreId != null) {
+      const storeId = (seller as any).onChainStoreId.toString();
+      try {
+        const store = await getStore(storeId);
+        if (store) {
+          onChainReputation = store.reputation;
+        }
+      } catch (err) {
+        app.log.warn({ err, storeId }, 'Falha ao consultar reputação on-chain da loja');
+      }
+    }
 
     // Paginador baseado em createdAt + id
     const c = decodeCursor(cursor ?? null);
@@ -162,6 +184,7 @@ export async function sellersRoutes(app: FastifyInstance, options: { prisma: Pri
           (seller as any).onChainStoreId == null
             ? null
             : (seller as any).onChainStoreId.toString(),
+        onChainReputation,
       },
       owner: ownerProfile,
       catalog: { products: itemsWithCovers, page: { nextCursor, limit: pageSize } },
@@ -249,6 +272,38 @@ export async function sellersRoutes(app: FastifyInstance, options: { prisma: Pri
 
     const items = rows.map(o => ({ id: o.id, createdAt: o.createdAt, totalBzr: o.totalBzr.toString?.() ?? String(o.totalBzr), status: o.status, items: o.items.map(i => ({ listingId: i.listingId, titleSnapshot: i.titleSnapshot, qty: i.qty, lineTotalBzr: i.lineTotalBzr.toString?.() ?? String(i.lineTotalBzr) })) }));
     return reply.send({ items, nextCursor });
+  });
+
+  // POST /me/sellers/:idOrSlug/sync-catalog — sincronizar catálogo para IPFS
+  app.post<{ Params: { idOrSlug: string } }>('/me/sellers/:idOrSlug/sync-catalog', { preHandler: authOnRequest }, async (request, reply) => {
+    const authUser = (request as any).authUser as { sub: string } | undefined;
+    if (!authUser) return reply.status(401).send({ error: 'Token inválido.' });
+
+    if (!env.STORE_ONCHAIN_V1) {
+      return reply.status(501).send({ error: 'Funcionalidade on-chain não habilitada.' });
+    }
+
+    // Validar loja do usuário
+    const store = await prisma.sellerProfile.findFirst({
+      where: {
+        userId: authUser.sub,
+        OR: [ { id: request.params.idOrSlug }, { shopSlug: request.params.idOrSlug } ],
+      },
+      select: { id: true, shopName: true, onChainStoreId: true },
+    });
+
+    if (!store) return reply.status(404).send({ error: 'Loja não encontrada' });
+    if (!store.onChainStoreId) {
+      return reply.status(400).send({ error: 'Loja não possui ID on-chain. Publique a loja on-chain primeiro.' });
+    }
+
+    // Construir catálogo
+    const catalog = await buildCatalogForStore(prisma, store.onChainStoreId);
+
+    return reply.send({
+      catalog,
+      message: 'Catálogo gerado com sucesso. Envie para IPFS e atualize os metadados on-chain.',
+    });
   });
 }
 

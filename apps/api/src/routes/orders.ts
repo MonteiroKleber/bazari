@@ -4,6 +4,7 @@ import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { getPaymentsConfig } from '../config/payments.js';
+import { runReputationSync } from '../workers/reputation.worker.js';
 
 const createPaymentIntentParamsSchema = z.object({
   id: z.string().uuid(),
@@ -450,6 +451,124 @@ export async function ordersRoutes(
       return reply.status(500).send({
         error: 'Erro interno do servidor',
         message: 'Falha ao confirmar recebimento',
+      });
+    }
+  });
+
+  // POST /orders/:id/release - Liberar order (seller confirma entrega)
+  app.post('/orders/:id/release', async (request, reply) => {
+    try {
+      const { id } = orderParamsSchema.parse(request.params);
+
+      const order = await prisma.order.findUnique({
+        where: { id },
+        include: {
+          items: true,
+          paymentIntents: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
+        },
+      });
+
+      if (!order) {
+        return reply.status(404).send({
+          error: 'Order não encontrada',
+          message: `Order com ID ${id} não existe`,
+        });
+      }
+
+      // Verificar se order pode ser liberada (deve estar SHIPPED ou ESCROWED)
+      const canRelease = ['SHIPPED', 'ESCROWED'].includes(order.status);
+      if (!canRelease) {
+        return reply.status(400).send({
+          error: 'Order não pode ser liberada',
+          message: `Order com status ${order.status} não pode ser liberada. Status permitidos: SHIPPED, ESCROWED`,
+          currentStatus: order.status,
+        });
+      }
+
+      // Atualizar status para RELEASED
+      const updated = await prisma.order.update({
+        where: { id },
+        data: {
+          status: 'RELEASED',
+        },
+      });
+
+      // Criar log de release
+      const config = getPaymentsConfig();
+      const activeIntent = order.paymentIntents[0];
+      const grossAmount = activeIntent ? activeIntent.amountBzr : order.totalBzr;
+      const feeAmount = grossAmount.mul(config.feeBps).div(10000);
+      const netAmount = grossAmount.sub(feeAmount);
+
+      await prisma.escrowLog.create({
+        data: {
+          orderId: order.id,
+          kind: 'RELEASE_REQUEST',
+          payloadJson: {
+            intentId: activeIntent?.id || null,
+            releaseToSeller: netAmount.toString(),
+            feeToMarketplace: feeAmount.toString(),
+            statusChangedAt: new Date().toISOString(),
+            sellerAddress: order.sellerAddr,
+          },
+        },
+      });
+
+      app.log.info({
+        orderId: order.id,
+        sellerStoreId: order.sellerStoreId,
+        previousStatus: order.status,
+        newStatus: 'RELEASED'
+      }, 'Order liberada com sucesso');
+
+      // Gatilho imediato de reputação on-chain
+      if (order.sellerStoreId) {
+        try {
+          await runReputationSync(prisma, { logger: app.log });
+          app.log.info({
+            orderId: order.id,
+            sellerStoreId: order.sellerStoreId
+          }, 'Reputação atualizada imediatamente após RELEASED');
+        } catch (err) {
+          app.log.warn({
+            err,
+            orderId: order.id,
+            sellerStoreId: order.sellerStoreId
+          }, 'Falha ao atualizar reputação imediata - worker periódico atualizará');
+        }
+      }
+
+      return reply.send({
+        order: updated,
+        recommendation: {
+          releaseToSeller: netAmount.toString(),
+          feeToMarketplace: feeAmount.toString(),
+          amounts: {
+            gross: grossAmount.toString(),
+            net: netAmount.toString(),
+            fee: feeAmount.toString(),
+          },
+          addresses: {
+            seller: order.sellerAddr,
+          },
+        },
+        note: 'Order liberada. Operação on-chain manual/multisig se necessário.',
+      });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return reply.status(400).send({
+          error: 'Parâmetros inválidos',
+          details: err.errors,
+        });
+      }
+
+      app.log.error({ err }, 'Erro ao liberar order');
+      return reply.status(500).send({
+        error: 'Erro interno do servidor',
+        message: 'Falha ao liberar order',
       });
     }
   });

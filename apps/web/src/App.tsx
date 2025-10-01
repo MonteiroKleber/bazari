@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { Header } from './components/Header';
 import { AppHeader } from './components/AppHeader';
+import { Toaster } from 'sonner';
 import { Hero } from './components/Hero';
 import { Features } from './components/Features';
 import { Roadmap } from './components/Roadmap';
@@ -203,6 +204,7 @@ function App() {
     <ThemeProvider>
       <BrowserRouter>
         <div className="min-h-screen bg-background">
+          <Toaster position="top-right" richColors />
           <SessionBoundary />
           <PinProvider />
           <Routes>

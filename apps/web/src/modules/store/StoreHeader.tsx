@@ -25,6 +25,13 @@ interface StoreHeaderProps {
   seller: StoreProfile | null;
   owner?: StoreOwner | null;
   primaryCategories?: string[][];
+  onChainReputation?: {
+    sales?: number | null;
+    positive?: number | null;
+    negative?: number | null;
+    volumePlanck?: string | number | null;
+  } | null;
+  onChainStoreId?: string | null;
 }
 
 function resolveMediaUrl(u?: string | null): string {
@@ -38,11 +45,23 @@ function resolveMediaUrl(u?: string | null): string {
   }
 }
 
-export function StoreHeader({ seller, owner, primaryCategories }: StoreHeaderProps) {
+export function StoreHeader({ seller, owner, primaryCategories, onChainReputation, onChainStoreId }: StoreHeaderProps) {
   const { t } = useTranslation();
 
   const bannerUrl = useMemo(() => resolveMediaUrl(seller?.bannerUrl), [seller?.bannerUrl]);
   const avatarUrl = useMemo(() => resolveMediaUrl(seller?.avatarUrl), [seller?.avatarUrl]);
+
+  const positiveCount = onChainReputation?.positive ?? null;
+  const negativeCount = onChainReputation?.negative ?? null;
+  const salesCount = onChainReputation?.sales ?? null;
+  const totalFeedback =
+    typeof positiveCount === 'number' && typeof negativeCount === 'number'
+      ? positiveCount + negativeCount
+      : null;
+  const positivePercent =
+    totalFeedback && totalFeedback > 0 && typeof positiveCount === 'number'
+      ? Math.round((positiveCount / totalFeedback) * 100)
+      : null;
 
   if (!seller) return null;
 
@@ -73,6 +92,16 @@ export function StoreHeader({ seller, owner, primaryCategories }: StoreHeaderPro
                   {t('seller.public.rating', { defaultValue: 'Reputação' })}: {Number(seller.ratingAvg).toFixed(1)} ({seller.ratingCount})
                 </p>
               )}
+              {positivePercent !== null && totalFeedback !== null && (
+                <p className="mt-1 text-sm text-store-ink/70">
+                  {t('store.onchain.repPositive', { defaultValue: 'Feedback positivo' })}: {positivePercent}% ({totalFeedback})
+                </p>
+              )}
+              {typeof salesCount === 'number' && salesCount > 0 && (
+                <p className="mt-1 text-sm text-store-ink/70">
+                  {t('store.onchain.repSales', { defaultValue: 'Vendas' })}: {salesCount}
+                </p>
+              )}
             </div>
           </div>
           {seller.about && (
@@ -86,6 +115,11 @@ export function StoreHeader({ seller, owner, primaryCategories }: StoreHeaderPro
           {owner?.handle && (
             <Link to={`/u/${owner.handle}`} className="text-store-accent underline underline-offset-4">
               {owner.displayName || owner.handle}
+            </Link>
+          )}
+          {onChainStoreId && (
+            <Link to={`/loja/${onChainStoreId}`} className="text-xs font-medium text-store-brand underline underline-offset-4">
+              {t('store.onchain.openPublic', { defaultValue: 'Ver loja on-chain' })}
             </Link>
           )}
           {Array.isArray(primaryCategories) && primaryCategories.length > 0 && (

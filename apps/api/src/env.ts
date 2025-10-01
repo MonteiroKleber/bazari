@@ -24,7 +24,28 @@ const envSchema = z.object({
     .string()
     .optional()
     .transform((v) => (v ? /^true$/i.test(v) || v === '1' : false)),
-  
+  STORE_REPUTATION_SURI: z
+    .string()
+    .optional()
+    .transform((value) => {
+      if (!value) return undefined;
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : undefined;
+    }),
+  STORE_REPUTATION_INTERVAL_MS: z
+    .string()
+    .optional()
+    .transform((value) => {
+      if (!value) return undefined;
+      const trimmed = value.trim();
+      if (trimmed.length === 0) return undefined;
+      const num = Number(trimmed);
+      if (!Number.isFinite(num) || num <= 0) {
+        throw new Error('STORE_REPUTATION_INTERVAL_MS deve ser um número positivo');
+      }
+      return num;
+    }),
+
   // S3 config (obrigatório apenas se STORAGE_PROVIDER === 's3')
   S3_REGION: z.string().optional(),
   S3_BUCKET: z.string().optional(),
