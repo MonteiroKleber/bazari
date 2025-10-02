@@ -24,6 +24,7 @@ import { useEffectiveSpec } from '../hooks/useEffectiveSpec';
 import { api } from '../lib/api';
 import { sellerApi } from '@/modules/seller/api';
 import { getSessionUser } from '@/modules/auth';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 interface UploadedFile {
   file: File;
@@ -657,12 +658,22 @@ export function NewListingPage() {
                     className="w-full"
                   >
                     <CheckCircle className="w-4 h-4 mr-2" />
-                    {t('new.view_product', 
-                      kind === 'product' 
+                    {t('new.view_product',
+                      kind === 'product'
                         ? 'Ver produto' : 'Ver serviço'
                     )}
                   </Button>
-                  
+
+                  {selectedStore && (
+                    <Button
+                      variant="secondary"
+                      onClick={() => navigate(`/app/sellers/${selectedStore}?tab=products`)}
+                      className="w-full"
+                    >
+                      {t('new.view_store_products', { defaultValue: 'Ver todos os produtos da loja' })}
+                    </Button>
+                  )}
+
                   <Button
                     variant="outline"
                     onClick={handleAddAnother}
@@ -670,7 +681,7 @@ export function NewListingPage() {
                   >
                     {t('new.add_another', { defaultValue: 'Cadastrar outro nesta categoria' })}
                   </Button>
-                  
+
                   <Button
                     variant="ghost"
                     onClick={handleNewListing}
@@ -736,6 +747,11 @@ export function NewListingPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <Breadcrumbs items={[
+        { label: t('nav.dashboard', { defaultValue: 'Dashboard' }), href: '/app' },
+        { label: t('new.title', { defaultValue: 'Novo Anúncio' }) }
+      ]} />
+
       {renderProgress()}
       <Card>
         <CardContent className="p-6">

@@ -316,3 +316,34 @@ export async function getPendingTransfer(storeId: string | number): Promise<stri
     return null;
   }
 }
+
+/**
+ * Verifica transferências pendentes para um endereço específico nas lojas fornecidas
+ */
+export async function checkPendingTransfersForStores(
+  stores: Array<{ id: string; shopName: string; shopSlug: string; onChainStoreId?: string | number | null }>,
+  targetAddress: string
+): Promise<Array<{ storeId: string; shopSlug: string; shopName: string; dbId: string }>> {
+  const pending: Array<{ storeId: string; shopSlug: string; shopName: string; dbId: string }> = [];
+
+  for (const store of stores) {
+    if (!store.onChainStoreId) continue;
+
+    try {
+      const pendingTransferAddress = await getPendingTransfer(store.onChainStoreId);
+      if (pendingTransferAddress && pendingTransferAddress === targetAddress) {
+        pending.push({
+          storeId: String(store.onChainStoreId),
+          shopSlug: store.shopSlug,
+          shopName: store.shopName,
+          dbId: store.id,
+        });
+      }
+    } catch {
+      // Ignorar erros de stores individuais
+      continue;
+    }
+  }
+
+  return pending;
+}

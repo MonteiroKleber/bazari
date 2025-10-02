@@ -80,30 +80,14 @@ export default function DashboardPage() {
         <ModuleCard title="Perfil" description="Gerencie suas informações públicas" actionText="Abrir" to={profile?.handle ? `/u/${profile.handle}` : '/app/profile/edit'} />
         <ModuleCard title="Wallet" description="Acesse sua carteira e tokens" actionText="Abrir" to="/app/wallet" />
         <ModuleCard title="Marketplace" description="Anuncie e compre produtos e serviços" actionText="Procurar" to="/search" />
-        <ModuleCard 
-          title="Lojas"
-          description={sellers.length > 0 ? 'Gerencie suas lojas' : 'Crie sua loja para vender'}
-          actionText={sellers.length > 0 ? 'Abrir' : 'Criar loja'}
+        <ModuleCard
+          title="Minhas Lojas"
+          description={sellers.length > 0 ? 'Gerencie suas lojas e produtos' : 'Crie sua loja para vender'}
+          actionText={sellers.length > 0 ? 'Gerenciar' : 'Criar loja'}
           to={sellers.length > 0 ? '/app/sellers' : '/app/seller/setup'}
         />
-        <ModuleCard
-          title="Produtos"
-          description={sellers.length > 0 ? 'Escolha uma loja para gerenciar produtos' : 'Crie uma loja para gerenciar produtos'}
-          actionText="Abrir"
-          to="/app/sellers"
-          disabled={sellers.length === 0}
-        />
-        <ModuleCard
-          title="Pedidos"
-          description={sellers.length > 0 ? 'Escolha uma loja para ver pedidos' : 'Crie uma loja para ver pedidos'}
-          actionText="Abrir"
-          to="/app/sellers"
-          disabled={sellers.length === 0}
-        />
-        <ModuleCard title="DAO" description="Governe e participe de decisões" actionText="Abrir" to="/app/dao" disabled />
-        <ModuleCard title="SubDAOs" description="Grupos e comunidades" actionText="Abrir" to="/app/subdaos" disabled />
-        <ModuleCard title="DEX" description="Negocie ativos do ecossistema" actionText="Abrir" to="/app/dex" disabled />
         <ModuleCard title="Câmbio P2P" description="Troque BZR diretamente com outros" actionText="Abrir" to="/app/p2p" />
+        <ModuleCard title="Em Breve" description="DAO, SubDAOs, DEX e mais funcionalidades estão chegando" actionText="Ver Roadmap" to="/" disabled />
       </div>
     </section>
   );

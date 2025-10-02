@@ -86,6 +86,19 @@ export const sellerApi = {
   syncCatalog: async (idOrSlug: string) => {
     return postJSON<{ catalog: { version: string; storeId: string; itemCount: number; items: any[] }; message: string }>(`/me/sellers/${encodeURIComponent(idOrSlug)}/sync-catalog`, {});
   },
+  listPendingTransfers: async () => {
+    return getJSON<{
+      pendingTransfers: Array<{
+        storeId: string;
+        shopSlug: string;
+        shopName: string;
+        dbId: string;
+        currentOwnerAddress: string;
+        state: 'pending' | 'claimable';
+        targetOwnerAddress: string;
+      }>;
+    }>(`/me/sellers/pending-transfers`);
+  },
 };
 
 export default sellerApi;

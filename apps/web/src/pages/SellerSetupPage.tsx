@@ -36,6 +36,7 @@ import { cryptoWaitReady } from '@polkadot/util-crypto';
 import type { SubmittableExtrinsic } from '@polkadot/api/types';
 import type { ApiPromise } from '@polkadot/api';
 import { AlertCircle, Loader2, ShieldCheck, Users, Wallet, ArrowRight, Copy, Info, Trash2, Layers } from 'lucide-react';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 const DEFAULT_THEME: StoreTheme = {
   bg: '#0f172a',
@@ -844,6 +845,12 @@ export default function SellerSetupPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mx-auto flex max-w-4xl flex-col gap-6">
+        <Breadcrumbs items={[
+          { label: t('nav.dashboard', { defaultValue: 'Dashboard' }), href: '/app' },
+          { label: t('nav.myStores', { defaultValue: 'Minhas Lojas' }), href: '/app/sellers' },
+          { label: t('seller.setup.title', { defaultValue: 'Configurar Loja' }) }
+        ]} />
+
         <Card>
           <CardHeader>
             <CardTitle>{t('seller.setup.title')}</CardTitle>

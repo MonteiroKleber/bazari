@@ -40,9 +40,7 @@ import ProfileEditPage from './pages/ProfileEditPage';
 import ProfilePublicPage from './pages/ProfilePublicPage';
 import SellerSetupPage from './pages/SellerSetupPage';
 import SellerPublicPage from './pages/SellerPublicPage';
-import SellerDashboardPage from './pages/SellerDashboardPage';
-import SellerProductsPage from './pages/SellerProductsPage';
-import SellerOrdersPage from './pages/SellerOrdersPage';
+import SellerManagePage from './pages/SellerManagePage';
 import SellersListPage from './pages/SellersListPage';
 import P2PHomePage from './modules/p2p/pages/P2PHomePage';
 import P2POfferNewPage from './modules/p2p/pages/P2POfferNewPage';
@@ -244,10 +242,8 @@ function App() {
                       <Route path="dashboard" element={<DashboardPage />} />
                       <Route path="profile/edit" element={<ProfileEditPage />} />
                       <Route path="seller/setup" element={<SellerSetupPage />} />
-                      <Route path="seller" element={<SellerDashboardPage />} />
                       <Route path="sellers" element={<SellersListPage />} />
-                      <Route path="sellers/:shopSlug/products" element={<SellerProductsPage />} />
-                      <Route path="sellers/:shopSlug/orders" element={<SellerOrdersPage />} />
+                      <Route path="sellers/:shopSlug" element={<SellerManagePage />} />
                       <Route path="new" element={<NewListingPage />} />
                       <Route path="product/:id" element={<ProductDetailPage />} />
                       <Route path="service/:id" element={<ServiceDetailPage />} />
@@ -255,7 +251,6 @@ function App() {
                       <Route path="checkout" element={<CheckoutPage />} />
                       <Route path="orders/:id/pay" element={<OrderPayPage />} />
                       <Route path="orders/:id" element={<OrderPage />} />
-                      <Route path="order/:id" element={<OrderPage />} />
                       <Route path="p2p" element={<P2PHomePage />} />
                       <Route path="p2p/my-orders" element={<P2PMyOrdersPage />} />
                       <Route path="p2p/offers/new" element={<P2POfferNewPage />} />
