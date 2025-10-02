@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { useCart } from '@/modules/cart/cart.store';
 import { ordersApi } from '../api';
 import { apiHelpers } from '@/lib/api';
@@ -158,6 +159,12 @@ export function CheckoutPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto">
+        <Breadcrumbs items={[
+          { label: t('nav.dashboard', { defaultValue: 'Dashboard' }), href: '/app' },
+          { label: t('cart.title', { defaultValue: 'Carrinho' }), href: '/app/cart' },
+          { label: t('checkout.title', { defaultValue: 'Finalizar Compra' }) }
+        ]} />
+
         <h1 className="text-3xl font-bold mb-6">{t('checkout.title', 'Finalizar Compra')}</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

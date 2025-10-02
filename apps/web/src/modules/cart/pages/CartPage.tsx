@@ -7,6 +7,7 @@ import { Trash2, Plus, Minus, ShoppingCart, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { useCart } from '../cart.store';
 import { BZR } from '@/utils/bzr';
 
@@ -50,6 +51,11 @@ export function CartPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
+          <Breadcrumbs items={[
+            { label: t('nav.dashboard', { defaultValue: 'Dashboard' }), href: '/app' },
+            { label: t('cart.title', { defaultValue: 'Carrinho' }) }
+          ]} />
+
           <h1 className="text-3xl font-bold mb-6">{t('cart.title')}</h1>
 
           <Card>
@@ -75,6 +81,11 @@ export function CartPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto">
+        <Breadcrumbs items={[
+          { label: t('nav.dashboard', { defaultValue: 'Dashboard' }), href: '/app' },
+          { label: t('cart.title', { defaultValue: 'Carrinho' }) }
+        ]} />
+
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold">{t('cart.title')}</h1>
           <Badge variant="secondary">

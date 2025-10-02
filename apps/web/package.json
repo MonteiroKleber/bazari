@@ -20,6 +20,8 @@
     "@polkadot/keyring": "^13.5.6",
     "@polkadot/util": "^13.5.6",
     "@polkadot/util-crypto": "^13.5.6",
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-tabs": "^1.1.13",
     "@tanstack/react-virtual": "^3.13.12",
     "@zxing/browser": "^0.1.5",
     "axios": "^1.11.0",

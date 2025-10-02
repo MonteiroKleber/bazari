@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { apiHelpers } from '@/lib/api';
 
 interface Order {
@@ -183,6 +184,12 @@ export function OrderPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto space-y-6">
+        <Breadcrumbs items={[
+          { label: t('nav.dashboard', { defaultValue: 'Dashboard' }), href: '/app' },
+          { label: t('order.orders', { defaultValue: 'Pedidos' }) },
+          { label: `#${id.slice(0, 8)}...` }
+        ]} />
+
         <h1 className="text-3xl font-bold">{t('order.title')}</h1>
 
         {/* Order Info */}

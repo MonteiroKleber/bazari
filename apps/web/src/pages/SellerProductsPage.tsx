@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { sellerApi } from '@/modules/seller/api';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 type Status = 'ALL' | 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 
@@ -50,6 +51,12 @@ export default function SellerProductsPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <Breadcrumbs items={[
+        { label: t('nav.dashboard', { defaultValue: 'Dashboard' }), href: '/app' },
+        { label: t('seller.myStores.title', { defaultValue: 'Minhas Lojas' }), href: '/app/sellers' },
+        { label: shopSlug }
+      ]} />
+
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-semibold">{t('seller.products.title', { defaultValue: 'Produtos da loja' })} <span className="text-muted-foreground">/@{shopSlug}</span></h1>
         <div className="flex gap-2">

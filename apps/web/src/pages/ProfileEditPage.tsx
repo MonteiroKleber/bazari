@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { apiHelpers } from '../lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Label } from '../components/ui/label';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
 import { Button } from '../components/ui/button';
+import { Breadcrumbs } from '../components/Breadcrumbs';
 
 const HANDLE_REGEX = /^[a-z0-9](?:[a-z0-9._-]{1,28}[a-z0-9])?$/;
 const RESERVED = new Set(['admin','support','bazari','root','system','null','undefined']);
@@ -21,6 +23,7 @@ type MeProfile = {
 
 export default function ProfileEditPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,6 +116,11 @@ export default function ProfileEditPage() {
 
   return (
     <section className="container mx-auto px-4 py-8">
+      <Breadcrumbs items={[
+        { label: t('nav.dashboard', { defaultValue: 'Dashboard' }), href: '/app' },
+        { label: isNew ? t('profile.create', { defaultValue: 'Criar Perfil' }) : t('profile.edit', { defaultValue: 'Editar Perfil' }) }
+      ]} />
+
       <Card>
         <CardHeader>
           <CardTitle>{isNew ? 'Criar Perfil' : 'Editar Perfil'}</CardTitle>

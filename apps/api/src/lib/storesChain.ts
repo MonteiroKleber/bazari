@@ -201,6 +201,43 @@ export async function listStoresOperated(address: string) {
   return listOperatedStoreIds(api, address);
 }
 
+export async function getPendingTransfer(storeId: string | number | bigint): Promise<string | null> {
+  const api = await getApi();
+  try {
+    const value = await (api.query as any)?.stores?.pendingTransfer?.(storeId.toString());
+    if (!value || value.isNone) return null;
+    const unwrapped = value.unwrap();
+    return typeof unwrapped.toString === 'function' ? unwrapped.toString() : String(unwrapped);
+  } catch {
+    return null;
+  }
+}
+
+export async function listStoresWithPendingTransferTo(address: string): Promise<bigint[]> {
+  const api = await getApi();
+  const storesWithTransfer: bigint[] = [];
+
+  try {
+    // Buscar todas as entradas de pendingTransfer
+    const entries = await (api.query as any).stores.pendingTransfer.entries();
+
+    for (const [key, value] of entries) {
+      if (value.isNone) continue;
+
+      const pendingAddress = value.unwrap().toString();
+      if (pendingAddress === address) {
+        // Extrair storeId da chave
+        const storeId = key.args[0].toString();
+        storesWithTransfer.push(BigInt(storeId));
+      }
+    }
+  } catch (e) {
+    console.error('[storesChain] Error listing stores with pending transfer:', e);
+  }
+
+  return storesWithTransfer;
+}
+
 export function storesRegistryEnabled() {
   return REGISTRY_ENABLED;
 }
