@@ -27,18 +27,25 @@ export default function DashboardPage() {
     (async () => {
       try {
         const res = await apiHelpers.getMeProfile();
-        if (!active) return;
-        setProfile(res.profile ?? null);
-        // carregar lojas do usuário (multi-lojas)
-        try {
-          const resStores = await (await import('@/modules/seller/api')).sellerApi.listMyStores();
-          const list = resStores?.items || [];
-          setSellers(list.map((s: any) => ({ shopSlug: s.shopSlug, shopName: s.shopName })));
-        } catch {}
+        if (active) {
+          setProfile(res.profile ?? null);
+        }
       } catch (e: any) {
+        if (active) {
+          // 404 → ainda não tem perfil (onboarding opcional)
+          setProfile(null);
+        }
+      }
+
+      try {
+        const resStores = await (await import('@/modules/seller/api')).sellerApi.listMyStores();
         if (!active) return;
-        // 404 → ainda não tem perfil (onboarding opcional)
-        setProfile(null);
+        const list = resStores?.items || [];
+        setSellers(list.map((s: any) => ({ shopSlug: s.shopSlug, shopName: s.shopName })));
+      } catch (e) {
+        if (active) {
+          setError((e as Error).message);
+        }
       } finally {
         if (active) setLoading(false);
       }
