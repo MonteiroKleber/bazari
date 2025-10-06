@@ -42,14 +42,16 @@ export async function getStoresApi(): Promise<ApiPromise> {
   return getApi();
 }
 
-function getCollectionId(api: ApiPromise): bigint {
-  const constValue = (api.consts as any)?.stores?.bazariStoresCollectionId;
-  if (constValue) {
-    try {
-      return BigInt(constValue.toString());
-    } catch {}
+async function getStoreCollectionId(api: ApiPromise, storeId: bigint): Promise<bigint | null> {
+  try {
+    const v = await (api.query as any)?.stores?.storeCollection?.(storeId.toString());
+    if (!v) return null;
+    const s = v.toString?.() ?? String(v);
+    if (!s) return null;
+    return BigInt(s);
+  } catch {
+    return null;
   }
-  return BigInt(1000);
 }
 
 function cidFromBytes(cid: Uint8Array): string | null {
@@ -70,8 +72,9 @@ function accountToSs58(account: any): string {
 }
 
 async function fetchStoreFromChain(api: ApiPromise, storeId: bigint) {
-  const collectionId = getCollectionId(api);
   const itemId = api.createType('u64', storeId.toString());
+  const collectionId = await getStoreCollectionId(api, storeId);
+  if (collectionId === null) return null;
   const collection = api.createType('u32', collectionId.toString());
 
   const uniquesQuery: any = (api.query as any)?.uniques;
@@ -159,10 +162,14 @@ export async function resolveStoreCidWithSource(storeId: string | number, apiArg
 
 async function listOwnedStoreIds(api: ApiPromise, address: string): Promise<string[]> {
   await ensureCryptoReady();
-  const decoded = decodeAddress(address);
-  const collectionId = getCollectionId(api);
-  const keys = await api.query.uniques.account.keys(decoded, api.createType('u32', collectionId.toString()));
-  return keys.map((key) => key.args[2].toString());
+  // Read on-chain index of stores by owner
+  try {
+    const storesVec = (await (api.query as any)?.stores?.ownerStores?.(address)) as Vec<any>;
+    if (!storesVec) return [];
+    return storesVec.toArray().map((x: any) => x.toString());
+  } catch {
+    return [];
+  }
 }
 
 async function listOperatedStoreIds(api: ApiPromise, address: string): Promise<string[]> {
