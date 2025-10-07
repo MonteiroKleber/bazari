@@ -16,6 +16,8 @@ import {
 import { authOnRequest } from '../lib/auth/middleware.js';
 import { parseMessage } from '@bazari/siws-utils';
 import { normalizeSignature, verifySiws } from '../lib/auth/verifySiws.js';
+import { mintProfileOnChain } from '../lib/profilesChain.js';
+import { createInitialMetadata, publishProfileMetadata } from '../lib/ipfs.js';
 
 const ADDRESS_RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
 const ADDRESS_RATE_LIMIT_MAX = 5;
@@ -177,6 +179,85 @@ export async function authRoutes(app: FastifyInstance, options: { prisma: Prisma
         address: body.address,
       },
     });
+
+    // Buscar ou criar Profile com NFT
+    let profile = await prisma.profile.findUnique({
+      where: { userId: user.id }
+    });
+
+    if (!profile) {
+      app.log.info({ event: 'auth.profile.creating', userId: user.id });
+
+      // Gerar handle default (pode ser melhorado depois)
+      const defaultHandle = `user_${user.address.slice(0, 8).toLowerCase()}`;
+
+      // Verificar unicidade do handle
+      let finalHandle = defaultHandle;
+      let counter = 1;
+      while (await prisma.profile.findUnique({ where: { handle: finalHandle } })) {
+        finalHandle = `${defaultHandle}_${counter}`;
+        counter++;
+      }
+
+      // 1. Criar Profile temporário (sem onChainProfileId)
+      profile = await prisma.profile.create({
+        data: {
+          userId: user.id,
+          handle: finalHandle,
+          displayName: finalHandle,
+        },
+      });
+
+      try {
+        // 2. Gerar metadados IPFS
+        const metadata = createInitialMetadata(profile);
+        const cid = await publishProfileMetadata(metadata);
+
+        // 3. MINTAR NFT ON-CHAIN (BLOQUEANTE ~6s)
+        app.log.info({
+          event: 'auth.profile.minting',
+          address: user.address,
+          handle: finalHandle
+        });
+
+        const profileId = await mintProfileOnChain(
+          user.address,
+          finalHandle,
+          cid
+        );
+
+        app.log.info({
+          event: 'auth.profile.minted',
+          profileId: profileId.toString()
+        });
+
+        // 4. Atualizar Profile com onChainProfileId
+        profile = await prisma.profile.update({
+          where: { id: profile.id },
+          data: {
+            onChainProfileId: profileId,
+            metadataCid: cid,
+            lastChainSync: new Date(),
+          },
+        });
+
+      } catch (error) {
+        app.log.error({
+          event: 'auth.profile.mint_failed',
+          error: (error as Error).message
+        });
+
+        // Rollback: deletar profile se mint falhou
+        await prisma.profile.delete({
+          where: { id: profile.id }
+        }).catch(() => {});
+
+        return reply.status(500).send({
+          error: 'Failed to create profile on blockchain',
+          retry: true
+        });
+      }
+    }
 
     const access = issueAccessToken(user);
     await issueRefresh(reply, prisma, user);

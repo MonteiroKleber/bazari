@@ -8,6 +8,8 @@ import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
 import { Button } from '../components/ui/button';
 import { Breadcrumbs } from '../components/Breadcrumbs';
+import { ReputationBadge } from '@/components/profile/ReputationBadge';
+import { BadgesList } from '@/components/profile/BadgesList';
 
 const HANDLE_REGEX = /^[a-z0-9](?:[a-z0-9._-]{1,28}[a-z0-9])?$/;
 const RESERVED = new Set(['admin','support','bazari','root','system','null','undefined']);
@@ -19,6 +21,9 @@ type MeProfile = {
   avatarUrl?: string | null;
   bannerUrl?: string | null;
   externalLinks?: { label: string; url: string }[] | null;
+  onChainProfileId?: string | null;
+  reputationScore?: number;
+  reputationTier?: string;
 };
 
 export default function ProfileEditPage() {
@@ -28,6 +33,8 @@ export default function ProfileEditPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isNew, setIsNew] = useState(false);
+  const [profile, setProfile] = useState<MeProfile | null>(null);
+  const [badges, setBadges] = useState<any[]>([]);
   const [form, setForm] = useState<{ handle: string; displayName: string; bio: string; avatarUrl: string; bannerUrl: string }>(
     { handle: '', displayName: '', bio: '', avatarUrl: '', bannerUrl: '' }
   );
@@ -37,10 +44,11 @@ export default function ProfileEditPage() {
     let active = true;
     (async () => {
       try {
-        const res = await apiHelpers.getMeProfile();
+        const res: any = await apiHelpers.getMeProfile();
         if (!active) return;
         const p: MeProfile | null = res?.profile ?? null;
         if (p) {
+          setProfile(p);
           setForm({
             handle: p.handle ?? '',
             displayName: p.displayName ?? '',
@@ -49,6 +57,16 @@ export default function ProfileEditPage() {
             bannerUrl: (p.bannerUrl ?? '') as string,
           });
           setIsNew(false);
+
+          // Buscar badges se tem NFT
+          if (p.onChainProfileId && p.handle) {
+            try {
+              const badgesRes: any = await apiHelpers.getProfileBadges(p.handle);
+              if (active) setBadges(badgesRes.badges || []);
+            } catch (err) {
+              console.error('Error loading badges:', err);
+            }
+          }
         } else {
           setIsNew(true);
         }
@@ -184,6 +202,55 @@ export default function ProfileEditPage() {
           </form>
         </CardContent>
       </Card>
+
+      {!isNew && profile?.onChainProfileId && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Identidade Soberana (NFT)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label className="text-xs text-muted-foreground">
+                Profile ID (Blockchain)
+              </Label>
+              <div className="font-mono text-sm mt-1">
+                #{profile.onChainProfileId}
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs text-muted-foreground">
+                Reputação
+              </Label>
+              <div className="mt-1">
+                <ReputationBadge
+                  score={profile.reputationScore ?? 0}
+                  tier={profile.reputationTier ?? 'bronze'}
+                  size="lg"
+                />
+              </div>
+            </div>
+
+            {badges && badges.length > 0 && (
+              <div>
+                <Label className="text-xs text-muted-foreground">
+                  Badges Conquistados
+                </Label>
+                <div className="mt-2">
+                  <BadgesList badges={badges} />
+                </div>
+              </div>
+            )}
+
+            <p className="text-xs text-muted-foreground">
+              A reputação é calculada automaticamente baseada em suas ações.
+              <a href="/docs/reputacao" className="underline ml-1">
+                Saiba mais
+              </a>
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </section>
   );
 }

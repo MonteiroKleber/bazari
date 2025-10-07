@@ -7,6 +7,8 @@ import { useTranslation } from 'react-i18next';
 import { SellerCard } from '@/components/pdp/SellerCard';
 import { Badge } from '@/components/ui/badge';
 import { API_BASE_URL } from '@/config';
+import { ReputationBadge } from '@/components/profile/ReputationBadge';
+import { BadgesList } from '@/components/profile/BadgesList';
 
 type PublicProfile = {
   profile: {
@@ -19,7 +21,18 @@ type PublicProfile = {
     followersCount: number;
     followingCount: number;
     postsCount: number;
+    onChainProfileId?: string | null;
+    reputation?: {
+      score: number;
+      tier: string;
+    };
   };
+  badges?: Array<{
+    code: string;
+    label: { pt: string; en: string; es: string };
+    issuedBy: string;
+    issuedAt: string;
+  }>;
   sellerProfile?: { shopName: string; shopSlug: string } | null;
   counts: { followers: number; following: number; posts: number };
 };
@@ -162,6 +175,35 @@ export default function ProfilePublicPage() {
         <span><strong className="text-foreground">{data.counts.following}</strong> {t('profile.following')}</span>
         <span><strong className="text-foreground">{data.counts.posts}</strong> {t('profile.posts')}</span>
       </div>
+
+      {/* Reputação e Badges */}
+      {data.profile.onChainProfileId && (
+        <Card className="mb-6 bg-muted/30">
+          <CardContent className="p-4">
+            <div className="flex flex-col md:flex-row md:items-center gap-4">
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">
+                  Reputação
+                </div>
+                <ReputationBadge
+                  score={data.profile.reputation?.score ?? 0}
+                  tier={data.profile.reputation?.tier ?? 'bronze'}
+                  size="lg"
+                />
+              </div>
+
+              {data.badges && data.badges.length > 0 && (
+                <div className="flex-1">
+                  <div className="text-xs text-muted-foreground mb-1">
+                    Badges
+                  </div>
+                  <BadgesList badges={data.badges} limit={5} />
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-3 border-b border-border mb-4">

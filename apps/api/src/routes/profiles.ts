@@ -39,12 +39,28 @@ export async function profilesRoutes(app: FastifyInstance, options: { prisma: Pr
         createdAt: true,
         updatedAt: true,
         userId: true,
+        onChainProfileId: true,
+        reputationScore: true,
+        reputationTier: true,
+        metadataCid: true,
+        isVerified: true,
+        lastChainSync: true,
       },
     });
 
     if (!profile) {
       return reply.status(404).send({ error: 'Perfil não encontrado' });
     }
+
+    // Buscar badges (top 5)
+    const badges = await prisma.profileBadge.findMany({
+      where: {
+        profileId: profile.id,
+        revokedAt: null,
+      },
+      take: 5,
+      orderBy: { issuedAt: 'desc' },
+    });
 
     const sellerProfiles = await prisma.sellerProfile.findMany({
       where: { userId: profile.userId },
@@ -100,7 +116,15 @@ export async function profilesRoutes(app: FastifyInstance, options: { prisma: Pr
 
     app.log.info({ event: 'profile.view', handle });
     return reply.send({
-      profile,
+      profile: {
+        ...profile,
+        onChainProfileId: profile.onChainProfileId?.toString(),
+        reputation: {
+          score: profile.reputationScore,
+          tier: profile.reputationTier,
+        },
+      },
+      badges,
       sellerProfile: sellerProfile ?? null,
       sellerProfiles,
       counts: {
@@ -319,6 +343,58 @@ export async function profilesRoutes(app: FastifyInstance, options: { prisma: Pr
       return reply.status(400).send({ error: e?.message ?? 'Erro ao salvar perfil' });
     }
   });
+
+  // GET /profiles/:handle/reputation
+  app.get<{ Params: { handle: string } }>(
+    '/profiles/:handle/reputation',
+    async (request, reply) => {
+      const { handle } = handleParamSchema.parse(request.params);
+
+      const profile = await prisma.profile.findUnique({
+        where: { handle },
+        select: { id: true },
+      });
+
+      if (!profile) {
+        return reply.status(404).send({ error: 'Profile not found' });
+      }
+
+      const events = await prisma.profileReputationEvent.findMany({
+        where: { profileId: profile.id },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      });
+
+      return reply.send({ events });
+    }
+  );
+
+  // GET /profiles/:handle/badges
+  app.get<{ Params: { handle: string } }>(
+    '/profiles/:handle/badges',
+    async (request, reply) => {
+      const { handle } = handleParamSchema.parse(request.params);
+
+      const profile = await prisma.profile.findUnique({
+        where: { handle },
+        select: { id: true },
+      });
+
+      if (!profile) {
+        return reply.status(404).send({ error: 'Profile not found' });
+      }
+
+      const badges = await prisma.profileBadge.findMany({
+        where: {
+          profileId: profile.id,
+          revokedAt: null,
+        },
+        orderBy: { issuedAt: 'desc' },
+      });
+
+      return reply.send({ badges });
+    }
+  );
 }
 
 export default profilesRoutes;

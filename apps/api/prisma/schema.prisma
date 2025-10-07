@@ -13,7 +13,7 @@ datasource db {
 
 model MediaAsset {
   id          String   @id @default(cuid())
-  url         String   // FS: /uploads/abc.png; S3: URL pública
+  url         String // FS: /uploads/abc.png; S3: URL pública
   mime        String
   size        Int
   contentHash String
@@ -27,25 +27,25 @@ model MediaAsset {
 }
 
 model Category {
-  id           String    @id
-  slug         String    @unique
-  parentId     String?
-  kind         String    // "product" | "service"
-  level        Int       // 1..4
-  namePt       String
-  nameEn       String
-  nameEs       String
-  pathSlugs    String[]
-  pathNamesPt  String[]
-  pathNamesEn  String[]
-  pathNamesEs  String[]
-  active       Boolean   @default(true)
-  sort         Int       @default(0)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  
-  products     Product[]
-  services     ServiceOffering[]
+  id          String   @id
+  slug        String   @unique
+  parentId    String?
+  kind        String // "product" | "service"
+  level       Int // 1..4
+  namePt      String
+  nameEn      String
+  nameEs      String
+  pathSlugs   String[]
+  pathNamesPt String[]
+  pathNamesEn String[]
+  pathNamesEs String[]
+  active      Boolean  @default(true)
+  sort        Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products Product[]
+  services ServiceOffering[]
 
   @@index([slug])
   @@index([kind, level])
@@ -56,8 +56,8 @@ model Category {
 model CategorySpec {
   id           String   @id @default(cuid())
   categoryId   String
-  version      String   // semântico, ex: 1.0.0
-  inheritsFrom String?  // opcional (outro categoryId)
+  version      String // semântico, ex: 1.0.0
+  inheritsFrom String? // opcional (outro categoryId)
   jsonSchema   Json
   uiSchema     Json
   indexHints   String[]
@@ -68,24 +68,24 @@ model CategorySpec {
 }
 
 model Product {
-  id                    String   @id @default(uuid())
+  id                    String        @id @default(uuid())
   daoId                 String
   title                 String
   description           String?
-  priceBzr              Decimal  @db.Decimal(20,12)
+  priceBzr              Decimal       @db.Decimal(20, 12)
   categoryId            String
   categoryPath          String[]
   attributes            Json
   attributesSpecVersion String
   sellerUserId          String?
   sellerStoreId         String?
-  onChainStoreId        BigInt?  @db.BigInt
+  onChainStoreId        BigInt?       @db.BigInt
   status                ProductStatus @default(PUBLISHED)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  
-  category              Category @relation(fields: [categoryId], references: [id])
-  sellerStore           SellerProfile? @relation(fields: [sellerStoreId], references: [id])
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  category    Category       @relation(fields: [categoryId], references: [id])
+  sellerStore SellerProfile? @relation(fields: [sellerStoreId], references: [id])
 
   @@index([daoId])
   @@index([categoryId])
@@ -106,7 +106,7 @@ model ServiceOffering {
   daoId                 String
   title                 String
   description           String?
-  basePriceBzr          Decimal? @db.Decimal(20,12)
+  basePriceBzr          Decimal? @db.Decimal(20, 12)
   categoryId            String
   categoryPath          String[]
   attributes            Json
@@ -115,9 +115,9 @@ model ServiceOffering {
   onChainStoreId        BigInt?  @db.BigInt
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
-  
-  category              Category @relation(fields: [categoryId], references: [id])
-  sellerStore           SellerProfile? @relation(fields: [sellerStoreId], references: [id])
+
+  category    Category       @relation(fields: [categoryId], references: [id])
+  sellerStore SellerProfile? @relation(fields: [sellerStoreId], references: [id])
 
   @@index([daoId])
   @@index([categoryId])
@@ -163,9 +163,9 @@ model User {
 }
 
 model AuthNonce {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   address   String
-  nonce     String   @unique
+  nonce     String    @unique
   domain    String
   uri       String
   genesis   String
@@ -177,12 +177,12 @@ model AuthNonce {
 }
 
 model RefreshToken {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
-  tokenHash String   @unique
-  createdAt DateTime @default(now())
+  tokenHash String    @unique
+  createdAt DateTime  @default(now())
   revokedAt DateTime?
-  user      User     @relation(fields: [userId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
 
   @@index([userId])
 }
@@ -215,20 +215,20 @@ enum ProductStatus {
 }
 
 model Order {
-  id              String      @id @default(uuid())
-  buyerAddr       String
-  sellerAddr      String
-  sellerId        String      // DAO ID do vendedor
-  sellerStoreId   String?
-  subtotalBzr     Decimal     @db.Decimal(30,0) // subtotal em planck
-  shippingBzr     Decimal     @db.Decimal(30,0) // frete em planck
-  totalBzr        Decimal     @db.Decimal(30,0) // total em planck
-  status          OrderStatus @default(CREATED)
-  shippingAddress Json?       // endereço de entrega
-  shippingOptionId String?    // ID da opção de frete
-  notes           String?     // observações do pedido
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id               String      @id @default(uuid())
+  buyerAddr        String
+  sellerAddr       String
+  sellerId         String // DAO ID do vendedor
+  sellerStoreId    String?
+  subtotalBzr      Decimal     @db.Decimal(30, 0) // subtotal em planck
+  shippingBzr      Decimal     @db.Decimal(30, 0) // frete em planck
+  totalBzr         Decimal     @db.Decimal(30, 0) // total em planck
+  status           OrderStatus @default(CREATED)
+  shippingAddress  Json? // endereço de entrega
+  shippingOptionId String? // ID da opção de frete
+  notes            String? // observações do pedido
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 
   items          OrderItem[]
   paymentIntents PaymentIntent[]
@@ -243,15 +243,15 @@ model Order {
 }
 
 model OrderItem {
-  id                    String  @id @default(cuid())
-  orderId               String
-  listingId             String  // ID do produto/serviço
-  kind                  String  // 'product' | 'service'
-  qty                   Int
-  unitPriceBzrSnapshot  Decimal @db.Decimal(30,0) // preço unitário em planck no momento do pedido
-  titleSnapshot         String  // título no momento do pedido
-  lineTotalBzr          Decimal @db.Decimal(30,0) // qty * unitPrice em planck
-  createdAt             DateTime @default(now())
+  id                   String   @id @default(cuid())
+  orderId              String
+  listingId            String // ID do produto/serviço
+  kind                 String // 'product' | 'service'
+  qty                  Int
+  unitPriceBzrSnapshot Decimal  @db.Decimal(30, 0) // preço unitário em planck no momento do pedido
+  titleSnapshot        String // título no momento do pedido
+  lineTotalBzr         Decimal  @db.Decimal(30, 0) // qty * unitPrice em planck
+  createdAt            DateTime @default(now())
 
   order Order @relation(fields: [orderId], references: [id])
 
@@ -263,7 +263,7 @@ model OrderItem {
 model PaymentIntent {
   id            String              @id @default(cuid())
   orderId       String
-  amountBzr     Decimal             @db.Decimal(30,0) // planck
+  amountBzr     Decimal             @db.Decimal(30, 0) // planck
   escrowAddress String
   status        PaymentIntentStatus @default(PENDING)
   txHashIn      String? // hash do depósito
@@ -310,10 +310,25 @@ model Profile {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  // === NFT/Identidade Soberana ===
+  onChainProfileId BigInt?   @unique @db.BigInt
+  reputationScore  Int       @default(0)
+  reputationTier   String    @default("bronze")
+  metadataCid      String?
+  isVerified       Boolean   @default(false)
+  lastChainSync    DateTime?
+
   // Relations
-  posts     Post[]
-  followers Follow[] @relation("follows_following")
-  following Follow[] @relation("follows_follower")
+  posts            Post[]
+  followers        Follow[]                 @relation("follows_following")
+  following        Follow[]                 @relation("follows_follower")
+  badges           ProfileBadge[]
+  reputationEvents ProfileReputationEvent[]
+  handleHistory    HandleHistory[]
+
+  @@index([onChainProfileId])
+  @@index([reputationScore])
+  @@index([reputationTier])
 }
 
 model Follow {
@@ -330,27 +345,27 @@ model Follow {
 }
 
 model SellerProfile {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  shopName    String
-  shopSlug    String   @unique
-  about       String?  @db.Text
-  ratingAvg   Float    @default(0)
-  ratingCount Int      @default(0)
-  policies    Json?
-  avatarUrl   String?
-  bannerUrl   String?
-  isDefault   Boolean  @default(false)
-  onChainStoreId   BigInt?  @db.BigInt
-  ownerAddress     String?
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id])
+  shopName          String
+  shopSlug          String   @unique
+  about             String?  @db.Text
+  ratingAvg         Float    @default(0)
+  ratingCount       Int      @default(0)
+  policies          Json?
+  avatarUrl         String?
+  bannerUrl         String?
+  isDefault         Boolean  @default(false)
+  onChainStoreId    BigInt?  @db.BigInt
+  ownerAddress      String?
   operatorAddresses String[] @default([])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   // Relations
-  products  Product[]
-  services  ServiceOffering[]
+  products Product[]
+  services ServiceOffering[]
 
   @@index([userId])
   @@index([onChainStoreId])
@@ -362,7 +377,7 @@ model Post {
   id        String   @id @default(cuid())
   authorId  String
   author    Profile  @relation(fields: [authorId], references: [id])
-  kind      String   // 'text' | 'image' | 'link' (MVP: text)
+  kind      String // 'text' | 'image' | 'link' (MVP: text)
   content   String   @db.Text
   media     Json?
   createdAt DateTime @default(now())
@@ -370,10 +385,59 @@ model Post {
   @@index([authorId, createdAt])
 }
 
+model ProfileBadge {
+  id           String    @id @default(cuid())
+  profileId    String
+  profile      Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  code         String
+  label        Json // {pt, en, es}
+  issuedBy     String // marketplace, dao, system, etc
+  issuedAt     DateTime
+  blockNumber  BigInt    @db.BigInt
+  revokedAt    DateTime?
+  revokeReason String?
+
+  @@unique([profileId, code])
+  @@index([profileId])
+  @@index([code])
+  @@index([issuedAt])
+}
+
+model ProfileReputationEvent {
+  id          String   @id @default(cuid())
+  profileId   String
+  profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  eventCode   String // ORDER_COMPLETED, DELIVERY_DONE, etc
+  delta       Int
+  newTotal    Int
+  reason      String?
+  emittedBy   String // marketplace, delivery, social, etc
+  blockNumber BigInt   @db.BigInt
+  extrinsicId String?
+  createdAt   DateTime @default(now())
+
+  @@index([profileId, createdAt])
+  @@index([eventCode])
+  @@index([blockNumber])
+}
+
+model HandleHistory {
+  id          String   @id @default(cuid())
+  profileId   String
+  profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  oldHandle   String?
+  newHandle   String
+  changedAt   DateTime
+  blockNumber BigInt   @db.BigInt
+
+  @@index([profileId, changedAt])
+  @@index([newHandle])
+}
+
 model Dao {
-  id          String @id @default(cuid())
+  id          String  @id @default(cuid())
   name        String
-  slug        String @unique
+  slug        String  @unique
   ownerUserId String?
   owner       User?   @relation(fields: [ownerUserId], references: [id])
 
@@ -394,7 +458,7 @@ model ProfileSubDao {
   id        String   @id @default(cuid())
   profileId String
   subDaoId  String
-  role      String   // 'owner' | 'admin' | 'member'
+  role      String // 'owner' | 'admin' | 'member'
   createdAt DateTime @default(now())
 
   @@unique([profileId, subDaoId])
@@ -406,11 +470,13 @@ enum P2POfferSide {
   BUY_BZR
   SELL_BZR
 }
+
 enum P2POfferStatus {
   ACTIVE
   PAUSED
   ARCHIVED
 }
+
 enum P2POrderStatus {
   DRAFT
   AWAITING_ESCROW
@@ -423,61 +489,62 @@ enum P2POrderStatus {
   DISPUTE_RESOLVED_BUYER
   DISPUTE_RESOLVED_SELLER
 }
+
 enum P2PPaymentMethod {
   PIX
 }
 
 model P2PPaymentProfile {
-  id           String   @id @default(cuid())
-  userId       String   @unique
-  pixKey       String?
-  bankName     String?
-  accountName  String?
-  updatedAt    DateTime @updatedAt
-  createdAt    DateTime @default(now())
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  pixKey      String?
+  bankName    String?
+  accountName String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
 }
 
 model P2POffer {
-  id             String   @id @default(cuid())
+  id             String           @id @default(cuid())
   ownerId        String
   side           P2POfferSide
-  priceBRLPerBZR Decimal  @db.Decimal(18,2)
-  minBRL         Decimal  @db.Decimal(18,2)
-  maxBRL         Decimal  @db.Decimal(18,2)
+  priceBRLPerBZR Decimal          @db.Decimal(18, 2)
+  minBRL         Decimal          @db.Decimal(18, 2)
+  maxBRL         Decimal          @db.Decimal(18, 2)
   method         P2PPaymentMethod
   autoReply      String?
-  status         P2POfferStatus @default(ACTIVE)
+  status         P2POfferStatus   @default(ACTIVE)
   stats          Json?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   @@index([ownerId, status, side])
 }
 
 model P2POrder {
-  id               String   @id @default(cuid())
-  offerId          String
-  makerId          String
-  takerId          String
-  side             P2POfferSide
-  priceBRLPerBZR   Decimal  @db.Decimal(18,2)
-  amountBZR        Decimal  @db.Decimal(38,18)
-  amountBRL        Decimal  @db.Decimal(18,2)
-  method           P2PPaymentMethod
-  status           P2POrderStatus @default(DRAFT)
+  id             String           @id @default(cuid())
+  offerId        String
+  makerId        String
+  takerId        String
+  side           P2POfferSide
+  priceBRLPerBZR Decimal          @db.Decimal(18, 2)
+  amountBZR      Decimal          @db.Decimal(38, 18)
+  amountBRL      Decimal          @db.Decimal(18, 2)
+  method         P2PPaymentMethod
+  status         P2POrderStatus   @default(DRAFT)
 
-  escrowTxHash     String?
-  escrowAt         DateTime?
-  releasedTxHash   String?
-  releasedAt       DateTime?
+  escrowTxHash   String?
+  escrowAt       DateTime?
+  releasedTxHash String?
+  releasedAt     DateTime?
 
-  pixKeySnapshot   String?
-  payerDeclaredAt  DateTime?
-  proofUrls        Json?
+  pixKeySnapshot  String?
+  payerDeclaredAt DateTime?
+  proofUrls       Json?
 
-  expiresAt        DateTime
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([makerId, takerId, status])
   @@index([offerId])
@@ -506,8 +573,8 @@ model P2PDispute {
 }
 
 model P2PReview {
-  id        String  @id @default(cuid())
-  orderId   String  @unique
+  id        String   @id @default(cuid())
+  orderId   String   @unique
   raterId   String
   rateeId   String
   stars     Int
