@@ -288,6 +288,14 @@ export const apiHelpers = {
   unfollow: (targetHandle: string) => postJSON('/social/unfollow', { targetHandle }),
   createPost: (payload: any) => postJSON('/posts', payload),
   deletePost: (id: string) => deleteJSON(`/posts/${id}`),
+
+  // Reputação e Badges
+  getProfileReputation: (handle: string) => {
+    return getJSON(`/profiles/${encodeURIComponent(handle)}/reputation`);
+  },
+  getProfileBadges: (handle: string) => {
+    return getJSON(`/profiles/${encodeURIComponent(handle)}/badges`);
+  },
 };
 
 // Exportar tipos e constantes
