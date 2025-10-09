@@ -309,6 +309,10 @@ export const apiHelpers = {
     return getJSON(`/search/global?${params.toString()}`);
   },
 
+  // Post interactions
+  likePost: (postId: string) => postJSON(`/posts/${postId}/like`, {}),
+  unlikePost: (postId: string) => deleteJSON(`/posts/${postId}/like`),
+
   // Reputação e Badges
   getProfileReputation: (handle: string) => {
     return getJSON(`/profiles/${encodeURIComponent(handle)}/reputation`);
