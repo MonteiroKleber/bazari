@@ -168,6 +168,149 @@ export async function postsRoutes(app: FastifyInstance, options: { prisma: Prism
 
     return reply.send({ deleted: true });
   });
+
+  // POST /posts/:id/like
+  app.post<{ Params: { id: string } }>('/posts/:id/like', {
+    preHandler: authOnRequest,
+    config: { rateLimit: { max: 100, timeWindow: '1 minute' } },
+  }, async (request, reply) => {
+    const authUser = (request as any).authUser as { sub: string } | undefined;
+    if (!authUser) return reply.status(401).send({ error: 'Token inválido.' });
+    const { id } = request.params;
+
+    const meProfile = await prisma.profile.findUnique({ where: { userId: authUser.sub }, select: { id: true } });
+    if (!meProfile) return reply.status(400).send({ error: 'Perfil do usuário não encontrado' });
+
+    // Verificar se post existe
+    const post = await prisma.post.findUnique({ where: { id }, select: { id: true, status: true } });
+    if (!post) return reply.status(404).send({ error: 'Post não encontrado' });
+    if (post.status !== 'PUBLISHED') return reply.status(400).send({ error: 'Post não está publicado' });
+
+    // Criar like (idempotente via unique constraint)
+    try {
+      await prisma.postLike.create({
+        data: {
+          postId: id,
+          profileId: meProfile.id,
+        },
+      });
+    } catch (error: any) {
+      // Se já existe, retornar sucesso (idempotente)
+      if (error.code === 'P2002') {
+        // Unique constraint violation
+        const likesCount = await prisma.postLike.count({ where: { postId: id } });
+        return reply.send({ liked: true, likesCount });
+      }
+      throw error;
+    }
+
+    // Contar likes
+    const likesCount = await prisma.postLike.count({ where: { postId: id } });
+
+    app.log.info({ event: 'post.like', postId: id, profileId: meProfile.id });
+    return reply.send({ liked: true, likesCount });
+  });
+
+  // DELETE /posts/:id/like
+  app.delete<{ Params: { id: string } }>('/posts/:id/like', {
+    preHandler: authOnRequest,
+    config: { rateLimit: { max: 100, timeWindow: '1 minute' } },
+  }, async (request, reply) => {
+    const authUser = (request as any).authUser as { sub: string } | undefined;
+    if (!authUser) return reply.status(401).send({ error: 'Token inválido.' });
+    const { id } = request.params;
+
+    const meProfile = await prisma.profile.findUnique({ where: { userId: authUser.sub }, select: { id: true } });
+    if (!meProfile) return reply.status(400).send({ error: 'Perfil do usuário não encontrado' });
+
+    // Verificar se post existe
+    const post = await prisma.post.findUnique({ where: { id }, select: { id: true } });
+    if (!post) return reply.status(404).send({ error: 'Post não encontrado' });
+
+    // Remover like (idempotente)
+    await prisma.postLike.deleteMany({
+      where: {
+        postId: id,
+        profileId: meProfile.id,
+      },
+    });
+
+    // Contar likes
+    const likesCount = await prisma.postLike.count({ where: { postId: id } });
+
+    app.log.info({ event: 'post.unlike', postId: id, profileId: meProfile.id });
+    return reply.send({ liked: false, likesCount });
+  });
+
+  // GET /posts/:id - Obter detalhes de um post
+  app.get<{ Params: { id: string } }>('/posts/:id', async (request, reply) => {
+    const authUser = (request as any).authUser as { sub: string } | undefined;
+    const { id } = request.params;
+
+    const post = await prisma.post.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        authorId: true,
+        kind: true,
+        content: true,
+        media: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        author: {
+          select: {
+            handle: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+        _count: {
+          select: {
+            likes: true,
+            comments: true,
+          },
+        },
+      },
+    });
+
+    if (!post) return reply.status(404).send({ error: 'Post não encontrado' });
+    if (post.status !== 'PUBLISHED') {
+      // Only author can see non-published posts
+      if (!authUser) return reply.status(404).send({ error: 'Post não encontrado' });
+
+      const meProfile = await prisma.profile.findUnique({ where: { userId: authUser.sub }, select: { id: true } });
+      if (!meProfile || meProfile.id !== post.authorId) {
+        return reply.status(404).send({ error: 'Post não encontrado' });
+      }
+    }
+
+    // Check if current user liked this post
+    let isLiked = false;
+    if (authUser) {
+      const meProfile = await prisma.profile.findUnique({ where: { userId: authUser.sub }, select: { id: true } });
+      if (meProfile) {
+        const like = await prisma.postLike.findUnique({
+          where: {
+            postId_profileId: {
+              postId: id,
+              profileId: meProfile.id,
+            },
+          },
+        });
+        isLiked = !!like;
+      }
+    }
+
+    return reply.send({
+      post: {
+        ...post,
+        likesCount: post._count.likes,
+        commentsCount: post._count.comments,
+        isLiked,
+      },
+    });
+  });
 }
 
 export default postsRoutes;
