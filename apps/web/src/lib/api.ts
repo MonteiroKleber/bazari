@@ -295,6 +295,13 @@ export const apiHelpers = {
   createPost: (payload: any) => postJSON('/posts', payload),
   deletePost: (id: string) => deleteJSON(`/posts/${id}`),
 
+  // Post images
+  uploadPostImage: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return postMultipart<{ asset: { id: string; url: string; mime: string; size: number } }>('/posts/upload-image', formData);
+  },
+
   // Reputação e Badges
   getProfileReputation: (handle: string) => {
     return getJSON(`/profiles/${encodeURIComponent(handle)}/reputation`);
