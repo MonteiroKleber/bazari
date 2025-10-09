@@ -214,6 +214,13 @@ enum ProductStatus {
   ARCHIVED
 }
 
+// Status de posts
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 model Order {
   id               String      @id @default(uuid())
   buyerAddr        String
@@ -387,15 +394,51 @@ model SellerProfile {
 }
 
 model Post {
-  id        String   @id @default(cuid())
+  id        String     @id @default(cuid())
   authorId  String
-  author    Profile  @relation(fields: [authorId], references: [id])
+  author    Profile    @relation(fields: [authorId], references: [id])
   kind      String // 'text' | 'image' | 'link' (MVP: text)
-  content   String   @db.Text
+  content   String     @db.Text
   media     Json?
-  createdAt DateTime @default(now())
+  status    PostStatus @default(PUBLISHED)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  likes    PostLike[]
+  comments PostComment[]
 
   @@index([authorId, createdAt])
+  @@index([status])
+}
+
+model PostLike {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  profileId String
+  createdAt DateTime @default(now())
+
+  @@unique([postId, profileId])
+  @@index([postId])
+  @@index([profileId])
+}
+
+model PostComment {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  String
+  content   String   @db.Text
+  parentId  String? // Para respostas aninhadas
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  parent  PostComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies PostComment[] @relation("CommentReplies")
+
+  @@index([postId, createdAt])
+  @@index([authorId])
+  @@index([parentId])
 }
 
 model ProfileBadge {
