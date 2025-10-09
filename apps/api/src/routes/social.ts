@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { authOnRequest } from '../lib/auth/middleware.js';
+import { createNotification } from '../lib/notifications.js';
 
 export async function socialRoutes(app: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
@@ -19,7 +20,7 @@ export async function socialRoutes(app: FastifyInstance, options: { prisma: Pris
 
     const [meProfile, target] = await Promise.all([
       prisma.profile.findUnique({ where: { userId: authUser.sub }, select: { id: true, handle: true, followingCount: true } }),
-      prisma.profile.findUnique({ where: { handle: body.targetHandle }, select: { id: true, handle: true, followersCount: true } }),
+      prisma.profile.findUnique({ where: { handle: body.targetHandle }, select: { id: true, handle: true, followersCount: true, userId: true } }),
     ]);
     if (!meProfile) return reply.status(400).send({ error: 'Perfil do usuário não encontrado' });
     if (!target) return reply.status(404).send({ error: 'Alvo inexistente' });
@@ -40,6 +41,15 @@ export async function socialRoutes(app: FastifyInstance, options: { prisma: Pris
       } else {
         throw e;
       }
+    }
+
+    // Criar notificação se follow foi criado
+    if (created) {
+      await createNotification(prisma, {
+        userId: target.userId,
+        type: 'FOLLOW',
+        actorId: meProfile.id
+      });
     }
 
     // Buscar contadores atualizados

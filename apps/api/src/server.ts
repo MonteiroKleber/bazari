@@ -40,6 +40,7 @@ import { p2pPaymentProfileRoutes } from './routes/p2p.paymentProfile.js';
 import { p2pMessagesRoutes } from './routes/p2p.messages.js';
 import { storePublishRoutes } from './routes/storePublish.js';
 import { marketplaceRoutes } from './routes/marketplace.js';
+import { notificationsRoutes } from './routes/notifications.js';
 
 const prisma = new PrismaClient();
 
@@ -99,6 +100,7 @@ async function buildApp() {
   await app.register(p2pPaymentProfileRoutes, { prefix: '/', prisma });
   await app.register(p2pMessagesRoutes, { prefix: '/', prisma });
   await app.register(marketplaceRoutes, { prefix: '/' });
+  await app.register(notificationsRoutes, { prefix: '/', prisma });
   // Também expor com prefixo /api para compatibilidade com o front
   await app.register(healthRoutes, { prefix: '/api', prisma });
   await app.register(mediaRoutes, { prefix: '/api', prisma, storage });
@@ -121,6 +123,7 @@ async function buildApp() {
   await app.register(p2pPaymentProfileRoutes, { prefix: '/api', prisma });
   await app.register(p2pMessagesRoutes, { prefix: '/api', prisma });
   await app.register(marketplaceRoutes, { prefix: '/api' });
+  await app.register(notificationsRoutes, { prefix: '/api', prisma });
 
   // Error handler (dev): log detalhado para diagnosticar 500
   if (process.env.NODE_ENV !== 'production') {

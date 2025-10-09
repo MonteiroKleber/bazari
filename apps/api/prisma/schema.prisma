@@ -160,6 +160,9 @@ model User {
 
   // Relacionamentos DAO (owner)
   daosOwned Dao[]
+
+  // Notificações
+  notifications Notification[]
 }
 
 model AuthNonce {
@@ -219,6 +222,15 @@ enum PostStatus {
   DRAFT
   PUBLISHED
   ARCHIVED
+}
+
+enum NotificationType {
+  FOLLOW
+  LIKE
+  COMMENT
+  MENTION
+  BADGE
+  REPUTATION
 }
 
 model Order {
@@ -326,12 +338,13 @@ model Profile {
   lastChainSync    DateTime?
 
   // Relations
-  posts            Post[]
-  followers        Follow[]                 @relation("follows_following")
-  following        Follow[]                 @relation("follows_follower")
-  badges           ProfileBadge[]
-  reputationEvents ProfileReputationEvent[]
-  handleHistory    HandleHistory[]
+  posts                 Post[]
+  followers             Follow[]                 @relation("follows_following")
+  following             Follow[]                 @relation("follows_follower")
+  badges                ProfileBadge[]
+  reputationEvents      ProfileReputationEvent[]
+  handleHistory         HandleHistory[]
+  notificationsAsActor  Notification[]           @relation("NotificationActor")
 
   @@index([onChainProfileId])
   @@index([reputationScore])
@@ -439,6 +452,22 @@ model PostComment {
   @@index([postId, createdAt])
   @@index([authorId])
   @@index([parentId])
+}
+
+model Notification {
+  id        String             @id @default(cuid())
+  userId    String
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  actorId   String?
+  actor     Profile?           @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+  targetId  String? // ID do post, comment, badge, etc
+  metadata  Json? // Dados adicionais específicos do tipo
+  read      Boolean            @default(false)
+  createdAt DateTime           @default(now())
+
+  @@index([userId, read, createdAt])
+  @@index([createdAt])
 }
 
 model ProfileBadge {
