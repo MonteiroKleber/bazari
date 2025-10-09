@@ -302,6 +302,13 @@ export const apiHelpers = {
     return postMultipart<{ asset: { id: string; url: string; mime: string; size: number } }>('/posts/upload-image', formData);
   },
 
+  // Global search
+  globalSearch: (query: string, type?: string) => {
+    const params = new URLSearchParams({ q: query });
+    if (type) params.append('type', type);
+    return getJSON(`/search/global?${params.toString()}`);
+  },
+
   // Reputação e Badges
   getProfileReputation: (handle: string) => {
     return getJSON(`/profiles/${encodeURIComponent(handle)}/reputation`);
