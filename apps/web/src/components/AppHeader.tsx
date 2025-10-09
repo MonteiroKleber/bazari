@@ -11,8 +11,8 @@ import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { CreatePostButton } from "./social/CreatePostButton";
 import { UserMenu } from "./UserMenu";
+import { GlobalSearchBar } from "./GlobalSearchBar";
 // import { WalletMenu } from "./WalletMenu"; // placeholder futuro
-// import { Search } from "lucide-react"; // placeholder futuro
 
 /**
  * AppHeader para área interna/pós-login
@@ -123,6 +123,11 @@ export function AppHeader() {
               );
             })}
           </nav>
+
+          {/* Global Search Bar */}
+          <div className="hidden md:block flex-1 max-w-md mx-4">
+            <GlobalSearchBar />
+          </div>
         </>
       }
       right={
