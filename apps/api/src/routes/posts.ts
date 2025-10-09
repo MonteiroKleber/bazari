@@ -311,6 +311,150 @@ export async function postsRoutes(app: FastifyInstance, options: { prisma: Prism
       },
     });
   });
+
+  // POST /posts/:id/comments - Criar comentário
+  app.post<{ Params: { id: string } }>('/posts/:id/comments', {
+    preHandler: authOnRequest,
+    config: { rateLimit: { max: 30, timeWindow: '5 minutes' } },
+  }, async (request, reply) => {
+    const authUser = (request as any).authUser as { sub: string } | undefined;
+    if (!authUser) return reply.status(401).send({ error: 'Token inválido.' });
+    const { id } = request.params;
+
+    // Validar body
+    const commentSchema = z.object({
+      content: z.string().min(1).max(1000),
+      parentId: z.string().optional(),
+    });
+
+    let body: z.infer<typeof commentSchema>;
+    try {
+      body = commentSchema.parse(request.body);
+    } catch (e) {
+      return reply.status(400).send({ error: 'Dados inválidos', details: (e as z.ZodError).errors });
+    }
+
+    const meProfile = await prisma.profile.findUnique({ where: { userId: authUser.sub }, select: { id: true } });
+    if (!meProfile) return reply.status(400).send({ error: 'Perfil do usuário não encontrado' });
+
+    // Verificar se post existe e está publicado
+    const post = await prisma.post.findUnique({ where: { id }, select: { id: true, status: true, authorId: true } });
+    if (!post) return reply.status(404).send({ error: 'Post não encontrado' });
+    if (post.status !== 'PUBLISHED') return reply.status(400).send({ error: 'Post não está publicado' });
+
+    // Se tem parentId, verificar se o comentário pai existe
+    if (body.parentId) {
+      const parentComment = await prisma.postComment.findUnique({
+        where: { id: body.parentId },
+        select: { id: true, postId: true },
+      });
+      if (!parentComment) return reply.status(404).send({ error: 'Comentário pai não encontrado' });
+      if (parentComment.postId !== id) return reply.status(400).send({ error: 'Comentário pai não pertence a este post' });
+    }
+
+    // Criar comentário
+    const comment = await prisma.postComment.create({
+      data: {
+        postId: id,
+        authorId: meProfile.id,
+        content: body.content.trim(),
+        parentId: body.parentId || null,
+      },
+      include: {
+        author: {
+          select: {
+            handle: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    });
+
+    app.log.info({ event: 'post.comment', postId: id, commentId: comment.id, profileId: meProfile.id });
+
+    return reply.status(201).send({
+      comment: {
+        id: comment.id,
+        content: comment.content,
+        createdAt: comment.createdAt,
+        author: comment.author,
+        parentId: comment.parentId,
+      },
+    });
+  });
+
+  // GET /posts/:id/comments - Listar comentários
+  app.get<{ Params: { id: string }; Querystring: { limit?: string; cursor?: string } }>(
+    '/posts/:id/comments',
+    async (request, reply) => {
+      const { id } = request.params;
+      const limit = Math.min(parseInt(request.query.limit || '10'), 50);
+      const cursor = request.query.cursor;
+
+      // Verificar se post existe
+      const post = await prisma.post.findUnique({ where: { id }, select: { id: true, status: true } });
+      if (!post) return reply.status(404).send({ error: 'Post não encontrado' });
+      if (post.status !== 'PUBLISHED') return reply.status(404).send({ error: 'Post não encontrado' });
+
+      // Buscar comentários top-level (sem parent)
+      const comments = await prisma.postComment.findMany({
+        where: {
+          postId: id,
+          parentId: null,
+          ...(cursor ? { id: { lt: cursor } } : {}),
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit + 1,
+        include: {
+          author: {
+            select: {
+              handle: true,
+              displayName: true,
+              avatarUrl: true,
+            },
+          },
+          replies: {
+            take: 5,
+            orderBy: { createdAt: 'asc' },
+            include: {
+              author: {
+                select: {
+                  handle: true,
+                  displayName: true,
+                  avatarUrl: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const hasMore = comments.length > limit;
+      const items = hasMore ? comments.slice(0, -1) : comments;
+      const nextCursor = hasMore ? items[items.length - 1].id : null;
+
+      return reply.send({
+        items: items.map(c => ({
+          id: c.id,
+          content: c.content,
+          createdAt: c.createdAt,
+          author: c.author,
+          replies: c.replies.map(r => ({
+            id: r.id,
+            content: r.content,
+            createdAt: r.createdAt,
+            author: r.author,
+            parentId: r.parentId,
+          })),
+        })),
+        page: {
+          nextCursor,
+          hasMore,
+        },
+      });
+    }
+  );
 }
 
 export default postsRoutes;
