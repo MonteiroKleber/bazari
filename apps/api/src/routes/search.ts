@@ -82,6 +82,170 @@ function toFilters(validated: Validated, attrs: Record<string, string | string[]
 }
 
 export async function searchRoutes(app: FastifyInstance) {
+  // GET /search/global - Global search across profiles, posts, stores, products
+  app.get('/search/global', async (request, reply) => {
+    const globalQuerySchema = z.object({
+      q: z.string().min(1).max(100),
+      type: z.enum(['all', 'profiles', 'posts', 'stores', 'products']).optional().default('all'),
+      limit: z.coerce.number().int().min(1).max(50).optional().default(10),
+    });
+
+    const parsed = globalQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'Invalid query parameters', details: parsed.error.issues });
+    }
+
+    const { q, type, limit } = parsed.data;
+
+    const results: {
+      profiles: any[];
+      posts: any[];
+      stores: any[];
+      products: any[];
+    } = {
+      profiles: [],
+      posts: [],
+      stores: [],
+      products: [],
+    };
+
+    try {
+      // Search profiles
+      if (type === 'all' || type === 'profiles') {
+        const profiles = await prisma.profile.findMany({
+          where: {
+            OR: [
+              { handle: { contains: q, mode: 'insensitive' } },
+              { displayName: { contains: q, mode: 'insensitive' } },
+            ],
+          },
+          select: {
+            id: true,
+            handle: true,
+            displayName: true,
+            avatarUrl: true,
+            bio: true,
+            followersCount: true,
+            reputationScore: true,
+          },
+          orderBy: {
+            followersCount: 'desc',
+          },
+          take: limit,
+        });
+        results.profiles = profiles;
+      }
+
+      // Search posts
+      if (type === 'all' || type === 'posts') {
+        const posts = await prisma.post.findMany({
+          where: {
+            status: 'PUBLISHED',
+            content: { contains: q, mode: 'insensitive' },
+          },
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            _count: {
+              select: {
+                likes: true,
+                comments: true,
+              },
+            },
+            author: {
+              select: {
+                handle: true,
+                displayName: true,
+                avatarUrl: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: limit,
+        });
+        results.posts = posts.map(post => ({
+          id: post.id,
+          content: post.content,
+          createdAt: post.createdAt,
+          likesCount: post._count.likes,
+          commentsCount: post._count.comments,
+          author: post.author,
+        }));
+      }
+
+      // Search stores
+      if (type === 'all' || type === 'stores') {
+        const stores = await prisma.sellerProfile.findMany({
+          where: {
+            OR: [
+              { shopName: { contains: q, mode: 'insensitive' } },
+              { shopSlug: { contains: q, mode: 'insensitive' } },
+            ],
+          },
+          select: {
+            id: true,
+            shopName: true,
+            shopSlug: true,
+            about: true,
+            avatarUrl: true,
+            ratingAvg: true,
+            ratingCount: true,
+          },
+          orderBy: {
+            ratingAvg: 'desc',
+          },
+          take: limit,
+        });
+        results.stores = stores;
+      }
+
+      // Search products (only if explicitly requested)
+      if (type === 'products') {
+        const products = await prisma.product.findMany({
+          where: {
+            status: 'PUBLISHED',
+            OR: [
+              { title: { contains: q, mode: 'insensitive' } },
+              { description: { contains: q, mode: 'insensitive' } },
+            ],
+          },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            priceBzr: true,
+            categoryPath: true,
+            sellerStore: {
+              select: {
+                shopName: true,
+                shopSlug: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: limit,
+        });
+        results.products = products;
+      }
+
+      return reply.send({
+        results,
+        query: q,
+      });
+    } catch (error: any) {
+      app.log.error({ err: error }, 'Global search error');
+      return reply.status(500).send({
+        error: 'search.error',
+        message: DEBUG_SEARCH ? error.message : 'An error occurred during search'
+      });
+    }
+  });
+
   app.get('/search', async (request, reply) => {
     try {
       const query = request.query as Record<string, any>;
