@@ -24,7 +24,6 @@ export interface StoreProfile {
 interface StoreHeaderProps {
   seller: StoreProfile | null;
   owner?: StoreOwner | null;
-  primaryCategories?: string[][];
   onChainReputation?: {
     sales?: number | null;
     positive?: number | null;
@@ -45,7 +44,7 @@ function resolveMediaUrl(u?: string | null): string {
   }
 }
 
-export function StoreHeader({ seller, owner, primaryCategories, onChainReputation, onChainStoreId }: StoreHeaderProps) {
+export function StoreHeader({ seller, owner, onChainReputation, onChainStoreId }: StoreHeaderProps) {
   const { t } = useTranslation();
 
   const bannerUrl = useMemo(() => resolveMediaUrl(seller?.bannerUrl), [seller?.bannerUrl]);
@@ -121,15 +120,6 @@ export function StoreHeader({ seller, owner, primaryCategories, onChainReputatio
             <Link to={`/loja/${onChainStoreId}`} className="text-xs font-medium text-store-brand underline underline-offset-4">
               {t('store.onchain.openPublic', { defaultValue: 'Ver loja on-chain' })}
             </Link>
-          )}
-          {Array.isArray(primaryCategories) && primaryCategories.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {primaryCategories.slice(0, 6).map((path, idx) => (
-                <Badge key={idx} variant="outline" className="border-store-ink/20 bg-store-brand/10 text-xs text-store-ink">
-                  {path.join(' / ')}
-                </Badge>
-              ))}
-            </div>
           )}
         </div>
       </CardContent>

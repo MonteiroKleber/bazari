@@ -301,7 +301,7 @@ export async function servicesRoutes(app: FastifyInstance, options: { prisma: Pr
       }
     }
 
-    if (env.STORE_ONCHAIN_V1 && onChainStoreId) {
+    if (onChainStoreId) {
       try {
         const store = await getStore(onChainStoreId);
         if (store) {

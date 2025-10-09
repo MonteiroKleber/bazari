@@ -177,9 +177,13 @@ export class SearchQueryBuilder {
 
     // Filtro por onChainStoreId
     if (onChainStoreId) {
-      const onChainStoreIdBigInt = BigInt(onChainStoreId);
-      productAnd.push({ onChainStoreId: onChainStoreIdBigInt });
-      serviceAnd.push({ onChainStoreId: onChainStoreIdBigInt });
+      // Verificar se é um número válido antes de converter para BigInt
+      if (/^\d+$/.test(onChainStoreId)) {
+        const onChainStoreIdBigInt = BigInt(onChainStoreId);
+        productAnd.push({ onChainStoreId: onChainStoreIdBigInt });
+        serviceAnd.push({ onChainStoreId: onChainStoreIdBigInt });
+      }
+      // Se não for número, ignorar filtro (slug inválido para onChainStoreId)
     }
 
     if (productAnd.length > 0) {

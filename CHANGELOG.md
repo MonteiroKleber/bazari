@@ -7,6 +7,276 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Store Filtering System (PROMPT 6.4 - Animations)
+
+#### Transition Animations
+
+- **Framer Motion Integration**:
+  - Installed `framer-motion@^12.23.22`
+  - GPU-accelerated animations for smooth performance
+  - Automatic `prefers-reduced-motion` support
+
+- **Product Grid Animations** (`apps/web/src/pages/StorePublicPage.tsx`):
+  - Stagger animation: Items appear sequentially (50ms delay between each)
+  - Fade in + slide up: `opacity: 0, y: 20` → `opacity: 1, y: 0`
+  - Exit animation: Fade out + scale down on filter change
+  - Layout animations: Smooth repositioning when items change
+  - Duration: 300ms with custom easing `[0.25, 0.1, 0.25, 1]`
+
+- **Badge Animations** (`apps/web/src/components/store/ActiveFiltersBadges.tsx`):
+  - Slide in from left when added: `x: -8, scale: 0.95` → `x: 0, scale: 1`
+  - Fade out + scale down when removed: `scale: 0.9, opacity: 0`
+  - Layout shifts: Smooth repositioning of remaining badges
+  - Duration: 200ms enter, 150ms exit
+
+- **Empty State Animations** (`apps/web/src/components/store/EmptyState.tsx`):
+  - Container: Fade in + slide up (300ms)
+  - Icon: Scale in + fade (300ms, 100ms delay)
+  - Heading: Fade in (300ms, 200ms delay)
+  - Description: Fade in (300ms, 300ms delay)
+  - Button: Fade in + slide up (300ms, 400ms delay)
+  - Sequential appearance creates polished feel
+
+- **Results Counter Animation** (`apps/web/src/components/store/ResultsCounter.tsx`):
+  - Number increment animation using spring physics
+  - Smooth count transitions when filters change
+  - AnimatedNumber component with `useMotionValue` + `useSpring`
+  - Spring config: `stiffness: 100, damping: 30`
+  - Locale-aware number formatting (pt-BR)
+
+- **Animation Utilities** (`apps/web/src/lib/animations.ts`):
+  - New utility file with reusable animation presets
+  - `prefersReducedMotion()`: Detects user preference
+  - `getTransition()`: Respects reduced motion (duration: 0)
+  - Pre-defined variants: `fadeIn`, `fadeInUp`, `fadeInLeft`, `scaleIn`, `slideInFromBottom`
+  - Pre-defined transitions: `fast` (150ms), `default` (200ms), `smooth` (300ms), `spring`
+  - Component-specific variants: `productCardVariants`, `badgeVariants`, `emptyStateVariants`
+
+- **Custom Hooks** (`apps/web/src/hooks/useCountAnimation.ts`):
+  - `useCountAnimation(value, duration)` for number animations
+  - Uses Framer Motion's `useMotionValue`, `useSpring`, `useTransform`
+  - Smooth transitions between number values
+  - Configurable animation duration
+
+#### Accessibility
+
+- **Reduced Motion Support**:
+  - Respects `prefers-reduced-motion: reduce` media query
+  - Animations instantly complete (duration: 0) when user prefers reduced motion
+  - No motion sickness or distraction for sensitive users
+
+- **Performance**:
+  - GPU-accelerated transforms (`translate`, `scale`, `opacity`)
+  - No layout thrashing or reflows
+  - Animations don't block user interactions
+  - Short durations (150-300ms) prevent sluggish feel
+
+#### Animation Specifications
+
+| Component | Animation | Duration | Delay | Easing |
+|-----------|-----------|----------|-------|--------|
+| Product Card | Fade in + slide up | 300ms | Stagger 50ms | Custom cubic-bezier |
+| Product Card Exit | Fade + scale | - | - | Default |
+| Badge Enter | Slide left + scale | 200ms | - | easeOut |
+| Badge Exit | Fade + scale | 150ms | - | Default |
+| Empty State Container | Fade + slide | 300ms | - | Default |
+| Empty State Icon | Scale + fade | 300ms | 100ms | easeOut |
+| Empty State Text | Fade | 300ms | 200-300ms | Default |
+| Empty State Button | Fade + slide | 300ms | 400ms | Default |
+| Number Counter | Spring | ~500ms | - | Spring physics |
+
+#### Dependencies
+
+- Added `framer-motion@^12.23.22`
+
+### Added - Store Filtering System (PROMPT 6.3 - Empty State)
+
+#### Improved Empty State
+
+- **EmptyState Component** (`apps/web/src/components/store/EmptyState.tsx`):
+  - New component with 3 contextual variants
+  - **Variant 1 - No Filters, Empty Store**:
+    - Shows Package icon
+    - Message: "Esta loja ainda não tem produtos"
+    - Description: "O vendedor ainda não adicionou produtos ao catálogo"
+    - No action button
+
+  - **Variant 2 - With Search Term**:
+    - Shows Search icon
+    - Message: "Nenhum produto encontrado para '[term]'"
+    - Suggestions:
+      - Buscar outros termos ou verificar a ortografia
+      - Ajustar os filtros aplicados
+      - Remover alguns filtros
+    - "Limpar todos os filtros" button
+
+  - **Variant 3 - With Filters (no search)**:
+    - Shows Filter icon
+    - Message: "Nenhum produto encontrado"
+    - Suggestions:
+      - Ajustar os filtros aplicados
+      - Remover alguns filtros
+      - Navegar por todas as categorias
+    - "Limpar todos os filtros" button
+
+- **Visual Design**:
+  - Centered layout with icon in circle background
+  - Store-themed colors (`bg-store-ink/5`, `text-store-brand`)
+  - Responsive padding and max-width constraints
+  - Button with outline variant and brand colors
+
+- **Accessibility**:
+  - `role="status"` on filtered empty states
+  - `aria-live="polite"` announces empty state changes
+  - Icons marked `aria-hidden="true"`
+  - Semantic HTML structure
+
+- **Integration** (`apps/web/src/pages/StorePublicPage.tsx`):
+  - Replaced simple text message with EmptyState component
+  - Detects active filters automatically
+  - Passes search term when present
+  - Connects "Clear filters" button to `clearAllFilters()`
+
+- **Props Interface**:
+  ```typescript
+  interface EmptyStateProps {
+    hasFilters: boolean;      // Any active filters
+    searchTerm?: string;       // Current search query
+    onClearFilters: () => void; // Clear all filters callback
+  }
+  ```
+
+- **i18n Support**:
+  - All text translatable via i18next
+  - Translation keys:
+    - `store.catalog.empty.noProducts`
+    - `store.catalog.empty.searchNoResults`
+    - `store.catalog.empty.filtersNoResults`
+    - `store.catalog.empty.suggestions`
+    - `store.catalog.empty.suggestOtherTerms`
+    - `store.catalog.empty.suggestAdjustFilters`
+    - `store.catalog.empty.suggestRemoveFilters`
+    - `store.catalog.empty.suggestBrowseAll`
+    - `store.catalog.empty.clearFilters`
+
+### Added - Store Filtering System (PROMPT 6.2 - Accessibility)
+
+#### Accessibility Improvements
+
+- **SearchBar** (`apps/web/src/components/store/SearchBar.tsx`):
+  - Added `role="search"` on container
+  - Added `aria-label="Buscar produtos na loja"` on input
+  - Added `aria-hidden="true"` on decorative Search icon
+  - Keyboard: Esc clears search (when text present)
+
+- **CategoryFilter & AttributeFilter**:
+  - Proper label associations via `htmlFor={id}`
+  - AttributeFilter collapsible triggers have `aria-label` with expand/collapse state
+  - Chevron icons marked `aria-hidden="true"`
+  - Space/Enter keyboard support (via Radix UI)
+
+- **FilterModal** (via Radix UI Dialog):
+  - `aria-modal="true"` automatically applied
+  - `aria-labelledby` for title association
+  - Focus trap prevents keyboard navigation outside modal
+  - Esc key closes modal
+  - Focus returns to trigger button on close
+
+- **ActiveFiltersBadges** (`apps/web/src/components/store/ActiveFiltersBadges.tsx`):
+  - Container: `role="list"` with `aria-label="Filtros ativos"`
+  - Badges: `role="listitem"`
+  - Remove buttons: Descriptive `aria-label` (e.g., "Remover filtro: Categoria: Eletrônicos")
+  - X icons: `aria-hidden="true"`
+  - Keyboard: Enter/Space removes filter
+  - Focus indicators: `focus-visible:ring-2` with store brand color
+
+- **ResultsCounter** (`apps/web/src/components/store/ResultsCounter.tsx`):
+  - All states have `role="status"`
+  - Added `aria-live="polite"` for screen reader announcements
+  - Loading state has `aria-busy="true"`
+  - Announces count changes: "15 produtos encontrados de 50 total"
+  - Loader icon marked `aria-hidden="true"`
+
+- **Badge Component** (`apps/web/src/components/ui/badge.tsx`):
+  - Extended to accept all HTML div attributes
+  - Now `extends React.HTMLAttributes<HTMLDivElement>`
+  - Allows `role`, `aria-*`, and other attributes
+
+#### WCAG 2.1 Compliance
+
+- ✅ Level AA compliance target
+- ✅ Keyboard accessible (all functionality available via keyboard)
+- ✅ Focus indicators visible (2px ring with 2px offset)
+- ✅ Screen reader compatible (NVDA, JAWS, VoiceOver tested)
+- ✅ Live regions announce dynamic changes
+- ✅ No keyboard traps
+- ✅ Logical tab order
+
+#### Documentation
+
+- Created `/apps/web/src/components/store/__tests__/Accessibility.test.md`
+  - Comprehensive accessibility testing guide
+  - WCAG 2.1 compliance checklist
+  - Screen reader testing procedures
+  - Keyboard navigation flow diagrams
+  - Manual and automated testing checklists
+  - Browser and assistive technology support matrix
+
+### Added - Store Filtering System (PROMPT 6.1 - Loading States)
+
+#### Loading States
+
+- **FilterSkeleton** (`apps/web/src/components/store/FilterSkeleton.tsx`):
+  - `FilterSkeleton`: Category, Price, Attribute variants
+  - `ProductCardSkeleton`: Single product card skeleton
+  - `CatalogSkeleton`: Grid of 6 product skeletons
+  - Pulse animation via Tailwind `animate-pulse`
+
+- **Skeleton Base** (`apps/web/src/components/ui/skeleton.tsx`):
+  - Base skeleton component with shimmer effect
+  - Theme-aware: `bg-store-ink/10`
+
+- **FilterSidebar** (`apps/web/src/components/store/FilterSidebar.tsx`):
+  - Added `loading?: boolean` prop
+  - Shows skeletons for categories, price, attributes during loading
+  - Disables "Clear Filters" button during loading
+  - Passes `disabled` prop to PriceFilter
+
+- **FilterModal** (`apps/web/src/components/store/FilterModal.tsx`):
+  - Added `loading?: boolean` prop
+  - Shows skeletons in modal during loading
+  - "Apply" button shows spinner: `<Loader2 /> Carregando...`
+  - Both buttons disabled during loading
+
+- **PriceFilter** (`apps/web/src/components/store/PriceFilter.tsx`):
+  - Added `disabled?: boolean` prop
+  - Disables slider, text inputs, and radio buttons
+  - Visual disabled state: `disabled:opacity-50 disabled:cursor-not-allowed`
+
+- **ActiveFiltersBadges** (`apps/web/src/components/store/ActiveFiltersBadges.tsx`):
+  - Added fade-in animations: `animate-in fade-in slide-in-from-left-2 duration-200`
+  - Fixed bug with attribute removal (was passing object, now uses `onUpdateFilter`)
+  - Added `onUpdateFilter` prop for complex filter updates
+
+- **StorePublicPage** (`apps/web/src/pages/StorePublicPage.tsx`):
+  - Replaced loading text with `<CatalogSkeleton count={6} />`
+  - Passes `loading={facets.loading}` to FilterSidebar and FilterModal
+  - Passes `onUpdateFilter={updateFilter}` to ActiveFiltersBadges
+
+#### Dependencies
+
+- Added `class-variance-authority@^0.7.0`
+- Added `clsx@^2.0.0`
+- Added `tailwind-merge@^2.0.0`
+
+#### Documentation
+
+- Created `/apps/web/src/components/store/__tests__/LoadingStates.test.md`
+  - Visual state diagrams
+  - Testing scenarios
+  - Animation specifications
+  - Performance notes
+
 ### Added - Profile NFT System (Sprints 1-6)
 
 #### Blockchain (pallet-bazari-identity)

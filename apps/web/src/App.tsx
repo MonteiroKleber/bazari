@@ -2,7 +2,7 @@
 // path: apps/web/src/App.tsx
 
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { Header } from './components/Header';
@@ -48,6 +48,7 @@ import P2POfferPublicPage from './modules/p2p/pages/P2POfferPublicPage';
 import P2POrderRoomPage from './modules/p2p/pages/P2POrderRoomPage';
 import P2PMyOrdersPage from './modules/p2p/pages/P2PMyOrdersPage';
 import StorePublicPage from './pages/StorePublicPage';
+import MarketplacePage from './pages/MarketplacePage';
 import { FEATURE_FLAGS } from './config';
 
 function LandingPage() {
@@ -218,14 +219,15 @@ function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/explore" element={<ExplorePage />} />
+            <Route path="/marketplace" element={<MarketplacePage />} />
             <Route path="/u/:handle" element={<ProfilePublicPage />} />
-            <Route path="/seller/:shopSlug" element={<SellerPublicPage />} />
             {FEATURE_FLAGS.store_branded_v1 && (
               <Route path="/s/:shopSlug" element={<SellerPublicPage mode="branded" />} />
             )}
-            {FEATURE_FLAGS.store_onchain_v1 && (
-              <Route path="/loja/:id" element={<StorePublicPage />} />
-            )}
+            <Route path="/loja/:slug" element={<StorePublicPage />} />
+            {/* Redirects for backwards compatibility - TODO: Remove after migration period (target: 2026-Q1) */}
+            <Route path="/store/:id" element={<Navigate to="/loja/:id" replace />} />
+            <Route path="/seller/:slug" element={<Navigate to="/loja/:slug" replace />} />
             <Route path="/auth/create" element={<CreateAccount />} />
             <Route path="/auth/import" element={<ImportAccount />} />
             <Route path="/auth/unlock" element={<Unlock />} />

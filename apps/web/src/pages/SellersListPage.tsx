@@ -310,7 +310,7 @@ export default function SellersListPage() {
                     <Link to={`/app/sellers/${s.shopSlug}`}>
                       <Button>{t('seller.myStores.manage', { defaultValue: 'Gerenciar' })}</Button>
                     </Link>
-                    <Link to={`/seller/${s.shopSlug}`}>
+                    <Link to={`/loja/${s.shopSlug}`}>
                       <Button variant="outline">{t('seller.myStores.public', { defaultValue: 'Ver pública' })}</Button>
                     </Link>
                     <Link to={`/app/seller/setup?store=${encodeURIComponent(s.id)}`}>

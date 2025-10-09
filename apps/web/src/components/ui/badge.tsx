@@ -2,7 +2,7 @@
 
 import { cn } from "../../lib/utils"
 
-interface BadgeProps {
+interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
   className?: string;
   variant?: "default" | "secondary" | "destructive" | "outline";
   children?: React.ReactNode;

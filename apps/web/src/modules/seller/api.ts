@@ -13,6 +13,15 @@ export interface SellerProfileDto {
   onChainStoreId?: string | number | null;
   ownerAddress?: string | null;
   operatorAddresses?: string[] | null;
+  syncStatus?: string | null;
+  version?: number | null;
+  lastSyncBlock?: string | number | null;
+  lastPublishedAt?: string | null;
+  metadataCid?: string | null;
+  categoriesCid?: string | null;
+  categoriesHash?: string | null;
+  productsCid?: string | null;
+  productsHash?: string | null;
   onChainReputation?: {
     sales?: number | null;
     positive?: number | null;
@@ -98,6 +107,28 @@ export const sellerApi = {
         targetOwnerAddress: string;
       }>;
     }>(`/me/sellers/pending-transfers`);
+  },
+  publishStore: async (
+    storeId: string,
+    payload: { signerMnemonic: string }
+  ) => {
+    return postJSON<{ status: string; version: number; blockNumber: string; cids: { store: string; categories: string; products: string } }>(
+      `/stores/${encodeURIComponent(storeId)}/publish`,
+      payload,
+      undefined, // extraHeaders
+      { timeout: 90000 } // 90 segundos para transações blockchain
+    );
+  },
+  getPublishStatus: async (storeId: string) => {
+    return getJSON<{ status: string; version: number; block?: string; publishedAt?: string }>(
+      `/stores/${encodeURIComponent(storeId)}/publish/status`
+    );
+  },
+  verifyStore: async (storeId: string) => {
+    return postJSON<{ status: string; message: string }>(
+      `/stores/${encodeURIComponent(storeId)}/verify`,
+      {}
+    );
   },
 };
 

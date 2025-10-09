@@ -232,6 +232,19 @@ export async function authRoutes(app: FastifyInstance, options: { prisma: Prisma
         });
 
         // 4. Atualizar Profile com onChainProfileId
+        // Verificar se já existe outro perfil com este onChainProfileId
+        const existing = await prisma.profile.findFirst({
+          where: { onChainProfileId: profileId },
+        });
+
+        if (existing && existing.id !== profile.id) {
+          // Outro perfil já tem este ID on-chain - limpar o antigo
+          await prisma.profile.update({
+            where: { id: existing.id },
+            data: { onChainProfileId: null },
+          });
+        }
+
         profile = await prisma.profile.update({
           where: { id: profile.id },
           data: {
