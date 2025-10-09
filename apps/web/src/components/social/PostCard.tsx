@@ -3,9 +3,10 @@
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Heart, MessageCircle, Repeat2, MoreHorizontal } from 'lucide-react';
+import { MessageCircle, Repeat2, MoreHorizontal } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { LikeButton } from './LikeButton';
 
 interface PostCardProps {
   post: {
@@ -18,10 +19,11 @@ interface PostCardProps {
     content: string;
     media?: Array<{ url: string; type: string }>;
     createdAt: string;
-    // Contadores (vir da API)
+    // Contadores e interações (vir da API)
     likesCount?: number;
     commentsCount?: number;
     repostsCount?: number;
+    isLiked?: boolean;
   };
 }
 
@@ -102,18 +104,19 @@ export function PostCard({ post }: PostCardProps) {
 
         {/* Actions */}
         <div className="flex items-center gap-1 pt-2 border-t">
-          <Button variant="ghost" size="sm" className="flex-1">
-            <Heart className="h-4 w-4 mr-2" />
-            {post.likesCount || 0}
-          </Button>
+          <LikeButton
+            postId={post.id}
+            initialLiked={post.isLiked || false}
+            initialCount={post.likesCount || 0}
+          />
 
-          <Button variant="ghost" size="sm" className="flex-1">
-            <MessageCircle className="h-4 w-4 mr-2" />
+          <Button variant="ghost" size="sm" className="gap-2">
+            <MessageCircle className="h-4 w-4" />
             {post.commentsCount || 0}
           </Button>
 
-          <Button variant="ghost" size="sm" className="flex-1">
-            <Repeat2 className="h-4 w-4 mr-2" />
+          <Button variant="ghost" size="sm" className="gap-2">
+            <Repeat2 className="h-4 w-4" />
             {post.repostsCount || 0}
           </Button>
         </div>
