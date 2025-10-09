@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -11,18 +12,28 @@ import { Separator } from '@/components/ui/separator';
 import { ApiError, getPublicJSON } from '@/lib/api';
 import { API_BASE_URL } from '@/config';
 import {
-  fetchOnChainStore,
   resolveIpfsUrl,
   type NormalizedOnChainStore,
   type NormalizedLink,
 } from '@/modules/store/onchain';
 import { StoreLayout } from '@/modules/store/StoreLayout';
 import { Loader2, AlertCircle, ExternalLink, Copy, Store as StoreIcon, Layers } from 'lucide-react';
-
-interface CatalogResponse {
-  items?: CatalogItem[];
-  page?: { limit: number; offset: number; total: number };
-}
+import { SyncBadge } from '@/components/SyncBadge';
+import { useStoreFilters } from '@/hooks/useStoreFilters';
+import { useStoreCatalog } from '@/hooks/useStoreCatalog';
+import { useStoreFacets } from '@/hooks/useStoreFacets';
+import {
+  SearchBar,
+  SortDropdown,
+  FilterButton,
+  FilterSidebar,
+  FilterModal,
+  ActiveFiltersBadges,
+  CatalogPagination,
+  ResultsCounter,
+  CatalogSkeleton,
+  EmptyState,
+} from '@/components/store';
 
 interface CatalogItem {
   id: string;
@@ -36,12 +47,6 @@ interface CatalogItem {
   categoryPath?: string[];
 }
 
-interface CatalogState {
-  loading: boolean;
-  error: string | null;
-  items: CatalogItem[];
-  total: number;
-}
 
 const MAX_LINKS = 8;
 const DEFAULT_GATEWAY_LINK = 'https://ipfs.io/ipfs/';
@@ -101,6 +106,9 @@ function normalizeLinkLabel(entry: NormalizedLink): string {
 
 function resolveGatewayLink(cid: string | null): string | undefined {
   if (!cid) return undefined;
+  // Não gerar link para fake CIDs (usados quando IPFS não está configurado)
+  if (cid.startsWith('bafydev')) return undefined;
+
   const gatewayEnv = (import.meta as any)?.env?.VITE_IPFS_GATEWAY_URL as string | undefined;
   const base = gatewayEnv && gatewayEnv.trim().length > 0 ? gatewayEnv : DEFAULT_GATEWAY_LINK;
   const normalized = base.endsWith('/') ? base : `${base}/`;
@@ -117,33 +125,33 @@ function formatBigInt(value: string | null | undefined): string {
   }
 }
 
-function buildCatalogUrl(onChainStoreId: string, limit = 24) {
-  const params = new URLSearchParams();
-  params.set('onChainStoreId', onChainStoreId);
-  params.set('limit', String(limit));
-  params.set('kind', 'all');
-  params.set('sort', 'createdDesc');
-  return `/search?${params.toString()}`;
-}
 
 export default function StorePublicPage() {
   const { t, i18n } = useTranslation();
-  const { id = '' } = useParams<{ id: string }>();
-  const normalizedId = id.trim();
-  const isValidId = /^[0-9]+$/.test(normalizedId);
+  const { slug = '' } = useParams<{ slug: string }>();
+  const normalizedSlug = slug.trim();
+  const isValidSlug = normalizedSlug.length > 0;
 
   const [store, setStore] = useState<NormalizedOnChainStore | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [catalog, setCatalog] = useState<CatalogState>({ loading: false, error: null, items: [], total: 0 });
+  const [filterModalOpen, setFilterModalOpen] = useState(false);
+
+  // Filter hooks
+  const { filters, updateFilter, clearFilter, clearAllFilters, activeFiltersCount } = useStoreFilters();
+  const { items: catalogItems, loading: catalogLoading, error: catalogError, page } = useStoreCatalog(
+    store?.payload?.storeId || '',
+    filters
+  );
+  const facets = useStoreFacets(store?.payload?.storeId || '', filters);
 
   useEffect(() => {
     let active = true;
 
-    if (!isValidId) {
+    if (!isValidSlug) {
       setStore(null);
       setLoading(false);
-      setError(t('store.onchain.invalidId', { defaultValue: 'Identificador de loja inválido.' }));
+      setError(t('store.onchain.invalidSlug', { defaultValue: 'Slug de loja inválido.' }));
       return () => {
         active = false;
       };
@@ -153,10 +161,37 @@ export default function StorePublicPage() {
     setError(null);
     setStore(null);
 
-    fetchOnChainStore(normalizedId)
-      .then((result) => {
+    // Use the by-slug endpoint which handles fallback internally
+    getPublicJSON<any>(`/stores/by-slug/${normalizedSlug}`)
+      .then((storeData) => {
         if (!active) return;
-        setStore(result);
+
+        // Normalizar resposta da API para o formato esperado pelo frontend
+        // API retorna: {store, onChain, sync, categories, products, ...}
+        // Frontend espera: {metadata, payload}
+        const storeJson = storeData.store || {};
+
+        const normalized: NormalizedOnChainStore = {
+          metadata: {
+            name: storeJson.name || storeJson.slug || 'Loja sem nome',
+            description: storeJson.description || '',
+            coverUrl: storeJson.cover?.url || storeJson.coverUrl || undefined,
+            categories: storeData.categories || [],
+            links: [], // TODO: processar links se houver
+            theme: storeData.theme || undefined,
+            raw: storeJson,
+          },
+          payload: {
+            storeId: storeData.id || storeData.onChain?.instanceId || '0',
+            owner: storeData.onChain?.owner || '',
+            operators: storeData.onChain?.operators || [],
+            cid: storeData.onChain?.metadataCid || '',
+            reputation: storeData.onChain?.reputation || null,
+            sync: storeData.sync || { status: 'unknown', source: 'unknown' },
+          },
+        };
+
+        setStore(normalized);
       })
       .catch((err) => {
         if (!active) return;
@@ -181,84 +216,86 @@ export default function StorePublicPage() {
     return () => {
       active = false;
     };
-  }, [isValidId, normalizedId, t]);
+  }, [isValidSlug, normalizedSlug, t]);
 
-  useEffect(() => {
-    let active = true;
-    if (!isValidId) {
-      setCatalog({ loading: false, error: null, items: [], total: 0 });
-      return () => {
-        active = false;
-      };
-    }
-
-    setCatalog({ loading: true, error: null, items: [], total: 0 });
-    getPublicJSON<CatalogResponse>(buildCatalogUrl(normalizedId))
-      .then((response) => {
-        if (!active) return;
-        const items = Array.isArray(response?.items) ? response.items : [];
-        const total = typeof response?.page?.total === 'number' ? response.page.total : items.length;
-        setCatalog({ loading: false, error: null, items, total });
-      })
-      .catch((err) => {
-        if (!active) return;
-        const message = err instanceof Error ? err.message : t('errors.generic');
-        setCatalog({ loading: false, error: message, items: [], total: 0 });
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [isValidId, normalizedId, t]);
 
   const metadata = store?.metadata;
-  const owner = store?.payload.owner;
-  const operators = store?.payload.operators ?? [];
-  const cid = store?.payload.cid;
+  const owner = store?.payload?.owner;
+  const operators = store?.payload?.operators ?? [];
+  const cid = store?.payload?.cid;
   const links = useMemo(() => metadata?.links?.slice(0, MAX_LINKS) ?? [], [metadata?.links]);
-  const categories = metadata?.categories ?? [];
-  const reputation = store?.payload.reputation;
+  const reputation = store?.payload?.reputation;
 
   const cidGatewayLink = resolveGatewayLink(cid ?? null);
 
   const renderCatalog = () => {
-    if (!isValidId) return null;
+    if (!isValidSlug) return null;
 
-    if (catalog.loading) {
-      return (
-        <div className="flex items-center gap-2 text-sm text-store-ink/70">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          {t('store.onchain.catalogLoading', { defaultValue: 'Carregando catálogo...' })}
-        </div>
-      );
+    if (catalogLoading) {
+      return <CatalogSkeleton count={6} />;
     }
 
-    if (catalog.error) {
+    if (catalogError) {
       return (
         <Alert variant="destructive" className="border-destructive/40 bg-destructive/10 text-destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>{t('store.onchain.catalogErrorTitle', { defaultValue: 'Catálogo indisponível' })}</AlertTitle>
-          <AlertDescription>{catalog.error}</AlertDescription>
+          <AlertDescription>{catalogError}</AlertDescription>
         </Alert>
       );
     }
 
-    if (catalog.items.length === 0) {
+    if (catalogItems.length === 0) {
+      // Check if any filters are active
+      const hasActiveFilters =
+        filters.q !== '' ||
+        filters.kind !== 'all' ||
+        filters.categoryPath.length > 0 ||
+        filters.priceMin !== '' ||
+        filters.priceMax !== '' ||
+        Object.keys(filters.attrs).length > 0;
+
       return (
-        <p className="text-sm text-store-ink/70">
-          {t('store.onchain.catalogEmpty', { defaultValue: 'Nenhum item cadastrado para esta loja ainda.' })}
-        </p>
+        <EmptyState
+          hasFilters={hasActiveFilters}
+          searchTerm={filters.q || undefined}
+          onClearFilters={clearAllFilters}
+        />
       );
     }
 
     return (
-      <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {catalog.items.map((item) => {
-          const cover = pickCover(item);
-          const priceLabel = formatPrice(item.priceBzr, i18n.language);
-          const href = item.kind === 'service' ? `/app/service/${item.id}` : `/app/product/${item.id}`;
-          return (
-            <Card key={item.id} className="flex h-full flex-col overflow-hidden border border-store-ink/15 bg-store-bg/95 shadow-sm">
+      <motion.div
+        className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+        initial="hidden"
+        animate="visible"
+        variants={{
+          visible: {
+            transition: {
+              staggerChildren: 0.05,
+            },
+          },
+        }}
+      >
+        <AnimatePresence mode="popLayout">
+          {catalogItems.map((item) => {
+            const cover = pickCover(item);
+            const priceLabel = formatPrice(item.priceBzr, i18n.language);
+            const href = item.kind === 'service' ? `/app/service/${item.id}` : `/app/product/${item.id}`;
+            return (
+              <motion.div
+                key={item.id}
+                variants={{
+                  hidden: { opacity: 0, y: 20 },
+                  visible: { opacity: 1, y: 0 },
+                }}
+                transition={{
+                  duration: 0.3,
+                  ease: [0.25, 0.1, 0.25, 1],
+                }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                layout
+              >
+                <Card className="flex h-full flex-col overflow-hidden border border-store-ink/15 bg-store-bg/95 shadow-sm">
               {cover ? (
                 <div className="aspect-video w-full bg-store-brand/10">
                   <img src={cover} alt={item.title} loading="lazy" className="h-full w-full object-cover" />
@@ -292,10 +329,12 @@ export default function StorePublicPage() {
                   </Button>
                 </Link>
               </CardContent>
-            </Card>
+              </Card>
+            </motion.div>
           );
         })}
-      </div>
+        </AnimatePresence>
+      </motion.div>
     );
   };
 
@@ -322,7 +361,7 @@ export default function StorePublicPage() {
               </div>
             </Alert>
           ) : store && metadata ? (
-            <StoreLayout theme={metadata.theme}>
+            <StoreLayout theme={metadata.theme} layout={metadata.theme?.layoutVariant}>
               <div className="space-y-10">
                 <section className="overflow-hidden rounded-2xl border border-store-ink/15 bg-store-bg/95 shadow-sm">
                   {metadata.coverUrl && (
@@ -341,6 +380,16 @@ export default function StorePublicPage() {
                         <div className="flex flex-wrap items-center gap-2 text-sm text-store-ink/60">
                           <StoreIcon className="h-4 w-4" />
                           <span>{t('store.onchain.storeIdLabel', { defaultValue: 'Loja on-chain' })} #{store.payload.storeId}</span>
+                          {(() => {
+                            const syncStatus = (store.payload as any)?.sync?.status;
+                            const syncSource = (store.payload as any)?.sync?.source;
+                            return syncStatus ? (
+                              <SyncBadge
+                                status={syncStatus.toUpperCase()}
+                                source={syncSource}
+                              />
+                            ) : null;
+                          })()}
                           {(() => {
                             const hasCatalog = !!(metadata.raw as any)?.catalog;
                             console.log('[store-public] metadata.raw:', metadata.raw);
@@ -500,34 +549,127 @@ export default function StorePublicPage() {
                             </div>
                           </div>
                         )}
-
-                        {categories.length > 0 && (
-                          <div className="space-y-2">
-                            <span className="text-xs font-medium uppercase tracking-wide text-store-ink/60">
-                              {t('store.onchain.categories', { defaultValue: 'Categorias principais' })}
-                            </span>
-                            <div className="flex flex-wrap gap-2">
-                              {categories.map((path, idx) => (
-                                <Badge key={idx} variant="outline" className="border-store-ink/20 text-store-ink">
-                                  {path.join(' / ')}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>
                 </section>
 
                 <section className="rounded-2xl border border-store-ink/15 bg-store-bg/95 p-6 shadow-sm">
-                  <div className="flex items-center gap-2 text-store-ink">
+                  <div className="flex items-center gap-2 text-store-ink mb-6">
                     <Layers className="h-4 w-4" />
                     <h2 className="text-xl font-semibold">
                       {t('store.onchain.catalogTitle', { defaultValue: 'Catálogo da loja' })}
                     </h2>
                   </div>
-                  {renderCatalog()}
+
+                  {/* Mobile: Search bar + filter button */}
+                  <div className="block lg:hidden mb-4 space-y-2">
+                    <SearchBar
+                      value={filters.q}
+                      onChange={(value) => updateFilter('q', value)}
+                    />
+                    <div className="flex gap-2">
+                      <FilterButton
+                        activeCount={activeFiltersCount}
+                        onClick={() => setFilterModalOpen(true)}
+                      />
+                      <SortDropdown
+                        value={filters.sort}
+                        onChange={(value) => updateFilter('sort', value)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Desktop: 2-column layout */}
+                  <div className="lg:grid lg:grid-cols-[280px_1fr] lg:gap-6">
+                    {/* Desktop sidebar */}
+                    <FilterSidebar
+                      storeId={store?.payload?.storeId || ''}
+                      filters={filters}
+                      facets={{
+                        categories: facets.categories,
+                        priceRange: facets.priceRange,
+                        priceBuckets: facets.priceBuckets,
+                        attributes: facets.attributes,
+                      }}
+                      loading={facets.loading}
+                      onFilterChange={updateFilter}
+                      onClearAll={clearAllFilters}
+                    />
+
+                    {/* Catalog area */}
+                    <div>
+                      {/* Desktop: Search bar + sort */}
+                      <div className="hidden lg:flex gap-4 mb-4">
+                        <SearchBar
+                          value={filters.q}
+                          onChange={(value) => updateFilter('q', value)}
+                        />
+                        <SortDropdown
+                          value={filters.sort}
+                          onChange={(value) => updateFilter('sort', value)}
+                        />
+                      </div>
+
+                      {/* Active filters badges */}
+                      <div className="mb-4">
+                        <ActiveFiltersBadges
+                          filters={filters}
+                          onRemoveFilter={clearFilter}
+                          onUpdateFilter={updateFilter}
+                          onClearAll={clearAllFilters}
+                        />
+                      </div>
+
+                      {/* Results counter */}
+                      <div className="mb-4">
+                        <ResultsCounter
+                          totalItems={page.total}
+                          hasActiveFilters={
+                            filters.q !== '' ||
+                            filters.kind !== 'all' ||
+                            filters.categoryPath.length > 0 ||
+                            filters.priceMin !== '' ||
+                            filters.priceMax !== '' ||
+                            Object.keys(filters.attrs).length > 0
+                          }
+                          loading={catalogLoading}
+                        />
+                      </div>
+
+                      {/* Catalog grid */}
+                      {renderCatalog()}
+
+                      {/* Pagination */}
+                      {!catalogLoading && !catalogError && catalogItems.length > 0 && (
+                        <CatalogPagination
+                          currentPage={filters.page}
+                          totalPages={Math.ceil(page.total / page.limit)}
+                          totalItems={page.total}
+                          itemsPerPage={page.limit}
+                          onPageChange={(newPage) => updateFilter('page', newPage)}
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Mobile filter modal */}
+                  <FilterModal
+                    open={filterModalOpen}
+                    onOpenChange={setFilterModalOpen}
+                    storeId={store?.payload?.storeId || ''}
+                    filters={filters}
+                    facets={{
+                      categories: facets.categories,
+                      priceRange: facets.priceRange,
+                      priceBuckets: facets.priceBuckets,
+                      attributes: facets.attributes,
+                    }}
+                    loading={facets.loading}
+                    onFilterChange={updateFilter}
+                    onClearAll={clearAllFilters}
+                    resultsCount={page.total}
+                  />
                 </section>
               </div>
             </StoreLayout>

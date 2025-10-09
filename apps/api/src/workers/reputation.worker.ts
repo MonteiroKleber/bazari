@@ -336,10 +336,6 @@ export function startReputationWorker(
   prisma: PrismaClient,
   options: StartReputationWorkerOptions = {},
 ): NodeJS.Timeout | null {
-  if (!env.STORE_ONCHAIN_V1) {
-    options.logger?.info?.('[reputation-worker]', 'STORE_ONCHAIN_V1 desativado; worker não iniciado');
-    return null;
-  }
   if (!env.STORE_REPUTATION_SURI) {
     options.logger?.warn?.('[reputation-worker]', 'STORE_REPUTATION_SURI ausente; worker não iniciado');
     return null;

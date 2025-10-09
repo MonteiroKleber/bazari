@@ -363,14 +363,27 @@ model SellerProfile {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
+  // === Campos de Sincronização On-Chain ===
+  syncStatus       String?   @default("pending") // 'pending' | 'syncing' | 'synced' | 'error'
+  version          Int?      @default(0) // versão incremental da loja on-chain
+  lastSyncBlock    BigInt?   @db.BigInt // último bloco onde foi feita sincronização
+  lastPublishedAt  DateTime? // timestamp da última publicação on-chain
+  metadataCid      String? // CID do JSON de metadados da loja (store.json)
+  categoriesCid    String? // CID do JSON de categorias
+  categoriesHash   String? // SHA-256 do JSON de categorias
+  productsCid      String? // CID do JSON de produtos/catálogo
+  productsHash     String? // SHA-256 do JSON de produtos/catálogo
+
   // Relations
-  products Product[]
-  services ServiceOffering[]
+  products       Product[]
+  services       ServiceOffering[]
+  publishHistory StorePublishHistory[]
 
   @@index([userId])
   @@index([onChainStoreId])
   @@index([ownerAddress])
   @@index([operatorAddresses], type: Gin)
+  @@index([syncStatus])
 }
 
 model Post {
@@ -580,4 +593,41 @@ model P2PReview {
   stars     Int
   comment   String?
   createdAt DateTime @default(now())
+}
+
+/// --- Store Publishing History ---
+
+model StorePublishHistory {
+  id              String        @id @default(cuid())
+  sellerProfileId String
+  sellerProfile   SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+  version         Int // versão incremental
+  blockNumber     BigInt        @db.BigInt // bloco em que foi publicado
+  extrinsicHash   String? // hash da extrinsic do publish_store
+  metadataCid     String // CID do JSON de metadados da loja
+  categoriesCid   String // CID do JSON de categorias
+  categoriesHash  String // SHA-256 do JSON de categorias
+  productsCid     String // CID do JSON de produtos/catálogo
+  productsHash    String // SHA-256 do JSON de produtos/catálogo
+  publishedAt     DateTime      @default(now())
+
+  @@index([sellerProfileId, version])
+  @@index([blockNumber])
+  @@index([publishedAt])
+}
+
+/// --- Store Snapshots (Cache) ---
+
+model StoreSnapshot {
+  id             String   @id @default(cuid())
+  storeId        String
+  version        Int
+  storeJson      Json
+  categoriesJson Json?
+  productsJson   Json?
+  cachedAt       DateTime @default(now())
+
+  @@unique([storeId, version])
+  @@index([storeId])
+  @@index([cachedAt])
 }

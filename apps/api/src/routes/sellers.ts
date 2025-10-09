@@ -8,10 +8,18 @@ import { env } from '../env.js';
 import { getStore } from '../lib/storesChain.js';
 import { buildCatalogForStore } from '../lib/catalogBuilder.js';
 
+/**
+ * @deprecated This file contains legacy single-store routes.
+ * New development should use:
+ * - me.sellers.ts for authenticated multi-store operations
+ * - stores.ts for public store pages
+ * Target removal: 2026-Q1
+ */
 export async function sellersRoutes(app: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
   // GET /me/seller — retorna perfil do vendedor autenticado (ou null)
+  // @deprecated Use GET /me/sellers instead
   app.get('/me/seller', { preHandler: authOnRequest }, async (request, reply) => {
     const authUser = (request as any).authUser as { sub: string } | undefined;
     if (!authUser) return reply.status(401).send({ error: 'Token inválido.' });
@@ -84,7 +92,7 @@ export async function sellersRoutes(app: FastifyInstance, options: { prisma: Pri
       volumePlanck: string;
     } | null = null;
 
-    if (env.STORE_ONCHAIN_V1 && (seller as any).onChainStoreId != null) {
+    if ((seller as any).onChainStoreId != null) {
       const storeId = (seller as any).onChainStoreId.toString();
       try {
         const store = await getStore(storeId);
@@ -278,10 +286,6 @@ export async function sellersRoutes(app: FastifyInstance, options: { prisma: Pri
   app.post<{ Params: { idOrSlug: string } }>('/me/sellers/:idOrSlug/sync-catalog', { preHandler: authOnRequest }, async (request, reply) => {
     const authUser = (request as any).authUser as { sub: string } | undefined;
     if (!authUser) return reply.status(401).send({ error: 'Token inválido.' });
-
-    if (!env.STORE_ONCHAIN_V1) {
-      return reply.status(501).send({ error: 'Funcionalidade on-chain não habilitada.' });
-    }
 
     // Validar loja do usuário
     const store = await prisma.sellerProfile.findFirst({

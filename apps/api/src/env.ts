@@ -22,10 +22,6 @@ const envSchema = z.object({
     .string()
     .optional()
     .transform((v) => (v ? /^true$/i.test(v) || v === '1' : false)),
-  STORE_ONCHAIN_V1: z
-    .string()
-    .optional()
-    .transform((v) => (v ? /^true$/i.test(v) || v === '1' : false)),
   STORE_REPUTATION_SURI: z
     .string()
     .optional()
@@ -54,6 +50,13 @@ const envSchema = z.object({
   S3_ACCESS_KEY_ID: z.string().optional(),
   S3_SECRET_ACCESS_KEY: z.string().optional(),
   S3_PUBLIC_BASEURL: z.string().optional(),
+
+  // OpenSearch config
+  OPENSEARCH_NODE: z.string().default('http://localhost:9200'),
+  OPENSEARCH_INDEX_STORES: z.string().default('bazari_stores'),
+
+  // Redis config (BullMQ)
+  REDIS_URL: z.string().default('redis://localhost:6379'),
 }).refine(
   (data) => {
     if (data.STORAGE_PROVIDER === 's3') {

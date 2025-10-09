@@ -21,7 +21,7 @@ import { servicesRoutes } from './routes/services.js';
 import { searchRoutes } from './routes/search.js';
 import { authRoutes } from './routes/auth.js';
 import { ordersRoutes } from './routes/orders.js';
-import { osEnabled } from './lib/opensearch.js';
+import { osEnabled, ensureStoreIndex } from './lib/opensearch.js';
 import { ensureOsIndex } from './lib/opensearchIndex.js';
 import { getPaymentsConfig, getLogSafeConfig } from './config/payments.js';
 import { startPaymentsTimeoutWorker } from './workers/paymentsTimeout.js';
@@ -38,6 +38,8 @@ import { p2pOffersRoutes } from './routes/p2p.offers.js';
 import { p2pOrdersRoutes } from './routes/p2p.orders.js';
 import { p2pPaymentProfileRoutes } from './routes/p2p.paymentProfile.js';
 import { p2pMessagesRoutes } from './routes/p2p.messages.js';
+import { storePublishRoutes } from './routes/storePublish.js';
+import { marketplaceRoutes } from './routes/marketplace.js';
 
 const prisma = new PrismaClient();
 
@@ -63,6 +65,9 @@ async function buildApp() {
   const loggerInstance = createLogger();
   const app = Fastify({
     logger: loggerInstance as any,
+    // Aumentar timeout global para 2 minutos (blockchain pode demorar)
+    connectionTimeout: 120000,
+    requestTimeout: 120000,
   });
 
   // Registrar plugins
@@ -85,15 +90,15 @@ async function buildApp() {
   await app.register(sellersRoutes, { prefix: '/', prisma });
   await app.register(socialRoutes, { prefix: '/', prisma });
   await app.register(postsRoutes, { prefix: '/', prisma });
-  if (env.STORE_ONCHAIN_V1) {
-    await app.register(storesRoutes, { prefix: '/', prisma });
-  }
+  await app.register(storesRoutes, { prefix: '/', prisma });
+  await app.register(storePublishRoutes, { prefix: '/', prisma });
   await app.register(meProductsRoutes, { prefix: '/', prisma });
   await app.register(meSellersRoutes, { prefix: '/', prisma });
   await app.register(p2pOffersRoutes, { prefix: '/', prisma });
   await app.register(p2pOrdersRoutes, { prefix: '/', prisma });
   await app.register(p2pPaymentProfileRoutes, { prefix: '/', prisma });
   await app.register(p2pMessagesRoutes, { prefix: '/', prisma });
+  await app.register(marketplaceRoutes, { prefix: '/' });
   // Também expor com prefixo /api para compatibilidade com o front
   await app.register(healthRoutes, { prefix: '/api', prisma });
   await app.register(mediaRoutes, { prefix: '/api', prisma, storage });
@@ -107,15 +112,15 @@ async function buildApp() {
   await app.register(sellersRoutes, { prefix: '/api', prisma });
   await app.register(socialRoutes, { prefix: '/api', prisma });
   await app.register(postsRoutes, { prefix: '/api', prisma });
-  if (env.STORE_ONCHAIN_V1) {
-    await app.register(storesRoutes, { prefix: '/api', prisma });
-  }
+  await app.register(storesRoutes, { prefix: '/api', prisma });
+  await app.register(storePublishRoutes, { prefix: '/api', prisma });
   await app.register(meProductsRoutes, { prefix: '/api', prisma });
   await app.register(meSellersRoutes, { prefix: '/api', prisma });
   await app.register(p2pOffersRoutes, { prefix: '/api', prisma });
   await app.register(p2pOrdersRoutes, { prefix: '/api', prisma });
   await app.register(p2pPaymentProfileRoutes, { prefix: '/api', prisma });
   await app.register(p2pMessagesRoutes, { prefix: '/api', prisma });
+  await app.register(marketplaceRoutes, { prefix: '/api' });
 
   // Error handler (dev): log detalhado para diagnosticar 500
   if (process.env.NODE_ENV !== 'production') {
@@ -240,10 +245,18 @@ async function start() {
     process.on('SIGINT', () => closeGracefully('SIGINT'));
     process.on('SIGTERM', () => closeGracefully('SIGTERM'));
 
+    // Inicializar índice de lojas no OpenSearch
+    try {
+      await ensureStoreIndex();
+      app.log.info('✅ OpenSearch: índice bazari_stores verificado/criado');
+    } catch (err) {
+      app.log.warn('⚠️ OpenSearch: falha ao criar índice bazari_stores', err);
+    }
+
     // Iniciar servidor
-    await app.listen({ 
-      port: env.PORT, 
-      host: '0.0.0.0' 
+    await app.listen({
+      port: env.PORT,
+      host: '0.0.0.0'
     });
 
     app.log.info(`🚀 Servidor rodando em http://localhost:${env.PORT}`);

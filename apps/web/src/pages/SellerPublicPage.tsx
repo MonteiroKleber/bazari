@@ -28,7 +28,6 @@ import { useElementSize } from '@/modules/store/useElementSize';
 
 interface StorePolicies {
   storeTheme?: Partial<StoreTheme> | null;
-  primaryCategories?: unknown;
 }
 
 type PublicStoreProfile = SellerProfileDto & { policies?: StorePolicies | null };
@@ -55,11 +54,6 @@ function toStoreTheme(theme: unknown): StoreTheme | undefined {
   const accent = typeof maybe.accent === 'string' ? maybe.accent : undefined;
   if (!bg && !ink && !brand && !accent) return undefined;
   return { bg, ink, brand, accent };
-}
-
-function isStringPathArray(value: unknown): value is string[][] {
-  if (!Array.isArray(value)) return false;
-  return value.every((item) => Array.isArray(item) && item.every((part) => typeof part === 'string'));
 }
 
 function resolveMediaUrl(u?: string | null): string | undefined {
@@ -254,44 +248,17 @@ export default function SellerPublicPage({ mode = 'default' }: SellerPublicPageP
   }, [isBranded, profile]);
 
   const storeTheme = useMemo(() => toStoreTheme(profile?.policies?.storeTheme ?? null), [profile?.policies?.storeTheme]);
-  const primaryCategories = useMemo(() => {
-    const raw = profile?.policies?.primaryCategories;
-    if (isStringPathArray(raw)) {
-      return raw.slice(0, 6);
-    }
-    return [];
-  }, [profile?.policies?.primaryCategories]);
 
   const items = useMemo(() => (Array.isArray(results?.items) ? results!.items : []), [results?.items]);
-  const fallbackCategoryFacets = useMemo<CategoryFacet[]>(() => {
-    if (!primaryCategories || primaryCategories.length === 0) {
-      return [];
-    }
 
-    const candidates = primaryCategories
-      .map((path) => (Array.isArray(path) ? path.slice(0, 4) : []))
-      .filter((path) => path.length > 0);
-
-    if (!prefetchedCategories || prefetchedCategories.length === 0) {
-      return candidates.map((path) => ({ path, count: 0 }));
-    }
-
-    const prefetchedIndex = new Map<string, CategoryFacet>();
-    for (const category of prefetchedCategories) {
-      const normalized = Array.isArray(category.pathSlugs) ? category.pathSlugs.slice(0, 4) : [];
-      if (normalized.length === 0) continue;
-      prefetchedIndex.set(normalized.join('>'), { path: normalized, count: 0 });
-    }
-
-    return candidates.map((path) => prefetchedIndex.get(path.join('>')) ?? { path, count: 0 });
-  }, [prefetchedCategories, primaryCategories]);
-
+  // Category facets agora vêm apenas dos resultados de busca (OpenSearch)
+  // Não há mais fallback de primaryCategories
   const categoryFacets: CategoryFacet[] = useMemo(() => {
     if (results?.facets?.categories && Array.isArray(results.facets.categories) && results.facets.categories.length > 0) {
       return results.facets.categories as CategoryFacet[];
     }
-    return fallbackCategoryFacets;
-  }, [results?.facets?.categories, fallbackCategoryFacets]);
+    return [];
+  }, [results?.facets?.categories]);
 
   useEffect(() => {
     if (!isBranded || !profile) return;
@@ -693,7 +660,6 @@ export default function SellerPublicPage({ mode = 'default' }: SellerPublicPageP
             <StoreHeader
               seller={profile as StoreProfile | null}
               owner={owner}
-              primaryCategories={primaryCategories}
               onChainReputation={profile?.onChainReputation ?? null}
               onChainStoreId={profile?.onChainStoreId != null ? String(profile.onChainStoreId) : null}
             />

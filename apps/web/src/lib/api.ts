@@ -18,13 +18,14 @@ export class ApiError extends Error {
 interface ApiOptions {
   requireAuth?: boolean;
   isRetry?: boolean;
+  timeout?: number; // timeout em ms
 }
 
 // Função base para fazer requisições
 async function apiFetch<T>(path: string, init: RequestInit = {}, options: ApiOptions = {}): Promise<T> {
-  const { requireAuth = true, isRetry = false } = options;
+  const { requireAuth = true, isRetry = false, timeout = 8000 } = options;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
     if (requireAuth && !isReauthInProgress()) {
@@ -110,7 +111,12 @@ export async function getPublicJSON<T>(path: string): Promise<T> {
 }
 
 // Helper para POST com JSON
-export async function postJSON<T>(path: string, data: unknown, extraHeaders?: Record<string, string>): Promise<T> {
+export async function postJSON<T>(
+  path: string,
+  data: unknown,
+  extraHeaders?: Record<string, string>,
+  options?: { timeout?: number }
+): Promise<T> {
   const baseHeaders: Record<string, string> = {
     "Accept": "application/json",
     "Content-Type": "application/json",
@@ -120,7 +126,7 @@ export async function postJSON<T>(path: string, data: unknown, extraHeaders?: Re
     method: "POST",
     headers,
     body: JSON.stringify(data),
-  });
+  }, { timeout: options?.timeout });
 }
 
 // Helper para POST com multipart/form-data

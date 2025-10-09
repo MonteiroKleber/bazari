@@ -7,7 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { FEATURE_FLAGS } from '@/config';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import { sellerApi, type SellerProfileDto } from '@/modules/seller/api';
 import type { StoreTheme } from '@/modules/store/StoreLayout';
 import {
@@ -29,13 +30,14 @@ import { PinService } from '@/modules/wallet/pin/PinService';
 import { getApi, getChainProps, type ChainProps } from '@/modules/wallet/services/polkadot';
 import { formatBalance, shortenAddress } from '@/modules/wallet/utils/format';
 import { ApiError } from '@/lib/api';
+import { mapChainError } from '@/lib/chainErrors';
 import { toast } from 'sonner';
 import { Keyring } from '@polkadot/keyring';
 import type { KeyringPair } from '@polkadot/keyring/types';
 import { cryptoWaitReady } from '@polkadot/util-crypto';
 import type { SubmittableExtrinsic } from '@polkadot/api/types';
 import type { ApiPromise } from '@polkadot/api';
-import { AlertCircle, Loader2, ShieldCheck, Users, Wallet, ArrowRight, Copy, Info, Trash2, Layers } from 'lucide-react';
+import { AlertCircle, Loader2, ShieldCheck, Users, Wallet, ArrowRight, Copy, Info, Trash2, Layers, ExternalLink, RefreshCw } from 'lucide-react';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 const DEFAULT_THEME: StoreTheme = {
@@ -63,10 +65,23 @@ const THEME_PRESETS: Array<{ id: string; label: string; theme: StoreTheme }> = [
   },
 ];
 
-const MAX_PRIMARY_CATEGORIES = 6;
-const textEncoder = new TextEncoder();
 
-type PrimaryCategory = string[];
+function SyncBadge({ status }: { status: string | null }) {
+  if (!status) return <Badge variant="outline">N/A</Badge>;
+
+  const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+    pending: { label: 'Pendente', variant: 'outline' },
+    syncing: { label: 'Sincronizando', variant: 'secondary' },
+    synced: { label: 'Sincronizado', variant: 'default' },
+    SYNCED: { label: 'Sincronizado', variant: 'default' },
+    error: { label: 'Erro', variant: 'destructive' },
+    diverged: { label: 'Divergente', variant: 'destructive' },
+    DIVERGED: { label: 'Divergente', variant: 'destructive' },
+  };
+
+  const config = statusMap[status] || { label: status, variant: 'outline' as const };
+  return <Badge variant={config.variant}>{config.label}</Badge>;
+}
 
 type SignerContext = {
   api: ApiPromise;
@@ -74,18 +89,6 @@ type SignerContext = {
   account: VaultAccountRecord;
   chain: ChainProps;
 };
-
-function parsePrimaryCategories(value: unknown): PrimaryCategory[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((entry) => {
-      if (!Array.isArray(entry)) return [];
-      return entry
-        .map((part) => (typeof part === 'string' ? part.trim() : String(part)))
-        .filter((part) => part.length > 0);
-    })
-    .filter((parts) => parts.length > 0);
-}
 
 function decodeDispatchError(api: ApiPromise, dispatchError: any): string {
   if (dispatchError.isModule) {
@@ -142,7 +145,7 @@ export default function SellerSetupPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const onChainEnabled = FEATURE_FLAGS.store_onchain_v1;
+  const onChainEnabled = true; // On-chain is now always enabled
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -155,9 +158,6 @@ export default function SellerSetupPage() {
   const [themeEnabled, setThemeEnabled] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [theme, setTheme] = useState<StoreTheme>(DEFAULT_THEME);
-  const [categoryInput, setCategoryInput] = useState('');
-  const [categoryError, setCategoryError] = useState<string | null>(null);
-  const [primaryCategories, setPrimaryCategories] = useState<PrimaryCategory[]>([]);
   const [storeIdentifier, setStoreIdentifier] = useState<string | null>(null);
 
   const [activeAccount, setActiveAccount] = useState<VaultAccountRecord | null>(null);
@@ -175,6 +175,12 @@ export default function SellerSetupPage() {
   const [transferSubmitting, setTransferSubmitting] = useState(false);
   const [acceptingTransfer, setAcceptingTransfer] = useState(false);
   const [syncingCatalog, setSyncingCatalog] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<string | null>(null);
+  const [verifyingStore, setVerifyingStore] = useState(false);
+  const [metadataCid, setMetadataCid] = useState<string | null>(null);
+  const [categoriesCid, setCategoriesCid] = useState<string | null>(null);
+  const [productsCid, setProductsCid] = useState<string | null>(null);
+  const [lastSyncBlock, setLastSyncBlock] = useState<string | number | null>(null);
 
   const themeLabels = useMemo(
     () => ({
@@ -237,7 +243,6 @@ export default function SellerSetupPage() {
           setShopName('');
           setShopSlug('');
           setAbout('');
-          setPrimaryCategories([]);
           setInitialSlug(null);
           setStoreIdentifier(null);
           setOnChainStoreId(null);
@@ -276,12 +281,14 @@ export default function SellerSetupPage() {
         setThemeEnabled(true);
       }
 
-      const storedCategories = parsePrimaryCategories(policies?.primaryCategories);
-      setPrimaryCategories(storedCategories);
-
       if (onChainEnabled) {
         const storedId = profile.onChainStoreId != null ? String(profile.onChainStoreId) : null;
         setOnChainStoreId(storedId);
+        setSyncStatus(profile.syncStatus ?? null);
+        setMetadataCid(profile.metadataCid ?? null);
+        setCategoriesCid(profile.categoriesCid ?? null);
+        setProductsCid(profile.productsCid ?? null);
+        setLastSyncBlock(profile.lastSyncBlock ?? null);
         if (storedId) {
           void refreshOnChainData(storedId);
         } else {
@@ -328,55 +335,6 @@ export default function SellerSetupPage() {
     };
   }, [onChainEnabled]);
 
-  const handleAddCategory = useCallback(() => {
-    const trimmed = categoryInput.trim().replace(/^\/+|\/+$/g, '');
-    if (!trimmed) {
-      setCategoryError(
-        t('seller.setup.category.invalid', {
-          defaultValue: 'Informe uma categoria no formato products/slug.',
-        }),
-      );
-      return;
-    }
-    const parts = trimmed
-      .split('/')
-      .map((part) => part.trim())
-      .filter(Boolean);
-    if (parts.length === 0) {
-      setCategoryError(
-        t('seller.setup.category.invalid', {
-          defaultValue: 'Informe uma categoria no formato products/slug.',
-        }),
-      );
-      return;
-    }
-    const key = parts.join('/');
-    setPrimaryCategories((prev) => {
-      if (prev.length >= MAX_PRIMARY_CATEGORIES) {
-        setCategoryError(
-          t('seller.setup.category.limit', {
-            defaultValue: 'Você pode adicionar até 6 categorias principais.',
-          }),
-        );
-        return prev;
-      }
-      if (prev.some((existing) => existing.join('/') === key)) {
-        setCategoryError(
-          t('seller.setup.category.duplicate', {
-            defaultValue: 'Categoria já adicionada.',
-          }),
-        );
-        return prev;
-      }
-      setCategoryError(null);
-      return [...prev, parts];
-    });
-    setCategoryInput('');
-  }, [categoryInput, t]);
-
-  const handleRemoveCategory = useCallback((index: number) => {
-    setPrimaryCategories((prev) => prev.filter((_, idx) => idx !== index));
-  }, []);
 
   const withSigner = useCallback(
     async <T,>(fn: (ctx: SignerContext) => Promise<T>) => {
@@ -433,6 +391,9 @@ export default function SellerSetupPage() {
     [t],
   );
 
+  // NOTE: submitStoreMetadata is no longer used - publication is now handled by backend
+  // Kept for reference in case direct blockchain interaction is needed in the future
+  /*
   const submitStoreMetadata = useCallback(
     async (cid: string): Promise<string> => {
       const callback = async ({ api, pair }: SignerContext) => {
@@ -440,7 +401,7 @@ export default function SellerSetupPage() {
           const tx = api.tx.stores.createStore(Array.from(textEncoder.encode(cid)));
           const result = await signAndSend(api, tx, pair);
           const createdEvent = result.events.find(
-            (record) => record.event.section === 'stores' && record.event.method === 'StoreCreated',
+            (record: any) => record.event.section === 'stores' && record.event.method === 'StoreCreated',
           );
           if (!createdEvent) {
             throw new Error(
@@ -469,6 +430,7 @@ export default function SellerSetupPage() {
     },
     [onChainStoreId, t, withSigner],
   );
+  */
 
   const submitOffChainOnly = useCallback(
     async (payload: Record<string, unknown>) => {
@@ -501,10 +463,7 @@ export default function SellerSetupPage() {
 
       const policies: Record<string, unknown> = {};
       if (themeEnabled) {
-        policies.storeTheme = theme;
-      }
-      if (primaryCategories.length > 0) {
-        policies.primaryCategories = primaryCategories;
+        policies.theme = theme;
       }
 
       const payload = {
@@ -519,53 +478,77 @@ export default function SellerSetupPage() {
         return;
       }
 
-      if (primaryCategories.length === 0) {
-        setError(
-          t('seller.onchain.categoryRequired', {
-            defaultValue: 'Adicione pelo menos uma categoria principal para publicar on-chain.',
-          }),
-        );
-        return;
-      }
-
       try {
         setSaving(true);
         setError(null);
 
-        const metadataPayload = buildStoreMetadata({
-          name: trimmedName,
-          description: trimmedAbout || undefined,
-          categories: primaryCategories,
-          theme: themeEnabled ? theme : undefined,
+        // 1. Salvar rascunho primeiro (ou atualizar se já existe)
+        const identifier = await persistSellerProfile(payload);
+
+        if (!identifier) {
+          throw new Error('Store identifier not available after persisting profile');
+        }
+
+        // 2. Solicitar PIN para assinar transação
+        const pin = await PinService.getPin({
+          title: t('seller.onchain.pinTitle', { defaultValue: 'Assinar Publicação' }),
+          description: t('seller.onchain.pinDescription', {
+            defaultValue: 'Digite seu PIN para assinar a transação de publicação da loja.',
+          }),
+          validate: async (candidate) => {
+            try {
+              await decryptMnemonic(
+                activeAccount!.cipher,
+                activeAccount!.iv,
+                activeAccount!.salt,
+                candidate,
+                activeAccount!.iterations
+              );
+              return null;
+            } catch {
+              return t('wallet.send.errors.pinInvalid', { defaultValue: 'PIN inválido' }) as string;
+            }
+          },
         });
 
-        const cid = await uploadMetadataToIpfs(metadataPayload);
-        toast.success(
-          t('seller.onchain.metadataUploaded', {
-            defaultValue: 'Metadados publicados no IPFS com CID {{cid}}',
-            cid,
-          }),
+        const mnemonic = await decryptMnemonic(
+          activeAccount!.cipher,
+          activeAccount!.iv,
+          activeAccount!.salt,
+          pin,
+          activeAccount!.iterations
         );
 
-        const storeId = await submitStoreMetadata(cid);
-        setOnChainStoreId(storeId);
+        // 3. Chamar endpoint de publicação
+        toast.info(
+          t('seller.onchain.publishing', { defaultValue: 'Publicando loja on-chain...' })
+        );
 
-        const storeDetails = await refreshOnChainData(storeId);
-        const ownerAddress = storeDetails?.payload.owner ?? activeAccount?.address ?? null;
-        const operatorAddresses = uniqueOperators(storeDetails?.payload.operators);
-
-        payload.onChainStoreId = storeId;
-        payload.ownerAddress = ownerAddress;
-        payload.operatorAddresses = operatorAddresses;
-
-        await persistSellerProfile(payload);
+        const response = await sellerApi.publishStore(identifier, {
+          signerMnemonic: mnemonic,
+        });
 
         toast.success(
-          onChainStoreId
-            ? t('seller.onchain.metadataUpdated', { defaultValue: 'Metadados on-chain atualizados.' })
-            : t('seller.onchain.storeCreated', { defaultValue: 'Loja publicada on-chain com sucesso!' }),
+          t('seller.onchain.publishSuccess', {
+            defaultValue: 'Loja publicada on-chain com sucesso! Versão: {{version}}',
+            version: response.version,
+          })
         );
-        navigate(`/seller/${encodeURIComponent(trimmedSlug)}`);
+
+        // 4. Atualizar dados on-chain localmente
+        if (onChainStoreId) {
+          await refreshOnChainData(onChainStoreId);
+        }
+
+        // 5. Atualizar CIDs do banco de dados
+        if (response.cids) {
+          setMetadataCid(response.cids.store || null);
+          setCategoriesCid(response.cids.categories || null);
+          setProductsCid(response.cids.products || null);
+        }
+
+        // 6. Redirecionar para página pública
+        navigate(`/loja/${trimmedSlug}`);
       } catch (err) {
         handleOperationError(err);
       } finally {
@@ -574,16 +557,15 @@ export default function SellerSetupPage() {
     },
     [
       about,
-      activeAccount?.address,
+      activeAccount,
       navigate,
       onChainEnabled,
       onChainStoreId,
-      primaryCategories,
       refreshOnChainData,
       shopName,
       shopSlug,
+      storeIdentifier,
       submitOffChainOnly,
-      submitStoreMetadata,
       theme,
       themeEnabled,
       t,
@@ -591,19 +573,23 @@ export default function SellerSetupPage() {
   );
 
   const persistSellerProfile = useCallback(
-    async (payload: Record<string, unknown>) => {
+    async (payload: Record<string, unknown>): Promise<string> => {
       try {
         if (!initialSlug) {
           const response = await sellerApi.createStore(payload as any);
           const profile = response.sellerProfile;
+          const identifier = profile.id ?? profile.shopSlug ?? '';
           setInitialSlug(profile.shopSlug);
-          setStoreIdentifier(profile.id ?? profile.shopSlug ?? null);
+          setStoreIdentifier(identifier);
+          return identifier;
         } else {
           const identifier = storeIdentifier ?? initialSlug;
           const response = await sellerApi.updateMyStore(identifier, payload as any);
           const profile = response.sellerProfile;
+          const newIdentifier = profile.id ?? profile.shopSlug ?? identifier;
           setInitialSlug(profile.shopSlug ?? initialSlug);
-          setStoreIdentifier(profile.id ?? profile.shopSlug ?? identifier);
+          setStoreIdentifier(newIdentifier);
+          return newIdentifier;
         }
       } catch (err) {
         throw err;
@@ -614,14 +600,23 @@ export default function SellerSetupPage() {
 
   const handleOperationError = useCallback(
     (err: unknown) => {
-      const message = err instanceof ApiError
-        ? err.message
-        : err instanceof Error
-          ? err.message
-          : t('errors.generic');
+      let message = t('errors.generic');
+
+      if (err instanceof ApiError) {
+        message = err.message;
+      } else if (err instanceof Error) {
+        // Detectar erro on-chain (formato: "pallet.Error")
+        if (err.message.includes('.')) {
+          message = mapChainError(err.message);
+        } else {
+          message = err.message;
+        }
+      }
+
       if (message === 'cancelled') {
         return;
       }
+
       setError(message);
       toast.error(message);
     },
@@ -776,7 +771,7 @@ export default function SellerSetupPage() {
       const updatedMetadata = buildStoreMetadata({
         name: shopName,
         description: about || undefined,
-        categories: primaryCategories,
+        categories: [], // Categories agora são derivadas automaticamente dos produtos
         theme: themeEnabled ? theme : undefined,
       });
 
@@ -801,6 +796,12 @@ export default function SellerSetupPage() {
       await refreshOnChainData(onChainStoreId);
       console.log('[sync-catalog] Dados atualizados!');
 
+      // Atualizar CIDs localmente na interface
+      console.log('[sync-catalog] Atualizando CIDs locais...');
+      setMetadataCid(metadataCid);
+      setProductsCid(catalogCid);
+      console.log('[sync-catalog] CIDs locais atualizados!');
+
       console.log('[sync-catalog] Mostrando mensagem de sucesso...');
       const message = t('store.onchain.catalogSynced', {
         defaultValue: 'Catálogo sincronizado com sucesso!',
@@ -819,7 +820,6 @@ export default function SellerSetupPage() {
     handleOperationError,
     onChainEnabled,
     onChainStoreId,
-    primaryCategories,
     refreshOnChainData,
     shopName,
     storeIdentifier,
@@ -831,7 +831,7 @@ export default function SellerSetupPage() {
 
   const ownerAddress = onChainStore?.payload.owner ?? null;
   const operators = onChainStore?.payload.operators ?? [];
-  const metadataCid = onChainStore?.payload.cid ?? null;
+  const onChainMetadataCid = onChainStore?.payload.cid ?? null;
   const metadataSource = onChainStore?.payload.source ?? null;
   const metadataPreview = useMemo(() => {
     if (!onChainStore?.metadata.coverUrl) return null;
@@ -841,6 +841,34 @@ export default function SellerSetupPage() {
   const canAcceptTransfer = Boolean(
     pendingTransfer && activeAccount?.address && pendingTransfer === activeAccount.address,
   );
+
+  const handleVerifyStore = useCallback(async () => {
+    if (!storeIdentifier) return;
+
+    try {
+      setVerifyingStore(true);
+      const response = await sellerApi.verifyStore(storeIdentifier);
+
+      toast.success(
+        t('seller.onchain.verifySuccess', {
+          defaultValue: 'Verificação concluída: {{message}}',
+          message: response.message,
+        })
+      );
+
+      // Atualizar status local
+      setSyncStatus(response.status);
+    } catch (err) {
+      handleOperationError(err);
+    } finally {
+      setVerifyingStore(false);
+    }
+  }, [handleOperationError, storeIdentifier, t]);
+
+  const handleReancorar = useCallback(async () => {
+    // Reancorar é o mesmo que sincronizar o catálogo novamente
+    await handleSyncCatalog();
+  }, [handleSyncCatalog]);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -963,53 +991,6 @@ export default function SellerSetupPage() {
                   </div>
                 </div>
 
-                <div className="space-y-2 rounded-md border p-4">
-                  <Label>
-                    {t('seller.setup.primaryCategoriesLabel', {
-                      defaultValue: 'Categorias principais',
-                    })}
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    {t('seller.setup.primaryCategoriesHint', {
-                      defaultValue:
-                        'Adicione até 6 caminhos de categorias. Ex: products/tecnologia/eletronicos',
-                    })}
-                  </p>
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <Input
-                      value={categoryInput}
-                      onChange={(event) => setCategoryInput(event.target.value)}
-                      placeholder="products/tecnologia"
-                      className="flex-1"
-                    />
-                    <Button type="button" onClick={handleAddCategory} disabled={!categoryInput.trim()}>
-                      {t('common.add', { defaultValue: 'Adicionar' })}
-                    </Button>
-                  </div>
-                  {categoryError && <p className="text-xs text-destructive">{categoryError}</p>}
-                  {primaryCategories.length > 0 && (
-                    <div className="flex flex-wrap gap-2 pt-2">
-                      {primaryCategories.map((path, index) => (
-                        <div
-                          key={`${path.join('/')}-${index}`}
-                          className="flex items-center gap-2 rounded-full border bg-muted px-3 py-1 text-sm"
-                        >
-                          <span>{path.join(' / ')}</span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-auto px-2 text-xs"
-                            onClick={() => handleRemoveCategory(index)}
-                          >
-                            ×
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
                 {onChainEnabled && (
                   <div className="space-y-4 rounded-md border border-dashed p-4">
                     <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
@@ -1024,13 +1005,13 @@ export default function SellerSetupPage() {
                           })}
                     </div>
 
-                    {metadataCid && (
+                    {onChainMetadataCid && (
                       <div className="space-y-1 text-xs text-muted-foreground">
                         <span className="font-medium uppercase tracking-wide text-muted-foreground/70">
                           CID
                         </span>
                         <code className="block overflow-hidden text-ellipsis rounded bg-muted px-2 py-1">
-                          {metadataCid}
+                          {onChainMetadataCid}
                         </code>
                         <div className="flex items-center gap-2">
                           <Button
@@ -1038,7 +1019,7 @@ export default function SellerSetupPage() {
                             variant="ghost"
                             size="sm"
                             className="h-auto px-2"
-                            onClick={() => navigator.clipboard?.writeText(metadataCid)}
+                            onClick={() => navigator.clipboard?.writeText(onChainMetadataCid)}
                           >
                             <Copy className="h-3 w-3" />
                             {t('seller.onchain.copyCid', { defaultValue: 'Copiar' })}
@@ -1171,25 +1152,48 @@ export default function SellerSetupPage() {
                   defaultValue: 'Publique seu catálogo de produtos e serviços no IPFS',
                 })}
               </p>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleSyncCatalog}
-                disabled={syncingCatalog}
-                className="w-full sm:w-auto"
-              >
-                {syncingCatalog ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {t('store.onchain.syncingCatalog', { defaultValue: 'Sincronizando catálogo...' })}
-                  </>
-                ) : (
-                  <>
-                    <Layers className="mr-2 h-4 w-4" />
-                    {t('store.onchain.syncCatalog', { defaultValue: 'Sincronizar Catálogo' })}
-                  </>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleSyncCatalog}
+                  disabled={syncingCatalog}
+                  className="w-full sm:w-auto"
+                >
+                  {syncingCatalog ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {t('store.onchain.syncingCatalog', { defaultValue: 'Sincronizando catálogo...' })}
+                    </>
+                  ) : (
+                    <>
+                      <Layers className="mr-2 h-4 w-4" />
+                      {t('store.onchain.syncCatalog', { defaultValue: 'Sincronizar Catálogo' })}
+                    </>
+                  )}
+                </Button>
+                {syncStatus === 'diverged' && (
+                  <Button
+                    type="button"
+                    variant="default"
+                    onClick={handleVerifyStore}
+                    disabled={verifyingStore}
+                    className="w-full bg-red-600 hover:bg-red-700 sm:w-auto"
+                  >
+                    {verifyingStore ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {t('store.onchain.verifying', { defaultValue: 'Verificando...' })}
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="mr-2 h-4 w-4" />
+                        {t('store.onchain.verifyMetadata', { defaultValue: 'Reancorar Metadados' })}
+                      </>
+                    )}
+                  </Button>
                 )}
-              </Button>
+              </div>
             </CardContent>
           </Card>
         )}
@@ -1354,6 +1358,99 @@ export default function SellerSetupPage() {
                   })}
                 </p>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {onChainStoreId && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Info className="h-5 w-5" />
+                {t('seller.onchain.diagnosticTitle', { defaultValue: 'Diagnóstico On-Chain' })}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Store ID</Label>
+                  <p className="font-mono">{onChainStoreId}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">
+                    {t('seller.onchain.version', { defaultValue: 'Versão' })}
+                  </Label>
+                  <p className="font-mono">{onChainStore?.version || 1}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Status</Label>
+                  <SyncBadge status={syncStatus} />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">
+                    {t('seller.onchain.lastBlock', { defaultValue: 'Último Bloco' })}
+                  </Label>
+                  <p className="font-mono">{lastSyncBlock?.toString() || 'N/A'}</p>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">
+                  {t('seller.onchain.anchoredCids', { defaultValue: 'CIDs Ancorados' })}
+                </Label>
+                <div className="space-y-1 text-xs font-mono">
+                  <div>
+                    <span className="text-muted-foreground">store:</span> {metadataCid || 'N/A'}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">categories:</span> {categoriesCid || 'N/A'}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">products:</span> {productsCid || 'N/A'}
+                  </div>
+                </div>
+              </div>
+
+              {syncStatus === 'DIVERGED' && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    {t('seller.onchain.divergedWarning', {
+                      defaultValue: 'Hash divergente detectado. Conteúdo do IPFS não corresponde ao hash ancorado no NFT.',
+                    })}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2"
+                      onClick={handleReancorar}
+                    >
+                      {t('seller.onchain.reanchor', { defaultValue: 'Reancorar Metadados' })}
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => metadataCid && window.open(`https://ipfs.io/ipfs/${metadataCid}`, '_blank')}
+                  disabled={!metadataCid}
+                >
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  {t('seller.onchain.viewIpfs', { defaultValue: 'Ver no IPFS' })}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => storeIdentifier && sellerApi.verifyStore(storeIdentifier)}
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  {t('seller.onchain.verifyHashes', { defaultValue: 'Verificar Hashes' })}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}
