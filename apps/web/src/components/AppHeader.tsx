@@ -10,7 +10,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./ui
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { CreatePostButton } from "./social/CreatePostButton";
-// import { UserMenu } from "./UserMenu";   // placeholder futuro
+import { UserMenu } from "./UserMenu";
 // import { WalletMenu } from "./WalletMenu"; // placeholder futuro
 // import { Search } from "lucide-react"; // placeholder futuro
 
@@ -130,12 +130,12 @@ export function AppHeader() {
           {/* Ações internas */}
           <div className="flex items-center gap-4">
             <div className="hidden md:flex items-center gap-3">
-              {/* Futuramente adicionar: Search, Notifications, UserMenu, Wallet */}
+              {/* Futuramente adicionar: Search, Notifications, Wallet */}
               <CreatePostButton />
               <ApiHealth />
               <LanguageSwitcher />
               <ThemeSwitcher />
-              {/* <UserMenu /> */}
+              <UserMenu />
               {/* <WalletMenu /> */}
             </div>
           </div>
