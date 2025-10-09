@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { apiHelpers } from '../lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
+import { CreatePostModal } from '../components/social/CreatePostModal';
 
 type MeProfile = {
   handle: string;
@@ -19,6 +20,7 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<MeProfile | null>(null);
   const [sellers, setSellers] = useState<Array<{ shopSlug: string; shopName: string }>>([]);
+  const [createPostOpen, setCreatePostOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -82,6 +84,35 @@ export default function DashboardPage() {
           <Button variant="secondary" onClick={() => navigate('/app/profile/edit')}>Editar Perfil</Button>
         </div>
       </header>
+
+      {/* Quick Post */}
+      {profile && (
+        <Card className="mb-6">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              {profile?.avatarUrl ? (
+                <img
+                  src={profile.avatarUrl}
+                  alt={profile.displayName}
+                  className="h-10 w-10 rounded-full object-cover"
+                />
+              ) : (
+                <div className="h-10 w-10 rounded-full bg-muted" />
+              )}
+
+              <Button
+                variant="outline"
+                className="flex-1 justify-start text-muted-foreground"
+                onClick={() => setCreatePostOpen(true)}
+              >
+                O que você está pensando?
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <CreatePostModal open={createPostOpen} onOpenChange={setCreatePostOpen} />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <ModuleCard title="Perfil" description="Gerencie suas informações públicas" actionText="Abrir" to={profile?.handle ? `/u/${profile.handle}` : '/app/profile/edit'} />
