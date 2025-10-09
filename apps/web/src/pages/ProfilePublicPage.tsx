@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { API_BASE_URL } from '@/config';
 import { ReputationBadge } from '@/components/profile/ReputationBadge';
 import { BadgesList } from '@/components/profile/BadgesList';
+import { PostCard } from '@/components/social/PostCard';
 
 type PublicProfile = {
   profile: {
@@ -222,12 +223,23 @@ export default function ProfilePublicPage() {
       {tab === 'posts' && (
         <div className="space-y-3">
           {posts.map((post) => (
-            <Card key={post.id}>
-              <CardContent className="py-4">
-                <p className="whitespace-pre-wrap">{post.content}</p>
-                <div className="mt-2 text-xs text-muted-foreground">{new Date(post.createdAt).toLocaleString()}</div>
-              </CardContent>
-            </Card>
+            <PostCard
+              key={post.id}
+              post={{
+                id: post.id,
+                author: {
+                  handle: data?.profile.handle || handle,
+                  displayName: data?.profile.displayName || handle,
+                  avatarUrl: data?.profile.avatarUrl,
+                },
+                content: post.content,
+                media: post.media,
+                createdAt: post.createdAt,
+                likesCount: post.likesCount,
+                commentsCount: post.commentsCount,
+                repostsCount: post.repostsCount,
+              }}
+            />
           ))}
           {nextCursor ? (
             <Button variant="outline" onClick={loadMore}>{t('profile.seeMore')}</Button>
