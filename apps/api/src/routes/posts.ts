@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { authOnRequest } from '../lib/auth/middleware.js';
+import { createNotification } from '../lib/notifications.js';
 import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
@@ -181,12 +182,20 @@ export async function postsRoutes(app: FastifyInstance, options: { prisma: Prism
     const meProfile = await prisma.profile.findUnique({ where: { userId: authUser.sub }, select: { id: true } });
     if (!meProfile) return reply.status(400).send({ error: 'Perfil do usuário não encontrado' });
 
-    // Verificar se post existe
-    const post = await prisma.post.findUnique({ where: { id }, select: { id: true, status: true } });
+    // Verificar se post existe e buscar autor
+    const post = await prisma.post.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        status: true,
+        author: { select: { userId: true } }
+      }
+    });
     if (!post) return reply.status(404).send({ error: 'Post não encontrado' });
     if (post.status !== 'PUBLISHED') return reply.status(400).send({ error: 'Post não está publicado' });
 
     // Criar like (idempotente via unique constraint)
+    let likeCreated = false;
     try {
       await prisma.postLike.create({
         data: {
@@ -194,6 +203,7 @@ export async function postsRoutes(app: FastifyInstance, options: { prisma: Prism
           profileId: meProfile.id,
         },
       });
+      likeCreated = true;
     } catch (error: any) {
       // Se já existe, retornar sucesso (idempotente)
       if (error.code === 'P2002') {
@@ -202,6 +212,16 @@ export async function postsRoutes(app: FastifyInstance, options: { prisma: Prism
         return reply.send({ liked: true, likesCount });
       }
       throw error;
+    }
+
+    // Criar notificação se like foi criado
+    if (likeCreated) {
+      await createNotification(prisma, {
+        userId: post.author.userId,
+        type: 'LIKE',
+        actorId: meProfile.id,
+        targetId: post.id
+      });
     }
 
     // Contar likes
@@ -337,8 +357,16 @@ export async function postsRoutes(app: FastifyInstance, options: { prisma: Prism
     const meProfile = await prisma.profile.findUnique({ where: { userId: authUser.sub }, select: { id: true } });
     if (!meProfile) return reply.status(400).send({ error: 'Perfil do usuário não encontrado' });
 
-    // Verificar se post existe e está publicado
-    const post = await prisma.post.findUnique({ where: { id }, select: { id: true, status: true, authorId: true } });
+    // Verificar se post existe e está publicado, buscar userId do autor
+    const post = await prisma.post.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        status: true,
+        authorId: true,
+        author: { select: { userId: true } }
+      }
+    });
     if (!post) return reply.status(404).send({ error: 'Post não encontrado' });
     if (post.status !== 'PUBLISHED') return reply.status(400).send({ error: 'Post não está publicado' });
 
@@ -369,6 +397,15 @@ export async function postsRoutes(app: FastifyInstance, options: { prisma: Prism
           },
         },
       },
+    });
+
+    // Criar notificação
+    await createNotification(prisma, {
+      userId: post.author.userId,
+      type: 'COMMENT',
+      actorId: meProfile.id,
+      targetId: post.id,
+      metadata: { commentId: comment.id }
     });
 
     app.log.info({ event: 'post.comment', postId: id, commentId: comment.id, profileId: meProfile.id });
