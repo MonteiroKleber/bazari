@@ -319,6 +319,13 @@ export const apiHelpers = {
   createPostComment: (postId: string, data: { content: string; parentId?: string }) =>
     postJSON(`/posts/${postId}/comments`, data),
 
+  // Notificações
+  getNotifications: (params?: { limit?: number; cursor?: string; unreadOnly?: boolean }) => {
+    const qs = params ? '?' + new URLSearchParams(params as any).toString() : '';
+    return getJSON(`/notifications${qs}`);
+  },
+  markAllNotificationsRead: () => postJSON('/notifications/mark-all-read', {}),
+
   // Reputação e Badges
   getProfileReputation: (handle: string) => {
     return getJSON(`/profiles/${encodeURIComponent(handle)}/reputation`);
