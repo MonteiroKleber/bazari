@@ -312,6 +312,12 @@ export const apiHelpers = {
   // Post interactions
   likePost: (postId: string) => postJSON(`/posts/${postId}/like`, {}),
   unlikePost: (postId: string) => deleteJSON(`/posts/${postId}/like`),
+  getPostComments: (postId: string, params?: { limit?: number; cursor?: string }) => {
+    const qs = params ? '?' + new URLSearchParams(params as any).toString() : '';
+    return getJSON(`/posts/${postId}/comments${qs}`);
+  },
+  createPostComment: (postId: string, data: { content: string; parentId?: string }) =>
+    postJSON(`/posts/${postId}/comments`, data),
 
   // Reputação e Badges
   getProfileReputation: (handle: string) => {
