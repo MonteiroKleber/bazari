@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { CreatePostButton } from "./social/CreatePostButton";
 import { UserMenu } from "./UserMenu";
 import { GlobalSearchBar } from "./GlobalSearchBar";
+import { NotificationCenter } from "./NotificationCenter";
 // import { WalletMenu } from "./WalletMenu"; // placeholder futuro
 
 /**
@@ -140,6 +141,7 @@ export function AppHeader() {
               <ApiHealth />
               <LanguageSwitcher />
               <ThemeSwitcher />
+              <NotificationCenter />
               <UserMenu />
               {/* <WalletMenu /> */}
             </div>
