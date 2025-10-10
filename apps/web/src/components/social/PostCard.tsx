@@ -7,6 +7,8 @@ import { MessageCircle, Repeat2, MoreHorizontal } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { LikeButton } from './LikeButton';
+import { ProfileHoverCard } from './ProfileHoverCard';
+import { BadgeIcon } from './BadgeIcon';
 
 interface PostCardProps {
   post: {
@@ -15,6 +17,7 @@ interface PostCardProps {
       handle: string;
       displayName: string;
       avatarUrl?: string | null;
+      badges?: Array<{ slug: string; name: string; description: string; tier: number }>;
     };
     content: string;
     media?: Array<{ url: string; type: string }>;
@@ -52,18 +55,31 @@ export function PostCard({ post }: PostCardProps) {
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <Link
-                to={`/u/${post.author.handle}`}
-                className="font-semibold hover:underline"
-              >
-                {post.author.displayName}
-              </Link>
-              <Link
-                to={`/u/${post.author.handle}`}
-                className="text-sm text-muted-foreground hover:underline"
-              >
-                @{post.author.handle}
-              </Link>
+              <ProfileHoverCard handle={post.author.handle}>
+                <Link
+                  to={`/u/${post.author.handle}`}
+                  className="font-semibold hover:underline"
+                >
+                  {post.author.displayName}
+                </Link>
+              </ProfileHoverCard>
+
+              {/* Badge VERIFIED ao lado do nome */}
+              {post.author.badges?.find(b => b.slug === 'VERIFIED') && (
+                <BadgeIcon
+                  badge={post.author.badges.find(b => b.slug === 'VERIFIED')!}
+                  size="sm"
+                />
+              )}
+
+              <ProfileHoverCard handle={post.author.handle}>
+                <Link
+                  to={`/u/${post.author.handle}`}
+                  className="text-sm text-muted-foreground hover:underline"
+                >
+                  @{post.author.handle}
+                </Link>
+              </ProfileHoverCard>
               <span className="text-sm text-muted-foreground">·</span>
               <span className="text-sm text-muted-foreground">
                 {timeAgo}

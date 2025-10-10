@@ -10,6 +10,7 @@ import { API_BASE_URL } from '@/config';
 import { ReputationBadge } from '@/components/profile/ReputationBadge';
 import { BadgesList } from '@/components/profile/BadgesList';
 import { PostCard } from '@/components/social/PostCard';
+import { ReputationChart } from '@/components/social/ReputationChart';
 
 type PublicProfile = {
   profile: {
@@ -44,7 +45,7 @@ export default function ProfilePublicPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<PublicProfile | null>(null);
-  const [tab, setTab] = useState<'posts' | 'store' | 'subdaos' | 'followers' | 'following'>('posts');
+  const [tab, setTab] = useState<'posts' | 'store' | 'subdaos' | 'followers' | 'following' | 'reputation'>('posts');
   const [posts, setPosts] = useState<any[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -208,9 +209,10 @@ export default function ProfilePublicPage() {
 
       {/* Tabs */}
       <div className="flex gap-3 border-b border-border mb-4">
-        {(['posts','store','subdaos','followers','following'] as const).map((tabKey) => (
+        {(['posts','reputation','store','subdaos','followers','following'] as const).map((tabKey) => (
           <button key={tabKey} className={`px-3 py-2 -mb-px border-b-2 ${tab===tabKey? 'border-primary text-foreground':'border-transparent text-muted-foreground'}`} onClick={() => setTab(tabKey)}>
             {tabKey === 'posts' && t('profile.posts')}
+            {tabKey === 'reputation' && 'Reputação'}
             {tabKey === 'store' && t('profile.store')}
             {tabKey === 'subdaos' && t('profile.subdaos')}
             {tabKey === 'followers' && t('profile.followers')}
@@ -247,6 +249,10 @@ export default function ProfilePublicPage() {
             <div className="text-muted-foreground">{t('profile.noPosts')}</div>
           ) : null}
         </div>
+      )}
+
+      {tab === 'reputation' && data?.profile.handle && (
+        <ReputationChart handle={data.profile.handle} />
       )}
 
       {tab === 'store' && (

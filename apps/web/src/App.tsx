@@ -38,6 +38,9 @@ import { hasEncryptedSeed, isSessionActive } from '@/modules/auth';
 import DashboardPage from './pages/DashboardPage';
 import ProfileEditPage from './pages/ProfileEditPage';
 import ProfilePublicPage from './pages/ProfilePublicPage';
+import DiscoverPeoplePage from './pages/DiscoverPeoplePage';
+import DiscoverTrendingPage from './pages/DiscoverTrendingPage';
+import AnalyticsDashboard from './pages/AnalyticsDashboard';
 import SellerSetupPage from './pages/SellerSetupPage';
 import SellerPublicPage from './pages/SellerPublicPage';
 import SellerManagePage from './pages/SellerManagePage';
@@ -49,6 +52,10 @@ import P2POrderRoomPage from './modules/p2p/pages/P2POrderRoomPage';
 import P2PMyOrdersPage from './modules/p2p/pages/P2PMyOrdersPage';
 import StorePublicPage from './pages/StorePublicPage';
 import MarketplacePage from './pages/MarketplacePage';
+import { InstallPrompt } from './components/pwa/InstallPrompt';
+import { UpdatePrompt } from './components/pwa/UpdatePrompt';
+import { OfflineIndicator } from './components/pwa/OfflineIndicator';
+import { MobileBottomNav } from './components/MobileBottomNav';
 import { FEATURE_FLAGS } from './config';
 
 function LandingPage() {
@@ -206,6 +213,10 @@ function App() {
           <Toaster position="top-right" richColors />
           <SessionBoundary />
           <PinProvider />
+          <OfflineIndicator />
+          <UpdatePrompt />
+          <InstallPrompt />
+          <MobileBottomNav />
           <Routes>
             <Route
               path="/app/wallet/*"
@@ -243,6 +254,9 @@ function App() {
                       <Route index element={<DashboardPage />} />
                       <Route path="dashboard" element={<DashboardPage />} />
                       <Route path="profile/edit" element={<ProfileEditPage />} />
+                      <Route path="discover/people" element={<DiscoverPeoplePage />} />
+                      <Route path="discover/trending" element={<DiscoverTrendingPage />} />
+                      <Route path="analytics" element={<AnalyticsDashboard />} />
                       <Route path="seller/setup" element={<SellerSetupPage />} />
                       <Route path="sellers" element={<SellersListPage />} />
                       <Route path="sellers/:shopSlug" element={<SellerManagePage />} />
