@@ -1,9 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { apiHelpers } from '../lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { CreatePostModal } from '../components/social/CreatePostModal';
+import { PersonalizedFeed } from '../components/social/PersonalizedFeed';
+import { WhoToFollow } from '../components/social/WhoToFollow';
+import { TrendingTopics } from '../components/social/TrendingTopics';
+import { usePullToRefresh } from '../hooks/usePullToRefresh';
+import { PullToRefreshIndicator } from '../components/mobile/PullToRefreshIndicator';
 
 type MeProfile = {
   handle: string;
@@ -21,46 +26,61 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState<MeProfile | null>(null);
   const [sellers, setSellers] = useState<Array<{ shopSlug: string; shopName: string }>>([]);
   const [createPostOpen, setCreatePostOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  useEffect(() => {
+  const loadData = useCallback(async () => {
     let active = true;
     setLoading(true);
     setError(null);
-    (async () => {
-      try {
-        const res = await apiHelpers.getMeProfile();
-        if (active) {
-          setProfile(res.profile ?? null);
-        }
-      } catch (e: any) {
-        if (active) {
-          // 404 → ainda não tem perfil (onboarding opcional)
-          setProfile(null);
-        }
+    try {
+      const res = await apiHelpers.getMeProfile();
+      if (active) {
+        setProfile(res.profile ?? null);
       }
+    } catch (e: any) {
+      if (active) {
+        // 404 → ainda não tem perfil (onboarding opcional)
+        setProfile(null);
+      }
+    }
 
-      try {
-        const resStores = await (await import('@/modules/seller/api')).sellerApi.listMyStores();
-        if (!active) return;
-        const list = resStores?.items || [];
-        setSellers(list.map((s: any) => ({ shopSlug: s.shopSlug, shopName: s.shopName })));
-      } catch (e) {
-        if (active) {
-          setError((e as Error).message);
-        }
-      } finally {
-        if (active) setLoading(false);
+    try {
+      const resStores = await (await import('@/modules/seller/api')).sellerApi.listMyStores();
+      if (!active) return;
+      const list = resStores?.items || [];
+      setSellers(list.map((s: any) => ({ shopSlug: s.shopSlug, shopName: s.shopName })));
+    } catch (e) {
+      if (active) {
+        setError((e as Error).message);
       }
-    })();
+    } finally {
+      if (active) setLoading(false);
+    }
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleRefresh = useCallback(async () => {
+    await loadData();
+    setRefreshKey((prev) => prev + 1);
+  }, [loadData]);
+
+  const { isRefreshing, pullDistance } = usePullToRefresh({
+    onRefresh: handleRefresh,
+    threshold: 80,
+  });
 
   const handleGoToPublicProfile = () => {
     if (profile?.handle) navigate(`/u/${profile.handle}`);
   };
 
   return (
-    <section className="container mx-auto px-4 py-8">
+    <>
+      <PullToRefreshIndicator isRefreshing={isRefreshing} pullDistance={pullDistance} />
+      <section className="container mx-auto px-4 py-8 mobile-safe-bottom">
       <header className="mb-6 flex items-center gap-4">
         {profile?.avatarUrl ? (
           <img src={profile.avatarUrl} alt={profile.displayName} className="h-14 w-14 rounded-full object-cover" />
@@ -114,8 +134,25 @@ export default function DashboardPage() {
 
       <CreatePostModal open={createPostOpen} onOpenChange={setCreatePostOpen} />
 
+      {/* Main Content with Sidebar */}
+      {profile && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* Feed Section - 2 columns */}
+          <div className="lg:col-span-2">
+            <PersonalizedFeed />
+          </div>
+
+          {/* Sidebar - 1 column */}
+          <div className="space-y-6">
+            <WhoToFollow />
+            <TrendingTopics />
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <ModuleCard title="Perfil" description="Gerencie suas informações públicas" actionText="Abrir" to={profile?.handle ? `/u/${profile.handle}` : '/app/profile/edit'} />
+        <ModuleCard title="Analytics" description="Veja suas métricas e estatísticas" actionText="Ver Dados" to="/app/analytics" />
         <ModuleCard title="Wallet" description="Acesse sua carteira e tokens" actionText="Abrir" to="/app/wallet" />
         <ModuleCard title="Marketplace" description="Anuncie e compre produtos e serviços" actionText="Procurar" to="/search" />
         <ModuleCard
@@ -128,6 +165,7 @@ export default function DashboardPage() {
         <ModuleCard title="Em Breve" description="DAO, SubDAOs, DEX e mais funcionalidades estão chegando" actionText="Ver Roadmap" to="/" disabled />
       </div>
     </section>
+    </>
   );
 }
 

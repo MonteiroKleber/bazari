@@ -160,4 +160,58 @@
   .animation-delay-4000 {
     animation-delay: 4s;
   }
+
+  /* Mobile-specific utilities */
+  @media (max-width: 768px) {
+    /* Add padding bottom for mobile bottom nav */
+    .mobile-safe-bottom {
+      padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+    }
+
+    /* Optimize touch targets */
+    .touch-target {
+      min-height: 44px;
+      min-width: 44px;
+    }
+
+    /* Prevent text selection on tap */
+    .no-tap-highlight {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    /* Hide scrollbar on mobile */
+    .hide-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    .hide-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  /* Smooth scrolling for mobile */
+  @supports (-webkit-overflow-scrolling: touch) {
+    .smooth-scroll {
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+
+  /* Safe area insets for notch support */
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-left {
+    padding-left: env(safe-area-inset-left);
+  }
+
+  .safe-right {
+    padding-right: env(safe-area-inset-right);
+  }
 }

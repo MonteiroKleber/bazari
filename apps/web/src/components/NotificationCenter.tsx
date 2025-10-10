@@ -14,6 +14,9 @@ import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
 import { Badge } from './ui/badge';
+import { ProfileHoverCard } from './social/ProfileHoverCard';
+import { NotificationSkeleton } from './NotificationSkeleton';
+import { SkeletonList } from './SkeletonList';
 
 export function NotificationCenter() {
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -85,9 +88,7 @@ export function NotificationCenter() {
 
         <div className="max-h-[400px] overflow-y-auto">
           {loading ? (
-            <div className="p-4 text-center text-sm text-muted-foreground">
-              Carregando...
-            </div>
+            <SkeletonList count={5} SkeletonComponent={NotificationSkeleton} />
           ) : notifications.length === 0 ? (
             <div className="p-4 text-center text-sm text-muted-foreground">
               Nenhuma notificação
@@ -157,7 +158,11 @@ function NotificationItem({ notification }: { notification: any }) {
         <div className="flex-1 min-w-0">
           <div className="text-sm">
             {notification.actor && (
-              <span className="font-semibold">{notification.actor.displayName}</span>
+              <ProfileHoverCard handle={notification.actor.handle}>
+                <span className="font-semibold cursor-pointer hover:underline">
+                  {notification.actor.displayName}
+                </span>
+              </ProfileHoverCard>
             )}{' '}
             {message}
           </div>

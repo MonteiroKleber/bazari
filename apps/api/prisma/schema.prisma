@@ -163,6 +163,25 @@ model User {
 
   // Notificações
   notifications Notification[]
+
+  // Interações (para feed algorítmico)
+  interactions UserInteraction[]
+
+  // Achievements
+  achievements UserAchievement[]
+
+  // Quests
+  quests UserQuest[]
+
+  // Reports
+  reportsCreated ContentReport[] @relation("reporter")
+  reportsReviewed ContentReport[] @relation("reviewer")
+
+  // Block & Mute
+  blocking UserBlock[] @relation("blocker")
+  blockedBy UserBlock[] @relation("blocked")
+  muting UserMute[] @relation("muter")
+  mutedBy UserMute[] @relation("muted")
 }
 
 model AuthNonce {
@@ -231,6 +250,7 @@ enum NotificationType {
   MENTION
   BADGE
   REPUTATION
+  ACHIEVEMENT_UNLOCKED
 }
 
 model Order {
@@ -703,3 +723,164 @@ model StoreSnapshot {
   @@index([storeId])
   @@index([cachedAt])
 }
+
+// User Interactions for Feed Algorithm
+model UserInteraction {
+  id              String   @id @default(cuid())
+  userId          String
+  targetType      String   // POST, PROFILE, PRODUCT
+  targetId        String
+  interactionType String   // VIEW, LIKE, COMMENT, SHARE
+  weight          Float    @default(1.0)
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([targetType, targetId])
+  @@index([userId, targetType])
+}
+
+model TrendingTopic {
+  id        String   @id @default(cuid())
+  tag       String   @unique
+  count     Int      @default(0)
+  score     Float    @default(0)
+  growthRate Float?  // Taxa de crescimento vs período anterior
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([score(sort: Desc), updatedAt])
+  @@index([updatedAt])
+}
+
+model Achievement {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String   @db.Text
+  category    String   // SOCIAL, ENGAGEMENT, CONTENT, STREAK
+  tier        Int      @default(1) // 1-5 (Bronze to Diamond)
+  requirement Json     // { type: "POST_COUNT", value: 1 }
+  icon        String?  // Emoji ou URL
+  createdAt   DateTime @default(now())
+
+  userAchievements UserAchievement[]
+
+  @@index([category, tier])
+}
+
+model UserAchievement {
+  id            String    @id @default(cuid())
+  userId        String
+  achievementId String
+  progress      Int       @default(0) // Progresso atual
+  unlockedAt    DateTime? // null = ainda bloqueado
+  createdAt     DateTime  @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@index([userId, unlockedAt])
+  @@index([achievementId])
+}
+
+model Quest {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String   @db.Text
+  type        String   // POST, LIKE, COMMENT, FOLLOW
+  target      Int      // Quantidade necessária
+  reward      Int      // Pontos de reward
+  icon        String?
+  createdAt   DateTime @default(now())
+
+  userQuests UserQuest[]
+
+  @@index([type])
+}
+
+model UserQuest {
+  id          String    @id @default(cuid())
+  userId      String
+  questId     String
+  progress    Int       @default(0)
+  completedAt DateTime? // null = não completado
+  claimedAt   DateTime? // null = reward não reivindicado
+  date        String    // YYYY-MM-DD para track diário
+  createdAt   DateTime  @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quest Quest @relation(fields: [questId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questId, date])
+  @@index([userId, date])
+  @@index([questId, date])
+}
+
+enum ReportReason {
+  SPAM
+  HARASSMENT
+  INAPPROPRIATE
+  MISINFORMATION
+  VIOLENCE
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  RESOLVED
+  DISMISSED
+}
+
+model ContentReport {
+  id          String       @id @default(cuid())
+  reporterId  String
+  contentType String       // POST, COMMENT, PROFILE
+  contentId   String
+  reason      ReportReason
+  details     String?      @db.Text
+  status      ReportStatus @default(PENDING)
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  createdAt   DateTime     @default(now())
+
+  reporter User  @relation("reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reviewer User? @relation("reviewer", fields: [reviewedBy], references: [id])
+
+  @@index([status, createdAt])
+  @@index([contentType, contentId])
+  @@index([reporterId])
+}
+
+model UserBlock {
+  id            String   @id @default(cuid())
+  userId        String
+  blockedUserId String
+  createdAt     DateTime @default(now())
+
+  user        User @relation("blocker", fields: [userId], references: [id], onDelete: Cascade)
+  blockedUser User @relation("blocked", fields: [blockedUserId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, blockedUserId])
+  @@index([userId])
+  @@index([blockedUserId])
+}
+
+model UserMute {
+  id           String   @id @default(cuid())
+  userId       String
+  mutedUserId  String
+  createdAt    DateTime @default(now())
+
+  user      User @relation("muter", fields: [userId], references: [id], onDelete: Cascade)
+  mutedUser User @relation("muted", fields: [mutedUserId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mutedUserId])
+  @@index([userId])
+  @@index([mutedUserId])
+}
+

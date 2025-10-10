@@ -395,6 +395,97 @@ export async function profilesRoutes(app: FastifyInstance, options: { prisma: Pr
       return reply.send({ badges });
     }
   );
+
+  // GET /profiles/:handle/reputation/history — histórico de reputação
+  app.get<{ Params: { handle: string } }>('/profiles/:handle/reputation/history',
+    async (request, reply) => {
+      const { handle } = request.params;
+
+      const profile = await prisma.profile.findUnique({
+        where: { handle },
+        select: {
+          reputationScore: true,
+          reputationTier: true
+        }
+      });
+
+      if (!profile) {
+        return reply.status(404).send({ error: 'Profile not found' });
+      }
+
+      // Buscar eventos dos últimos 30 dias
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const events = await prisma.profileReputationEvent.findMany({
+        where: {
+          profile: { handle },
+          createdAt: { gte: thirtyDaysAgo }
+        },
+        orderBy: { createdAt: 'asc' },
+        select: {
+          createdAt: true,
+          scoreDelta: true
+        }
+      });
+
+      // Calcular score acumulado por dia
+      const currentScore = profile.reputationScore;
+      const history: { date: string; score: number }[] = [];
+
+      // Reconstruir histórico (começar do score atual e subtrair deltas)
+      const eventsByDay = new Map<string, number>();
+      events.reverse().forEach(event => {
+        const date = event.createdAt.toISOString().split('T')[0];
+        eventsByDay.set(date, (eventsByDay.get(date) || 0) + event.scoreDelta);
+      });
+
+      // Criar array dos últimos 30 dias
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+
+        // Subtrair eventos deste dia e dias futuros
+        let scoreAtDate = currentScore;
+        eventsByDay.forEach((delta, eventDate) => {
+          if (eventDate > dateStr) {
+            scoreAtDate -= delta;
+          }
+        });
+
+        history.push({
+          date: dateStr,
+          score: Math.max(0, scoreAtDate)
+        });
+      }
+
+      // Calcular variações
+      const score7dAgo = history[history.length - 7]?.score || currentScore;
+      const change7d = currentScore - score7dAgo;
+      const change30d = currentScore - (history[0]?.score || currentScore);
+
+      // Calcular progresso para próximo tier
+      const tierThresholds = [0, 100, 300, 600, 1000];
+      const nextTierIndex = tierThresholds.findIndex(t => t > currentScore);
+      const nextTier = nextTierIndex > 0 ? tierThresholds[nextTierIndex] : 1000;
+      const prevTier = nextTierIndex > 0 ? tierThresholds[nextTierIndex - 1] : 0;
+      const progressToNext = (currentScore - prevTier) / (nextTier - prevTier);
+
+      return reply.send({
+        current: {
+          score: currentScore,
+          tier: profile.reputationTier,
+          nextTier: nextTierIndex < tierThresholds.length ?
+            ['NOVICE', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM'][nextTierIndex] : 'PLATINUM',
+          progressToNext: Math.min(1, Math.max(0, progressToNext))
+        },
+        history,
+        change7d,
+        change30d
+      });
+    }
+  );
 }
 
 export default profilesRoutes;

@@ -41,6 +41,13 @@ import { p2pMessagesRoutes } from './routes/p2p.messages.js';
 import { storePublishRoutes } from './routes/storePublish.js';
 import { marketplaceRoutes } from './routes/marketplace.js';
 import { notificationsRoutes } from './routes/notifications.js';
+import { feedRoutes } from './routes/feed.js';
+import { achievementsRoutes } from './routes/achievements.js';
+import { questsRoutes } from './routes/quests.js';
+import { leaderboardsRoutes } from './routes/leaderboards.js';
+import { reportsRoutes } from './routes/reports.js';
+import { userActionsRoutes } from './routes/userActions.js';
+import { analyticsRoutes } from './routes/analytics.js';
 
 const prisma = new PrismaClient();
 
@@ -101,6 +108,13 @@ async function buildApp() {
   await app.register(p2pMessagesRoutes, { prefix: '/', prisma });
   await app.register(marketplaceRoutes, { prefix: '/' });
   await app.register(notificationsRoutes, { prefix: '/', prisma });
+  await app.register(feedRoutes, { prefix: '/', prisma });
+  await app.register(achievementsRoutes, { prefix: '/', prisma });
+  await app.register(questsRoutes, { prefix: '/', prisma });
+  await app.register(leaderboardsRoutes, { prefix: '/', prisma });
+  await app.register(reportsRoutes, { prefix: '/', prisma });
+  await app.register(userActionsRoutes, { prefix: '/', prisma });
+  await app.register(analyticsRoutes, { prefix: '/', prisma });
   // Também expor com prefixo /api para compatibilidade com o front
   await app.register(healthRoutes, { prefix: '/api', prisma });
   await app.register(mediaRoutes, { prefix: '/api', prisma, storage });
@@ -124,6 +138,13 @@ async function buildApp() {
   await app.register(p2pMessagesRoutes, { prefix: '/api', prisma });
   await app.register(marketplaceRoutes, { prefix: '/api' });
   await app.register(notificationsRoutes, { prefix: '/api', prisma });
+  await app.register(feedRoutes, { prefix: '/api', prisma });
+  await app.register(achievementsRoutes, { prefix: '/api', prisma });
+  await app.register(questsRoutes, { prefix: '/api', prisma });
+  await app.register(leaderboardsRoutes, { prefix: '/api', prisma });
+  await app.register(reportsRoutes, { prefix: '/api', prisma });
+  await app.register(userActionsRoutes, { prefix: '/api', prisma });
+  await app.register(analyticsRoutes, { prefix: '/api', prisma });
 
   // Error handler (dev): log detalhado para diagnosticar 500
   if (process.env.NODE_ENV !== 'production') {

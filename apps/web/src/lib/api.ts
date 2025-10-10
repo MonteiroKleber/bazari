@@ -264,6 +264,7 @@ export const apiHelpers = {
 
   // Profiles (public)
   getPublicProfile: (handle: string) => getJSON(`/profiles/${encodeURIComponent(handle)}`),
+  getProfile: (handle: string) => getJSON(`/profiles/${encodeURIComponent(handle)}`),
   getProfilePosts: (handle: string, params?: any) => {
     const qs = params ? '?' + new URLSearchParams(params).toString() : '';
     return getJSON(`/profiles/${encodeURIComponent(handle)}/posts${qs}`);
@@ -292,6 +293,8 @@ export const apiHelpers = {
   },
   follow: (targetHandle: string) => postJSON('/social/follow', { targetHandle }),
   unfollow: (targetHandle: string) => postJSON('/social/unfollow', { targetHandle }),
+  followUser: (handle: string) => postJSON('/social/follow', { targetHandle: handle }),
+  unfollowUser: (handle: string) => postJSON('/social/unfollow', { targetHandle: handle }),
   createPost: (payload: any) => postJSON('/posts', payload),
   deletePost: (id: string) => deleteJSON(`/posts/${id}`),
 
@@ -333,6 +336,8 @@ export const apiHelpers = {
   getProfileBadges: (handle: string) => {
     return getJSON(`/profiles/${encodeURIComponent(handle)}/badges`);
   },
+  getReputationHistory: (handle: string) =>
+    getJSON(`/profiles/${encodeURIComponent(handle)}/reputation/history`),
 };
 
 // Exportar tipos e constantes

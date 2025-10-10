@@ -8,6 +8,8 @@ import { apiHelpers } from '@/lib/api';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { CommentSkeleton } from './CommentSkeleton';
+import { SkeletonList } from '../SkeletonList';
 
 interface Author {
   handle: string;
@@ -53,14 +55,14 @@ function CommentItem({ comment }: { comment: Comment }) {
           <div className="flex items-center gap-2 mb-1">
             <span className="font-medium text-sm">{comment.author.displayName}</span>
             <span className="text-xs text-muted-foreground">@{comment.author.handle}</span>
-            <span className="text-xs text-muted-foreground">·</span>
+            <span className="text-xs text-muted-foreground">ï¿½</span>
             <span className="text-xs text-muted-foreground">{timeAgo}</span>
           </div>
           <p className="text-sm whitespace-pre-wrap break-words">{comment.content}</p>
         </div>
       </div>
 
-      {/* Respostas com indentação */}
+      {/* Respostas com indentaï¿½ï¿½o */}
       {comment.replies && comment.replies.length > 0 && (
         <div className="ml-11 space-y-3 border-l-2 border-muted pl-4">
           {comment.replies.map((reply) => (
@@ -81,7 +83,7 @@ function CommentItem({ comment }: { comment: Comment }) {
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-medium text-sm">{reply.author.displayName}</span>
                   <span className="text-xs text-muted-foreground">@{reply.author.handle}</span>
-                  <span className="text-xs text-muted-foreground">·</span>
+                  <span className="text-xs text-muted-foreground">ï¿½</span>
                   <span className="text-xs text-muted-foreground">
                     {formatDistanceToNow(new Date(reply.createdAt), {
                       addSuffix: true,
@@ -116,7 +118,7 @@ export function CommentSection({ postId }: CommentSectionProps) {
       setComments(response.items || []);
     } catch (error) {
       console.error('Error loading comments:', error);
-      toast.error('Erro ao carregar comentários');
+      toast.error('Erro ao carregar comentï¿½rios');
     } finally {
       setLoading(false);
     }
@@ -126,12 +128,12 @@ export function CommentSection({ postId }: CommentSectionProps) {
     e.preventDefault();
 
     if (!content.trim()) {
-      toast.error('Digite um comentário');
+      toast.error('Digite um comentï¿½rio');
       return;
     }
 
     if (content.length > 1000) {
-      toast.error('Comentário muito longo (máx 1000 caracteres)');
+      toast.error('Comentï¿½rio muito longo (mï¿½x 1000 caracteres)');
       return;
     }
 
@@ -141,13 +143,13 @@ export function CommentSection({ postId }: CommentSectionProps) {
         content: content.trim(),
       });
 
-      // Adicionar novo comentário no topo
+      // Adicionar novo comentï¿½rio no topo
       setComments([response.comment, ...comments]);
       setContent('');
-      toast.success('Comentário publicado!');
+      toast.success('Comentï¿½rio publicado!');
     } catch (error) {
       console.error('Error creating comment:', error);
-      toast.error('Erro ao publicar comentário');
+      toast.error('Erro ao publicar comentï¿½rio');
     } finally {
       setSubmitting(false);
     }
@@ -155,10 +157,10 @@ export function CommentSection({ postId }: CommentSectionProps) {
 
   return (
     <div className="space-y-4">
-      {/* Formulário de comentário */}
+      {/* Formulï¿½rio de comentï¿½rio */}
       <form onSubmit={handleSubmit} className="space-y-2">
         <Textarea
-          placeholder="Escreva um comentário..."
+          placeholder="Escreva um comentï¿½rio..."
           value={content}
           onChange={(e) => setContent(e.target.value)}
           maxLength={1000}
@@ -175,11 +177,9 @@ export function CommentSection({ postId }: CommentSectionProps) {
         </div>
       </form>
 
-      {/* Lista de comentários */}
+      {/* Lista de comentï¿½rios */}
       {loading ? (
-        <div className="text-center py-8 text-sm text-muted-foreground">
-          Carregando comentários...
-        </div>
+        <SkeletonList count={5} SkeletonComponent={CommentSkeleton} />
       ) : comments.length === 0 ? (
         <div className="text-center py-8 text-sm text-muted-foreground">
           Seja o primeiro a comentar!
