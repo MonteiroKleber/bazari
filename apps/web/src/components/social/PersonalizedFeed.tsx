@@ -4,6 +4,7 @@ import { PostCard } from './PostCard';
 import { PostCardSkeleton } from './PostCardSkeleton';
 import { SkeletonList } from '../SkeletonList';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, RefreshCw, Sparkles, Users, TrendingUp } from 'lucide-react';
 
 const TABS: { value: FeedTab; label: string; icon: React.ReactNode }[] = [
@@ -12,7 +13,16 @@ const TABS: { value: FeedTab; label: string; icon: React.ReactNode }[] = [
   { value: 'popular', label: 'Popular', icon: <TrendingUp className="w-4 h-4" /> },
 ];
 
-export function PersonalizedFeed() {
+interface PersonalizedFeedProps {
+  showQuickPost?: boolean;
+  userProfile?: {
+    avatarUrl?: string | null;
+    displayName: string;
+  } | null;
+  onCreatePost?: () => void;
+}
+
+export function PersonalizedFeed({ showQuickPost = false, userProfile, onCreatePost }: PersonalizedFeedProps) {
   const [activeTab, setActiveTab] = useState<FeedTab>('for-you');
   const { posts, loading, loadingMore, hasMore, error, refresh, loadMoreRef } =
     usePersonalizedFeed({ tab: activeTab });
@@ -23,8 +33,8 @@ export function PersonalizedFeed() {
 
   return (
     <div className="w-full">
-      {/* Tabs */}
-      <div className="sticky top-0 z-10 bg-background border-b">
+      {/* Tabs - Sticky */}
+      <div className="sticky top-0 z-20 bg-background border-b backdrop-blur-sm bg-background/95">
         <div className="flex items-center">
           {TABS.map((tab) => (
             <button
@@ -43,8 +53,37 @@ export function PersonalizedFeed() {
         </div>
       </div>
 
+      {/* Quick Post - Sticky below tabs */}
+      {showQuickPost && userProfile && (
+        <div className="sticky top-[49px] z-10 bg-background border-b">
+          <Card className="rounded-none border-0 border-b">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                {userProfile.avatarUrl ? (
+                  <img
+                    src={userProfile.avatarUrl}
+                    alt={userProfile.displayName}
+                    className="h-10 w-10 rounded-full object-cover flex-shrink-0"
+                  />
+                ) : (
+                  <div className="h-10 w-10 rounded-full bg-muted flex-shrink-0" />
+                )}
+
+                <Button
+                  variant="outline"
+                  className="flex-1 justify-start text-muted-foreground"
+                  onClick={onCreatePost}
+                >
+                  O que você está pensando?
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Refresh Button */}
-      <div className="flex justify-end p-4 border-b">
+      <div className="flex justify-end p-4 border-b bg-background/50">
         <Button
           variant="ghost"
           size="sm"

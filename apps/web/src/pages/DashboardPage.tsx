@@ -1,16 +1,20 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { apiHelpers } from '../lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { CreatePostModal } from '../components/social/CreatePostModal';
-import { PersonalizedFeed } from '../components/social/PersonalizedFeed';
+import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
+import { KPICard } from '../components/dashboard/KPICard';
+import { QuickActionsGrid } from '../components/dashboard/QuickActionsGrid';
+import { RecentActivity } from '../components/dashboard/RecentActivity';
 import { WhoToFollow } from '../components/social/WhoToFollow';
 import { TrendingTopics } from '../components/social/TrendingTopics';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { PullToRefreshIndicator } from '../components/mobile/PullToRefreshIndicator';
+import { FileText, Users, Bell, TrendingUp } from 'lucide-react';
 
 type MeProfile = {
+  id: string;
   handle: string;
   displayName: string;
   avatarUrl?: string | null;
@@ -22,41 +26,49 @@ type MeProfile = {
 export default function DashboardPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<MeProfile | null>(null);
-  const [sellers, setSellers] = useState<Array<{ shopSlug: string; shopName: string }>>([]);
-  const [createPostOpen, setCreatePostOpen] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [stats, setStats] = useState({
+    posts: 0,
+    followers: 0,
+    notifications: 0,
+    reputation: 0,
+  });
 
   const loadData = useCallback(async () => {
     let active = true;
     setLoading(true);
-    setError(null);
+
     try {
       const res = await apiHelpers.getMeProfile();
-      if (active) {
-        setProfile(res.profile ?? null);
+      if (active && res.profile) {
+        setProfile(res.profile);
+
+        // Buscar dados reais do backend
+        const [notificationsRes, profileData] = await Promise.all([
+          apiHelpers.getNotifications({ unreadOnly: true }).catch(() => ({ unreadCount: 0 })),
+          apiHelpers.getProfile(res.profile.handle).catch(() => ({ profile: null })),
+        ]);
+
+        if (active) {
+          setStats({
+            posts: profileData?.profile?.postsCount ?? 0,
+            followers: profileData?.profile?.followersCount ?? 0,
+            notifications: notificationsRes.unreadCount ?? 0,
+            reputation: profileData?.profile?.reputationScore ?? 0,
+          });
+        }
       }
     } catch (e: any) {
       if (active) {
-        // 404 → ainda não tem perfil (onboarding opcional)
         setProfile(null);
-      }
-    }
-
-    try {
-      const resStores = await (await import('@/modules/seller/api')).sellerApi.listMyStores();
-      if (!active) return;
-      const list = resStores?.items || [];
-      setSellers(list.map((s: any) => ({ shopSlug: s.shopSlug, shopName: s.shopName })));
-    } catch (e) {
-      if (active) {
-        setError((e as Error).message);
       }
     } finally {
       if (active) setLoading(false);
     }
-    return () => { active = false; };
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -65,7 +77,6 @@ export default function DashboardPage() {
 
   const handleRefresh = useCallback(async () => {
     await loadData();
-    setRefreshKey((prev) => prev + 1);
   }, [loadData]);
 
   const { isRefreshing, pullDistance } = usePullToRefresh({
@@ -77,114 +88,81 @@ export default function DashboardPage() {
     if (profile?.handle) navigate(`/u/${profile.handle}`);
   };
 
+  // Show onboarding if no profile
+  if (!loading && !profile) {
+    return (
+      <section className="container mx-auto px-4 py-8 mobile-safe-bottom">
+        <Card>
+          <CardHeader>
+            <CardTitle>Bem-vindo ao Bazari!</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-muted-foreground">
+              Complete seu perfil para começar a interagir com a comunidade.
+            </p>
+            <Button onClick={() => navigate('/app/profile/edit')} className="w-full">
+              Criar Perfil
+            </Button>
+          </CardContent>
+        </Card>
+      </section>
+    );
+  }
+
   return (
     <>
       <PullToRefreshIndicator isRefreshing={isRefreshing} pullDistance={pullDistance} />
-      <section className="container mx-auto px-4 py-8 mobile-safe-bottom">
-      <header className="mb-6 flex items-center gap-4">
-        {profile?.avatarUrl ? (
-          <img src={profile.avatarUrl} alt={profile.displayName} className="h-14 w-14 rounded-full object-cover" />
-        ) : (
-          <div className="h-14 w-14 rounded-full bg-muted" />
-        )}
-        <div>
-          <h1 className="text-2xl font-semibold">Dashboard</h1>
-          {loading ? (
-            <p className="text-sm text-muted-foreground">Carregando seu perfil…</p>
-          ) : profile ? (
-            <p className="text-sm text-muted-foreground">{profile.displayName} · @{profile.handle}</p>
-          ) : (
-            <p className="text-sm text-muted-foreground">Você ainda não criou seu perfil.</p>
-          )}
-        </div>
-        <div className="ml-auto flex gap-2">
-          {profile?.handle ? (
-            <Button variant="outline" onClick={handleGoToPublicProfile}>Ver meu perfil</Button>
-          ) : null}
-          <Button variant="secondary" onClick={() => navigate('/app/profile/edit')}>Editar Perfil</Button>
-        </div>
-      </header>
-
-      {/* Quick Post */}
-      {profile && (
-        <Card className="mb-6">
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              {profile?.avatarUrl ? (
-                <img
-                  src={profile.avatarUrl}
-                  alt={profile.displayName}
-                  className="h-10 w-10 rounded-full object-cover"
-                />
-              ) : (
-                <div className="h-10 w-10 rounded-full bg-muted" />
-              )}
-
-              <Button
-                variant="outline"
-                className="flex-1 justify-start text-muted-foreground"
-                onClick={() => setCreatePostOpen(true)}
-              >
-                O que você está pensando?
-              </Button>
+      <section className="container mx-auto px-4 py-6 mobile-safe-bottom">
+        {/* Compact Header */}
+        <header className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-12 w-12">
+              <AvatarImage src={profile?.avatarUrl || undefined} alt={profile?.displayName} />
+              <AvatarFallback>{profile?.displayName?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+            </Avatar>
+            <div>
+              <h1 className="text-lg font-semibold leading-tight">
+                Olá, {profile?.displayName?.split(' ')[0] || 'Usuário'}!
+              </h1>
+              {profile?.handle && <p className="text-xs text-muted-foreground">@{profile.handle}</p>}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+          <Button variant="ghost" size="sm" onClick={handleGoToPublicProfile}>
+            Ver Perfil
+          </Button>
+        </header>
 
-      <CreatePostModal open={createPostOpen} onOpenChange={setCreatePostOpen} />
+        {/* KPI Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+          <KPICard icon={FileText} label="Posts" value={stats.posts} />
+          <KPICard icon={Users} label="Seguidores" value={stats.followers} />
+          <KPICard
+            icon={Bell}
+            label="Notificações"
+            value={stats.notifications}
+            badge={stats.notifications > 0}
+          />
+          <KPICard icon={TrendingUp} label="Reputação" value={stats.reputation} />
+        </div>
 
-      {/* Main Content with Sidebar */}
-      {profile && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Feed Section - 2 columns */}
-          <div className="lg:col-span-2">
-            <PersonalizedFeed />
+        {/* Quick Actions */}
+        <div className="mb-6">
+          <h2 className="text-base font-semibold mb-3">Ações Rápidas</h2>
+          <QuickActionsGrid />
+        </div>
+
+        {/* Recent Activity & Recommendations */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <RecentActivity profileId={profile?.id} />
           </div>
 
-          {/* Sidebar - 1 column */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             <WhoToFollow />
             <TrendingTopics />
           </div>
         </div>
-      )}
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <ModuleCard title="Perfil" description="Gerencie suas informações públicas" actionText="Abrir" to={profile?.handle ? `/u/${profile.handle}` : '/app/profile/edit'} />
-        <ModuleCard title="Analytics" description="Veja suas métricas e estatísticas" actionText="Ver Dados" to="/app/analytics" />
-        <ModuleCard title="Wallet" description="Acesse sua carteira e tokens" actionText="Abrir" to="/app/wallet" />
-        <ModuleCard title="Marketplace" description="Anuncie e compre produtos e serviços" actionText="Procurar" to="/search" />
-        <ModuleCard
-          title="Minhas Lojas"
-          description={sellers.length > 0 ? 'Gerencie suas lojas e produtos' : 'Crie sua loja para vender'}
-          actionText={sellers.length > 0 ? 'Gerenciar' : 'Criar loja'}
-          to={sellers.length > 0 ? '/app/sellers' : '/app/seller/setup'}
-        />
-        <ModuleCard title="Câmbio P2P" description="Troque BZR diretamente com outros" actionText="Abrir" to="/app/p2p" />
-        <ModuleCard title="Em Breve" description="DAO, SubDAOs, DEX e mais funcionalidades estão chegando" actionText="Ver Roadmap" to="/" disabled />
-      </div>
-    </section>
+      </section>
     </>
-  );
-}
-
-function ModuleCard({ title, description, actionText, to, disabled }: { title: string; description: string; actionText: string; to: string; disabled?: boolean }) {
-  return (
-    <Card className="h-full">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex items-start justify-between gap-4">
-        <p className="text-sm text-muted-foreground max-w-[70%]">{description}</p>
-        {disabled ? (
-          <Button variant="outline" disabled>Em breve</Button>
-        ) : (
-          <Link to={to} className="shrink-0">
-            <Button>{actionText}</Button>
-          </Link>
-        )}
-      </CardContent>
-    </Card>
   );
 }

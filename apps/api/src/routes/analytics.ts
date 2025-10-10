@@ -11,7 +11,12 @@ export async function analyticsRoutes(
 
   // GET /users/me/analytics - Get user analytics
   app.get('/users/me/analytics', { onRequest: authOnRequest }, async (req, reply) => {
-    const userId = req.user!.sub;
+    const authUser = (req as any).authUser as { sub: string } | undefined;
+    if (!authUser) {
+      return reply.status(401).send({ error: 'Token inválido.' });
+    }
+
+    const userId = authUser.sub;
     const query = req.query as { timeRange?: '7d' | '30d' | '90d' };
     const timeRange = query.timeRange || '30d';
 

@@ -91,16 +91,16 @@ export async function calculateProfileSuggestions(
   // 4. INTEREST SCORE (30%): Badges similares e interações similares
   const userBadges = await prisma.profileBadge.findMany({
     where: { profileId: userProfile.id },
-    select: { slug: true },
+    select: { code: true },
   });
 
-  const userBadgeSlugs = userBadges.map((b) => b.slug);
+  const userBadgeCodes = userBadges.map((b) => b.code);
 
   const similarBadgeProfiles =
-    userBadgeSlugs.length > 0
+    userBadgeCodes.length > 0
       ? await prisma.profileBadge.findMany({
           where: {
-            slug: { in: userBadgeSlugs },
+            code: { in: userBadgeCodes },
             profileId: { notIn: [...followingIds, userProfile.id] },
           },
           select: {

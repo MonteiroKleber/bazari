@@ -41,6 +41,7 @@ import ProfilePublicPage from './pages/ProfilePublicPage';
 import DiscoverPeoplePage from './pages/DiscoverPeoplePage';
 import DiscoverTrendingPage from './pages/DiscoverTrendingPage';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
+import FeedPage from './pages/FeedPage';
 import SellerSetupPage from './pages/SellerSetupPage';
 import SellerPublicPage from './pages/SellerPublicPage';
 import SellerManagePage from './pages/SellerManagePage';
@@ -231,7 +232,6 @@ function App() {
             <Route path="/search" element={<SearchPage />} />
             <Route path="/explore" element={<ExplorePage />} />
             <Route path="/marketplace" element={<MarketplacePage />} />
-            <Route path="/u/:handle" element={<ProfilePublicPage />} />
             {FEATURE_FLAGS.store_branded_v1 && (
               <Route path="/s/:shopSlug" element={<SellerPublicPage mode="branded" />} />
             )}
@@ -243,7 +243,19 @@ function App() {
             <Route path="/auth/import" element={<ImportAccount />} />
             <Route path="/auth/unlock" element={<Unlock />} />
             <Route path="/auth/device-link" element={<DeviceLink />} />
-            
+
+            {/* Profile Public - Requires Auth */}
+            <Route
+              path="/u/:handle"
+              element={
+                <RequireAuth>
+                  <AppLayout>
+                    <ProfilePublicPage />
+                  </AppLayout>
+                </RequireAuth>
+              }
+            />
+
             {/* Rotas internas/autenticadas */}
             <Route
               path="/app/*"
@@ -253,6 +265,7 @@ function App() {
                     <Routes>
                       <Route index element={<DashboardPage />} />
                       <Route path="dashboard" element={<DashboardPage />} />
+                      <Route path="feed" element={<FeedPage />} />
                       <Route path="profile/edit" element={<ProfileEditPage />} />
                       <Route path="discover/people" element={<DiscoverPeoplePage />} />
                       <Route path="discover/trending" element={<DiscoverTrendingPage />} />

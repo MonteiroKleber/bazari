@@ -1,10 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Search, PlusSquare, Bell, User } from 'lucide-react';
+import { LayoutDashboard, Newspaper, PlusSquare, Bell, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 
 interface NavItem {
-  icon: typeof Home;
+  icon: typeof LayoutDashboard;
   label: string;
   path: string;
   badge?: number;
@@ -43,14 +43,14 @@ export function MobileBottomNav() {
 
   const navItems: NavItem[] = [
     {
-      icon: Home,
+      icon: LayoutDashboard,
       label: 'Home',
       path: '/app/dashboard',
     },
     {
-      icon: Search,
-      label: 'Discover',
-      path: '/search',
+      icon: Newspaper,
+      label: 'Feed',
+      path: '/app/feed',
     },
     {
       icon: PlusSquare,
@@ -59,7 +59,7 @@ export function MobileBottomNav() {
     },
     {
       icon: Bell,
-      label: 'Notifications',
+      label: 'Notif',
       path: '/app/notifications',
       badge: notificationCount,
     },
@@ -73,6 +73,9 @@ export function MobileBottomNav() {
   const isActive = (path: string) => {
     if (path === '/app/dashboard') {
       return location.pathname === '/app' || location.pathname === '/app/dashboard';
+    }
+    if (path === '/app/feed') {
+      return location.pathname === '/app/feed';
     }
     return location.pathname.startsWith(path);
   };

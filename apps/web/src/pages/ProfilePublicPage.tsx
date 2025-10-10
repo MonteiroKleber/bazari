@@ -45,7 +45,7 @@ export default function ProfilePublicPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<PublicProfile | null>(null);
-  const [tab, setTab] = useState<'posts' | 'store' | 'subdaos' | 'followers' | 'following' | 'reputation'>('posts');
+  const [tab, setTab] = useState<'posts' | 'store' | 'followers' | 'following' | 'reputation'>('posts');
   const [posts, setPosts] = useState<any[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -209,12 +209,11 @@ export default function ProfilePublicPage() {
 
       {/* Tabs */}
       <div className="flex gap-3 border-b border-border mb-4">
-        {(['posts','reputation','store','subdaos','followers','following'] as const).map((tabKey) => (
+        {(['posts','reputation','store','followers','following'] as const).map((tabKey) => (
           <button key={tabKey} className={`px-3 py-2 -mb-px border-b-2 ${tab===tabKey? 'border-primary text-foreground':'border-transparent text-muted-foreground'}`} onClick={() => setTab(tabKey)}>
             {tabKey === 'posts' && t('profile.posts')}
             {tabKey === 'reputation' && 'Reputação'}
             {tabKey === 'store' && t('profile.store')}
-            {tabKey === 'subdaos' && t('profile.subdaos')}
             {tabKey === 'followers' && t('profile.followers')}
             {tabKey === 'following' && t('profile.following')}
           </button>
@@ -317,10 +316,6 @@ export default function ProfilePublicPage() {
             </div>
           )}
         </div>
-      )}
-
-      {tab === 'subdaos' && (
-        <div className="text-muted-foreground">{t('profile.subdaos')}</div>
       )}
 
       {tab === 'followers' && (
