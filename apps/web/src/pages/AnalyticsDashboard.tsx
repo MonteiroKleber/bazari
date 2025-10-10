@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { apiHelpers } from '../lib/api';
+import { getJSON } from '../lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -44,21 +44,13 @@ export default function AnalyticsDashboard() {
 
     (async () => {
       try {
-        const res = await fetch(`/api/users/me/analytics?timeRange=${timeRange}`, {
-          headers: apiHelpers.getAuthHeaders(),
-        });
-
-        if (!res.ok) {
-          throw new Error('Failed to fetch analytics');
-        }
-
-        const analytics = await res.json();
+        const analytics = await getJSON<AnalyticsData>(`/users/me/analytics?timeRange=${timeRange}`);
         if (active) {
           setData(analytics);
         }
       } catch (e: any) {
         if (active) {
-          setError(e.message);
+          setError(e.message || 'Failed to fetch analytics');
         }
       } finally {
         if (active) {

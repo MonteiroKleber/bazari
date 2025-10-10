@@ -158,7 +158,19 @@ export async function profilesRoutes(app: FastifyInstance, options: { prisma: Pr
       where,
       orderBy: [ { createdAt: 'desc' }, { id: 'desc' } ],
       take: take + 1,
-      select: { id: true, kind: true, content: true, media: true, createdAt: true },
+      select: {
+        id: true,
+        kind: true,
+        content: true,
+        media: true,
+        createdAt: true,
+        _count: {
+          select: {
+            likes: true,
+            comments: true,
+          }
+        }
+      },
     });
 
     let nextCursor: string | null = null;
@@ -175,6 +187,8 @@ export async function profilesRoutes(app: FastifyInstance, options: { prisma: Pr
         content: it.content,
         media: it.media ?? null,
         createdAt: it.createdAt.toISOString(),
+        likesCount: it._count.likes,
+        commentsCount: it._count.comments,
       })),
       nextCursor,
     };
@@ -278,7 +292,7 @@ export async function profilesRoutes(app: FastifyInstance, options: { prisma: Pr
   app.get('/me/profile', { preHandler: authOnRequest }, async (request, reply) => {
     const authUser = (request as any).authUser as { sub: string } | undefined;
     if (!authUser) return reply.status(401).send({ error: 'Token inválido.' });
-    const prof = await prisma.profile.findUnique({ where: { userId: authUser.sub }, select: { handle: true, displayName: true, avatarUrl: true, bio: true, bannerUrl: true, externalLinks: true } });
+    const prof = await prisma.profile.findUnique({ where: { userId: authUser.sub }, select: { id: true, handle: true, displayName: true, avatarUrl: true, bio: true, bannerUrl: true, externalLinks: true } });
     if (!prof) return reply.status(404).send({ error: 'Perfil não encontrado' });
     return reply.send({ profile: prof });
   });
