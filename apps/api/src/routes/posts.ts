@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { authOnRequest } from '../lib/auth/middleware.js';
+import { authOnRequest, optionalAuthOnRequest } from '../lib/auth/middleware.js';
 import { createNotification } from '../lib/notifications.js';
 import crypto from 'crypto';
 import fs from 'fs/promises';
@@ -262,8 +262,221 @@ export async function postsRoutes(app: FastifyInstance, options: { prisma: Prism
     return reply.send({ liked: false, likesCount });
   });
 
+  // POST /posts/:id/repost
+  app.post<{ Params: { id: string } }>('/posts/:id/repost', {
+    preHandler: authOnRequest,
+    config: { rateLimit: { max: 100, timeWindow: '1 minute' } },
+  }, async (request, reply) => {
+    const authUser = (request as any).authUser as { sub: string } | undefined;
+    if (!authUser) return reply.status(401).send({ error: 'Token inválido.' });
+    const { id } = request.params;
+
+    const meProfile = await prisma.profile.findUnique({ where: { userId: authUser.sub }, select: { id: true } });
+    if (!meProfile) return reply.status(400).send({ error: 'Perfil do usuário não encontrado' });
+
+    // Verificar se post existe e buscar autor
+    const post = await prisma.post.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        status: true,
+        author: { select: { userId: true } }
+      }
+    });
+    if (!post) return reply.status(404).send({ error: 'Post não encontrado' });
+    if (post.status !== 'PUBLISHED') return reply.status(400).send({ error: 'Post não está publicado' });
+
+    // Criar repost (idempotente via unique constraint)
+    let repostCreated = false;
+    try {
+      await prisma.postRepost.create({
+        data: {
+          postId: id,
+          profileId: meProfile.id,
+        },
+      });
+      repostCreated = true;
+    } catch (error: any) {
+      // Se já existe, retornar sucesso (idempotente)
+      if (error.code === 'P2002') {
+        // Unique constraint violation
+        const repostsCount = await prisma.postRepost.count({ where: { postId: id } });
+        return reply.send({ reposted: true, repostsCount });
+      }
+      throw error;
+    }
+
+    // Criar notificação se repost foi criado
+    if (repostCreated) {
+      await createNotification(prisma, {
+        userId: post.author.userId,
+        type: 'REPOST',
+        actorId: meProfile.id,
+        targetId: post.id
+      });
+    }
+
+    // Contar reposts
+    const repostsCount = await prisma.postRepost.count({ where: { postId: id } });
+
+    app.log.info({ event: 'post.repost', postId: id, profileId: meProfile.id });
+    return reply.send({ reposted: true, repostsCount });
+  });
+
+  // DELETE /posts/:id/repost
+  app.delete<{ Params: { id: string } }>('/posts/:id/repost', {
+    preHandler: authOnRequest,
+    config: { rateLimit: { max: 100, timeWindow: '1 minute' } },
+  }, async (request, reply) => {
+    const authUser = (request as any).authUser as { sub: string } | undefined;
+    if (!authUser) return reply.status(401).send({ error: 'Token inválido.' });
+    const { id } = request.params;
+
+    const meProfile = await prisma.profile.findUnique({ where: { userId: authUser.sub }, select: { id: true } });
+    if (!meProfile) return reply.status(400).send({ error: 'Perfil do usuário não encontrado' });
+
+    // Verificar se post existe
+    const post = await prisma.post.findUnique({ where: { id }, select: { id: true } });
+    if (!post) return reply.status(404).send({ error: 'Post não encontrado' });
+
+    // Remover repost (idempotente)
+    await prisma.postRepost.deleteMany({
+      where: {
+        postId: id,
+        profileId: meProfile.id,
+      },
+    });
+
+    // Contar reposts
+    const repostsCount = await prisma.postRepost.count({ where: { postId: id } });
+
+    app.log.info({ event: 'post.unrepost', postId: id, profileId: meProfile.id });
+    return reply.send({ reposted: false, repostsCount });
+  });
+
+  // POST /posts/:id/react
+  app.post<{ Params: { id: string }; Body: { reaction: string } }>('/posts/:id/react', {
+    preHandler: authOnRequest,
+    config: { rateLimit: { max: 100, timeWindow: '1 minute' } },
+  }, async (request, reply) => {
+    const authUser = (request as any).authUser as { sub: string } | undefined;
+    if (!authUser) return reply.status(401).send({ error: 'Token inválido.' });
+    const { id } = request.params;
+    const { reaction } = request.body;
+
+    // Validar reação
+    const validReactions = ['love', 'laugh', 'wow', 'sad', 'angry'];
+    if (!validReactions.includes(reaction)) {
+      return reply.status(400).send({ error: 'Reação inválida' });
+    }
+
+    const meProfile = await prisma.profile.findUnique({ where: { userId: authUser.sub }, select: { id: true } });
+    if (!meProfile) return reply.status(400).send({ error: 'Perfil do usuário não encontrado' });
+
+    // Verificar se post existe
+    const post = await prisma.post.findUnique({
+      where: { id },
+      select: { id: true, status: true }
+    });
+    if (!post) return reply.status(404).send({ error: 'Post não encontrado' });
+    if (post.status !== 'PUBLISHED') return reply.status(400).send({ error: 'Post não está publicado' });
+
+    // Upsert reação (criar ou atualizar)
+    await prisma.postReaction.upsert({
+      where: {
+        postId_profileId: {
+          postId: id,
+          profileId: meProfile.id,
+        },
+      },
+      create: {
+        postId: id,
+        profileId: meProfile.id,
+        reaction,
+      },
+      update: {
+        reaction,
+      },
+    });
+
+    // Buscar contadores de reações agrupadas
+    const reactionCounts = await prisma.postReaction.groupBy({
+      by: ['reaction'],
+      where: { postId: id },
+      _count: { reaction: true },
+    });
+
+    const reactions = {
+      love: 0,
+      laugh: 0,
+      wow: 0,
+      sad: 0,
+      angry: 0,
+    };
+
+    reactionCounts.forEach((r) => {
+      reactions[r.reaction as keyof typeof reactions] = r._count.reaction;
+    });
+
+    const totalReactions = Object.values(reactions).reduce((a, b) => a + b, 0);
+
+    app.log.info({ event: 'post.react', postId: id, profileId: meProfile.id, reaction });
+    return reply.send({ reactions, userReaction: reaction, totalReactions });
+  });
+
+  // DELETE /posts/:id/react
+  app.delete<{ Params: { id: string } }>('/posts/:id/react', {
+    preHandler: authOnRequest,
+    config: { rateLimit: { max: 100, timeWindow: '1 minute' } },
+  }, async (request, reply) => {
+    const authUser = (request as any).authUser as { sub: string } | undefined;
+    if (!authUser) return reply.status(401).send({ error: 'Token inválido.' });
+    const { id } = request.params;
+
+    const meProfile = await prisma.profile.findUnique({ where: { userId: authUser.sub }, select: { id: true } });
+    if (!meProfile) return reply.status(400).send({ error: 'Perfil do usuário não encontrado' });
+
+    // Verificar se post existe
+    const post = await prisma.post.findUnique({ where: { id }, select: { id: true } });
+    if (!post) return reply.status(404).send({ error: 'Post não encontrado' });
+
+    // Remover reação
+    await prisma.postReaction.deleteMany({
+      where: {
+        postId: id,
+        profileId: meProfile.id,
+      },
+    });
+
+    // Buscar contadores de reações agrupadas
+    const reactionCounts = await prisma.postReaction.groupBy({
+      by: ['reaction'],
+      where: { postId: id },
+      _count: { reaction: true },
+    });
+
+    const reactions = {
+      love: 0,
+      laugh: 0,
+      wow: 0,
+      sad: 0,
+      angry: 0,
+    };
+
+    reactionCounts.forEach((r) => {
+      reactions[r.reaction as keyof typeof reactions] = r._count.reaction;
+    });
+
+    const totalReactions = Object.values(reactions).reduce((a, b) => a + b, 0);
+
+    app.log.info({ event: 'post.unreact', postId: id, profileId: meProfile.id });
+    return reply.send({ reactions, totalReactions });
+  });
+
   // GET /posts/:id - Obter detalhes de um post
-  app.get<{ Params: { id: string } }>('/posts/:id', async (request, reply) => {
+  app.get<{ Params: { id: string } }>('/posts/:id', {
+    preHandler: optionalAuthOnRequest,
+  }, async (request, reply) => {
     const authUser = (request as any).authUser as { sub: string } | undefined;
     const { id } = request.params;
 
@@ -288,6 +501,7 @@ export async function postsRoutes(app: FastifyInstance, options: { prisma: Prism
         _count: {
           select: {
             likes: true,
+            reposts: true,
             comments: true,
           },
         },
@@ -305,8 +519,10 @@ export async function postsRoutes(app: FastifyInstance, options: { prisma: Prism
       }
     }
 
-    // Check if current user liked this post
+    // Check if current user liked and reposted this post
     let isLiked = false;
+    let isReposted = false;
+    let userReaction: string | undefined;
     if (authUser) {
       const meProfile = await prisma.profile.findUnique({ where: { userId: authUser.sub }, select: { id: true } });
       if (meProfile) {
@@ -319,15 +535,63 @@ export async function postsRoutes(app: FastifyInstance, options: { prisma: Prism
           },
         });
         isLiked = !!like;
+
+        const repost = await prisma.postRepost.findUnique({
+          where: {
+            postId_profileId: {
+              postId: id,
+              profileId: meProfile.id,
+            },
+          },
+        });
+        isReposted = !!repost;
+
+        const reaction = await prisma.postReaction.findUnique({
+          where: {
+            postId_profileId: {
+              postId: id,
+              profileId: meProfile.id,
+            },
+          },
+          select: { reaction: true },
+        });
+        userReaction = reaction?.reaction;
       }
     }
+
+    // Get reaction counts grouped by type
+    const reactionCounts = await prisma.postReaction.groupBy({
+      by: ['reaction'],
+      where: { postId: id },
+      _count: { reaction: true },
+    });
+
+    const reactions = {
+      love: 0,
+      laugh: 0,
+      wow: 0,
+      sad: 0,
+      angry: 0,
+    };
+
+    reactionCounts.forEach((r) => {
+      reactions[r.reaction as keyof typeof reactions] = r._count.reaction;
+    });
+
+    // Calculate total likes (sum of all reactions, fallback to old likes count)
+    const totalReactions = reactions.love + reactions.laugh + reactions.wow + reactions.sad + reactions.angry;
+    const likesCount = totalReactions > 0 ? totalReactions : post._count.likes;
 
     return reply.send({
       post: {
         ...post,
-        likesCount: post._count.likes,
+        likesCount,
+        repostsCount: post._count.reposts,
         commentsCount: post._count.comments,
         isLiked,
+        isReposted,
+        reactions,
+        userReaction,
       },
     });
   });
@@ -424,6 +688,7 @@ export async function postsRoutes(app: FastifyInstance, options: { prisma: Prism
   // GET /posts/:id/comments - Listar comentários
   app.get<{ Params: { id: string }; Querystring: { limit?: string; cursor?: string } }>(
     '/posts/:id/comments',
+    { preHandler: optionalAuthOnRequest },
     async (request, reply) => {
       const { id } = request.params;
       const limit = Math.min(parseInt(request.query.limit || '10'), 50);
@@ -433,6 +698,17 @@ export async function postsRoutes(app: FastifyInstance, options: { prisma: Prism
       const post = await prisma.post.findUnique({ where: { id }, select: { id: true, status: true } });
       if (!post) return reply.status(404).send({ error: 'Post não encontrado' });
       if (post.status !== 'PUBLISHED') return reply.status(404).send({ error: 'Post não encontrado' });
+
+      // Buscar profileId se autenticado
+      const authUser = (request as any).authUser as { sub: string } | undefined;
+      let meProfile: { id: string } | null = null;
+
+      if (authUser) {
+        meProfile = await prisma.profile.findUnique({
+          where: { userId: authUser.sub },
+          select: { id: true },
+        });
+      }
 
       // Buscar comentários top-level (sem parent)
       const comments = await prisma.postComment.findMany({
@@ -462,6 +738,17 @@ export async function postsRoutes(app: FastifyInstance, options: { prisma: Prism
                   avatarUrl: true,
                 },
               },
+              _count: {
+                select: {
+                  likes: true,
+                },
+              },
+            },
+          },
+          _count: {
+            select: {
+              replies: true,
+              likes: true,
             },
           },
         },
@@ -471,24 +758,430 @@ export async function postsRoutes(app: FastifyInstance, options: { prisma: Prism
       const items = hasMore ? comments.slice(0, -1) : comments;
       const nextCursor = hasMore ? items[items.length - 1].id : null;
 
+      // Se autenticado, buscar likes do usuário
+      let userLikedCommentIds = new Set<string>();
+      if (meProfile) {
+        const commentIds = items.flatMap(c => [c.id, ...(c.replies?.map(r => r.id) || [])]);
+
+        const userLikes = await prisma.postCommentLike.findMany({
+          where: {
+            profileId: meProfile.id,
+            commentId: { in: commentIds },
+          },
+          select: { commentId: true },
+        });
+
+        userLikedCommentIds = new Set(userLikes.map(l => l.commentId));
+      }
+
       return reply.send({
         items: items.map(c => ({
           id: c.id,
           content: c.content,
           createdAt: c.createdAt,
+          updatedAt: c.updatedAt,
           author: c.author,
+          repliesCount: c._count.replies,
+          likesCount: c._count.likes,
+          isLiked: userLikedCommentIds.has(c.id),
           replies: c.replies.map(r => ({
             id: r.id,
             content: r.content,
             createdAt: r.createdAt,
+            updatedAt: r.updatedAt,
             author: r.author,
             parentId: r.parentId,
+            likesCount: r._count.likes,
+            isLiked: userLikedCommentIds.has(r.id),
           })),
         })),
         page: {
           nextCursor,
           hasMore,
         },
+      });
+    }
+  );
+
+  // GET /posts/:postId/comments/:commentId/replies - Buscar respostas de um comentário
+  app.get<{
+    Params: { postId: string; commentId: string };
+    Querystring: { limit?: string; cursor?: string }
+  }>(
+    '/posts/:postId/comments/:commentId/replies',
+    { preHandler: optionalAuthOnRequest },
+    async (request, reply) => {
+      const { postId, commentId } = request.params;
+      const limit = Math.min(parseInt(request.query.limit || '10'), 50);
+      const cursor = request.query.cursor;
+
+      // Verificar se comentário existe e pertence ao post
+      const parentComment = await prisma.postComment.findUnique({
+        where: { id: commentId },
+        select: { id: true, postId: true },
+      });
+
+      if (!parentComment) {
+        return reply.status(404).send({ error: 'Comentário não encontrado' });
+      }
+
+      if (parentComment.postId !== postId) {
+        return reply.status(400).send({ error: 'Comentário não pertence a este post' });
+      }
+
+      // Buscar profileId se autenticado
+      const authUser = (request as any).authUser as { sub: string } | undefined;
+      let meProfile: { id: string } | null = null;
+
+      if (authUser) {
+        meProfile = await prisma.profile.findUnique({
+          where: { userId: authUser.sub },
+          select: { id: true },
+        });
+      }
+
+      // Buscar respostas
+      const replies = await prisma.postComment.findMany({
+        where: {
+          parentId: commentId,
+          ...(cursor ? { id: { lt: cursor } } : {}),
+        },
+        orderBy: { createdAt: 'asc' },
+        take: limit + 1,
+        include: {
+          author: {
+            select: {
+              handle: true,
+              displayName: true,
+              avatarUrl: true,
+            },
+          },
+          _count: {
+            select: {
+              likes: true,
+            },
+          },
+        },
+      });
+
+      const hasMore = replies.length > limit;
+      const items = hasMore ? replies.slice(0, -1) : replies;
+      const nextCursor = hasMore ? items[items.length - 1].id : null;
+
+      // Buscar likes do usuário
+      let userLikedReplyIds = new Set<string>();
+      if (meProfile) {
+        const replyIds = items.map(r => r.id);
+        const userLikes = await prisma.postCommentLike.findMany({
+          where: {
+            profileId: meProfile.id,
+            commentId: { in: replyIds },
+          },
+          select: { commentId: true },
+        });
+        userLikedReplyIds = new Set(userLikes.map(l => l.commentId));
+      }
+
+      return reply.send({
+        items: items.map(r => ({
+          id: r.id,
+          content: r.content,
+          createdAt: r.createdAt,
+          updatedAt: r.updatedAt,
+          author: r.author,
+          parentId: r.parentId,
+          likesCount: r._count.likes,
+          isLiked: userLikedReplyIds.has(r.id),
+        })),
+        page: {
+          nextCursor,
+          hasMore,
+        },
+      });
+    }
+  );
+
+  // POST /posts/:postId/comments/:commentId/like - Curtir comentário
+  app.post<{ Params: { postId: string; commentId: string } }>(
+    '/posts/:postId/comments/:commentId/like',
+    { preHandler: authOnRequest },
+    async (request, reply) => {
+      const authUser = (request as any).authUser as { sub: string } | undefined;
+      if (!authUser) return reply.status(401).send({ error: 'Token inválido.' });
+
+      const { postId, commentId } = request.params;
+
+      const meProfile = await prisma.profile.findUnique({
+        where: { userId: authUser.sub },
+        select: { id: true },
+      });
+      if (!meProfile) return reply.status(400).send({ error: 'Perfil não encontrado' });
+
+      // Verificar se comentário existe e pertence ao post
+      const comment = await prisma.postComment.findUnique({
+        where: { id: commentId },
+        select: { id: true, postId: true, authorId: true },
+      });
+
+      if (!comment) return reply.status(404).send({ error: 'Comentário não encontrado' });
+      if (comment.postId !== postId) {
+        return reply.status(400).send({ error: 'Comentário não pertence a este post' });
+      }
+
+      // Upsert (idempotente)
+      await prisma.postCommentLike.upsert({
+        where: {
+          commentId_profileId: {
+            commentId,
+            profileId: meProfile.id,
+          },
+        },
+        update: {},
+        create: {
+          commentId,
+          profileId: meProfile.id,
+        },
+      });
+
+      // Contar likes
+      const likesCount = await prisma.postCommentLike.count({
+        where: { commentId },
+      });
+
+      app.log.info({
+        event: 'comment.like',
+        commentId,
+        profileId: meProfile.id,
+      });
+
+      return reply.send({
+        liked: true,
+        likesCount,
+      });
+    }
+  );
+
+  // DELETE /posts/:postId/comments/:commentId/like - Descurtir comentário
+  app.delete<{ Params: { postId: string; commentId: string } }>(
+    '/posts/:postId/comments/:commentId/like',
+    { preHandler: authOnRequest },
+    async (request, reply) => {
+      const authUser = (request as any).authUser as { sub: string } | undefined;
+      if (!authUser) return reply.status(401).send({ error: 'Token inválido.' });
+
+      const { postId, commentId } = request.params;
+
+      const meProfile = await prisma.profile.findUnique({
+        where: { userId: authUser.sub },
+        select: { id: true },
+      });
+      if (!meProfile) return reply.status(400).send({ error: 'Perfil não encontrado' });
+
+      // Verificar se comentário existe e pertence ao post
+      const comment = await prisma.postComment.findUnique({
+        where: { id: commentId },
+        select: { id: true, postId: true },
+      });
+
+      if (!comment) return reply.status(404).send({ error: 'Comentário não encontrado' });
+      if (comment.postId !== postId) {
+        return reply.status(400).send({ error: 'Comentário não pertence a este post' });
+      }
+
+      // Deletar (idempotente - não retorna erro se não existir)
+      await prisma.postCommentLike.deleteMany({
+        where: {
+          commentId,
+          profileId: meProfile.id,
+        },
+      });
+
+      // Contar likes
+      const likesCount = await prisma.postCommentLike.count({
+        where: { commentId },
+      });
+
+      app.log.info({
+        event: 'comment.unlike',
+        commentId,
+        profileId: meProfile.id,
+      });
+
+      return reply.send({
+        liked: false,
+        likesCount,
+      });
+    }
+  );
+
+  // PATCH /posts/:postId/comments/:commentId - Editar comentário
+  app.patch<{
+    Params: { postId: string; commentId: string };
+    Body: { content: string };
+  }>(
+    '/posts/:postId/comments/:commentId',
+    {
+      preHandler: authOnRequest,
+      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const authUser = (request as any).authUser as { sub: string } | undefined;
+      if (!authUser) return reply.status(401).send({ error: 'Token inválido.' });
+
+      const { postId, commentId } = request.params;
+
+      // Validar body
+      const editSchema = z.object({
+        content: z.string().min(1).max(1000),
+      });
+
+      let body: z.infer<typeof editSchema>;
+      try {
+        body = editSchema.parse(request.body);
+      } catch (e) {
+        return reply.status(400).send({
+          error: 'Dados inválidos',
+          details: (e as z.ZodError).errors,
+        });
+      }
+
+      const meProfile = await prisma.profile.findUnique({
+        where: { userId: authUser.sub },
+        select: { id: true },
+      });
+      if (!meProfile) return reply.status(400).send({ error: 'Perfil não encontrado' });
+
+      // Buscar comentário e verificar autorização
+      const comment = await prisma.postComment.findUnique({
+        where: { id: commentId },
+        select: {
+          id: true,
+          postId: true,
+          authorId: true,
+          content: true,
+        },
+      });
+
+      if (!comment) {
+        return reply.status(404).send({ error: 'Comentário não encontrado' });
+      }
+
+      if (comment.postId !== postId) {
+        return reply.status(400).send({ error: 'Comentário não pertence a este post' });
+      }
+
+      if (comment.authorId !== meProfile.id) {
+        return reply.status(403).send({ error: 'Você não pode editar este comentário' });
+      }
+
+      // Verificar se conteúdo mudou
+      if (comment.content === body.content.trim()) {
+        return reply.status(400).send({ error: 'Nenhuma alteração detectada' });
+      }
+
+      // Atualizar comentário
+      const updatedComment = await prisma.postComment.update({
+        where: { id: commentId },
+        data: {
+          content: body.content.trim(),
+          updatedAt: new Date(), // Force update timestamp
+        },
+        include: {
+          author: {
+            select: {
+              handle: true,
+              displayName: true,
+              avatarUrl: true,
+            },
+          },
+        },
+      });
+
+      app.log.info({
+        event: 'comment.edit',
+        commentId,
+        profileId: meProfile.id,
+      });
+
+      return reply.send({
+        comment: {
+          id: updatedComment.id,
+          content: updatedComment.content,
+          createdAt: updatedComment.createdAt,
+          updatedAt: updatedComment.updatedAt,
+          author: updatedComment.author,
+        },
+      });
+    }
+  );
+
+  // DELETE /posts/:postId/comments/:commentId - Excluir comentário
+  app.delete<{ Params: { postId: string; commentId: string } }>(
+    '/posts/:postId/comments/:commentId',
+    { preHandler: authOnRequest },
+    async (request, reply) => {
+      const authUser = (request as any).authUser as { sub: string } | undefined;
+      if (!authUser) return reply.status(401).send({ error: 'Token inválido.' });
+
+      const { postId, commentId } = request.params;
+
+      const meProfile = await prisma.profile.findUnique({
+        where: { userId: authUser.sub },
+        select: { id: true },
+      });
+      if (!meProfile) return reply.status(400).send({ error: 'Perfil não encontrado' });
+
+      // Buscar comentário e verificar autorização
+      const comment = await prisma.postComment.findUnique({
+        where: { id: commentId },
+        select: {
+          id: true,
+          postId: true,
+          authorId: true,
+          parentId: true,
+          _count: {
+            select: { replies: true },
+          },
+        },
+      });
+
+      if (!comment) {
+        return reply.status(404).send({ error: 'Comentário não encontrado' });
+      }
+
+      if (comment.postId !== postId) {
+        return reply.status(400).send({ error: 'Comentário não pertence a este post' });
+      }
+
+      if (comment.authorId !== meProfile.id) {
+        return reply.status(403).send({ error: 'Você não pode excluir este comentário' });
+      }
+
+      // Verificar se tem respostas
+      if (comment._count.replies > 0) {
+        return reply.status(400).send({
+          error: 'Não é possível excluir comentário com respostas',
+          hasReplies: true,
+          repliesCount: comment._count.replies,
+        });
+      }
+
+      // Deletar comentário (cascade deleta likes)
+      await prisma.postComment.delete({
+        where: { id: commentId },
+      });
+
+      app.log.info({
+        event: 'comment.delete',
+        commentId,
+        profileId: meProfile.id,
+      });
+
+      return reply.send({
+        success: true,
+        commentId,
+        isReply: !!comment.parentId,
+        parentId: comment.parentId,
       });
     }
   );

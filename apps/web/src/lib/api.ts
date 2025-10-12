@@ -296,6 +296,8 @@ export const apiHelpers = {
   followUser: (handle: string) => postJSON('/social/follow', { targetHandle: handle }),
   unfollowUser: (handle: string) => postJSON('/social/unfollow', { targetHandle: handle }),
   createPost: (payload: any) => postJSON('/posts', payload),
+  updatePost: (postId: string, payload: { content: string; media?: Array<{ url: string; type: string }> }) =>
+    putJSON(`/posts/${postId}`, payload),
   deletePost: (id: string) => deleteJSON(`/posts/${id}`),
 
   // Post images
@@ -303,6 +305,16 @@ export const apiHelpers = {
     const formData = new FormData();
     formData.append('file', file);
     return postMultipart<{ asset: { id: string; url: string; mime: string; size: number } }>('/posts/upload-image', formData);
+  },
+
+  // Post videos
+  uploadPostVideo: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiFetch('/media/upload-video', {
+      method: 'POST',
+      body: formData,
+    }, { requireAuth: true });
   },
 
   // Global search
@@ -315,12 +327,53 @@ export const apiHelpers = {
   // Post interactions
   likePost: (postId: string) => postJSON(`/posts/${postId}/like`, {}),
   unlikePost: (postId: string) => deleteJSON(`/posts/${postId}/like`),
+  repostPost: (postId: string) => postJSON(`/posts/${postId}/repost`, {}),
+  unrepostPost: (postId: string) => deleteJSON(`/posts/${postId}/repost`),
+  getPostById: (postId: string) => getJSON(`/posts/${postId}`),
+
+  // Reações
+  reactToPost: (postId: string, data: { reaction: string }) =>
+    postJSON(`/posts/${postId}/react`, data),
+  removeReaction: (postId: string) => deleteJSON(`/posts/${postId}/react`),
+
+  // Bookmarks
+  bookmarkPost: (postId: string) => postJSON(`/posts/${postId}/bookmark`, {}),
+  unbookmarkPost: (postId: string) => deleteJSON(`/posts/${postId}/bookmark`),
+  getMyBookmarks: (params?: { limit?: number; cursor?: string }) => {
+    const qs = params ? '?' + new URLSearchParams(params as any).toString() : '';
+    return getJSON(`/me/bookmarks${qs}`);
+  },
+
+  // Moderação
+  reportPost: (postId: string, data: { reason: string; details?: string }) =>
+    postJSON(`/posts/${postId}/report`, data),
+
+  // Pin post
+  pinPost: (postId: string) => postJSON(`/posts/${postId}/pin`, {}),
+  unpinPost: (postId: string) => deleteJSON(`/posts/${postId}/pin`),
+
+  // Polls
+  votePoll: (postId: string, data: { optionIndex: number | number[] }) =>
+    postJSON(`/posts/${postId}/poll/vote`, data),
+
   getPostComments: (postId: string, params?: { limit?: number; cursor?: string }) => {
     const qs = params ? '?' + new URLSearchParams(params as any).toString() : '';
     return getJSON(`/posts/${postId}/comments${qs}`);
   },
+  getCommentReplies: (postId: string, commentId: string, params?: { limit?: number; cursor?: string }) => {
+    const qs = params ? '?' + new URLSearchParams(params as any).toString() : '';
+    return getJSON(`/posts/${postId}/comments/${commentId}/replies${qs}`);
+  },
   createPostComment: (postId: string, data: { content: string; parentId?: string }) =>
     postJSON(`/posts/${postId}/comments`, data),
+  likeComment: (postId: string, commentId: string) =>
+    postJSON(`/posts/${postId}/comments/${commentId}/like`, {}),
+  unlikeComment: (postId: string, commentId: string) =>
+    deleteJSON(`/posts/${postId}/comments/${commentId}/like`),
+  updateComment: (postId: string, commentId: string, data: { content: string }) =>
+    patchJSON(`/posts/${postId}/comments/${commentId}`, data),
+  deleteComment: (postId: string, commentId: string) =>
+    deleteJSON(`/posts/${postId}/comments/${commentId}`),
 
   // Notificações
   getNotifications: (params?: { limit?: number; cursor?: string; unreadOnly?: boolean }) => {

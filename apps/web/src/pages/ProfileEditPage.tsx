@@ -10,6 +10,7 @@ import { Button } from '../components/ui/button';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { ReputationBadge } from '@/components/profile/ReputationBadge';
 import { BadgesList } from '@/components/profile/BadgesList';
+import { User, ImageIcon } from 'lucide-react';
 
 const HANDLE_REGEX = /^[a-z0-9](?:[a-z0-9._-]{1,28}[a-z0-9])?$/;
 const RESERVED = new Set(['admin','support','bazari','root','system','null','undefined']);
@@ -39,6 +40,10 @@ export default function ProfileEditPage() {
     { handle: '', displayName: '', bio: '', avatarUrl: '', bannerUrl: '' }
   );
   const [handleStatus, setHandleStatus] = useState<'idle'|'checking'|'available'|'taken'|'invalid'>('idle');
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [bannerError, setBannerError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -98,6 +103,98 @@ export default function ProfileEditPage() {
       if (res?.exists) setHandleStatus('taken'); else setHandleStatus('available');
     } catch {
       setHandleStatus('idle');
+    }
+  }
+
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setAvatarError(null);
+
+    // Validações
+    const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setAvatarError('Formato não suportado. Use JPG, PNG, WebP ou GIF.');
+      return;
+    }
+
+    if (file.size > MAX_SIZE) {
+      setAvatarError('Arquivo muito grande. Máximo 5MB.');
+      return;
+    }
+
+    setUploadingAvatar(true);
+
+    try {
+      const response = await apiHelpers.uploadFile(file);
+      const uploadedUrl = response?.asset?.url || response?.url;
+
+      if (uploadedUrl) {
+        // Converter para URL completa se necessário
+        const fullUrl = uploadedUrl.startsWith('http')
+          ? uploadedUrl
+          : `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${uploadedUrl}`;
+
+        setForm(p => ({ ...p, avatarUrl: fullUrl }));
+      } else {
+        throw new Error('URL não retornada pelo servidor');
+      }
+    } catch (err: any) {
+      console.error('Error uploading avatar:', err);
+      setAvatarError(err?.message || 'Erro ao fazer upload. Tente novamente.');
+    } finally {
+      setUploadingAvatar(false);
+      // Limpar o input para permitir re-upload do mesmo arquivo
+      e.target.value = '';
+    }
+  }
+
+  async function handleBannerUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setBannerError(null);
+
+    // Validações
+    const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setBannerError('Formato não suportado. Use JPG, PNG ou WebP.');
+      return;
+    }
+
+    if (file.size > MAX_SIZE) {
+      setBannerError('Arquivo muito grande. Máximo 5MB.');
+      return;
+    }
+
+    setUploadingBanner(true);
+
+    try {
+      const response = await apiHelpers.uploadFile(file);
+      const uploadedUrl = response?.asset?.url || response?.url;
+
+      if (uploadedUrl) {
+        // Converter para URL completa se necessário
+        const fullUrl = uploadedUrl.startsWith('http')
+          ? uploadedUrl
+          : `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${uploadedUrl}`;
+
+        setForm(p => ({ ...p, bannerUrl: fullUrl }));
+      } else {
+        throw new Error('URL não retornada pelo servidor');
+      }
+    } catch (err: any) {
+      console.error('Error uploading banner:', err);
+      setBannerError(err?.message || 'Erro ao fazer upload. Tente novamente.');
+    } finally {
+      setUploadingBanner(false);
+      // Limpar o input para permitir re-upload do mesmo arquivo
+      e.target.value = '';
     }
   }
 
@@ -180,13 +277,154 @@ export default function ProfileEditPage() {
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="avatarUrl">Avatar URL (opcional)</Label>
-              <Input id="avatarUrl" value={form.avatarUrl} onChange={(e) => setForm((p) => ({ ...p, avatarUrl: e.target.value }))} placeholder="https://..." />
+              <Label htmlFor="avatar">Avatar</Label>
+
+              {/* Preview do Avatar */}
+              <div className="flex items-start gap-4">
+                {form.avatarUrl ? (
+                  <img
+                    src={form.avatarUrl}
+                    alt="Avatar preview"
+                    className="h-24 w-24 rounded-full object-cover border-2 border-border"
+                  />
+                ) : (
+                  <div className="h-24 w-24 rounded-full bg-muted flex items-center justify-center">
+                    <User className="h-12 w-12 text-muted-foreground" />
+                  </div>
+                )}
+
+                <div className="flex-1 space-y-2">
+                  <input
+                    type="file"
+                    id="avatar-upload"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    onChange={handleAvatarUpload}
+                    className="hidden"
+                  />
+
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => document.getElementById('avatar-upload')?.click()}
+                      disabled={uploadingAvatar}
+                    >
+                      {uploadingAvatar ? 'Enviando...' : 'Upload Avatar'}
+                    </Button>
+
+                    {form.avatarUrl && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setForm(p => ({ ...p, avatarUrl: '' }))}
+                        disabled={uploadingAvatar}
+                      >
+                        Remover
+                      </Button>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-muted-foreground">
+                    JPG, PNG, WebP ou GIF. Máximo 5MB. Recomendado: 400x400px
+                  </p>
+
+                  {avatarError && (
+                    <p className="text-xs text-destructive">{avatarError}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Campo opcional de URL manual (avançado) */}
+              <details className="mt-2">
+                <summary className="text-xs text-muted-foreground cursor-pointer">
+                  Ou usar URL externa
+                </summary>
+                <Input
+                  id="avatarUrl"
+                  value={form.avatarUrl}
+                  onChange={(e) => setForm((p) => ({ ...p, avatarUrl: e.target.value }))}
+                  placeholder="https://..."
+                  className="mt-2"
+                />
+              </details>
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="bannerUrl">Banner URL (opcional)</Label>
-              <Input id="bannerUrl" value={form.bannerUrl} onChange={(e) => setForm((p) => ({ ...p, bannerUrl: e.target.value }))} placeholder="https://..." />
+              <Label htmlFor="banner">Banner / Imagem de Capa</Label>
+
+              {/* Preview do Banner */}
+              <div className="space-y-3">
+                {form.bannerUrl ? (
+                  <div className="relative w-full h-32 rounded-lg overflow-hidden border-2 border-border">
+                    <img
+                      src={form.bannerUrl}
+                      alt="Banner preview"
+                      className="w-full h-full object-cover"
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className="absolute top-2 right-2"
+                      onClick={() => setForm(p => ({ ...p, bannerUrl: '' }))}
+                      disabled={uploadingBanner}
+                    >
+                      Remover
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="w-full h-32 rounded-lg bg-muted flex items-center justify-center border-2 border-dashed border-border">
+                    <div className="text-center">
+                      <ImageIcon className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">Nenhuma imagem de capa</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <input
+                    type="file"
+                    id="banner-upload"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleBannerUpload}
+                    className="hidden"
+                  />
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => document.getElementById('banner-upload')?.click()}
+                    disabled={uploadingBanner}
+                  >
+                    {uploadingBanner ? 'Enviando...' : 'Upload Banner'}
+                  </Button>
+
+                  <p className="text-xs text-muted-foreground">
+                    JPG, PNG ou WebP. Máximo 5MB. Recomendado: 1500x500px
+                  </p>
+
+                  {bannerError && (
+                    <p className="text-xs text-destructive">{bannerError}</p>
+                  )}
+                </div>
+
+                {/* Campo opcional de URL manual (avançado) */}
+                <details className="mt-2">
+                  <summary className="text-xs text-muted-foreground cursor-pointer">
+                    Ou usar URL externa
+                  </summary>
+                  <Input
+                    id="bannerUrl"
+                    value={form.bannerUrl}
+                    onChange={(e) => setForm((p) => ({ ...p, bannerUrl: e.target.value }))}
+                    placeholder="https://..."
+                    className="mt-2"
+                  />
+                </details>
+              </div>
             </div>
 
             {error && (

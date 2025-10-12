@@ -148,6 +148,7 @@ export function usePersonalizedFeed({ tab, limit = 20 }: UsePersonalizedFeedOpti
 
   return {
     posts,
+    setPosts,
     loading,
     loadingMore,
     hasMore,

@@ -42,6 +42,8 @@ import DiscoverPeoplePage from './pages/DiscoverPeoplePage';
 import DiscoverTrendingPage from './pages/DiscoverTrendingPage';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
 import FeedPage from './pages/FeedPage';
+import { PostDetailPage } from './pages/PostDetailPage';
+import BookmarksPage from './pages/BookmarksPage';
 import SellerSetupPage from './pages/SellerSetupPage';
 import SellerPublicPage from './pages/SellerPublicPage';
 import SellerManagePage from './pages/SellerManagePage';
@@ -267,6 +269,8 @@ function App() {
                       <Route path="dashboard" element={<DashboardPage />} />
                       <Route path="feed" element={<FeedPage />} />
                       <Route path="profile/edit" element={<ProfileEditPage />} />
+                      <Route path="posts/:postId" element={<PostDetailPage />} />
+                      <Route path="bookmarks" element={<BookmarksPage />} />
                       <Route path="discover/people" element={<DiscoverPeoplePage />} />
                       <Route path="discover/trending" element={<DiscoverTrendingPage />} />
                       <Route path="analytics" element={<AnalyticsDashboard />} />

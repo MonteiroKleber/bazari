@@ -8,7 +8,7 @@ import { apiHelpers } from '../lib/api';
 export default function FeedPage() {
   const [createPostOpen, setCreatePostOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [profile, setProfile] = useState<{ avatarUrl?: string | null; displayName: string } | null>(null);
+  const [profile, setProfile] = useState<{ avatarUrl?: string | null; displayName: string; handle: string } | null>(null);
 
   // Load user profile
   useState(() => {

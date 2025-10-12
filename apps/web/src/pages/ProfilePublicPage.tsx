@@ -47,14 +47,28 @@ export default function ProfilePublicPage() {
   const [data, setData] = useState<PublicProfile | null>(null);
   const [tab, setTab] = useState<'posts' | 'store' | 'followers' | 'following' | 'reputation'>('posts');
   const [posts, setPosts] = useState<any[]>([]);
+  const [pinnedPost, setPinnedPost] = useState<any | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [storeItems, setStoreItems] = useState<Array<{ id: string; title: string; priceBzr: string; coverUrl?: string }>>([]);
   const [storeNextCursor, setStoreNextCursor] = useState<string | null>(null);
   const [storeLoading, setStoreLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{ handle: string } | null>(null);
 
   useEffect(() => {
     let active = true;
+
+    // Buscar usuário logado
+    (async () => {
+      try {
+        const res = await apiHelpers.getMeProfile();
+        if (active) setCurrentUser(res.profile);
+      } catch (e) {
+        if (active) setCurrentUser(null);
+      }
+    })();
+
+    // Buscar perfil público
     setLoading(true);
     setError(null);
     (async () => {
@@ -62,6 +76,7 @@ export default function ProfilePublicPage() {
         const res = await apiHelpers.getPublicProfile(handle);
         if (!active) return;
         setData(res);
+        setPinnedPost(res.pinnedPost || null);
         setPosts([]);
         setNextCursor(null);
         setIsFollowing(false);
@@ -79,6 +94,8 @@ export default function ProfilePublicPage() {
 
   async function loadMore() {
     const res = await apiHelpers.getProfilePosts(handle, nextCursor ? { cursor: nextCursor } : undefined);
+    console.log('[ProfilePublicPage] Posts received from API:', res.items);
+    console.log('[ProfilePublicPage] First post data:', res.items[0]);
     setPosts((p) => [...p, ...res.items]);
     setNextCursor(res.nextCursor ?? null);
   }
@@ -142,33 +159,70 @@ export default function ProfilePublicPage() {
   const p = data.profile;
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
-        {p.avatarUrl ? (
-          <img src={p.avatarUrl} alt={p.displayName} className="h-20 w-20 rounded-full object-cover" />
-        ) : (
-          <div className="h-20 w-20 rounded-full bg-muted" />
-        )}
-        <div className="flex-1">
-          <h1 className="text-2xl font-semibold">{p.displayName}</h1>
-          <p className="text-muted-foreground">@{p.handle}</p>
-          {p.bio && <p className="mt-2 max-w-2xl">{p.bio}</p>}
-          {Array.isArray(p.externalLinks) && p.externalLinks.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-3">
-              {p.externalLinks.map((l, idx) => (
-                <a key={idx} className="text-primary underline underline-offset-4" href={l.url} target="_blank" rel="noreferrer">
-                  {l.label}
-                </a>
-              ))}
-            </div>
-          )}
+    <div className="container mx-auto px-4 py-0">
+      {/* Banner Section */}
+      {p.bannerUrl ? (
+        <div className="relative w-full h-48 md:h-64 -mx-4 md:mx-0 md:rounded-lg overflow-hidden bg-muted">
+          <img
+            src={p.bannerUrl}
+            alt={`${p.displayName} banner`}
+            className="w-full h-full object-cover"
+          />
         </div>
-        {canFollow && (
-          <div className="flex gap-2">
-            <Button onClick={onFollowToggle} aria-live="polite">{isFollowing ? 'Deixar de seguir' : 'Seguir'}</Button>
+      ) : (
+        <div className="relative w-full h-48 md:h-64 -mx-4 md:mx-0 md:rounded-lg bg-gradient-to-br from-primary/20 to-primary/5" />
+      )}
+
+      {/* Profile Header - Sobreposto ao banner */}
+      <div className="relative -mt-12 md:-mt-16 px-4 md:px-6">
+        <div className="flex flex-col md:flex-row md:items-end gap-4 mb-6">
+          {/* Avatar com borda branca para destacar sobre o banner */}
+          <div className="relative">
+            {p.avatarUrl ? (
+              <img
+                src={p.avatarUrl}
+                alt={p.displayName}
+                className="h-24 w-24 md:h-32 md:w-32 rounded-full object-cover border-4 border-background shadow-lg"
+              />
+            ) : (
+              <div className="h-24 w-24 md:h-32 md:w-32 rounded-full bg-muted border-4 border-background shadow-lg" />
+            )}
           </div>
-        )}
+
+          {/* Info Section */}
+          <div className="flex-1 md:mb-2">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div>
+                <h1 className="text-2xl md:text-3xl font-semibold">{p.displayName}</h1>
+                <p className="text-muted-foreground">@{p.handle}</p>
+              </div>
+
+              {canFollow && (
+                <Button onClick={onFollowToggle} aria-live="polite">
+                  {isFollowing ? 'Deixar de seguir' : 'Seguir'}
+                </Button>
+              )}
+            </div>
+
+            {p.bio && <p className="mt-3 max-w-2xl">{p.bio}</p>}
+
+            {Array.isArray(p.externalLinks) && p.externalLinks.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-3">
+                {p.externalLinks.map((l, idx) => (
+                  <a
+                    key={idx}
+                    className="text-primary underline underline-offset-4 text-sm"
+                    href={l.url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {l.label}
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Counters */}
@@ -223,28 +277,90 @@ export default function ProfilePublicPage() {
       {/* Content */}
       {tab === 'posts' && (
         <div className="space-y-3">
-          {posts.map((post) => (
+          {/* Post Fixado */}
+          {pinnedPost && (
             <PostCard
-              key={post.id}
+              key={`pinned-${pinnedPost.id}`}
               post={{
-                id: post.id,
+                id: pinnedPost.id,
                 author: {
                   handle: data?.profile.handle || handle,
                   displayName: data?.profile.displayName || handle,
                   avatarUrl: data?.profile.avatarUrl,
                 },
-                content: post.content,
-                media: post.media,
-                createdAt: post.createdAt,
-                likesCount: post.likesCount,
-                commentsCount: post.commentsCount,
-                repostsCount: post.repostsCount,
+                content: pinnedPost.content,
+                kind: pinnedPost.kind,
+                media: pinnedPost.media,
+                createdAt: pinnedPost.createdAt,
+                likesCount: pinnedPost.likesCount,
+                commentsCount: pinnedPost.commentsCount,
+                repostsCount: pinnedPost.repostsCount,
+                isLiked: pinnedPost.isLiked || false,
+                isReposted: pinnedPost.isReposted || false,
+                reactions: pinnedPost.reactions,
+                userReaction: pinnedPost.userReaction,
+                isPinned: true,
+              }}
+              currentUserHandle={currentUser?.handle}
+              onPinned={(pinned) => {
+                if (!pinned) setPinnedPost(null);
               }}
             />
-          ))}
+          )}
+
+          {/* Posts normais */}
+          {posts.map((post) => {
+            const postData = {
+              id: post.id,
+              author: post.author || {
+                handle: data?.profile.handle || handle,
+                displayName: data?.profile.displayName || handle,
+                avatarUrl: data?.profile.avatarUrl,
+              },
+              content: post.content,
+              kind: (post as any).kind,
+              media: post.media,
+              createdAt: post.createdAt,
+              likesCount: post.likesCount,
+              commentsCount: post.commentsCount,
+              repostsCount: post.repostsCount,
+              isLiked: (post as any).isLiked || false,
+              isReposted: (post as any).isReposted || false,
+              reactions: (post as any).reactions,
+              userReaction: (post as any).userReaction,
+              repostedBy: (post as any).repostedBy,
+              repostedAt: (post as any).repostedAt,
+            };
+            console.log(`[ProfilePublicPage] PostCard data for ${post.id}:`, {
+              isLiked: postData.isLiked,
+              isReposted: postData.isReposted,
+              reactions: postData.reactions,
+              userReaction: postData.userReaction,
+              likesCount: postData.likesCount,
+              repostsCount: postData.repostsCount,
+            });
+            return (
+              <PostCard
+                key={post.id}
+                post={postData}
+                currentUserHandle={currentUser?.handle}
+                onDeleted={() => {
+                  setPosts(prev => prev.filter(p => p.id !== post.id));
+                }}
+                onUpdated={(updatedPost) => {
+                  setPosts(prev => prev.map(p => p.id === updatedPost.id ? updatedPost : p));
+                }}
+                onPinned={(pinned) => {
+                  if (pinned) {
+                    window.location.reload();
+                  }
+                }}
+              />
+            );
+          })}
           {nextCursor ? (
             <Button variant="outline" onClick={loadMore}>{t('profile.seeMore')}</Button>
-          ) : posts.length === 0 ? (
+          ) : posts.length === 0 && !pinnedPost ? (
             <div className="text-muted-foreground">{t('profile.noPosts')}</div>
           ) : null}
         </div>
@@ -334,12 +450,18 @@ function FollowersList({ handle, mode }: { handle: string; mode: 'followers' | '
   const [loading, setLoading] = useState(false);
   const { t } = useTranslation();
 
-  async function loadMore() {
+  async function loadMore(reset: boolean = false) {
     setLoading(true);
     try {
       const fn = mode === 'followers' ? apiHelpers.getFollowers : apiHelpers.getFollowing;
-      const res = await fn(handle, nextCursor ? { cursor: nextCursor } : undefined);
-      setItems((p) => [...p, ...res.items]);
+      const res = await fn(handle, !reset && nextCursor ? { cursor: nextCursor } : undefined);
+
+      if (reset) {
+        setItems(res.items);
+      } else {
+        setItems((p) => [...p, ...res.items]);
+      }
+
       setNextCursor(res.nextCursor ?? null);
     } finally {
       setLoading(false);
@@ -347,9 +469,7 @@ function FollowersList({ handle, mode }: { handle: string; mode: 'followers' | '
   }
 
   useEffect(() => {
-    setItems([]);
-    setNextCursor(null);
-    loadMore();
+    loadMore(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handle, mode]);
 
