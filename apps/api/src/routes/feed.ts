@@ -63,6 +63,7 @@ export async function feedRoutes(app: FastifyInstance, options: { prisma: Prisma
             _count: {
               select: {
                 likes: true,
+                reposts: true,
                 comments: true,
               },
             },
@@ -90,21 +91,83 @@ export async function feedRoutes(app: FastifyInstance, options: { prisma: Prisma
         // 5. Paginação: pegar top N
         const paginatedPosts = scoredPosts.slice(0, limit);
 
+        // 5.1. Buscar profileId do usuário atual
+        const meProfile = await prisma.profile.findUnique({
+          where: { userId: authUser.sub },
+          select: { id: true },
+        });
+
+        // 5.2. Buscar interações do usuário para esses posts
+        const postIds = paginatedPosts.map((p) => p.id);
+        const [userLikes, userReposts, userReactions] = await Promise.all([
+          meProfile
+            ? prisma.postLike.findMany({
+                where: { profileId: meProfile.id, postId: { in: postIds } },
+                select: { postId: true },
+              })
+            : Promise.resolve([]),
+          meProfile
+            ? prisma.postRepost.findMany({
+                where: { profileId: meProfile.id, postId: { in: postIds } },
+                select: { postId: true },
+              })
+            : Promise.resolve([]),
+          meProfile
+            ? prisma.postReaction.findMany({
+                where: { profileId: meProfile.id, postId: { in: postIds } },
+                select: { postId: true, reaction: true },
+              })
+            : Promise.resolve([]),
+        ]);
+
+        const likedPostIds = new Set(userLikes.map((l) => l.postId));
+        const repostedPostIds = new Set(userReposts.map((r) => r.postId));
+        const reactionsByPostId = new Map(userReactions.map((r) => [r.postId, r.reaction]));
+
+        // 5.3. Buscar contadores de reações para todos os posts
+        const allReactions = await prisma.postReaction.groupBy({
+          by: ['postId', 'reaction'],
+          where: { postId: { in: postIds } },
+          _count: { reaction: true },
+        });
+
+        const reactionsByPost = new Map<string, { love: number; laugh: number; wow: number; sad: number; angry: number }>();
+        allReactions.forEach((r) => {
+          if (!reactionsByPost.has(r.postId)) {
+            reactionsByPost.set(r.postId, { love: 0, laugh: 0, wow: 0, sad: 0, angry: 0 });
+          }
+          const reactions = reactionsByPost.get(r.postId)!;
+          reactions[r.reaction as keyof typeof reactions] = r._count.reaction;
+        });
+
         // 6. Formatar resposta
-        const items = paginatedPosts.map((post) => ({
-          id: post.id,
-          content: post.content,
-          authorId: post.authorId,
-          author: {
-            handle: post.author.handle,
-            displayName: post.author.displayName || 'Unknown',
-            avatarUrl: post.author.avatarUrl,
-          },
-          createdAt: post.createdAt.toISOString(),
-          likesCount: post._count.likes,
-          commentsCount: post._count.comments,
-          score: post.score, // Debug
-        }));
+        const items = paginatedPosts.map((post) => {
+          const reactions = reactionsByPost.get(post.id) || { love: 0, laugh: 0, wow: 0, sad: 0, angry: 0 };
+          const totalReactions = reactions.love + reactions.laugh + reactions.wow + reactions.sad + reactions.angry;
+          const likesCount = totalReactions > 0 ? totalReactions : post._count.likes;
+
+          return {
+            id: post.id,
+            content: post.content,
+            kind: post.kind,
+            media: post.media,
+            authorId: post.authorId,
+            author: {
+              handle: post.author.handle,
+              displayName: post.author.displayName || 'Unknown',
+              avatarUrl: post.author.avatarUrl,
+            },
+            createdAt: post.createdAt.toISOString(),
+            likesCount,
+            repostsCount: post._count.reposts,
+            commentsCount: post._count.comments,
+            isLiked: likedPostIds.has(post.id),
+            isReposted: repostedPostIds.has(post.id),
+            reactions,
+            userReaction: reactionsByPostId.get(post.id),
+            score: post.score, // Debug
+          };
+        });
 
         // 7. Cursor para próxima página
         const nextCursor =
@@ -128,6 +191,11 @@ export async function feedRoutes(app: FastifyInstance, options: { prisma: Prisma
     '/feed/chronological',
     { preHandler: authOnRequest },
     async (request, reply) => {
+      const authUser = (request as any).authUser as { sub: string } | undefined;
+      if (!authUser) {
+        return reply.status(401).send({ error: 'Unauthorized' });
+      }
+
       const query = querySchema.parse(request.query);
       const { limit, cursor } = query;
 
@@ -146,10 +214,15 @@ export async function feedRoutes(app: FastifyInstance, options: { prisma: Prisma
         },
         take: limit,
         orderBy: { createdAt: 'desc' },
-        include: {
+        select: {
+          id: true,
+          content: true,
+          kind: true,
+          media: true,
+          authorId: true,
+          createdAt: true,
           author: {
             select: {
-              userId: true,
               handle: true,
               displayName: true,
               avatarUrl: true,
@@ -159,24 +232,86 @@ export async function feedRoutes(app: FastifyInstance, options: { prisma: Prisma
             select: {
               likes: true,
               comments: true,
+              reposts: true,
             },
           },
         },
       });
 
-      const items = posts.map((post) => ({
-        id: post.id,
-        content: post.content,
-        authorId: post.authorId,
-        author: {
-          handle: post.author.handle,
-          displayName: post.author.displayName || 'Unknown',
-          avatarUrl: post.author.avatarUrl,
-        },
-        createdAt: post.createdAt.toISOString(),
-        likesCount: post._count.likes,
-        commentsCount: post._count.comments,
-      }));
+      // Buscar profileId do usuário atual
+      const meProfile = await prisma.profile.findUnique({
+        where: { userId: authUser.sub },
+        select: { id: true },
+      });
+
+      if (!meProfile) {
+        return reply.status(404).send({ error: 'Profile not found' });
+      }
+
+      // Buscar interações do usuário para esses posts
+      const postIds = posts.map((p) => p.id);
+      const [userLikes, userReposts, userReactions] = await Promise.all([
+        prisma.postLike.findMany({
+          where: { profileId: meProfile.id, postId: { in: postIds } },
+          select: { postId: true },
+        }),
+        prisma.postRepost.findMany({
+          where: { profileId: meProfile.id, postId: { in: postIds } },
+          select: { postId: true },
+        }),
+        prisma.postReaction.findMany({
+          where: { profileId: meProfile.id, postId: { in: postIds } },
+          select: { postId: true, reaction: true },
+        }),
+      ]);
+
+      const likedPostIds = new Set(userLikes.map((l) => l.postId));
+      const repostedPostIds = new Set(userReposts.map((r) => r.postId));
+      const reactionsByPostId = new Map(userReactions.map((r) => [r.postId, r.reaction]));
+
+      // Buscar contadores de reações para todos os posts
+      const allReactions = await prisma.postReaction.groupBy({
+        by: ['postId', 'reaction'],
+        where: { postId: { in: postIds } },
+        _count: { reaction: true },
+      });
+
+      const reactionsByPost = new Map<string, { love: number; laugh: number; wow: number; sad: number; angry: number }>();
+      allReactions.forEach((r) => {
+        if (!reactionsByPost.has(r.postId)) {
+          reactionsByPost.set(r.postId, { love: 0, laugh: 0, wow: 0, sad: 0, angry: 0 });
+        }
+        const reactions = reactionsByPost.get(r.postId)!;
+        reactions[r.reaction as keyof typeof reactions] = r._count.reaction;
+      });
+
+      // Formatar resposta
+      const items = posts.map((post) => {
+        const reactions = reactionsByPost.get(post.id) || { love: 0, laugh: 0, wow: 0, sad: 0, angry: 0 };
+        const totalReactions = reactions.love + reactions.laugh + reactions.wow + reactions.sad + reactions.angry;
+        const likesCount = totalReactions > 0 ? totalReactions : post._count.likes;
+
+        return {
+          id: post.id,
+          content: post.content,
+          kind: post.kind,
+          media: post.media,
+          authorId: post.authorId,
+          author: {
+            handle: post.author.handle,
+            displayName: post.author.displayName || 'Unknown',
+            avatarUrl: post.author.avatarUrl,
+          },
+          createdAt: post.createdAt.toISOString(),
+          likesCount,
+          repostsCount: post._count.reposts,
+          commentsCount: post._count.comments,
+          isLiked: likedPostIds.has(post.id),
+          isReposted: repostedPostIds.has(post.id),
+          reactions,
+          userReaction: reactionsByPostId.get(post.id),
+        };
+      });
 
       const nextCursor =
         posts.length === limit

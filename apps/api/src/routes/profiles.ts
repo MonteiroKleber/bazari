@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { authOnRequest } from '../lib/auth/middleware.js';
+import { authOnRequest, optionalAuthOnRequest } from '../lib/auth/middleware.js';
 import { validateHandle } from '../lib/handles.js';
 import { decodeCursor, encodeCursor } from '../lib/cursor.js';
 import { env } from '../env.js';
@@ -140,7 +140,10 @@ export async function profilesRoutes(app: FastifyInstance, options: { prisma: Pr
   });
 
   // GET /profiles/:handle/posts — público, paginado por cursor
-  app.get<{ Params: { handle: string } }>('/profiles/:handle/posts', async (request, reply) => {
+  // Retorna posts originais + reposts do usuário (feed misto)
+  app.get<{ Params: { handle: string } }>('/profiles/:handle/posts', {
+    preHandler: optionalAuthOnRequest,
+  }, async (request, reply) => {
     const { handle } = handleParamSchema.parse(request.params);
     const { cursor, limit } = paginationSchema.parse(request.query ?? {});
     const take = Math.min(limit ?? env.PAGE_SIZE_DEFAULT, 100);
@@ -150,48 +153,229 @@ export async function profilesRoutes(app: FastifyInstance, options: { prisma: Pr
     if (!profile) return reply.status(404).send({ error: 'Perfil não encontrado' });
 
     const c = decodeCursor(cursor ?? null);
-    const where = c
-      ? { OR: [ { createdAt: { lt: c.createdAt } }, { createdAt: c.createdAt, id: { lt: c.id } } ], authorId: profile.id }
-      : { authorId: profile.id };
 
-    const items = await prisma.post.findMany({
-      where,
+    // Buscar posts originais
+    const postsWhere = c
+      ? { OR: [ { createdAt: { lt: c.createdAt } }, { createdAt: c.createdAt, id: { lt: c.id } } ], authorId: profile.id, status: 'PUBLISHED' as const }
+      : { authorId: profile.id, status: 'PUBLISHED' as const };
+
+    const posts = await prisma.post.findMany({
+      where: postsWhere,
       orderBy: [ { createdAt: 'desc' }, { id: 'desc' } ],
-      take: take + 1,
+      take: take * 2, // Buscar mais para compensar reposts
       select: {
         id: true,
         kind: true,
         content: true,
         media: true,
         createdAt: true,
+        author: {
+          select: {
+            handle: true,
+            displayName: true,
+            avatarUrl: true,
+          }
+        },
         _count: {
           select: {
             likes: true,
+            reposts: true,
             comments: true,
           }
         }
       },
     });
 
+    // Buscar reposts
+    const repostsWhere = c
+      ? { OR: [ { createdAt: { lt: c.createdAt } }, { createdAt: c.createdAt, id: { lt: c.id } } ], profileId: profile.id }
+      : { profileId: profile.id };
+
+    const reposts = await prisma.postRepost.findMany({
+      where: repostsWhere,
+      orderBy: [ { createdAt: 'desc' }, { id: 'desc' } ],
+      take: take * 2,
+      select: {
+        id: true,
+        createdAt: true,
+        post: {
+          select: {
+            id: true,
+            kind: true,
+            content: true,
+            media: true,
+            createdAt: true,
+            status: true,
+            author: {
+              select: {
+                handle: true,
+                displayName: true,
+                avatarUrl: true,
+              }
+            },
+            _count: {
+              select: {
+                likes: true,
+                reposts: true,
+                comments: true,
+              }
+            }
+          }
+        }
+      },
+    });
+
+    // Filtrar reposts de posts publicados
+    const validReposts = reposts.filter(r => r.post.status === 'PUBLISHED');
+
+    // Mesclar posts e reposts, ordenar por data do repost/post
+    const allItems = [
+      ...posts.map(p => ({ type: 'post' as const, data: p, sortDate: p.createdAt, sortId: p.id })),
+      ...validReposts.map(r => ({ type: 'repost' as const, data: r, sortDate: r.createdAt, sortId: r.id }))
+    ].sort((a, b) => {
+      if (a.sortDate.getTime() !== b.sortDate.getTime()) {
+        return b.sortDate.getTime() - a.sortDate.getTime();
+      }
+      return b.sortId.localeCompare(a.sortId);
+    });
+
+    // Aplicar paginação
+    const paginatedItems = allItems.slice(0, take + 1);
     let nextCursor: string | null = null;
-    if (items.length > take) {
-      const tail = items.pop()!;
-      nextCursor = encodeCursor({ createdAt: tail.createdAt, id: tail.id });
+    if (paginatedItems.length > take) {
+      const tail = paginatedItems.pop()!;
+      nextCursor = encodeCursor({ createdAt: tail.sortDate, id: tail.sortId });
+    }
+
+    // Buscar interações do usuário autenticado (se houver)
+    const authUser = (request as any).authUser as { sub: string } | undefined;
+    let meProfile: { id: string } | null = null;
+    let likedPostIds = new Set<string>();
+    let repostedPostIds = new Set<string>();
+    let reactionsByPostId = new Map<string, string>();
+
+    // Extrair IDs dos posts
+    const postIds = paginatedItems.map((item) =>
+      item.type === 'post' ? item.data.id : item.data.post.id
+    );
+
+    // Buscar contadores de reações (público, sempre)
+    const reactionsByPost = new Map<string, { love: number; laugh: number; wow: number; sad: number; angry: number }>();
+    const allReactions = await prisma.postReaction.groupBy({
+      by: ['postId', 'reaction'],
+      where: { postId: { in: postIds } },
+      _count: { reaction: true },
+    });
+
+    allReactions.forEach((r) => {
+      if (!reactionsByPost.has(r.postId)) {
+        reactionsByPost.set(r.postId, { love: 0, laugh: 0, wow: 0, sad: 0, angry: 0 });
+      }
+      const reactions = reactionsByPost.get(r.postId)!;
+      reactions[r.reaction as keyof typeof reactions] = r._count.reaction;
+    });
+
+    // Buscar interações do usuário autenticado (se houver)
+    if (authUser) {
+      meProfile = await prisma.profile.findUnique({
+        where: { userId: authUser.sub },
+        select: { id: true },
+      });
+
+      if (meProfile) {
+        const [userLikes, userReposts, userReactions] = await Promise.all([
+          prisma.postLike.findMany({
+            where: { profileId: meProfile.id, postId: { in: postIds } },
+            select: { postId: true },
+          }),
+          prisma.postRepost.findMany({
+            where: { profileId: meProfile.id, postId: { in: postIds } },
+            select: { postId: true },
+          }),
+          prisma.postReaction.findMany({
+            where: { profileId: meProfile.id, postId: { in: postIds } },
+            select: { postId: true, reaction: true },
+          }),
+        ]);
+
+        likedPostIds = new Set(userLikes.map((l) => l.postId));
+        repostedPostIds = new Set(userReposts.map((r) => r.postId));
+        reactionsByPostId = new Map(userReactions.map((r) => [r.postId, r.reaction]));
+      }
     }
 
     const response = {
-      items: items.map(it => ({
-        id: it.id,
-        author: { handle: profile.handle, displayName: profile.displayName, avatarUrl: profile.avatarUrl },
-        kind: it.kind,
-        content: it.content,
-        media: it.media ?? null,
-        createdAt: it.createdAt.toISOString(),
-        likesCount: it._count.likes,
-        commentsCount: it._count.comments,
-      })),
+      items: paginatedItems.map(item => {
+        if (item.type === 'post') {
+          const postId = item.data.id;
+          const reactions = reactionsByPost.get(postId) || { love: 0, laugh: 0, wow: 0, sad: 0, angry: 0 };
+          const totalReactions = reactions.love + reactions.laugh + reactions.wow + reactions.sad + reactions.angry;
+          const likesCount = totalReactions > 0 ? totalReactions : item.data._count.likes;
+
+          return {
+            id: postId,
+            author: item.data.author,
+            kind: item.data.kind,
+            content: item.data.content,
+            media: item.data.media ?? null,
+            createdAt: item.data.createdAt.toISOString(),
+            likesCount,
+            repostsCount: item.data._count.reposts,
+            commentsCount: item.data._count.comments,
+            isLiked: likedPostIds.has(postId),
+            isReposted: repostedPostIds.has(postId),
+            reactions,
+            userReaction: reactionsByPostId.get(postId),
+          };
+        } else {
+          // Repost - incluir informação de quem repostou
+          const postId = item.data.post.id;
+          const reactions = reactionsByPost.get(postId) || { love: 0, laugh: 0, wow: 0, sad: 0, angry: 0 };
+          const totalReactions = reactions.love + reactions.laugh + reactions.wow + reactions.sad + reactions.angry;
+          const likesCount = totalReactions > 0 ? totalReactions : item.data.post._count.likes;
+
+          return {
+            id: postId,
+            author: item.data.post.author,
+            kind: item.data.post.kind,
+            content: item.data.post.content,
+            media: item.data.post.media ?? null,
+            createdAt: item.data.post.createdAt.toISOString(),
+            likesCount,
+            repostsCount: item.data.post._count.reposts,
+            commentsCount: item.data.post._count.comments,
+            isLiked: likedPostIds.has(postId),
+            isReposted: repostedPostIds.has(postId),
+            reactions,
+            userReaction: reactionsByPostId.get(postId),
+            repostedBy: {
+              handle: profile.handle,
+              displayName: profile.displayName,
+              avatarUrl: profile.avatarUrl,
+            },
+            repostedAt: item.data.createdAt.toISOString(),
+          };
+        }
+      }),
       nextCursor,
     };
+
+    // Log para debug
+    app.log.info({
+      route: 'GET /profiles/:handle/posts',
+      handle,
+      authUser: authUser?.sub,
+      itemsCount: response.items.length,
+      firstItem: response.items[0] ? {
+        id: response.items[0].id,
+        isLiked: response.items[0].isLiked,
+        isReposted: response.items[0].isReposted,
+        reactions: response.items[0].reactions,
+        userReaction: response.items[0].userReaction,
+        likesCount: response.items[0].likesCount,
+        repostsCount: response.items[0].repostsCount,
+      } : null,
+    });
 
     reply.header('Cache-Control', 'public, max-age=30');
     return reply.send(response);
@@ -439,7 +623,7 @@ export async function profilesRoutes(app: FastifyInstance, options: { prisma: Pr
         orderBy: { createdAt: 'asc' },
         select: {
           createdAt: true,
-          scoreDelta: true
+          delta: true
         }
       });
 
@@ -451,7 +635,7 @@ export async function profilesRoutes(app: FastifyInstance, options: { prisma: Pr
       const eventsByDay = new Map<string, number>();
       events.reverse().forEach(event => {
         const date = event.createdAt.toISOString().split('T')[0];
-        eventsByDay.set(date, (eventsByDay.get(date) || 0) + event.scoreDelta);
+        eventsByDay.set(date, (eventsByDay.get(date) || 0) + event.delta);
       });
 
       // Criar array dos últimos 30 dias

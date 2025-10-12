@@ -18,13 +18,14 @@ interface PersonalizedFeedProps {
   userProfile?: {
     avatarUrl?: string | null;
     displayName: string;
+    handle?: string;
   } | null;
   onCreatePost?: () => void;
 }
 
 export function PersonalizedFeed({ showQuickPost = false, userProfile, onCreatePost }: PersonalizedFeedProps) {
   const [activeTab, setActiveTab] = useState<FeedTab>('for-you');
-  const { posts, loading, loadingMore, hasMore, error, refresh, loadMoreRef } =
+  const { posts, loading, loadingMore, hasMore, error, refresh, loadMoreRef, setPosts } =
     usePersonalizedFeed({ tab: activeTab });
 
   const handleTabChange = (tab: FeedTab) => {
@@ -124,6 +125,8 @@ export function PersonalizedFeed({ showQuickPost = false, userProfile, onCreateP
                 post={{
                   id: post.id,
                   content: post.content,
+                  kind: (post as any).kind,
+                  media: (post as any).media,
                   author: {
                     handle: post.author.handle,
                     displayName: post.author.displayName,
@@ -131,7 +134,19 @@ export function PersonalizedFeed({ showQuickPost = false, userProfile, onCreateP
                   },
                   createdAt: post.createdAt,
                   likesCount: post.likesCount,
+                  repostsCount: (post as any).repostsCount || 0,
                   commentsCount: post.commentsCount,
+                  isLiked: (post as any).isLiked || false,
+                  isReposted: (post as any).isReposted || false,
+                  reactions: (post as any).reactions,
+                  userReaction: (post as any).userReaction,
+                }}
+                currentUserHandle={userProfile?.handle}
+                onDeleted={() => {
+                  setPosts(prev => prev.filter(p => p.id !== post.id));
+                }}
+                onUpdated={(updatedPost) => {
+                  setPosts(prev => prev.map(p => p.id === updatedPost.id ? updatedPost : p));
                 }}
               />
             ))}

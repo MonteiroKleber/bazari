@@ -19,7 +19,8 @@ import {
   BarChart3,
   Settings,
   Moon,
-  LogOut
+  LogOut,
+  Bookmark
 } from 'lucide-react';
 import { useTheme } from '@/theme/ThemeProvider';
 import { ReputationBadge } from './profile/ReputationBadge';
@@ -125,6 +126,13 @@ export function UserMenu() {
           <Link to="/app/profile/edit" className="cursor-pointer">
             <Edit className="mr-2 h-4 w-4" />
             Editar Perfil
+          </Link>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem asChild>
+          <Link to="/app/bookmarks" className="cursor-pointer">
+            <Bookmark className="mr-2 h-4 w-4" />
+            Posts Salvos
           </Link>
         </DropdownMenuItem>
 

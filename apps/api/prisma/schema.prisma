@@ -246,6 +246,7 @@ enum PostStatus {
 enum NotificationType {
   FOLLOW
   LIKE
+  REPOST
   COMMENT
   MENTION
   BADGE
@@ -359,6 +360,10 @@ model Profile {
 
   // Relations
   posts                 Post[]
+  postComments          PostComment[]
+  postReposts           PostRepost[]
+  postReactions         PostReaction[]
+  commentLikes          PostCommentLike[]
   followers             Follow[]                 @relation("follows_following")
   following             Follow[]                 @relation("follows_follower")
   badges                ProfileBadge[]
@@ -437,8 +442,10 @@ model Post {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
-  likes    PostLike[]
-  comments PostComment[]
+  likes     PostLike[]
+  reposts   PostRepost[]
+  reactions PostReaction[]
+  comments  PostComment[]
 
   @@index([authorId, createdAt])
   @@index([status])
@@ -456,11 +463,40 @@ model PostLike {
   @@index([profileId])
 }
 
+model PostRepost {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([postId, profileId])
+  @@index([postId])
+  @@index([profileId])
+}
+
+model PostReaction {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  reaction  String   // love, laugh, wow, sad, angry
+  createdAt DateTime @default(now())
+
+  @@unique([postId, profileId])
+  @@index([postId])
+  @@index([profileId])
+  @@index([postId, reaction])
+}
+
 model PostComment {
   id        String   @id @default(cuid())
   postId    String
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   authorId  String
+  author    Profile  @relation(fields: [authorId], references: [id], onDelete: Cascade)
   content   String   @db.Text
   parentId  String? // Para respostas aninhadas
   createdAt DateTime @default(now())
@@ -468,10 +504,24 @@ model PostComment {
 
   parent  PostComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies PostComment[] @relation("CommentReplies")
+  likes   PostCommentLike[]
 
   @@index([postId, createdAt])
   @@index([authorId])
   @@index([parentId])
+}
+
+model PostCommentLike {
+  id        String      @id @default(cuid())
+  commentId String
+  comment   PostComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  profileId String
+  profile   Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+
+  @@unique([commentId, profileId])
+  @@index([commentId])
+  @@index([profileId])
 }
 
 model Notification {
