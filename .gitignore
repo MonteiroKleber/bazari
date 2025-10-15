@@ -17,6 +17,13 @@ out/
 *~
 .DS_Store
 
+# Nunca versionar segredos
+.env
+.env.*
+**/*.env
+apps/**/.env
+!*.env.example
+
 # Environment
 #.env
 #.env.local
