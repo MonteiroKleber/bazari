@@ -5,10 +5,13 @@ import jwt, { type Secret, type SignOptions } from 'jsonwebtoken';
 import { authConfig } from '../../config/auth.js';
 
 export function getRefreshCookieOptions() {
+  const isDev = process.env.NODE_ENV === 'development';
+
   return {
     httpOnly: true,
-    // Secure in any non-development environment (test/prod)
-    secure: process.env.NODE_ENV !== 'development',
+    // In development, use secure:false with sameSite:'lax' (works for localhost)
+    // In production, use secure:true with sameSite:'lax' (HTTPS required)
+    secure: !isDev,
     sameSite: 'lax' as const,
     path: '/',
     maxAge: authConfig.refreshTokenExpiresInSeconds,

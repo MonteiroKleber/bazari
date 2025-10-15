@@ -207,7 +207,7 @@ export default function P2POrderRoomPage() {
   const signAndLockEscrow = async (pin: string) => {
     if (!id || !intent) return;
     setLocking(true);
-    setPinError(null);
+    setErr(null);
     try {
       const api = await getApi();
       let mnemonic = await decryptMnemonic(account.cipher, account.iv, account.salt, pin, account.iterations);
@@ -535,9 +535,28 @@ ${t('wallet.ed', 'Depósito existencial (ED)')}: ${edS}
                   onClick={async () => {
                     const acct = await getActiveAccount();
                     if (!acct) return;
+
+                    // Prepare transaction details for modal
+                    const amount = BigInt(decimalToPlanck(intent.amountBZR));
+                    const fee = estimatedFee ? BigInt(estimatedFee) : 0n;
+                    const total = amount + fee;
+                    const free = freeBalance ? BigInt(freeBalance) : 0n;
+                    const balanceSufficient = free >= total;
+                    const formatBzr = (val: bigint) => BZR.formatAuto(val.toString(), BZR.normalizeLocale(i18n.language), true);
+
                     const pin = await PinService.getPin({
-                      title: t('wallet.send.pinTitle', 'Digite seu PIN'),
-                      description: t('wallet.send.pinDescription', 'Desbloqueie para assinar a transação'),
+                      title: t('wallet.send.pinTitle', 'Confirmar Bloqueio'),
+                      description: t('wallet.send.pinDescription', 'Digite o PIN para assinar a transação'),
+                      transaction: {
+                        type: 'lockEscrow',
+                        description: `Travar ${intent.amountBZR} BZR em escrow P2P`,
+                        amount: `${intent.amountBZR} BZR`,
+                        fee: estimatedFee ? formatBzr(fee) : 'Calculando...',
+                        total: formatBzr(total),
+                        balance: freeBalance ? formatBzr(free) : undefined,
+                        balanceSufficient,
+                        warning: !balanceSufficient ? 'Saldo insuficiente para completar o bloqueio' : undefined,
+                      },
                       validate: async (p) => {
                         try { await decryptMnemonic(acct.cipher, acct.iv, acct.salt, p, acct.iterations); return null; }
                         catch { return t('wallet.send.errors.pinInvalid', 'PIN inválido'); }

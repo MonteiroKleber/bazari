@@ -98,7 +98,7 @@ async function fetchStoreFromChain(api: ApiPromise, storeId: bigint) {
   const owner = accountToSs58(ownerValue);
 
   const [operatorsRaw, reputationRaw] = await Promise.all([
-    api.query.stores.operators(storeId.toString()) as Promise<Vec<any>>,
+    api.query.stores.operators(storeId.toString()) as unknown as Promise<Vec<any>>,
     api.query.stores.reputation(storeId.toString()),
   ]);
 
@@ -146,7 +146,7 @@ export async function resolveStoreCidWithSource(storeId: string | number, apiArg
   }
 
   try {
-    const metadataRaw = (await api.query.stores.metadataCid(storeIdStr)) as Option<any>;
+    const metadataRaw = (await api.query.stores.metadataCid(storeIdStr)) as unknown as Option<any>;
     if (metadataRaw && metadataRaw.isSome) {
       const cid = cidFromBytes(metadataRaw.unwrap() as Uint8Array);
       if (cid) {
@@ -176,7 +176,7 @@ async function listOperatedStoreIds(api: ApiPromise, address: string): Promise<s
   await ensureCryptoReady();
   const decoded = decodeAddress(address);
   const target = encodeAddress(decoded);
-  const entries = (await api.query.stores.operators.entries()) as Array<[StorageKey<[any]>, Vec<any>]>;
+  const entries = (await api.query.stores.operators.entries()) as unknown as Array<[StorageKey<[any]>, Vec<any>]>;
   const storeIds: string[] = [];
   for (const [key, value] of entries) {
     const raw = value as Vec<any>;

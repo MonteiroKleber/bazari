@@ -182,7 +182,9 @@ export default function StorePublicPage() {
             raw: storeJson,
           },
           payload: {
-            storeId: storeData.id || storeData.onChain?.instanceId || '0',
+            // IMPORTANTE: Usar onChain.instanceId como prioridade pois é o ID correto da blockchain
+            // storeJson.id pode estar desatualizado no IPFS
+            storeId: storeData.onChain?.instanceId || storeData.id || '0',
             owner: storeData.onChain?.owner || '',
             operators: storeData.onChain?.operators || [],
             cid: storeData.onChain?.metadataCid || '',

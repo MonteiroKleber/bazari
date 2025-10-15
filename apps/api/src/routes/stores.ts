@@ -72,7 +72,7 @@ export async function storesRoutes(app: FastifyInstance, options: { prisma: Pris
       // Fetch categories.json
       if (sellerProfile.categoriesCid) {
         const categoriesIpfs = await fetchIpfsJson(sellerProfile.categoriesCid, 'stores');
-        const categoriesHashLocal = calculateJsonHash(categoriesIpfs.metadata);
+        const categoriesHashLocal = calculateJsonHash(categoriesIpfs.metadata as object);
 
         if (categoriesHashLocal !== sellerProfile.categoriesHash) {
           app.log.warn({ storeId: sellerProfile.id }, 'Hash de categorias divergente');
@@ -83,13 +83,14 @@ export async function storesRoutes(app: FastifyInstance, options: { prisma: Pris
           throw new Error('Hash de categorias divergente');
         }
 
-        categoriesData = categoriesIpfs.metadata?.categories || [];
+        const metadata = categoriesIpfs.metadata as { categories?: any[] };
+        categoriesData = metadata?.categories || [];
       }
 
       // Fetch products.json
       if (sellerProfile.productsCid) {
         const productsIpfs = await fetchIpfsJson(sellerProfile.productsCid, 'stores');
-        const productsHashLocal = calculateJsonHash(productsIpfs.metadata);
+        const productsHashLocal = calculateJsonHash(productsIpfs.metadata as object);
 
         if (productsHashLocal !== sellerProfile.productsHash) {
           app.log.warn({ storeId: sellerProfile.id }, 'Hash de produtos divergente');
@@ -100,7 +101,8 @@ export async function storesRoutes(app: FastifyInstance, options: { prisma: Pris
           throw new Error('Hash de produtos divergente');
         }
 
-        productsData = productsIpfs.metadata?.items || [];
+        const metadata = productsIpfs.metadata as { items?: any[] };
+        productsData = metadata?.items || [];
       }
 
     } catch (error) {

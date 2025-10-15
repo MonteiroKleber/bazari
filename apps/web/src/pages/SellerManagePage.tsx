@@ -277,17 +277,49 @@ export default function SellerManagePage() {
         {/* Tab: Configurações */}
         <TabsContent value="settings" className="space-y-4">
           <Card>
-            <CardContent className="flex flex-col items-center justify-center py-16">
-              <Settings className="h-16 w-16 text-muted-foreground mb-4" />
-              <h2 className="text-xl font-semibold mb-2">
-                {t('seller.settings.title', { defaultValue: 'Configurações da Loja' })}
-              </h2>
-              <p className="text-muted-foreground text-center mb-6">
-                {t('seller.settings.description', { defaultValue: 'Configure dados, tema e categorias da sua loja' })}
-              </p>
-              <Button onClick={() => navigate(`/app/seller/setup?store=${shopSlug}`)}>
-                {t('seller.settings.edit', { defaultValue: 'Editar configurações' })}
-              </Button>
+            <CardHeader>
+              <CardTitle>{t('seller.settings.title', { defaultValue: 'Configurações da Loja' })}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="border rounded-lg p-4">
+                <h3 className="font-semibold mb-2">
+                  {t('seller.settings.general', { defaultValue: 'Configurações Gerais' })}
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {t('seller.settings.description', { defaultValue: 'Configure dados, tema e categorias da sua loja' })}
+                </p>
+                <Button onClick={() => navigate(`/app/seller/setup?store=${shopSlug}`)}>
+                  {t('seller.settings.edit', { defaultValue: 'Editar configurações' })}
+                </Button>
+              </div>
+
+              <div className="border rounded-lg p-4">
+                <h3 className="font-semibold mb-2">
+                  {t('seller.settings.commission', { defaultValue: 'Política de Comissão' })}
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {t('seller.settings.commissionDescription', { defaultValue: 'Configure como promotores podem ganhar comissões vendendo seus produtos' })}
+                </p>
+                <Button variant="outline" onClick={() => navigate('/app/seller/commission-policy')}>
+                  {t('seller.settings.configureCommission', { defaultValue: 'Configurar Comissões' })}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('seller.settings.affiliates', { defaultValue: 'Programa de Afiliados' })}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {t('seller.settings.affiliatesDescription', { defaultValue: 'Gerencie promotores aprovados para vender produtos da sua loja' })}
+                </p>
+                <Button variant="outline" onClick={() => navigate('/app/seller/affiliates')}>
+                  {t('seller.settings.manageAffiliates', { defaultValue: 'Gerenciar Afiliados' })}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

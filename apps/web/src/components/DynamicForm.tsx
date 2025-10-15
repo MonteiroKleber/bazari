@@ -106,7 +106,7 @@ function DynamicForm({ schema, uiSchema = {}, onSubmit, loading = false }: Dynam
 
   const normalizeEnum = (val: string, options: string[]) => {
     const norm = (s: string) =>
-      (s ?? '')
+      String(s ?? '')
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()

@@ -1,4 +1,4 @@
-import type { Transition, Variant } from 'framer-motion';
+import type { Transition } from 'framer-motion';
 
 /**
  * Check if user prefers reduced motion

@@ -1,0 +1,181 @@
+Perfeito — essa ideia é poderosíssima, Kleber.
+Você está basicamente propondo um "Bazari Afiliados Descentralizado", que transforma qualquer pessoa em dono do seu próprio marketplace, uma vitrine personalizada que ganha comissão das vendas.
+👉 Isso é um modelo explosivo de crescimento viral — e combina totalmente com o DNA popular e descentralizado da Bazari.
+
+Vamos destrinchar a arquitetura estratégica e técnica 👇
+
+🚀 VISÃO GERAL — “Bazari Afiliado”
+
+Qualquer usuário cria seu próprio marketplace, escolhe nome, URL (ex: bazari.xyz/joaovendas), seleciona produtos de lojistas e ganha comissão automática por venda.
+
+O afiliado é um curador, não um vendedor direto.
+
+As lojas continuam sendo as originais, com controle total de estoque e preço.
+
+A Bazari só fornece a infraestrutura on-chain, tracking e liquidação de comissões.
+
+🧱 ARQUITETURA FUNCIONAL
+1️⃣ Criação do Marketplace Afiliado
+
+Usuário cria seu perfil de afiliado: nome, logo, descrição, categorias, URL personalizada.
+
+Pode definir um tema visual (cores, banner, layout) → tipo "vitrine própria".
+
+Tudo armazenado em IPFS + metadados on-chain (pallet-affiliate-marketplace).
+
+2️⃣ Catálogo de Produtos Afiliáveis
+
+Lojistas marcam produtos com a flag “Afiliável”, definindo:
+
+Comissão (% em BZR)
+
+Duração do cookie (ex: 7 dias)
+
+Política de frete e pagamento
+
+3️⃣ Montagem da Vitrine do Afiliado
+
+Afiliado navega pelos produtos afiliáveis e clica em “Adicionar ao meu marketplace”.
+
+O sistema cria um link de referência on-chain:
+
+affiliateId = bazari123
+productId = loja45-prod88
+commission = 5%
+
+
+A vitrine exibe os produtos com o nome e design do afiliado, mas os botões de compra redirecionam para o checkout da Bazari com o tracking do afiliado embutido.
+
+4️⃣ Rastreamento e Liquidação Automática
+
+Cada compra feita por link/vitrine do afiliado gera:
+
+AffiliateSaleRecord { affiliate_id, order_id, value, commission_percent, timestamp }
+
+Após confirmação do pagamento, o pallet distribui automaticamente:
+
+comissão → afiliado
+
+restante → lojista
+
+taxa → tesouro da Bazari
+
+Tudo transparente, rastreável e imutável.
+
+⚙️ ESTRUTURA TÉCNICA (on-chain + app)
+🧩 Pallet sugerido: pallet-affiliate-marketplace
+
+Storage:
+
+Affiliate {
+    id: AccountId,
+    name: Vec<u8>,
+    slug: Vec<u8>,
+    metadata_ipfs: Vec<u8>,
+    total_sales: Balance,
+    total_commission: Balance,
+}
+
+AffiliateProduct {
+    affiliate_id: AccountId,
+    product_id: ProductId,
+    commission_rate: Percent,
+}
+
+AffiliateSale {
+    id: u64,
+    affiliate_id: AccountId,
+    product_id: ProductId,
+    buyer: AccountId,
+    amount: Balance,
+    commission: Balance,
+    timestamp: BlockNumber,
+}
+
+
+Extrinsics principais:
+
+register_affiliate(name, slug, metadata)
+add_product_to_affiliate(product_id)
+remove_product_from_affiliate(product_id)
+record_sale(affiliate_id, product_id, amount)
+claim_commission()
+
+🖥️ Frontend / App
+
+Painel Afiliado:
+
+Criar/editar vitrine
+
+Escolher produtos
+
+Acompanhar vendas e comissões
+
+Painel Lojista:
+
+Definir comissão por produto
+
+Aprovar afiliados (opcional)
+
+Ver resultados de afiliados
+
+Página Pública:
+
+/afiliado/{slug} → marketplace autônomo (layout igual a uma loja normal da Bazari, mas com produtos de várias lojas)
+
+💸 MECÂNICA ECONÔMICA
+Ação	Participante	Ganha / Paga
+Venda realizada	Lojista	Recebe (100% - comissão - taxa Bazari)
+Venda realizada	Afiliado	Recebe comissão (ex: 5%)
+Venda realizada	Bazari DAO	Recebe taxa fixa (ex: 2%)
+Cancelamento	Comissão revertida	-
+
+💡 Comissões e taxas em BZR, liquidadas automaticamente via pallet de pagamento da BazariChain.
+
+🧠 ESTRATÉGIA DE CRESCIMENTO
+
+Afiliado Popular:
+Qualquer vendedor de rua, influencer ou revendedor informal vira “dono de marketplace”.
+
+Efeito viral:
+
+O afiliado divulga seu marketplace (ego + renda = motivação máxima).
+
+Atrai tráfego novo para dentro da Bazari → aumento exponencial de usuários.
+
+Gamificação:
+
+Ranking dos maiores afiliados do mês.
+
+Selos “Top Afiliado”, “Curador Popular”, etc.
+
+Sistema de níveis: Bronze, Prata, Ouro (por volume de vendas).
+
+Expansão de rede:
+
+Subafiliados (em fases futuras): um afiliado indica outro e recebe % sobre o faturamento dele (2º nível).
+
+🧩 Integração futura com WhatsApp e Rede Social Bazari
+
+O afiliado poderá enviar seu catálogo personalizado pelo WhatsApp (já falamos disso antes).
+
+E divulgar produtos direto em posts da rede social Bazari, com o tracking automático de afiliado.
+
+Ou seja: cada post de produto no feed pode virar uma oportunidade de renda.
+
+🪙 Futuro: Tokenização dos afiliados
+
+Cada afiliado com histórico sólido pode ter seu NFT de afiliação (ex: "Loja do João - NFT") representando sua marca.
+
+Poder vender ou transferir o marketplace.
+
+Pode gerar receita recorrente de afiliados subjacentes (royalties on-chain).
+
+📍Resumo estratégico
+Fase	Entrega	Impacto
+1️⃣ MVP	Painel afiliado + comissões automáticas + vitrine personalizada	Crescimento orgânico
+2️⃣ Rede	Subafiliados + gamificação + ranking	Efeito viral em massa
+3️⃣ Tokenização	NFT de marketplace + staking	Monetização e liquidez de marca
+4️⃣ Integração	WhatsApp + Rede Social Bazari	Venda direta e reputação social integrada
+
+Se quiser, posso desenhar agora o esquema de dados completo (ERD + pallet + endpoints Fastify) e o wireframe da tela “Painel Afiliado” — mostrando visualmente como o usuário cria o marketplace e adiciona produtos.

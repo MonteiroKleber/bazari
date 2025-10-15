@@ -18,7 +18,7 @@ export async function checkAchievements(
     const achievements = await prisma.achievement.findMany();
 
     for (const achievement of achievements) {
-      const req = achievement.requirement as AchievementRequirement;
+      const req = achievement.requirement as unknown as AchievementRequirement;
 
       // Verificar se já foi desbloqueado
       const existing = await prisma.userAchievement.findUnique({

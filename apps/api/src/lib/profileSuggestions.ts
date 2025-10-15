@@ -253,5 +253,41 @@ export async function calculateProfileSuggestions(
     .sort((a, b) => b.matchScore - a.matchScore)
     .slice(0, limit);
 
+  // 8. FALLBACK: Se não houver sugestões, retornar perfis recentes quaisquer
+  // Isso ajuda em cenários de "cold start" onde não há dados suficientes
+  if (suggestions.length === 0) {
+    console.log('[ProfileSuggestions] No suggestions found via algorithm, using fallback...');
+
+    const fallbackProfiles = await prisma.profile.findMany({
+      where: {
+        id: { notIn: [...followingIds, userProfile.id] },
+        // Sem filtro de reputação para cold start
+      },
+      select: {
+        id: true,
+        userId: true,
+        handle: true,
+        displayName: true,
+        avatarUrl: true,
+        reputationScore: true,
+        createdAt: true,
+      },
+      take: limit,
+      orderBy: { createdAt: 'desc' }, // Mais recentes primeiro
+    });
+
+    return fallbackProfiles.map((profile) => ({
+      profileId: profile.id,
+      userId: profile.userId,
+      handle: profile.handle,
+      displayName: profile.displayName,
+      avatarUrl: profile.avatarUrl,
+      reputationScore: profile.reputationScore,
+      matchScore: 5, // Score baixo para indicar que é fallback
+      reason: 'Novo na plataforma',
+      mutualFollowers: undefined,
+    }));
+  }
+
   return suggestions;
 }

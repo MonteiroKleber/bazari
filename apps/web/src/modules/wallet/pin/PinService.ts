@@ -1,9 +1,12 @@
+import type { TransactionDetails } from '../components/PinDialog';
+
 type PinConfig = {
   title?: string;
   description?: string;
   label?: string;
   cancelText?: string;
   confirmText?: string;
+  transaction?: TransactionDetails;  // Transaction details to display
   // Optional async validator. Return null if OK, or an error message to display and keep dialog open.
   validate?: (pin: string) => Promise<string | null> | string | null;
 };

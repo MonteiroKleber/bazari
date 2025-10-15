@@ -29,7 +29,7 @@ const createServiceSchema = z.object({
   mediaIds: z.array(z.string()).optional(),
 });
 
-// Schema para atualização  
+// Schema para atualização
 const updateServiceSchema = z.object({
   daoId: z.string().optional(),
   title: z.string().min(1).optional(),
@@ -38,6 +38,8 @@ const updateServiceSchema = z.object({
   categoryPath: z.array(z.string()).optional(),
   attributes: z.record(z.any()).optional(),
   mediaIds: z.array(z.string()).optional(),
+  sellerStoreId: z.string().optional(),
+  sellerStoreSlug: z.string().optional(),
 });
 
 function pruneUndefined<T extends Record<string, any>>(obj: T): T {
@@ -212,7 +214,10 @@ export async function servicesRoutes(app: FastifyInstance, options: { prisma: Pr
           entityId: service.id,
           action: 'CREATE',
           actor: body.daoId,
-          diff: service,
+          diff: {
+            ...service,
+            onChainStoreId: service.onChainStoreId?.toString() ?? null,
+          },
         },
       });
 
@@ -597,7 +602,10 @@ export async function servicesRoutes(app: FastifyInstance, options: { prisma: Pr
         entityId: id,
         action: 'DELETE',
         actor: existing.daoId,
-        diff: existing,
+        diff: {
+          ...existing,
+          onChainStoreId: existing.onChainStoreId?.toString() ?? null,
+        },
       },
     });
 

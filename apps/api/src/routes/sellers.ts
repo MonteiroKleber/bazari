@@ -18,6 +18,51 @@ import { buildCatalogForStore } from '../lib/catalogBuilder.js';
 export async function sellersRoutes(app: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
+  // GET /sellers — lista todas as lojas públicas (para affiliate search)
+  app.get('/sellers', async (request, reply) => {
+    try {
+      // Buscar apenas lojas sincronizadas (com onChainStoreId)
+      const sellers = await prisma.sellerProfile.findMany({
+        where: {
+          onChainStoreId: { not: null },
+        },
+        select: {
+          id: true,
+          shopName: true,
+          shopSlug: true,
+          avatarUrl: true,
+          onChainStoreId: true,
+          about: true,
+          ratingAvg: true,
+          ratingCount: true,
+        },
+        orderBy: {
+          shopName: 'asc',
+        },
+      });
+
+      // Serializar BigInt para string
+      const items = sellers.map(seller => ({
+        id: seller.id,
+        shopName: seller.shopName,
+        shopSlug: seller.shopSlug,
+        avatarUrl: seller.avatarUrl,
+        onChainStoreId: seller.onChainStoreId?.toString(),
+        about: seller.about,
+        ratingAvg: seller.ratingAvg,
+        ratingCount: seller.ratingCount,
+      }));
+
+      // Cache público curto
+      reply.header('Cache-Control', 'public, max-age=120');
+
+      return reply.send({ items });
+    } catch (error) {
+      app.log.error({ error }, 'Failed to fetch sellers list');
+      return reply.status(500).send({ error: 'Failed to fetch sellers list' });
+    }
+  });
+
   // GET /me/seller — retorna perfil do vendedor autenticado (ou null)
   // @deprecated Use GET /me/sellers instead
   app.get('/me/seller', { preHandler: authOnRequest }, async (request, reply) => {

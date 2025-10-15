@@ -137,7 +137,7 @@ class DefaultChainAdapter implements ReputationChainAdapter {
       const { Keyring } = require('@polkadot/keyring');
       const keyring = new Keyring({ type: 'sr25519' });
       this.pair = keyring.addFromUri(this.suri, { name: 'bazari-reputation-worker' });
-      this.logger?.info?.(this.label, 'Assinador configurado', { address: this.pair.address });
+      this.logger?.info?.(this.label, 'Assinador configurado', { address: this.pair?.address });
     }
     return api;
   }

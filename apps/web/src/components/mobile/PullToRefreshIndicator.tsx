@@ -12,7 +12,6 @@ export function PullToRefreshIndicator({
   pullDistance,
   threshold = 80,
 }: PullToRefreshIndicatorProps) {
-  const progress = Math.min((pullDistance / threshold) * 100, 100);
   const rotation = (pullDistance / threshold) * 360;
 
   if (pullDistance === 0 && !isRefreshing) {

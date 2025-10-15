@@ -28,7 +28,7 @@ const createProductSchema = z.object({
   mediaIds: z.array(z.string()).optional(),
 });
 
-// Schema para atualização  
+// Schema para atualização
 const updateProductSchema = z.object({
   daoId: z.string().optional(),
   title: z.string().min(1).optional(),
@@ -37,6 +37,8 @@ const updateProductSchema = z.object({
   categoryPath: z.array(z.string()).optional(),
   attributes: z.record(z.any()).optional(),
   mediaIds: z.array(z.string()).optional(),
+  sellerStoreId: z.string().optional(),
+  sellerStoreSlug: z.string().optional(),
 });
 
 function pruneUndefined<T extends Record<string, any>>(obj: T): T {
@@ -212,7 +214,10 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
           entityId: product.id,
           action: 'CREATE',
           actor: body.daoId,
-          diff: product,
+          diff: {
+            ...product,
+            onChainStoreId: product.onChainStoreId?.toString() ?? null,
+          },
         },
       });
 
@@ -611,7 +616,10 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
         entityId: id,
         action: 'DELETE',
         actor: existing.daoId,
-        diff: existing,
+        diff: {
+          ...existing,
+          onChainStoreId: existing.onChainStoreId?.toString() ?? null,
+        },
       },
     });
 

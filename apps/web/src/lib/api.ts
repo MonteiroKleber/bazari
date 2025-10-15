@@ -212,6 +212,14 @@ export const api = new ApiClient();
 
 // Helpers específicos do domínio
 export const apiHelpers = {
+  // Generic methods
+  get: <T = any>(path: string) => getJSON<T>(path),
+  getPublic: <T = any>(path: string) => getPublicJSON<T>(path),
+  post: <T = any>(path: string, data: any) => postJSON<T>(path, data),
+  put: <T = any>(path: string, data: any) => putJSON<T>(path, data),
+  patch: <T = any>(path: string, data: any) => patchJSON<T>(path, data),
+  delete: <T = any>(path: string) => deleteJSON<T>(path),
+
   // Health check
   health: () => getJSON('/health'),
   
@@ -391,6 +399,143 @@ export const apiHelpers = {
   },
   getReputationHistory: (handle: string) =>
     getJSON(`/profiles/${encodeURIComponent(handle)}/reputation/history`),
+
+  // Chat
+  getChatThreads: async (params?: { cursor?: number; limit?: number }): Promise<{ threads: any[] }> =>
+    getJSON<{ threads: any[] }>('/api/chat/threads'),
+  getChatMessages: async (threadId: string, params?: { cursor?: number; limit?: number }): Promise<{ messages: any[] }> =>
+    getJSON<{ messages: any[] }>(`/api/chat/messages?threadId=${threadId}`),
+  createChatThread: async (data: { participantId: string; kind?: string }): Promise<any> =>
+    postJSON<any>('/api/chat/threads', data),
+
+  // Chat - Upload de mídia
+  uploadChatMedia: async (file: File) => {
+    await ensureFreshAccessToken();
+    const token = getAccessToken();
+
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_BASE_URL}/api/chat/upload`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Upload failed');
+    }
+
+    return response.json();
+  },
+
+  // Chat - Grupos
+  getChatGroups: async (params?: { cursor?: string; limit?: number; isPublic?: boolean }): Promise<{ groups: any[] }> =>
+    getJSON<{ groups: any[] }>('/api/chat/groups'),
+  getChatGroup: async (groupId: string): Promise<any> =>
+    getJSON<any>(`/api/chat/groups/${groupId}`),
+  createChatGroup: async (data: {
+    name: string;
+    description?: string;
+    avatarUrl?: string;
+    kind?: 'community' | 'channel' | 'private';
+    isPublic?: boolean;
+    initialMembers?: string[];
+    maxMembers?: number;
+  }): Promise<any> => postJSON<any>('/api/chat/groups', data),
+  inviteToGroup: (groupId: string, memberId: string) =>
+    postJSON(`/api/chat/groups/${groupId}/invite`, { memberId }),
+  removeMemberFromGroup: (groupId: string, memberId: string) =>
+    deleteJSON(`/api/chat/groups/${groupId}/members/${memberId}`),
+  updateGroupRoles: (groupId: string, memberId: string, action: 'promote' | 'demote') =>
+    putJSON(`/api/chat/groups/${groupId}/roles`, { memberId, action }),
+  updateGroup: (groupId: string, updates: any) =>
+    putJSON(`/api/chat/groups/${groupId}`, updates),
+  leaveGroup: (groupId: string) =>
+    postJSON(`/api/chat/groups/${groupId}/leave`, {}),
+  acceptGroupInvite: (notificationId: string) =>
+    postJSON(`/api/chat/groups/invites/${notificationId}/accept`, {}),
+  rejectGroupInvite: (notificationId: string) =>
+    postJSON(`/api/chat/groups/invites/${notificationId}/reject`, {}),
+
+  // Chat - Comércio (Propostas e Vendas)
+  createProposal: async (data: {
+    threadId: string;
+    items: Array<{ sku: string; name: string; qty: number; price: string }>;
+    shipping?: { method: string; price: string };
+    total: string;
+    commissionPercent?: number;
+  }): Promise<any> => postJSON<any>('/api/chat/proposals', data),
+
+  getProposal: async (proposalId: string): Promise<any> =>
+    getJSON<any>(`/api/chat/proposals/${proposalId}`),
+
+  checkout: async (data: { proposalId: string; storeId?: number; promoterId?: string }): Promise<any> =>
+    postJSON<any>('/api/chat/checkout', data),
+
+  getSales: async (params?: { role?: 'buyer' | 'seller' | 'promoter'; cursor?: string; limit?: number }): Promise<any> =>
+    getJSON<any>('/api/chat/sales'),
+
+  getSale: async (saleId: string): Promise<any> =>
+    getJSON<any>(`/api/chat/sales/${saleId}`),
+
+  getStoreSettings: async (storeId: number): Promise<any> =>
+    getJSON<any>(`/api/chat/settings/store/${storeId}`),
+
+  updateStoreSettings: async (storeId: number, data: {
+    mode?: 'open' | 'followers' | 'affiliates';
+    percent?: number;
+    minReputation?: number;
+    dailyCommissionCap?: string;
+  }): Promise<any> => putJSON<any>(`/chat/settings/store/${storeId}`, data),
+
+  getReputation: async (profileId: string): Promise<any> =>
+    getJSON<any>(`/chat/reputation/${profileId}`),
+
+  // Chat - Social Features (Reports, Badges)
+  createReport: async (data: {
+    reportedId: string;
+    contentType: 'message' | 'profile' | 'group';
+    contentId: string;
+    reason: string;
+    description: string;
+  }): Promise<any> => postJSON<any>('/chat/reports', data),
+
+  voteReport: async (reportId: string, vote: 'approve' | 'reject'): Promise<any> =>
+    postJSON<any>(`/chat/reports/${reportId}/vote`, { vote }),
+
+  getReport: async (reportId: string): Promise<any> =>
+    getJSON<any>(`/chat/reports/${reportId}`),
+
+  getBadge: async (profileId: string): Promise<any> =>
+    getJSON<any>(`/chat/badges/${profileId}`),
+
+  // Chat - Polls
+  createPoll: async (groupId: string, data: {
+    question: string;
+    options: string[];
+    expiresIn?: number;
+  }): Promise<any> => postJSON<any>(`/chat/groups/${groupId}/polls`, data),
+
+  votePoll: async (pollId: string, optionId: string): Promise<any> =>
+    postJSON<any>(`/chat/polls/${pollId}/vote`, { optionId }),
+
+  getPoll: async (pollId: string): Promise<any> =>
+    getJSON<any>(`/chat/polls/${pollId}`),
+
+  // Search profiles (for mentions)
+  searchProfiles: async (params: { query: string; limit?: number }): Promise<{ profiles: any[] }> => {
+    const queryParams = new URLSearchParams({ q: params.query, limit: String(params.limit || 5) });
+    return getJSON<{ profiles: any[] }>(`/search/profiles?${queryParams}`);
+  },
 };
 
 // Exportar tipos e constantes

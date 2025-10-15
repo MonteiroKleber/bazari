@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { MessageCircle, Pin, Repeat } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { LikeButton } from './LikeButton';
 import { RepostButton } from './RepostButton';
 import { BookmarkButton } from './BookmarkButton';
 import { PollCard } from './PollCard';

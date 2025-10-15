@@ -51,9 +51,9 @@ export async function marketplaceRoutes(app: FastifyInstance) {
     }
 
     const sortMap = {
-      createdDesc: [{ 'sync.lastIndexedAt': 'desc' }],
-      priceAsc: [{ 'price.amount': 'asc' }],
-      priceDesc: [{ 'price.amount': 'desc' }],
+      createdDesc: [{ 'sync.lastIndexedAt': { order: 'desc' as const } }],
+      priceAsc: [{ 'price.amount': { order: 'asc' as const } }],
+      priceDesc: [{ 'price.amount': { order: 'desc' as const } }],
     };
 
     const indexName = env.OPENSEARCH_INDEX_STORES || 'bazari_stores';
@@ -78,9 +78,13 @@ export async function marketplaceRoutes(app: FastifyInstance) {
       ...hit._source,
     }));
 
+    const total = typeof result.body.hits.total === 'number'
+      ? result.body.hits.total
+      : result.body.hits.total?.value ?? 0;
+
     return reply.send({
       items: hits,
-      total: result.body.hits.total.value,
+      total,
       page: {
         limit: query.limit,
         offset: query.offset,

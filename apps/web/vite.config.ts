@@ -8,6 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: 'auto',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
         name: 'Bazari - Decentralized Marketplace',
@@ -75,13 +76,15 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api/]
       },
       devOptions: {
-        enabled: true
+        enabled: true,
+        type: 'module'
       }
     })
   ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@bazari/shared-types': path.resolve(__dirname, '../../packages/shared-types/src/index.ts'),
     },
   },
   server: {

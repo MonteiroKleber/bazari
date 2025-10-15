@@ -24,6 +24,17 @@ export function Alert({ className, variant = "default", children, ...props }: Al
   )
 }
 
+export function AlertTitle({ className, children, ...props }: any) {
+  return (
+    <h5
+      className={cn("mb-1 font-medium leading-none tracking-tight", className)}
+      {...props}
+    >
+      {children}
+    </h5>
+  )
+}
+
 export function AlertDescription({ className, children, ...props }: any) {
   return (
     <div

@@ -244,9 +244,24 @@ export function SendPage() {
       setErrorMessage(t('wallet.send.errors.noVault'));
       return;
     }
+
+    // Calculate total (amount + fee)
+    const totalValue = fee ? amountPlanck + fee.value : amountPlanck;
+    const balanceSufficient = balance ? totalValue <= balance.free : undefined;
+
     const pin = await PinService.getPin({
       title: t('wallet.send.pinTitle'),
       description: t('wallet.send.pinDescription'),
+      transaction: {
+        type: 'transfer',
+        description: `Transferir ${asset.symbol} para ${shortenAddress(values.recipient, 8)}`,
+        amount: `${values.amount} ${asset.symbol}`,
+        fee: fee?.formatted ?? 'Calculando...',
+        total: `${formatBalance(totalValue, asset.decimals)} ${asset.symbol}`,
+        balance: balance ? `${formatBalance(balance.free, balance.decimals)} ${nativeSymbol}` : undefined,
+        balanceSufficient,
+        warning: balanceSufficient === false ? 'Saldo insuficiente para completar a transação' : undefined,
+      },
       validate: async (p) => {
         try { await decryptMnemonic(acct.cipher, acct.iv, acct.salt, p, acct.iterations); return null; }
         catch { return t('wallet.send.errors.pinInvalid') as string; }

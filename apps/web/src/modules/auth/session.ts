@@ -14,7 +14,32 @@ interface SessionState extends SessionPayload {
 
 export type SessionEvent = 'expired' | 'cleared';
 
-let state: SessionState | null = null;
+// Load initial state from localStorage
+function loadStateFromStorage(): SessionState | null {
+  try {
+    const stored = localStorage.getItem('bazari_session');
+    if (!stored) return null;
+    const parsed = JSON.parse(stored) as SessionState;
+    // Check if session is expired
+    if (parsed.expiresAt < Date.now()) {
+      localStorage.removeItem('bazari_session');
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveStateToStorage(state: SessionState | null) {
+  if (state) {
+    localStorage.setItem('bazari_session', JSON.stringify(state));
+  } else {
+    localStorage.removeItem('bazari_session');
+  }
+}
+
+let state: SessionState | null = loadStateFromStorage();
 let refreshPromise: Promise<boolean> | null = null;
 const listeners = new Set<(event: SessionEvent) => void>();
 let reauthInProgress = false;
@@ -59,10 +84,12 @@ export function setSession(payload: SessionPayload) {
     ...payload,
     expiresAt: Date.now() + payload.accessTokenExpiresIn * 1000,
   };
+  saveStateToStorage(state);
 }
 
 export function clearSession(event: SessionEvent = 'cleared') {
   state = null;
+  saveStateToStorage(null);
   notify(event);
 }
 

@@ -172,7 +172,7 @@ export function OrderPayPage() {
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : t('pay.error.paymentFailed');
-      setPinError(msg);
+      setError(msg);
       setPaying(false);
     }
   }, [account, paymentIntent, order, chainProps, navigate, t]);
@@ -181,16 +181,34 @@ export function OrderPayPage() {
     if (!paymentIntent || !order || !chainProps) return;
     const acct = await getActiveAccount();
     if (!acct) return;
+
+    // Prepare transaction details for modal
+    const amount = BigInt(paymentIntent.amountBzr);
+    const fee = estimatedFee ? BigInt(estimatedFee) : 0n;
+    const total = amount + fee;
+    const free = freeBalance ? BigInt(freeBalance) : 0n;
+    const balanceSufficient = free >= total;
+
     const pin = await PinService.getPin({
-      title: t('wallet.send.pinTitle'),
-      description: t('wallet.send.pinDescription'),
+      title: t('wallet.send.pinTitle', 'Confirmar Pagamento'),
+      description: t('wallet.send.pinDescription', 'Digite o PIN para assinar a transação'),
+      transaction: {
+        type: 'payment',
+        description: `Pagar pedido #${order.id.slice(-8)}`,
+        amount: formatBzr(paymentIntent.amountBzr),
+        fee: estimatedFee ? formatBzr(estimatedFee) : 'Calculando...',
+        total: formatBzr(total.toString()),
+        balance: freeBalance ? formatBzr(freeBalance) : undefined,
+        balanceSufficient,
+        warning: !balanceSufficient ? 'Saldo insuficiente para completar o pagamento' : undefined,
+      },
       validate: async (p) => {
         try { await decryptMnemonic(acct.cipher, acct.iv, acct.salt, p, acct.iterations); return null; }
         catch { return t('wallet.send.errors.pinInvalid') as string; }
       },
     });
     await signAndPay(pin);
-  }, [paymentIntent, order, chainProps, t, signAndPay]);
+  }, [paymentIntent, order, chainProps, estimatedFee, freeBalance, formatBzr, t, signAndPay]);
 
   if (loading) {
     return (

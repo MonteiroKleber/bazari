@@ -64,7 +64,7 @@ export function ProfileHoverCard({ handle, children }: ProfileHoverCardProps) {
       };
 
       setProfile(profileData);
-      setIsFollowing(profileData.isFollowing);
+      setIsFollowing(profileData.isFollowing ?? false);
 
       // Adicionar ao cache
       profileCache.set(handle, { data: profileData, timestamp: Date.now() });
@@ -103,10 +103,6 @@ export function ProfileHoverCard({ handle, children }: ProfileHoverCardProps) {
 
       <HoverCardContent
         className="w-80"
-        onOpenAutoFocus={(e) => {
-          e.preventDefault();
-          loadProfile();
-        }}
       >
         {loading && <ProfileHoverSkeleton />}
 

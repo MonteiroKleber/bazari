@@ -22,6 +22,11 @@ interface SearchFilters {
   storeId?: string;
   storeSlug?: string;
   onChainStoreId?: string;
+  userId?: string; // FASE 1: Filtrar por lojas do usuário
+  myStoresOnly?: boolean; // FASE 1: Flag para filtrar apenas minhas lojas
+  affiliateStoresOnly?: boolean; // FASE 2: Flag para filtrar apenas lojas afiliadas
+  followersStoresOnly?: boolean; // FASE 3: Flag para filtrar apenas lojas de seguidores
+  openStoresOnly?: boolean; // FASE 4: Flag para filtrar apenas lojas abertas (mode='open')
 }
 
 interface SearchResult {
@@ -78,11 +83,182 @@ export class SearchQueryBuilder {
       sort = 'relevance',
       storeId,
       storeSlug,
-      onChainStoreId
+      onChainStoreId,
+      userId,
+      myStoresOnly,
+      affiliateStoresOnly,
+      followersStoresOnly,
+      openStoresOnly
     } = filters;
 
     const safeLimit = Math.min(Math.max(1, limit), 100);
     const safeOffset = Math.max(0, offset);
+
+    // FASE 1: Buscar lojas do usuário se myStoresOnly=true
+    let userStoreIds: string[] = [];
+    if (myStoresOnly && userId) {
+      const userStores = await this.prisma.sellerProfile.findMany({
+        where: { userId },
+        select: { id: true }
+      });
+      userStoreIds = userStores.map(s => s.id);
+
+      // Se não encontrou lojas, retornar vazio
+      if (userStoreIds.length === 0) {
+        return {
+          items: [],
+          page: { limit: safeLimit, offset: safeOffset, total: 0 },
+          facets: {
+            categories: [],
+            price: { min: '0', max: '0', buckets: [] },
+            attributes: {}
+          }
+        };
+      }
+    }
+
+    // FASE 2: Buscar lojas afiliadas se affiliateStoresOnly=true
+    // Apenas lojas onde o usuário JÁ É afiliado aprovado (ChatStoreAffiliate.status='approved')
+    let affiliateStoreIds: string[] = [];
+    if (affiliateStoresOnly && userId) {
+      // Buscar profileId do usuário atual
+      const userProfile = await this.prisma.profile.findUnique({
+        where: { userId },
+        select: { id: true }
+      });
+
+      // Buscar lojas onde o usuário é afiliado aprovado
+      const approvedAffiliates = userProfile ? await this.prisma.chatStoreAffiliate.findMany({
+        where: {
+          promoterId: userProfile.id,
+          status: 'approved'
+        },
+        select: { storeId: true }
+      }) : [];
+
+      const affiliateOnChainStoreIds = approvedAffiliates
+        .map(a => a.storeId)
+        .filter((id): id is bigint => id !== null);
+
+      // Buscar sellerStoreIds correspondentes
+      const affiliateStores = await this.prisma.sellerProfile.findMany({
+        where: { onChainStoreId: { in: affiliateOnChainStoreIds } },
+        select: { id: true }
+      });
+      affiliateStoreIds = affiliateStores.map(s => s.id);
+
+      // Se não encontrou lojas afiliadas, retornar vazio
+      if (affiliateStoreIds.length === 0) {
+        return {
+          items: [],
+          page: { limit: safeLimit, offset: safeOffset, total: 0 },
+          facets: {
+            categories: [],
+            price: { min: '0', max: '0', buckets: [] },
+            attributes: {}
+          }
+        };
+      }
+    }
+
+    // FASE 3: Buscar lojas de seguidores se followersStoresOnly=true
+    // Lojas com mode='followers' onde o usuário segue o dono da loja
+    let followersStoreIds: string[] = [];
+    if (followersStoresOnly && userId) {
+      // Buscar profileId do usuário atual
+      const userProfile = await this.prisma.profile.findUnique({
+        where: { userId },
+        select: { id: true }
+      });
+
+      if (userProfile) {
+        // Buscar lojas com mode='followers'
+        const followersPolicies = await this.prisma.storeCommissionPolicy.findMany({
+          where: { mode: 'followers' },
+          select: { storeId: true }
+        });
+        const followersOnChainStoreIds = followersPolicies.map(p => p.storeId);
+
+        // Buscar sellerProfiles dessas lojas para pegar userId dos donos
+        const followersStores = await this.prisma.sellerProfile.findMany({
+          where: { onChainStoreId: { in: followersOnChainStoreIds } },
+          select: { userId: true, onChainStoreId: true, id: true }
+        });
+
+        // Buscar profiles dos donos das lojas
+        const ownerUserIds = followersStores.map(s => s.userId);
+        const ownerProfiles = await this.prisma.profile.findMany({
+          where: { userId: { in: ownerUserIds } },
+          select: { id: true, userId: true }
+        });
+
+        // Buscar quais donos o usuário segue
+        const followedOwnerIds = await this.prisma.follow.findMany({
+          where: {
+            followerId: userProfile.id,
+            followingId: { in: ownerProfiles.map(p => p.id) }
+          },
+          select: { followingId: true }
+        });
+
+        // Mapear profileId → userId
+        const followedProfileIds = new Set(followedOwnerIds.map(f => f.followingId));
+        const followedOwnerUserIds = ownerProfiles
+          .filter(p => followedProfileIds.has(p.id))
+          .map(p => p.userId);
+
+        // Filtrar lojas cujo dono é seguido pelo usuário
+        const followedStores = followersStores
+          .filter(s => followedOwnerUserIds.includes(s.userId));
+
+        followersStoreIds = followedStores.map(s => s.id);
+      }
+
+      // Se não encontrou lojas de seguidores, retornar vazio
+      if (followersStoreIds.length === 0) {
+        return {
+          items: [],
+          page: { limit: safeLimit, offset: safeOffset, total: 0 },
+          facets: {
+            categories: [],
+            price: { min: '0', max: '0', buckets: [] },
+            attributes: {}
+          }
+        };
+      }
+    }
+
+    // FASE 4: Buscar lojas abertas se openStoresOnly=true
+    // Lojas com mode='open' (qualquer promotor pode afiliar)
+    let openStoreIds: string[] = [];
+    if (openStoresOnly) {
+      // Buscar lojas com mode='open'
+      const openPolicies = await this.prisma.storeCommissionPolicy.findMany({
+        where: { mode: 'open' },
+        select: { storeId: true }
+      });
+      const openOnChainStoreIds = openPolicies.map(p => p.storeId);
+
+      // Buscar sellerStoreIds correspondentes
+      const openStores = await this.prisma.sellerProfile.findMany({
+        where: { onChainStoreId: { in: openOnChainStoreIds } },
+        select: { id: true }
+      });
+      openStoreIds = openStores.map(s => s.id);
+
+      // Se não encontrou lojas abertas, retornar vazio
+      if (openStoreIds.length === 0) {
+        return {
+          items: [],
+          page: { limit: safeLimit, offset: safeOffset, total: 0 },
+          facets: {
+            categories: [],
+            price: { min: '0', max: '0', buckets: [] },
+            attributes: {}
+          }
+        };
+      }
+    }
 
     // Construir WHERE clauses
     const whereProduct: Prisma.ProductWhereInput = {};
@@ -133,6 +309,30 @@ export class SearchQueryBuilder {
         productAnd.push(...(attrFilters as Prisma.ProductWhereInput[]));
         serviceAnd.push(...(attrFilters as Prisma.ServiceOfferingWhereInput[]));
       }
+    }
+
+    // FASE 1: Filtro por lojas do usuário
+    if (myStoresOnly && userStoreIds.length > 0) {
+      productAnd.push({ sellerStoreId: { in: userStoreIds } });
+      serviceAnd.push({ sellerStoreId: { in: userStoreIds } });
+    }
+
+    // FASE 2: Filtro por lojas afiliadas
+    if (affiliateStoresOnly && affiliateStoreIds.length > 0) {
+      productAnd.push({ sellerStoreId: { in: affiliateStoreIds } });
+      serviceAnd.push({ sellerStoreId: { in: affiliateStoreIds } });
+    }
+
+    // FASE 3: Filtro por lojas de seguidores
+    if (followersStoresOnly && followersStoreIds.length > 0) {
+      productAnd.push({ sellerStoreId: { in: followersStoreIds } });
+      serviceAnd.push({ sellerStoreId: { in: followersStoreIds } });
+    }
+
+    // FASE 4: Filtro por lojas abertas
+    if (openStoresOnly && openStoreIds.length > 0) {
+      productAnd.push({ sellerStoreId: { in: openStoreIds } });
+      serviceAnd.push({ sellerStoreId: { in: openStoreIds } });
     }
 
     // Filtro por loja
@@ -257,36 +457,70 @@ export class SearchQueryBuilder {
       // Apenas produtos
       const [products, count] = results;
       const mediaMap = await this.fetchFirstMediaMap('Product', (products || []).map((p: any) => p.id));
-      allItems = (products || []).map((p: any) => ({
-        id: p.id,
-        kind: 'product',
-        title: p.title,
-        description: p.description,
-        priceBzr: p.priceBzr,
-        categoryPath: p.categoryPath || [],
-        attributes: p.attributes || {},
-        sellerStoreId: p.sellerStoreId ?? null,
-        media: mediaMap.has(p.id) ? [mediaMap.get(p.id)!] : [],
-        createdAt: p.createdAt
-      }));
+
+      // Buscar onChainStoreId para os produtos que têm sellerStoreId
+      const storeIds = [...new Set((products || []).map((p: any) => p.sellerStoreId).filter(Boolean))];
+      const stores = await this.prisma.sellerProfile.findMany({
+        where: { id: { in: storeIds } },
+        select: { id: true, onChainStoreId: true }
+      });
+      const storeMap = new Map(stores.map(s => [s.id, s.onChainStoreId]));
+
+      allItems = (products || []).map((p: any) => {
+        const onChainStoreId = p.sellerStoreId && storeMap.has(p.sellerStoreId)
+          ? storeMap.get(p.sellerStoreId)
+          : null;
+
+        return {
+          id: p.id,
+          kind: 'product',
+          title: p.title,
+          description: p.description,
+          priceBzr: p.priceBzr,
+          categoryPath: p.categoryPath || [],
+          attributes: p.attributes || {},
+          sellerStoreId: p.sellerStoreId ?? null,
+          // Converter BigInt para Number para serialização JSON
+          onChainStoreId: onChainStoreId !== null ? Number(onChainStoreId) : null,
+          media: mediaMap.has(p.id) ? [mediaMap.get(p.id)!] : [],
+          createdAt: p.createdAt
+        };
+      });
       totalCount = count || 0;
 
     } else if (kind === 'service') {
       // Apenas serviços
       const [services, count] = results;
       const mediaMap = await this.fetchFirstMediaMap('ServiceOffering', (services || []).map((s: any) => s.id));
-      allItems = (services || []).map((s: any) => ({
-        id: s.id,
-        kind: 'service',
-        title: s.title,
-        description: s.description,
-        priceBzr: s.basePriceBzr,
-        categoryPath: s.categoryPath || [],
-        attributes: s.attributes || {},
-        sellerStoreId: s.sellerStoreId ?? null,
-        media: mediaMap.has(s.id) ? [mediaMap.get(s.id)!] : [],
-        createdAt: s.createdAt
-      }));
+
+      // Buscar onChainStoreId para os serviços que têm sellerStoreId
+      const storeIds = [...new Set((services || []).map((s: any) => s.sellerStoreId).filter(Boolean))];
+      const stores = await this.prisma.sellerProfile.findMany({
+        where: { id: { in: storeIds } },
+        select: { id: true, onChainStoreId: true }
+      });
+      const storeMap = new Map(stores.map(s => [s.id, s.onChainStoreId]));
+
+      allItems = (services || []).map((s: any) => {
+        const onChainStoreId = s.sellerStoreId && storeMap.has(s.sellerStoreId)
+          ? storeMap.get(s.sellerStoreId)
+          : null;
+
+        return {
+          id: s.id,
+          kind: 'service',
+          title: s.title,
+          description: s.description,
+          priceBzr: s.basePriceBzr,
+          categoryPath: s.categoryPath || [],
+          attributes: s.attributes || {},
+          sellerStoreId: s.sellerStoreId ?? null,
+          // Converter BigInt para Number para serialização JSON
+          onChainStoreId: onChainStoreId !== null ? Number(onChainStoreId) : null,
+          media: mediaMap.has(s.id) ? [mediaMap.get(s.id)!] : [],
+          createdAt: s.createdAt
+        };
+      });
       totalCount = count || 0;
 
     } else {
@@ -318,33 +552,61 @@ export class SearchQueryBuilder {
       const productMediaMap = await this.fetchFirstMediaMap('Product', (products || []).map((p: any) => p.id));
       const serviceMediaMap = await this.fetchFirstMediaMap('ServiceOffering', (services || []).map((s: any) => s.id));
 
+      // Buscar onChainStoreId para todos os items (produtos + serviços)
+      const allStoreIds = [
+        ...(products || []).map((p: any) => p.sellerStoreId),
+        ...(services || []).map((s: any) => s.sellerStoreId)
+      ].filter(Boolean);
+      const uniqueStoreIds = [...new Set(allStoreIds)];
+      const stores = await this.prisma.sellerProfile.findMany({
+        where: { id: { in: uniqueStoreIds } },
+        select: { id: true, onChainStoreId: true }
+      });
+      const storeMap = new Map(stores.map(s => [s.id, s.onChainStoreId]));
+
       // Mapear produtos
-      const productItems = (products || []).map((p: any) => ({
-        id: p.id,
-        kind: 'product',
-        title: p.title,
-        description: p.description,
-        priceBzr: p.priceBzr,
-        categoryPath: p.categoryPath || [],
-        attributes: p.attributes || {},
-        sellerStoreId: p.sellerStoreId ?? null,
-        media: productMediaMap.has(p.id) ? [productMediaMap.get(p.id)!] : [],
-        createdAt: p.createdAt
-      }));
+      const productItems = (products || []).map((p: any) => {
+        const onChainStoreId = p.sellerStoreId && storeMap.has(p.sellerStoreId)
+          ? storeMap.get(p.sellerStoreId)
+          : null;
+
+        return {
+          id: p.id,
+          kind: 'product',
+          title: p.title,
+          description: p.description,
+          priceBzr: p.priceBzr,
+          categoryPath: p.categoryPath || [],
+          attributes: p.attributes || {},
+          sellerStoreId: p.sellerStoreId ?? null,
+          // Converter BigInt para Number para serialização JSON
+          onChainStoreId: onChainStoreId !== null ? Number(onChainStoreId) : null,
+          media: productMediaMap.has(p.id) ? [productMediaMap.get(p.id)!] : [],
+          createdAt: p.createdAt
+        };
+      });
 
       // Mapear serviços
-      const serviceItems = (services || []).map((s: any) => ({
-        id: s.id,
-        kind: 'service',
-        title: s.title,
-        description: s.description,
-        priceBzr: s.basePriceBzr,
-        categoryPath: s.categoryPath || [],
-        attributes: s.attributes || {},
-        sellerStoreId: s.sellerStoreId ?? null,
-        media: serviceMediaMap.has(s.id) ? [serviceMediaMap.get(s.id)!] : [],
-        createdAt: s.createdAt
-      }));
+      const serviceItems = (services || []).map((s: any) => {
+        const onChainStoreId = s.sellerStoreId && storeMap.has(s.sellerStoreId)
+          ? storeMap.get(s.sellerStoreId)
+          : null;
+
+        return {
+          id: s.id,
+          kind: 'service',
+          title: s.title,
+          description: s.description,
+          priceBzr: s.basePriceBzr,
+          categoryPath: s.categoryPath || [],
+          attributes: s.attributes || {},
+          sellerStoreId: s.sellerStoreId ?? null,
+          // Converter BigInt para Number para serialização JSON
+          onChainStoreId: onChainStoreId !== null ? Number(onChainStoreId) : null,
+          media: serviceMediaMap.has(s.id) ? [serviceMediaMap.get(s.id)!] : [],
+          createdAt: s.createdAt
+        };
+      });
 
       // Combinar todos os itens
       allItems = [...productItems, ...serviceItems];

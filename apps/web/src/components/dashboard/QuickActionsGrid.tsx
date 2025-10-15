@@ -4,11 +4,11 @@ import {
   Newspaper,
   BarChart3,
   Wallet,
-  Search,
   Store,
   ArrowLeftRight,
   Compass,
-  TrendingUp
+  MessageCircle,
+  UserCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +27,13 @@ const QUICK_ACTIONS: QuickAction[] = [
     to: '/app/feed',
     description: 'Ver posts da comunidade',
     color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+  },
+  {
+    icon: <MessageCircle className="h-6 w-6" />,
+    label: 'BazChat',
+    to: '/app/chat',
+    description: 'Mensagens e vendas',
+    color: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400',
   },
   {
     icon: <BarChart3 className="h-6 w-6" />,
@@ -55,6 +62,13 @@ const QUICK_ACTIONS: QuickAction[] = [
     to: '/app/sellers',
     description: 'Gerenciar lojas',
     color: 'bg-pink-500/10 text-pink-600 dark:text-pink-400',
+  },
+  {
+    icon: <UserCheck className="h-6 w-6" />,
+    label: 'Afiliações',
+    to: '/app/promoter/affiliates',
+    description: 'Minhas parcerias',
+    color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
   },
   {
     icon: <ArrowLeftRight className="h-6 w-6" />,

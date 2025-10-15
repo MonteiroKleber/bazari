@@ -41,7 +41,11 @@ const searchQuerySchema = z.object({
   sort: z.enum(['relevance', 'priceAsc', 'priceDesc', 'createdDesc']).optional().default('relevance'),
   storeId: z.string().trim().min(1).optional(),
   storeSlug: z.string().trim().min(3).max(64).optional(),
-  onChainStoreId: z.string().trim().min(1).optional()
+  onChainStoreId: z.string().trim().min(1).optional(),
+  myStoresOnly: z.enum(['true', 'false']).optional().transform(val => val === 'true'), // FASE 1: Filtro minhas lojas
+  affiliateStoresOnly: z.enum(['true', 'false']).optional().transform(val => val === 'true'), // FASE 2: Filtro lojas afiliadas
+  followersStoresOnly: z.enum(['true', 'false']).optional().transform(val => val === 'true'), // FASE 3: Filtro lojas de seguidores
+  openStoresOnly: z.enum(['true', 'false']).optional().transform(val => val === 'true') // FASE 4: Filtro lojas abertas
 });
 
 type Validated = z.infer<typeof searchQuerySchema>;
@@ -251,12 +255,27 @@ export async function searchRoutes(app: FastifyInstance) {
       const query = request.query as Record<string, any>;
       const osActive = isOsEnabled();
 
+      // FASE 1: Extrair userId do token JWT se disponível
+      let userId: string | undefined;
+      try {
+        const authHeader = request.headers.authorization;
+        if (authHeader?.startsWith('Bearer ')) {
+          const token = authHeader.slice(7);
+          // Decodificar JWT sem verificar (já foi verificado pelo middleware)
+          const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+          userId = payload.sub;
+        }
+      } catch (err) {
+        // Ignorar erro de parsing, userId fica undefined
+      }
+
       // Debug: log da flag e query
       if (DEBUG_SEARCH) {
-        app.log.info({ 
+        app.log.info({
           osEnabled: osActive,
           env: process.env.USE_OPENSEARCH,
-          query 
+          query,
+          userId: userId ? '***' : undefined
         }, 'Search request');
       }
 
@@ -387,7 +406,12 @@ export async function searchRoutes(app: FastifyInstance) {
             sort: validated.sort,
             storeId: filters.storeId,
             storeSlug: filters.storeSlug,
-            onChainStoreId: filters.onChainStoreId
+            onChainStoreId: filters.onChainStoreId,
+            userId, // FASE 1: Passar userId para filtro
+            myStoresOnly: validated.myStoresOnly, // FASE 1: Flag filtro minhas lojas
+            affiliateStoresOnly: validated.affiliateStoresOnly, // FASE 2: Flag filtro lojas afiliadas
+            followersStoresOnly: validated.followersStoresOnly, // FASE 3: Flag filtro lojas de seguidores
+            openStoresOnly: validated.openStoresOnly // FASE 4: Flag filtro lojas abertas
           });
           
           searchEngine = 'postgres';

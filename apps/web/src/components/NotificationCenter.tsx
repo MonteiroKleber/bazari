@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell } from 'lucide-react';
+import { Bell, Check, X } from 'lucide-react';
 import { Button } from './ui/button';
 import {
   DropdownMenu,
@@ -17,6 +17,7 @@ import { Badge } from './ui/badge';
 import { ProfileHoverCard } from './social/ProfileHoverCard';
 import { NotificationSkeleton } from './NotificationSkeleton';
 import { SkeletonList } from './SkeletonList';
+import { toast } from 'sonner';
 
 export function NotificationCenter() {
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -98,6 +99,7 @@ export function NotificationCenter() {
               <NotificationItem
                 key={notif.id}
                 notification={notif}
+                onUpdate={loadNotifications}
               />
             ))
           )}
@@ -107,7 +109,9 @@ export function NotificationCenter() {
   );
 }
 
-function NotificationItem({ notification }: { notification: any }) {
+function NotificationItem({ notification, onUpdate }: { notification: any; onUpdate: () => void }) {
+  const [loading, setLoading] = useState(false);
+
   const timeAgo = formatDistanceToNow(new Date(notification.createdAt), {
     addSuffix: true,
     locale: ptBR
@@ -133,10 +137,104 @@ function NotificationItem({ notification }: { notification: any }) {
       message = `Você conquistou um novo badge!`;
       link = `/app/profile/edit`;
       break;
+    case 'GROUP_INVITE':
+      message = `convidou você para entrar no grupo "${notification.metadata?.groupName}"`;
+      link = ''; // Não navegar, mostrar botões
+      break;
     default:
       message = 'Nova notificação';
   }
 
+  const handleAcceptInvite = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setLoading(true);
+    try {
+      await apiHelpers.acceptGroupInvite(notification.id);
+      toast.success('Você entrou no grupo!');
+      onUpdate();
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao aceitar convite');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRejectInvite = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setLoading(true);
+    try {
+      await apiHelpers.rejectGroupInvite(notification.id);
+      toast.success('Convite rejeitado');
+      onUpdate();
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao rejeitar convite');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Se for convite de grupo, renderizar com botões
+  if (notification.type === 'GROUP_INVITE') {
+    return (
+      <DropdownMenuItem className={`flex gap-3 p-3 ${!notification.read ? 'bg-accent' : ''}`} onSelect={(e) => e.preventDefault()}>
+        {notification.actor?.avatarUrl ? (
+          <img
+            src={notification.actor.avatarUrl}
+            alt={notification.actor.displayName}
+            className="h-10 w-10 rounded-full object-cover"
+          />
+        ) : (
+          <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+            👥
+          </div>
+        )}
+
+        <div className="flex-1 min-w-0">
+          <div className="text-sm">
+            {notification.actor && (
+              <ProfileHoverCard handle={notification.actor.handle}>
+                <span className="font-semibold cursor-pointer hover:underline">
+                  {notification.actor.displayName}
+                </span>
+              </ProfileHoverCard>
+            )}{' '}
+            {message}
+          </div>
+          <div className="text-xs text-muted-foreground mt-1">
+            {timeAgo}
+          </div>
+          {!notification.read && (
+            <div className="flex gap-2 mt-2">
+              <Button
+                size="sm"
+                variant="default"
+                onClick={handleAcceptInvite}
+                disabled={loading}
+                className="h-7 text-xs"
+              >
+                <Check className="h-3 w-3 mr-1" />
+                Aceitar
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleRejectInvite}
+                disabled={loading}
+                className="h-7 text-xs"
+              >
+                <X className="h-3 w-3 mr-1" />
+                Rejeitar
+              </Button>
+            </div>
+          )}
+        </div>
+      </DropdownMenuItem>
+    );
+  }
+
+  // Notificações normais com link
   return (
     <DropdownMenuItem asChild>
       <Link

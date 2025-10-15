@@ -23,7 +23,8 @@
     /* Path mapping */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@bazari/shared-types": ["../../packages/shared-types/src/index.ts"]
     }
   },
   "include": ["src"],

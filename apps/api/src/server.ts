@@ -48,6 +48,23 @@ import { leaderboardsRoutes } from './routes/leaderboards.js';
 import { reportsRoutes } from './routes/reports.js';
 import { userActionsRoutes } from './routes/userActions.js';
 import { analyticsRoutes } from './routes/analytics.js';
+import { setupChatWebSocket } from './chat/ws/server.js';
+import chatThreadsRoutes from './chat/routes/chat.threads.js';
+import chatMessagesRoutes from './chat/routes/chat.messages.js';
+import chatUploadRoutes from './chat/routes/chat.upload.js';
+import chatGroupsRoutes from './chat/routes/chat.groups.js';
+import chatOrdersRoutes from './chat/routes/chat.orders.js';
+import chatSettingsRoutes from './chat/routes/chat.settings.js';
+import chatAiRoutes from './chat/routes/chat.ai.js';
+import chatMissionsRoutes from './chat/routes/chat.missions.js';
+import chatOpportunitiesRoutes from './chat/routes/chat.opportunities.js';
+import chatRankingRoutes from './chat/routes/chat.ranking.js';
+import chatCallsRoutes from './chat/routes/chat.calls.js';
+import { chatKeysRoutes } from './chat/routes/chat.keys.js';
+import chatAffiliatesRoutes from './chat/routes/chat.affiliates.js';
+
+// Import workers with side effects
+import './workers/affiliate-stats.worker.js';
 
 const prisma = new PrismaClient();
 
@@ -145,6 +162,21 @@ async function buildApp() {
   await app.register(reportsRoutes, { prefix: '/api', prisma });
   await app.register(userActionsRoutes, { prefix: '/api', prisma });
   await app.register(analyticsRoutes, { prefix: '/api', prisma });
+
+  // Chat routes
+  await app.register(chatThreadsRoutes, { prefix: '/api' });
+  await app.register(chatMessagesRoutes, { prefix: '/api' });
+  await app.register(chatUploadRoutes, { prefix: '/api' });
+  await app.register(chatGroupsRoutes, { prefix: '/api' });
+  await app.register(chatOrdersRoutes, { prefix: '/api' });
+  await app.register(chatSettingsRoutes, { prefix: '/api' });
+  await app.register(chatAiRoutes, { prefix: '/api' });
+  await app.register(chatMissionsRoutes, { prefix: '/api' });
+  await app.register(chatOpportunitiesRoutes, { prefix: '/api' });
+  await app.register(chatRankingRoutes, { prefix: '/api' });
+  await app.register(chatCallsRoutes, { prefix: '/api' });
+  await app.register(chatKeysRoutes, { prefix: '/api/chat' });
+  await app.register(chatAffiliatesRoutes, { prefix: '/api' });
 
   // Error handler (dev): log detalhado para diagnosticar 500
   if (process.env.NODE_ENV !== 'production') {
@@ -276,6 +308,9 @@ async function start() {
     } catch (err) {
       app.log.warn('⚠️ OpenSearch: falha ao criar índice bazari_stores', err);
     }
+
+    // Setup Chat WebSocket
+    await setupChatWebSocket(app);
 
     // Iniciar servidor
     await app.listen({

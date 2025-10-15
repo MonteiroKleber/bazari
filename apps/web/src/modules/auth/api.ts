@@ -17,7 +17,6 @@ async function requestJson<T>(input: RequestInfo | URL, init?: RequestInit): Pro
   if (!headers.has('Accept')) {
     headers.set('Accept', 'application/json');
   }
-  const method = init?.method?.toUpperCase();
   const hasBody = init?.body != null && !(init.body instanceof FormData);
   if (hasBody && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');

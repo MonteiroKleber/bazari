@@ -60,6 +60,17 @@ import { UpdatePrompt } from './components/pwa/UpdatePrompt';
 import { OfflineIndicator } from './components/pwa/OfflineIndicator';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { FEATURE_FLAGS } from './config';
+import { ChatInboxPage } from './pages/chat/ChatInboxPage';
+import { ChatThreadPage } from './pages/chat/ChatThreadPage';
+import { ChatNewPage } from './pages/chat/ChatNewPage';
+import { GroupAdminPage } from './pages/chat/GroupAdminPage';
+import { SaleDetailsPage } from './pages/chat/SaleDetailsPage';
+import { ReceiptViewerPage } from './pages/chat/ReceiptViewerPage';
+import { CommissionPolicyPage } from './pages/seller/CommissionPolicyPage';
+import { AffiliatesPage } from './pages/seller/AffiliatesPage';
+import { MyAffiliationsPage } from './pages/promoter/MyAffiliationsPage';
+import { useChat } from './hooks/useChat';
+import { getAccessToken, refreshSession } from './modules/auth/session';
 
 function LandingPage() {
   const { t } = useTranslation();
@@ -209,6 +220,45 @@ function AppLayout({ children }: { children: ReactNode }) {
 }
 
 function App() {
+  // Initialize chat when user is authenticated
+  const { initialize: initializeChat } = useChat();
+
+  useEffect(() => {
+    // Try to restore session and initialize chat
+    const initializeApp = async () => {
+      console.log('[App] Initializing app...');
+
+      // If no active session, try to refresh from cookie
+      if (!isSessionActive()) {
+        console.log('[App] No active session, attempting refresh...');
+        const refreshed = await refreshSession();
+        if (!refreshed) {
+          console.log('[App] Session refresh failed, user needs to login');
+          return;
+        }
+        console.log('[App] Session refreshed successfully');
+      }
+
+      // Now check if we have an active session
+      if (isSessionActive()) {
+        console.log('[App] Session active');
+        const token = getAccessToken();
+        if (token) {
+          console.log('[App] Access token found, initializing chat...');
+          initializeChat(token).catch(err => {
+            console.error('[App] Failed to initialize chat:', err);
+          });
+        } else {
+          console.warn('[App] Session active but no access token');
+        }
+      } else {
+        console.log('[App] No active session after refresh attempt');
+      }
+    };
+
+    initializeApp();
+  }, []);
+
   return (
     <ThemeProvider>
       <BrowserRouter>
@@ -289,6 +339,15 @@ function App() {
                       <Route path="p2p/offers/new" element={<P2POfferNewPage />} />
                       <Route path="p2p/offers/:id" element={<P2POfferPublicPage />} />
                       <Route path="p2p/orders/:id" element={<P2POrderRoomPage />} />
+                      <Route path="chat" element={<ChatInboxPage />} />
+                      <Route path="chat/new" element={<ChatNewPage />} />
+                      <Route path="chat/:threadId" element={<ChatThreadPage />} />
+                      <Route path="chat/group/:groupId/admin" element={<GroupAdminPage />} />
+                      <Route path="chat/sales/:saleId" element={<SaleDetailsPage />} />
+                      <Route path="receipts/:cid" element={<ReceiptViewerPage />} />
+                      <Route path="seller/commission-policy" element={<CommissionPolicyPage />} />
+                      <Route path="seller/affiliates" element={<AffiliatesPage />} />
+                      <Route path="promoter/affiliates" element={<MyAffiliationsPage />} />
                       {/* Futuras rotas internas */}
                       {/* <Route path="dashboard" element={<Dashboard />} /> */}
                       {/* <Route path="wallet" element={<Wallet />} /> */}

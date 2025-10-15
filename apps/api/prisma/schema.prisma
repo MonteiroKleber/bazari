@@ -252,6 +252,8 @@ enum NotificationType {
   BADGE
   REPUTATION
   ACHIEVEMENT_UNLOCKED
+  GROUP_INVITE
+  GROUP_JOIN_REQUEST
 }
 
 model Order {
@@ -358,6 +360,12 @@ model Profile {
   isVerified       Boolean   @default(false)
   lastChainSync    DateTime?
 
+  // === Monetização (MOCK) ===
+  cashbackBalance  String    @default("0") // BZR cashback balance (MOCK)
+
+  // === Chat E2EE ===
+  chatPublicKey    String?   // Curve25519 public key (base64) for E2EE chat
+
   // Relations
   posts                 Post[]
   postComments          PostComment[]
@@ -370,6 +378,7 @@ model Profile {
   reputationEvents      ProfileReputationEvent[]
   handleHistory         HandleHistory[]
   notificationsAsActor  Notification[]           @relation("NotificationActor")
+  affiliates            ChatStoreAffiliate[]
 
   @@index([onChainProfileId])
   @@index([reputationScore])
@@ -934,3 +943,316 @@ model UserMute {
   @@index([mutedUserId])
 }
 
+// ===========================
+// BazChat Models (FASE 0)
+// ===========================
+
+model ChatThread {
+  id             String   @id @default(uuid())
+  kind           String   // dm | store | order | group
+  participants   String[] // profileIds
+  orderId        String?
+  groupId        String?
+  lastMessageAt  BigInt
+  metadata       Json?
+  createdAt      BigInt
+  updatedAt      BigInt
+
+  messages       ChatMessage[]
+  proposals      ChatProposal[]
+
+  @@index([participants])
+  @@index([lastMessageAt(sort: Desc)])
+  @@index([kind])
+}
+
+model ChatMessage {
+  id           String   @id @default(uuid())
+  threadId     String
+  fromProfile  String
+  type         String   // text | audio | image | file | video | proposal | checkout | payment | system
+  ciphertext   String   @db.Text
+  mediaCid     String?
+  meta         Json?
+  createdAt    BigInt
+  deliveredAt  BigInt?
+  readAt       BigInt?
+  replyTo      String?
+  editedAt     BigInt?
+
+  thread       ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt(sort: Desc)])
+  @@index([fromProfile])
+  @@index([type])
+}
+
+model ChatGroup {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  avatarUrl   String?
+  kind        String   @default("community") // community | channel | dao
+  isPublic    Boolean  @default(false)
+  adminIds    String[]
+  memberIds   String[]
+  maxMembers  Int?     @default(500)
+  metadata    Json?
+  createdAt   BigInt
+
+  @@index([adminIds])
+  @@index([memberIds])
+  @@index([kind])
+  @@index([isPublic])
+}
+
+model ChatProposal {
+  id                String   @id @default(uuid())
+  threadId          String
+  sellerId          String
+  buyerId           String?
+  items             Json     // ProposalItem[]
+  subtotal          Decimal  @db.Decimal(20, 8)
+  shipping          Json?
+  total             Decimal  @db.Decimal(20, 8)
+  commissionPercent Int
+
+  // Multi-Store Support
+  isMultiStore      Boolean  @default(false)
+  storeGroups       Json?    // Array de StoreGroup[]
+
+  status            String   @default("draft") // draft | sent | accepted | expired | paid
+  expiresAt         BigInt?
+  createdAt         BigInt
+  updatedAt         BigInt
+
+  thread            ChatThread @relation(fields: [threadId], references: [id])
+  sales             ChatSale[]
+
+  @@index([threadId])
+  @@index([sellerId])
+  @@index([status])
+}
+
+model StoreCommissionPolicy {
+  storeId             BigInt   @id
+  mode                String   @default("open") // open | followers | affiliates
+  percent             Int      @default(5)
+  minReputation       Int?
+  dailyCommissionCap  Decimal? @db.Decimal(20, 8)
+  allowMultiStore     Boolean  @default(true) // FASE 8: Multi-Store Proposals
+  createdAt           BigInt
+  updatedAt           BigInt
+}
+
+model ChatMission {
+  id              String                   @id @default(uuid())
+  title           String
+  description     String
+  reward          Decimal                  @db.Decimal(20, 8)
+  type            String                   // share | review | referral | custom
+  kind            String                   @default("custom") // onboarding | referral | sales | engagement
+  goal            Int                      @default(1) // Quantidade necessária para completar
+  requirements    Json?
+  maxCompletions  Int?
+  completedCount  Int                      @default(0)
+  expiresAt       BigInt?
+  status          String                   @default("active") // active | paused | completed
+  isActive        Boolean                  @default(true)
+  createdBy       String
+  createdAt       BigInt
+  completions     ChatMissionCompletion[]
+
+  @@index([status, expiresAt])
+  @@index([createdBy])
+  @@index([isActive])
+}
+
+model ChatMissionCompletion {
+  profileId   String
+  missionId   String
+  progress    Int     @default(0)
+  completedAt BigInt?
+  mission     ChatMission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  @@id([profileId, missionId])
+  @@index([profileId])
+  @@index([missionId])
+}
+
+model ChatOpportunity {
+  id           String   @id @default(uuid())
+  storeId      BigInt
+  title        String
+  description  String
+  type         String   // job | freelance | partnership
+  compensation String?
+  requirements Json?
+  status       String   @default("open") // open | filled | closed
+  createdAt    BigInt
+  expiresAt    BigInt?
+
+  @@index([storeId])
+  @@index([status])
+}
+
+// ChatSale - MOCK de vendas on-chain (FASE 3)
+// Esta tabela simula o que seria armazenado na blockchain
+// Será substituída por integração real posteriormente
+model ChatSale {
+  id                 String        @id @default(uuid())
+  storeId            BigInt
+  buyer              String        // profileId
+  seller             String        // profileId
+  promoter           String?       // profileId (opcional)
+  amount             Decimal       @db.Decimal(20, 8)
+  commissionPercent  Int           @default(0)
+  commissionAmount   Decimal       @default(0) @db.Decimal(20, 8)
+  bazariFee          Decimal       @default(0) @db.Decimal(20, 8)
+  sellerAmount       Decimal       @db.Decimal(20, 8)
+  status             String        @default("pending") // pending, split, failed
+  txHash             String?       // Mock transaction hash
+  receiptNftCid      String?       // IPFS CID do recibo NFT
+  proposalId         String?
+  proposal           ChatProposal? @relation(fields: [proposalId], references: [id])
+  createdAt          BigInt
+  settledAt          BigInt?
+
+  @@index([storeId])
+  @@index([buyer])
+  @@index([seller])
+  @@index([promoter])
+  @@index([status])
+  @@index([proposalId])
+  @@index([createdAt(sort: Desc)])
+}
+
+
+// === FASE 7: Social Features ===
+
+// Trust Badges NFT (MOCK)
+model ChatTrustBadge {
+  id        String  @id
+  profileId String
+  level     String  // bronze | silver | gold | platinum
+  nftId     String? // Mock NFT ID
+  isActive  Boolean @default(true)
+  issuedAt  BigInt
+
+  @@index([profileId])
+  @@index([isActive])
+}
+
+// Denúncias e Moderação (MOCK)
+model ChatReport {
+  id              String  @id
+  reporterId      String
+  reportedId      String
+  contentType     String  // message | profile | group
+  contentId       String
+  reason          String
+  description     String  @default("")
+  status          String  @default("pending") // pending | under_review | resolved
+  votes           Int     @default(0)
+  approveVotes    Int     @default(0)
+  rejectVotes     Int     @default(0)
+  resolution      String? // warning | suspend | ban | dismiss
+  resolvedBy      String?
+  resolvedAt      BigInt?
+  resolutionNotes String?
+  createdAt       BigInt
+
+  @@index([reporterId])
+  @@index([reportedId])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+}
+
+model ChatReportVote {
+  reportId String
+  voterId  String
+  vote     String // approve | reject
+  weight   Int    @default(1)
+  votedAt  BigInt
+
+  @@id([reportId, voterId])
+  @@index([reportId])
+  @@index([voterId])
+}
+
+// Polls em Grupos
+model ChatGroupPoll {
+  id        String  @id
+  groupId   String
+  creatorId String
+  question  String
+  options   Json    // Array de opções
+  votes     Json    @default("{}") // Map de voterId -> optionIndex
+  endsAt    BigInt?
+  createdAt BigInt
+
+  @@index([groupId])
+  @@index([createdAt(sort: Desc)])
+}
+
+// === FASE 8: Affiliate System ===
+
+// Sistema de Afiliados - Gerenciamento de promotores aprovados
+model ChatStoreAffiliate {
+  id                String   @id @default(uuid())
+  storeId           BigInt   // ID on-chain da loja
+  promoterId        String   // profileId do promotor
+  promoter          Profile  @relation(fields: [promoterId], references: [id], onDelete: Cascade)
+
+  // Status
+  status            String   @default("pending") // pending | approved | rejected | suspended
+
+  // Comissão customizada (opcional - override da política geral)
+  customCommission  Int?     // Se null, usa a política da loja
+
+  // Limites opcionais
+  monthlySalesCap   Decimal? @db.Decimal(20, 8) // Limite mensal de vendas
+
+  // Metadata
+  notes             String?  @db.Text // Notas do dono da loja
+
+  // Timestamps
+  requestedAt       BigInt   // Quando solicitou
+  approvedAt        BigInt?  // Quando foi aprovado
+  rejectedAt        BigInt?  // Quando foi rejeitado
+  suspendedAt       BigInt?  // Quando foi suspenso
+
+  // Performance (calculado periodicamente)
+  totalSales        Decimal  @default(0) @db.Decimal(20, 8)
+  totalCommission   Decimal  @default(0) @db.Decimal(20, 8)
+  salesCount        Int      @default(0)
+
+  createdAt         BigInt
+  updatedAt         BigInt
+
+  @@unique([storeId, promoterId])
+  @@index([promoterId])
+  @@index([storeId, status])
+}
+
+// Sistema de Convites de Afiliado (Opcional)
+model ChatAffiliateInvite {
+  id          String   @id @default(uuid())
+  storeId     BigInt
+  inviteCode  String   @unique // Código único de convite
+
+  // Configurações do convite
+  maxUses     Int?     // Número máximo de usos (null = ilimitado)
+  usesCount   Int      @default(0)
+  expiresAt   BigInt?  // Data de expiração
+
+  // Auto-aprovação
+  autoApprove Boolean  @default(false)
+
+  // Comissão padrão para quem usar este convite
+  defaultCommission Int @default(5)
+
+  createdAt   BigInt
+
+  @@index([storeId])
+}

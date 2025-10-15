@@ -287,7 +287,7 @@ export async function meSellersRoutes(app: FastifyInstance, options: { prisma: P
 
       if (fallbackStore?.onChainStoreId && requestedOwnerAddress) {
         try {
-          const onChain = await getStore(fallbackStore.onChainStoreId);
+          const onChain = await getStore(Number(fallbackStore.onChainStoreId));
           if (onChain && onChain.owner === requestedOwnerAddress) {
             store = fallbackStore;
             transferClaim = true;
