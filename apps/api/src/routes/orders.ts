@@ -5,6 +5,10 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { getPaymentsConfig } from '../config/payments.js';
 import { runReputationSync } from '../workers/reputation.worker.js';
+import { createDeliveryRequestForOrder } from '../lib/deliveryRequestHelper.js';
+import { calculateDeliveryFee, estimatePackageDetails } from '../lib/deliveryCalculator.js';
+import { addressSchema } from '../lib/addressValidator.js';
+import { env } from '../env.js';
 
 const createPaymentIntentParamsSchema = z.object({
   id: z.string().uuid(),
@@ -169,6 +173,38 @@ export async function ordersRoutes(
         include: { items: true },
       });
 
+      // ============================================
+      // Auto-criar DeliveryRequest se tiver endereço
+      // ============================================
+      if (order.shippingAddress && env.FEATURE_AUTO_CREATE_DELIVERY) {
+        try {
+          const deliveryResult = await createDeliveryRequestForOrder(
+            prisma,
+            order.id
+          );
+
+          if (deliveryResult) {
+            app.log.info(
+              {
+                orderId: order.id,
+                deliveryRequestId: deliveryResult.deliveryRequestId,
+                deliveryFeeBzr: deliveryResult.deliveryFeeBzr,
+              },
+              'DeliveryRequest criado automaticamente'
+            );
+          }
+        } catch (err) {
+          // Não falhar o Order se delivery der erro
+          app.log.error(
+            {
+              err,
+              orderId: order.id,
+            },
+            'Erro ao criar DeliveryRequest, Order criado normalmente'
+          );
+        }
+      }
+
       const oany: any = order as any;
       const payload = {
         orderId: order.id,
@@ -205,6 +241,76 @@ export async function ordersRoutes(
       return reply.status(500).send({
         error: 'Erro interno do servidor',
         message: 'Falha ao criar pedido',
+      });
+    }
+  });
+
+  /**
+   * POST /orders/estimate-shipping - Estimar frete antes de finalizar pedido
+   */
+  app.post('/orders/estimate-shipping', async (request, reply) => {
+    try {
+      const body = z
+        .object({
+          sellerStoreId: z.string().uuid(),
+          deliveryAddress: addressSchema,
+          items: z.array(
+            z.object({
+              listingId: z.string().uuid(),
+              qty: z.number().int().min(1),
+              kind: z.enum(['product', 'service']),
+            })
+          ),
+        })
+        .parse(request.body);
+
+      // Buscar loja
+      const store = await prisma.sellerProfile.findUnique({
+        where: { id: body.sellerStoreId },
+        select: { pickupAddress: true, shopName: true },
+      });
+
+      if (!store) {
+        return reply.status(404).send({
+          error: 'Loja não encontrada',
+        });
+      }
+
+      if (!store.pickupAddress) {
+        return reply.status(400).send({
+          error: 'Loja não configurada para entrega',
+          message: 'A loja não possui endereço de coleta cadastrado',
+        });
+      }
+
+      // Estimar características do pacote
+      const packageDetails = estimatePackageDetails(body.items);
+
+      // Calcular frete
+      const feeResult = await calculateDeliveryFee({
+        pickupAddress: store.pickupAddress as any,
+        deliveryAddress: body.deliveryAddress,
+        packageType: packageDetails.packageType,
+        weight: packageDetails.weight,
+      });
+
+      return reply.send({
+        deliveryFeeBzr: feeResult.totalBzr,
+        distance: feeResult.distance,
+        estimatedTimeMinutes: feeResult.estimatedTimeMinutes,
+        breakdown: feeResult.breakdown,
+      });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return reply.status(400).send({
+          error: 'Dados inválidos',
+          details: err.errors,
+        });
+      }
+
+      app.log.error({ err }, 'Erro ao estimar frete');
+      return reply.status(500).send({
+        error: 'Erro ao estimar frete',
       });
     }
   });

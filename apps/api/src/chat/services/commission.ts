@@ -19,6 +19,7 @@ interface SaleData {
   promoter?: string;
   amount: string; // BZR amount as string
   commissionPercent: number;
+  marketplaceId?: string; // Link para marketplace de afiliado (NOVO)
 }
 
 interface SaleResult {
@@ -223,7 +224,7 @@ class CommissionService {
     const txHash = this.generateMockTxHash();
 
     // Criar registro da venda (MOCK da chain)
-    const sale = await prisma.chatSale.create({
+    const sale = await prisma.affiliateSale.create({
       data: {
         storeId: data.storeId,
         buyer: data.buyer,
@@ -237,6 +238,7 @@ class CommissionService {
         status: 'split',
         txHash,
         proposalId: data.proposalId,
+        marketplaceId: data.marketplaceId, // NOVO
         createdAt: now,
         settledAt: now,
       },
@@ -258,7 +260,7 @@ class CommissionService {
     });
 
     // Atualizar com o CID do recibo
-    await prisma.chatSale.update({
+    await prisma.affiliateSale.update({
       where: { id: sale.id },
       data: { receiptNftCid },
     });
@@ -353,7 +355,7 @@ class CommissionService {
       where.promoter = profileId;
     }
 
-    const sales = await prisma.chatSale.findMany({
+    const sales = await prisma.affiliateSale.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       take: 50,
@@ -381,7 +383,7 @@ class CommissionService {
    * Busca detalhes de uma venda
    */
   async getSale(saleId: string): Promise<any | null> {
-    const sale = await prisma.chatSale.findUnique({
+    const sale = await prisma.affiliateSale.findUnique({
       where: { id: saleId },
     });
 

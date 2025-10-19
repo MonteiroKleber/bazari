@@ -63,7 +63,7 @@ class BadgesService {
       const accountAgeDays = Math.floor((Date.now() - profile.createdAt.getTime()) / (1000 * 60 * 60 * 24));
 
       // Contar vendas completas (MOCK)
-      const salesCount = await prisma.chatSale.count({
+      const salesCount = await prisma.affiliateSale.count({
         where: {
           seller: profileId,
           status: 'split',

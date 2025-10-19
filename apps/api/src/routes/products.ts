@@ -357,6 +357,7 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
     // Filtros básicos
     if (query.daoId) where.daoId = query.daoId;
     if (query.categoryId) where.categoryId = query.categoryId;
+    if (query.sellerId) where.onChainStoreId = BigInt(query.sellerId);
     if (query.search) {
       where.OR = [
         { title: { contains: query.search, mode: 'insensitive' } },
@@ -403,7 +404,10 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
     ]);
 
     return reply.send({
-      data: products,
+      data: products.map(p => ({
+        ...p,
+        onChainStoreId: p.onChainStoreId ? p.onChainStoreId.toString() : null,
+      })),
       pagination: {
         page,
         limit,

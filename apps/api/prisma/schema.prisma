@@ -276,6 +276,9 @@ model Order {
   paymentIntents PaymentIntent[]
   escrowLogs     EscrowLog[]
 
+  // === Delivery Relation ===
+  deliveryRequest   DeliveryRequest?
+
   @@index([buyerAddr])
   @@index([sellerAddr])
   @@index([sellerId])
@@ -379,6 +382,12 @@ model Profile {
   handleHistory         HandleHistory[]
   notificationsAsActor  Notification[]           @relation("NotificationActor")
   affiliates            ChatStoreAffiliate[]
+  affiliateMarketplaces AffiliateMarketplace[]   @relation("AffiliateMarketplaces")
+
+  // === Delivery Relations ===
+  deliveryProfile         DeliveryProfile?
+  deliveryRequestsAsDeliverer DeliveryRequest[] @relation("DeliveryPerson")
+  storePartnerships       StoreDeliveryPartner[] @relation("StoreDeliveryPartner")
 
   @@index([onChainProfileId])
   @@index([reputationScore])
@@ -427,6 +436,9 @@ model SellerProfile {
   categoriesHash   String? // SHA-256 do JSON de categorias
   productsCid      String? // CID do JSON de produtos/catálogo
   productsHash     String? // SHA-256 do JSON de produtos/catálogo
+
+  // === Address for Pickup ===
+  pickupAddress     Json? // { street, number, complement?, city, state, zipCode, lat?, lng?, instructions? }
 
   // Relations
   products       Product[]
@@ -1027,7 +1039,7 @@ model ChatProposal {
   updatedAt         BigInt
 
   thread            ChatThread @relation(fields: [threadId], references: [id])
-  sales             ChatSale[]
+  sales             AffiliateSale[]
 
   @@index([threadId])
   @@index([sellerId])
@@ -1096,11 +1108,16 @@ model ChatOpportunity {
   @@index([status])
 }
 
-// ChatSale - MOCK de vendas on-chain (FASE 3)
+// AffiliateSale - MOCK de vendas on-chain (FASE 3)
 // Esta tabela simula o que seria armazenado na blockchain
 // Será substituída por integração real posteriormente
-model ChatSale {
-  id                 String        @id @default(uuid())
+model AffiliateSale {
+  id                 String                    @id @default(uuid())
+
+  // Link para marketplace (NOVO)
+  marketplaceId      String?
+  marketplace        AffiliateMarketplace?     @relation(fields: [marketplaceId], references: [id])
+
   storeId            BigInt
   buyer              String        // profileId
   seller             String        // profileId
@@ -1122,6 +1139,7 @@ model ChatSale {
   @@index([buyer])
   @@index([seller])
   @@index([promoter])
+  @@index([marketplaceId])  // NOVO
   @@index([status])
   @@index([proposalId])
   @@index([createdAt(sort: Desc)])
@@ -1255,4 +1273,298 @@ model ChatAffiliateInvite {
   createdAt   BigInt
 
   @@index([storeId])
+}
+
+// === MARKETPLACE DO AFILIADO ===
+
+// Marketplace personalizado do afiliado (vitrine)
+model AffiliateMarketplace {
+  id                String   @id @default(uuid())
+  ownerId           String
+  owner             Profile  @relation("AffiliateMarketplaces", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // Branding
+  name              String
+  slug              String   @unique
+  description       String?  @db.Text
+  logoUrl           String?
+  bannerUrl         String?
+  theme             String   @default("bazari")
+  primaryColor      String?
+  secondaryColor    String?
+
+  // Metadados IPFS (opcional)
+  metadataCid       String?
+
+  // Estatísticas (cache)
+  totalSales        Int      @default(0)
+  totalRevenue      Decimal  @default(0) @db.Decimal(20, 8)
+  totalCommission   Decimal  @default(0) @db.Decimal(20, 8)
+  productCount      Int      @default(0)
+
+  // Status
+  isActive          Boolean  @default(true)
+  isPublic          Boolean  @default(true)
+
+  createdAt         BigInt
+  updatedAt         BigInt
+
+  products          AffiliateProduct[]
+  sales             AffiliateSale[]
+
+  @@index([ownerId])
+  @@index([slug])
+  @@index([isActive, isPublic])
+}
+
+// Produtos adicionados à vitrine do afiliado
+model AffiliateProduct {
+  id                String              @id @default(uuid())
+  marketplaceId     String
+  marketplace       AffiliateMarketplace @relation(fields: [marketplaceId], references: [id], onDelete: Cascade)
+
+  // Produto original
+  storeId           BigInt
+  productId         String
+  productName       String
+  productImageUrl   String?
+  productPrice      Decimal             @db.Decimal(20, 8)
+
+  // Comissão
+  commissionPercent Int
+
+  // Customizações (opcional)
+  customDescription String?             @db.Text
+  customImageUrl    String?
+  featured          Boolean             @default(false)
+
+  // Tracking
+  viewCount         Int                 @default(0)
+  clickCount        Int                 @default(0)
+
+  addedAt           BigInt
+  updatedAt         BigInt
+
+  @@unique([marketplaceId, storeId, productId])
+  @@index([marketplaceId])
+  @@index([storeId])
+}
+
+// ===========================
+// DELIVERY NETWORK (FASE 1)
+// ===========================
+
+model DeliveryRequest {
+  id                String   @id @default(uuid())
+
+  // Origem da demanda
+  sourceType        String   // "order" | "direct"
+  orderId           String?  @unique
+  order             Order?   @relation(fields: [orderId], references: [id])
+
+  // Endereços
+  pickupAddress     Json     // { street, number, complement?, city, state, zipCode, country, lat?, lng?, contactName?, contactPhone? }
+  deliveryAddress   Json     // { street, number, complement?, city, state, zipCode, country, lat?, lng?, contactName?, contactPhone? }
+
+  // Partes Envolvidas
+  senderId          String   // storeId (SellerProfile.id) ou profileId
+  senderType        String   // "store" | "profile"
+  recipientId       String   // profileId do destinatário
+
+  // Detalhes da Carga
+  packageType       String   // "envelope" | "small_box" | "medium_box" | "large_box" | "fragile" | "perishable" | "custom"
+  weight            Float?   @db.Real // em kg
+  dimensions        Json?    // { length: float, width: float, height: float } em cm
+  estimatedValue    Decimal? @db.Decimal(20, 8) // valor estimado da mercadoria (para seguro)
+  notes             String?  @db.Text
+  requiresSignature Boolean  @default(true)
+
+  // Valor e Pagamento
+  deliveryFeeBzr    Decimal  @db.Decimal(20, 8)
+  distance          Float?   @db.Real // em km (calculado)
+
+  // Status
+  status            String   @default("pending")
+  // "pending" → "assigned" → "accepted" → "picked_up" → "in_transit" → "delivered" → "completed"
+  // ou "cancelled" | "failed"
+
+  // Entregador
+  deliveryPersonId  String?
+  deliveryPerson    Profile? @relation("DeliveryPerson", fields: [deliveryPersonId], references: [id])
+
+  // Rede de Entregadores
+  preferredDeliverers String[] @default([]) // profileIds (ordem de prioridade)
+  isPrivateNetwork    Boolean  @default(false) // true = só rede vinculada pode ver
+  notifiedDeliverers  String[] @default([]) // histórico de quem foi notificado
+
+  // Tracking de Tempo
+  createdAt         BigInt
+  updatedAt         BigInt
+  expiresAt         BigInt?  // prazo limite para aceite
+  assignedAt        BigInt?  // quando foi atribuído
+  acceptedAt        BigInt?  // quando entregador aceitou
+  pickedUpAt        BigInt?  // quando coletou
+  inTransitAt       BigInt?  // quando iniciou trânsito
+  deliveredAt       BigInt?  // quando entregou
+  completedAt       BigInt?  // quando foi finalizado/pago
+  cancelledAt       BigInt?
+
+  // Escrow e Pagamento
+  escrowAddress     String?
+  paymentTxHash     String?  // hash da transação de pagamento
+  releaseTxHash     String?  // hash da liberação do escrow
+
+  // Prova de Entrega
+  proofOfDelivery   Json?    // { signature?, photo_urls?: string[], timestamp: bigint }
+
+  // Avaliação
+  rating            Int?     // 1-5 estrelas
+  reviewComment     String?  @db.Text
+
+  // Metadados
+  metadata          Json?    // campo flexível para dados extras
+
+  @@index([status])
+  @@index([senderId, senderType])
+  @@index([deliveryPersonId])
+  @@index([orderId])
+  @@index([createdAt])
+  @@index([isPrivateNetwork])
+}
+
+model StoreDeliveryPartner {
+  id                String   @id @default(uuid())
+
+  // Relação
+  storeId           BigInt   // SellerProfile.onChainStoreId
+  deliveryPersonId  String   // Profile.id
+  deliveryPerson    Profile  @relation("StoreDeliveryPartner", fields: [deliveryPersonId], references: [id], onDelete: Cascade)
+
+  // Configurações
+  status            String   @default("pending") // "pending" | "active" | "paused" | "suspended" | "rejected"
+  priority          Int      @default(1) // 1 = primeira oferta, 2 = segunda, etc.
+
+  // Comissão e Financeiro
+  commissionPercent Int      @default(100) // % do deliveryFeeBzr que vai para o entregador
+  bonusPerDelivery  Decimal? @db.Decimal(20, 8) // bônus fixo por entrega
+
+  // Restrições
+  maxDailyDeliveries Int?    // limite de entregas por dia (null = sem limite)
+  allowedDays       String[] @default([]) // ["monday", "tuesday", ...] - vazio = todos os dias
+  workingHoursStart String?  // "08:00"
+  workingHoursEnd   String?  // "18:00"
+
+  // Métricas (cache)
+  totalDeliveries   Int      @default(0)
+  completedDeliveries Int    @default(0)
+  cancelledDeliveries Int    @default(0)
+  avgRating         Float    @default(0)
+  avgDeliveryTime   Float?   @db.Real // em minutos
+  onTimeRate        Float    @default(100.0) // %
+
+  // Timestamps
+  requestedAt       BigInt?  // quando entregador solicitou
+  approvedAt        BigInt?  // quando loja aprovou
+  rejectedAt        BigInt?
+  suspendedAt       BigInt?
+  createdAt         BigInt
+  updatedAt         BigInt
+
+  // Notas
+  notes             String?  @db.Text // notas privadas da loja sobre o entregador
+  rejectionReason   String?  @db.Text
+
+  @@unique([storeId, deliveryPersonId])
+  @@index([storeId, status])
+  @@index([deliveryPersonId, status])
+  @@index([priority])
+}
+
+model DeliveryProfile {
+  id                String   @id @default(uuid())
+  profileId         String   @unique
+  profile           Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  // Documentação
+  fullName          String
+  documentType      String   // "cpf" | "cnpj" | "passport"
+  documentNumber    String   @unique
+  phoneNumber       String
+  emergencyContact  Json?    // { name: string, phone: string, relationship: string }
+
+  // Veículo
+  vehicleType       String   // "bike" | "motorcycle" | "car" | "van" | "truck"
+  vehiclePlate      String?
+  vehicleModel      String?
+  vehicleYear       Int?
+  vehicleColor      String?
+
+  // Capacidades
+  maxWeight         Float    @db.Real // kg
+  maxVolume         Float    @db.Real // m³
+  canCarryFragile   Boolean  @default(false)
+  canCarryPerishable Boolean @default(false)
+  hasInsulatedBag   Boolean  @default(false) // bag térmica
+
+  // Disponibilidade
+  isAvailable       Boolean  @default(false)
+  isOnline          Boolean  @default(false) // conectado no momento
+  currentLat        Float?   @db.Real
+  currentLng        Float?   @db.Real
+  currentAccuracy   Float?   @db.Real // em metros
+  lastLocationUpdate BigInt?
+
+  // Área de Atuação
+  serviceRadius     Float    @default(10.0) @db.Real // km
+  serviceCities     String[] @default([]) // ["Rio de Janeiro", "Niterói"]
+  serviceStates     String[] @default([]) // ["RJ"]
+  preferredNeighborhoods String[] @default([])
+
+  // Estatísticas
+  totalDeliveries   Int      @default(0)
+  completedDeliveries Int    @default(0)
+  cancelledDeliveries Int    @default(0)
+  avgRating         Float    @default(0)
+  totalRatings      Int      @default(0)
+  onTimeRate        Float    @default(100.0) // %
+  acceptanceRate    Float    @default(100.0) // % de entregas aceitas vs oferecidas
+  completionRate    Float    @default(100.0) // % de entregas completadas vs aceitas
+
+  // Performance
+  avgDeliveryTime   Float?   @db.Real // tempo médio em minutos
+  fastestDelivery   Float?   @db.Real // entrega mais rápida (minutos)
+  totalDistance     Float    @default(0) @db.Real // km acumulados
+
+  // Financeiro
+  walletAddress     String?  // endereço blockchain para receber pagamentos
+  totalEarnings     Decimal  @default(0) @db.Decimal(20, 8) // BZR ganhos (histórico)
+  pendingEarnings   Decimal  @default(0) @db.Decimal(20, 8) // BZR em escrow
+
+  // Verificação
+  isVerified        Boolean  @default(false)
+  verificationLevel String   @default("basic") // "basic" | "intermediate" | "advanced"
+  backgroundCheckCompleted Boolean @default(false)
+  backgroundCheckDate BigInt?
+
+  // Configurações
+  autoAcceptRadius  Float?   @db.Real // km - aceita automaticamente dentro desse raio
+  minDeliveryFee    Decimal? @db.Decimal(20, 8) // valor mínimo de entrega que aceita
+  notificationsEnabled Boolean @default(true)
+
+  // Status da Conta
+  accountStatus     String   @default("active") // "active" | "suspended" | "banned" | "under_review"
+  suspensionReason  String?  @db.Text
+  suspendedUntil    BigInt?
+
+  // Timestamps
+  createdAt         BigInt
+  updatedAt         BigInt
+  lastActiveAt      BigInt?
+  verifiedAt        BigInt?
+
+  @@index([isAvailable, isOnline])
+  @@index([profileId])
+  @@index([documentNumber])
+  @@index([serviceRadius])
+  @@index([accountStatus])
 }

@@ -232,7 +232,7 @@ async function getAffiliateMonthSales(affiliateId: string): Promise<number> {
   const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const monthStartTimestamp = BigInt(firstDayOfMonth.getTime());
 
-  const sales = await prisma.chatSale.findMany({
+  const sales = await prisma.affiliateSale.findMany({
     where: {
       promoter: affiliateId,
       status: 'split',
@@ -245,7 +245,7 @@ async function getAffiliateMonthSales(affiliateId: string): Promise<number> {
     },
   });
 
-  const total = sales.reduce((sum, sale) => {
+  const total = sales.reduce((sum: number, sale: any) => {
     return sum + parseFloat(sale.amount.toString());
   }, 0);
 

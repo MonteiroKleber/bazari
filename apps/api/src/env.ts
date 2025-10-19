@@ -57,6 +57,21 @@ const envSchema = z.object({
 
   // Redis config (BullMQ)
   REDIS_URL: z.string().default('redis://localhost:6379'),
+
+  // Delivery Network config
+  DELIVERY_BASE_FEE: z.string().default('5.0').transform(Number),
+  DELIVERY_FEE_PER_KM: z.string().default('1.5').transform(Number),
+  DELIVERY_FEE_PER_KG: z.string().default('0.5').transform(Number),
+  DELIVERY_MAX_SEARCH_RADIUS: z.string().default('50').transform(Number),
+  DELIVERY_DEFAULT_SERVICE_RADIUS: z.string().default('10').transform(Number),
+  DELIVERY_ESTIMATED_SPEED_KMH: z.string().default('30').transform(Number),
+  DELIVERY_MIN_FEE: z.string().default('5.0').transform(Number),
+
+  // Feature Flags
+  FEATURE_AUTO_CREATE_DELIVERY: z
+    .string()
+    .optional()
+    .transform((v) => (v ? /^true$/i.test(v) || v === '1' : false)),
 }).refine(
   (data) => {
     if (data.STORAGE_PROVIDER === 's3') {

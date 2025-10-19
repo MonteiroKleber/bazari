@@ -1,7 +1,8 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Newspaper, PlusSquare, Bell, User } from 'lucide-react';
+import { LayoutDashboard, Newspaper, PlusSquare, Bell, User, Truck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
+import { useDeliveryProfile } from '@/hooks/useDeliveryProfile';
 
 interface NavItem {
   icon: typeof LayoutDashboard;
@@ -12,6 +13,7 @@ interface NavItem {
 
 export function MobileBottomNav() {
   const location = useLocation();
+  const { profile: deliveryProfile } = useDeliveryProfile();
   const [notificationCount, setNotificationCount] = useState(0);
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
@@ -41,7 +43,7 @@ export function MobileBottomNav() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
-  const navItems: NavItem[] = [
+  const baseNavItems: NavItem[] = [
     {
       icon: LayoutDashboard,
       label: 'Home',
@@ -63,12 +65,27 @@ export function MobileBottomNav() {
       path: '/app/notifications',
       badge: notificationCount,
     },
-    {
-      icon: User,
-      label: 'Profile',
-      path: '/app/profile/edit',
-    },
   ];
+
+  // Add delivery tab if user has delivery profile
+  const navItems: NavItem[] = deliveryProfile
+    ? [
+        ...baseNavItems,
+        {
+          icon: Truck,
+          label: 'Entregas',
+          path: '/app/delivery/dashboard',
+          badge: deliveryProfile.activeDeliveries || 0,
+        },
+      ]
+    : [
+        ...baseNavItems,
+        {
+          icon: User,
+          label: 'Profile',
+          path: '/app/profile/edit',
+        },
+      ];
 
   const isActive = (path: string) => {
     if (path === '/app/dashboard') {
@@ -76,6 +93,9 @@ export function MobileBottomNav() {
     }
     if (path === '/app/feed') {
       return location.pathname === '/app/feed';
+    }
+    if (path === '/app/delivery/dashboard') {
+      return location.pathname.startsWith('/app/delivery');
     }
     return location.pathname.startsWith(path);
   };
@@ -90,7 +110,7 @@ export function MobileBottomNav() {
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}
     >
-      <div className="grid grid-cols-5 h-16">
+      <div className={cn('grid h-16', deliveryProfile ? 'grid-cols-5' : 'grid-cols-5')}>
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path);

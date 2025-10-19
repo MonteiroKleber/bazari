@@ -1,0 +1,737 @@
+🎨 PROPOSTA UI/UX - BAZARI DELIVERY NETWORK
+(Independente do Sistema de Categorias)
+🎯 OBJETIVO
+Criar interface para o sistema de rede automática de entregas já implementado no backend, com 3 personas distintas:
+👤 Comprador - Solicita entrega direta OU recebe entrega de pedido
+🚚 Entregador - Cadastra-se, recebe demandas, faz entregas
+🏪 Lojista - Gerencia entregadores vinculados à sua loja
+🗺️ MAPA DE NAVEGAÇÃO
+┌─────────────────────────────────────────────────────────┐
+│                    BAZARI DELIVERY NETWORK               │
+└─────────────────────────────────────────────────────────┘
+
+📱 APP PÚBLICO (não autenticado)
+└── /delivery
+    └── Landing page do delivery (marketing)
+        ├── [CTA] "Solicitar Entrega" → Redireciona para /auth
+        └── [CTA] "Tornar-me Entregador" → Redireciona para /auth
+
+🔒 APP AUTENTICADO (/app)
+├── Dashboard Principal
+│   └── Quick Action: "💼 Tornar-me Entregador"
+│
+├── 📦 COMPRADOR
+│   ├── /app/delivery/request/new → Solicitar entrega direta
+│   ├── /app/orders/:id → Ver status de entrega (integrado)
+│   └── /app/delivery/tracking/:id → Rastreamento detalhado
+│
+├── 🚚 ENTREGADOR
+│   ├── /app/delivery/profile/setup → Cadastro inicial (4 etapas)
+│   ├── /app/delivery/dashboard → Dashboard do entregador
+│   ├── /app/delivery/requests → Demandas disponíveis
+│   ├── /app/delivery/active/:id → Entrega em andamento
+│   ├── /app/delivery/history → Histórico de entregas
+│   └── /app/delivery/earnings → Extrato de ganhos
+│
+└── 🏪 LOJISTA
+    └── /app/sellers/:slug/delivery-partners → Gerenciar entregadores
+        ├── Tab: Solicitações Pendentes
+        ├── Tab: Entregadores Ativos
+        └── Tab: Métricas de Entrega
+📱 TELAS PRINCIPAIS
+1. LANDING PAGE - /delivery (Público)
+Objetivo: Marketing e conversão (chamar atenção para o sistema)
+<DeliveryLandingPage>
+  <Header /> {/* Header público */}
+  
+  {/* Hero Section */}
+  <section className="hero bg-gradient-to-r from-primary/10 to-primary/5 py-20">
+    <div className="container mx-auto px-4 text-center">
+      <h1 className="text-5xl font-bold mb-4">
+        Entregas Descentralizadas com BZR
+      </h1>
+      <p className="text-xl text-muted-foreground mb-8">
+        Rede peer-to-peer de entregas. Pagamento instantâneo. Sem intermediários.
+      </p>
+      <div className="flex gap-4 justify-center">
+        <Button size="lg" onClick={() => navigate('/auth/unlock')}>
+          📦 Solicitar Entrega
+        </Button>
+        <Button size="lg" variant="outline" onClick={() => navigate('/auth/unlock')}>
+          🚚 Tornar-me Entregador
+        </Button>
+      </div>
+    </div>
+  </section>
+
+  {/* Como Funciona */}
+  <section className="py-16">
+    <div className="container mx-auto px-4">
+      <h2 className="text-3xl font-bold text-center mb-12">Como Funciona</h2>
+      <div className="grid md:grid-cols-3 gap-8">
+        <FeatureCard
+          icon={<MapPin />}
+          title="1. Solicite"
+          description="Informe endereços de origem e destino. Receba cotação instantânea."
+        />
+        <FeatureCard
+          icon={<User />}
+          title="2. Conecte"
+          description="Sistema notifica entregadores próximos. Aceite automático ou escolha."
+        />
+        <FeatureCard
+          icon={<Package />}
+          title="3. Rastreie"
+          description="Acompanhe em tempo real. Pagamento liberado na entrega."
+        />
+      </div>
+    </div>
+  </section>
+
+  {/* Vantagens */}
+  <section className="bg-muted py-16">
+    <div className="container mx-auto px-4">
+      <h2 className="text-3xl font-bold text-center mb-12">Por que Bazari Delivery?</h2>
+      <div className="grid md:grid-cols-2 gap-6">
+        <BenefitCard icon="💰" title="Preços Justos" description="Sem taxas abusivas. Entregador recebe 100% do valor." />
+        <BenefitCard icon="⚡" title="Pagamento Instantâneo" description="BZR liberado automaticamente via escrow on-chain." />
+        <BenefitCard icon="🔒" title="Seguro e Transparente" description="Todas as transações registradas na blockchain." />
+        <BenefitCard icon="🌍" title="Rede Comunitária" description="Fortaleça a economia local, sem intermediários." />
+      </div>
+    </div>
+  </section>
+
+  {/* CTA Final */}
+  <section className="py-16 text-center">
+    <h2 className="text-3xl font-bold mb-4">Pronto para começar?</h2>
+    <div className="flex gap-4 justify-center">
+      <Button size="lg" onClick={() => navigate('/auth/create')}>
+        Criar Conta
+      </Button>
+      <Button size="lg" variant="outline" onClick={() => navigate('/auth/unlock')}>
+        Já tenho conta
+      </Button>
+    </div>
+  </section>
+
+  <Footer />
+</DeliveryLandingPage>
+2. DASHBOARD PRINCIPAL (Integração)
+Modificação no /app/dashboard existente:
+<DashboardPage>
+  {/* ... conteúdo existente ... */}
+  
+  {/* Adicionar Quick Action */}
+  <QuickActionsGrid>
+    {/* ... ações existentes ... */}
+    
+    {/* Nova ação: Tornar-me Entregador */}
+    {!hasDeliveryProfile && (
+      <QuickActionCard
+        icon={<Truck />}
+        title="Tornar-me Entregador"
+        description="Ganhe BZR fazendo entregas"
+        onClick={() => navigate('/app/delivery/profile/setup')}
+      />
+    )}
+    
+    {/* Se já é entregador: Dashboard de Entregas */}
+    {hasDeliveryProfile && (
+      <QuickActionCard
+        icon={<Truck />}
+        title="Minhas Entregas"
+        badge={pendingDeliveries > 0 ? pendingDeliveries : undefined}
+        description={isAvailable ? "🟢 Disponível" : "🔴 Indisponível"}
+        onClick={() => navigate('/app/delivery/dashboard')}
+      />
+    )}
+  </QuickActionsGrid>
+</DashboardPage>
+3. SOLICITAR ENTREGA DIRETA - /app/delivery/request/new
+Tela completa (não modal):
+<RequireAuth>
+  <RequestDeliveryPage>
+    <AppHeader />
+    
+    <div className="container mx-auto px-4 py-8 max-w-3xl">
+      <Breadcrumbs items={[
+        { label: 'Dashboard', href: '/app' },
+        { label: 'Solicitar Entrega' }
+      ]} />
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Solicitar Entrega</CardTitle>
+          <CardDescription>
+            Preencha os dados da sua entrega e receba cotação instantânea
+          </CardDescription>
+        </CardHeader>
+        
+        <CardContent>
+          <Form onSubmit={handleSubmit}>
+            {/* Step Indicator */}
+            <div className="mb-6">
+              <StepIndicator steps={['Endereços', 'Detalhes', 'Confirmação']} currentStep={step} />
+            </div>
+
+            {/* Step 1: Endereços */}
+            {step === 1 && (
+              <div className="space-y-4">
+                <div>
+                  <Label>📍 De onde?</Label>
+                  <AddressAutocomplete
+                    value={pickupAddress}
+                    onChange={setPickupAddress}
+                    placeholder="Rua, número, bairro, CEP..."
+                  />
+                </div>
+                
+                <div>
+                  <Label>📍 Para onde?</Label>
+                  <AddressAutocomplete
+                    value={deliveryAddress}
+                    onChange={setDeliveryAddress}
+                    placeholder="Rua, número, bairro, CEP..."
+                  />
+                </div>
+
+                <Button onClick={() => setStep(2)} disabled={!pickupAddress || !deliveryAddress}>
+                  Próximo →
+                </Button>
+              </div>
+            )}
+
+            {/* Step 2: Detalhes do Pacote */}
+            {step === 2 && (
+              <div className="space-y-4">
+                <div>
+                  <Label>Tipo de Pacote</Label>
+                  <Select value={packageType} onValueChange={setPackageType}>
+                    <option value="envelope">📄 Envelope (até 0.5kg)</option>
+                    <option value="small_box">📦 Caixa Pequena (até 5kg)</option>
+                    <option value="medium_box">📦 Caixa Média (até 15kg)</option>
+                    <option value="large_box">📦 Caixa Grande (até 30kg)</option>
+                    <option value="fragile">⚠️ Frágil</option>
+                    <option value="perishable">❄️ Perecível</option>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Peso (kg)</Label>
+                    <Input type="number" step="0.1" value={weight} onChange={(e) => setWeight(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label>Valor Estimado (BZR)</Label>
+                    <Input type="number" step="0.01" value={estimatedValue} onChange={(e) => setEstimatedValue(e.target.value)} />
+                    <p className="text-xs text-muted-foreground mt-1">Para seguro (opcional)</p>
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Observações (opcional)</Label>
+                  <Textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Ex: Deixar com porteiro, produto frágil..."
+                    rows={3}
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Checkbox id="signature" checked={requiresSignature} onCheckedChange={setRequiresSignature} />
+                  <Label htmlFor="signature">Requer assinatura na entrega</Label>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={() => setStep(1)}>
+                    ← Voltar
+                  </Button>
+                  <Button onClick={handleCalculateFee}>
+                    Calcular Valor
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Confirmação */}
+            {step === 3 && feeResult && (
+              <div className="space-y-6">
+                {/* Cotação */}
+                <Card className="bg-primary/5">
+                  <CardContent className="pt-6">
+                    <div className="text-center mb-4">
+                      <p className="text-sm text-muted-foreground">Valor da Entrega</p>
+                      <p className="text-4xl font-bold text-primary">{feeResult.totalBzr} BZR</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        📍 {feeResult.distance}km | ⏱️ ~{feeResult.estimatedTime}min
+                      </p>
+                    </div>
+
+                    <Separator className="my-4" />
+
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Taxa base</span>
+                        <span>{feeResult.breakdown.baseFee} BZR</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Distância ({feeResult.distance}km)</span>
+                        <span>{feeResult.breakdown.distanceFee} BZR</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Tipo de pacote</span>
+                        <span>{feeResult.breakdown.packageTypeFee} BZR</span>
+                      </div>
+                      {feeResult.breakdown.weightFee !== '0.00' && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Peso adicional</span>
+                          <span>{feeResult.breakdown.weightFee} BZR</span>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Resumo da Entrega */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Resumo da Entrega</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-sm">
+                    <div>
+                      <p className="font-medium">De:</p>
+                      <p className="text-muted-foreground">{formatAddress(pickupAddress)}</p>
+                    </div>
+                    <div>
+                      <p className="font-medium">Para:</p>
+                      <p className="text-muted-foreground">{formatAddress(deliveryAddress)}</p>
+                    </div>
+                    <div>
+                      <p className="font-medium">Pacote:</p>
+                      <p className="text-muted-foreground">
+                        {packageTypeLabels[packageType]} | {weight}kg
+                      </p>
+                    </div>
+                    {notes && (
+                      <div>
+                        <p className="font-medium">Observações:</p>
+                        <p className="text-muted-foreground">{notes}</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Informação sobre como funciona */}
+                <Alert>
+                  <AlertDescription>
+                    Ao confirmar, entregadores próximos serão notificados. 
+                    Você receberá uma notificação quando alguém aceitar sua entrega.
+                  </AlertDescription>
+                </Alert>
+
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={() => setStep(2)}>
+                    ← Voltar
+                  </Button>
+                  <Button onClick={handleConfirm} disabled={submitting} className="flex-1">
+                    {submitting ? 'Confirmando...' : 'Confirmar Solicitação'}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Form>
+        </CardContent>
+      </Card>
+    </div>
+  </RequestDeliveryPage>
+</RequireAuth>
+Screenshot Conceitual:
+┌─────────────────────────────────────────────────────────┐
+│ [AppHeader]                                              │
+├─────────────────────────────────────────────────────────┤
+│ Dashboard > Solicitar Entrega                            │
+│                                                           │
+│ ┌─────────────────────────────────────────────────────┐ │
+│ │ Solicitar Entrega                                   │ │
+│ │ Preencha os dados da sua entrega e receba cotação   │ │
+│ ├─────────────────────────────────────────────────────┤ │
+│ │                                                      │ │
+│ │ ●━━━━●━━━━●  [3/3] Confirmação                     │ │
+│ │                                                      │ │
+│ │ ┌──────────────────────────────────────────────┐   │ │
+│ │ │ 💰 Valor da Entrega                          │   │ │
+│ │ │                                               │   │ │
+│ │ │            12.50 BZR                         │   │ │
+│ │ │   📍 5.2km | ⏱️ ~30min                        │   │ │
+│ │ │                                               │   │ │
+│ │ │ ─────────────────────────────────            │   │ │
+│ │ │ Taxa base              5.00 BZR              │   │ │
+│ │ │ Distância (5.2km)      7.80 BZR              │   │ │
+│ │ │ Tipo de pacote         1.00 BZR              │   │ │
+│ │ └──────────────────────────────────────────────┘   │ │
+│ │                                                      │ │
+│ │ ┌──────────────────────────────────────────────┐   │ │
+│ │ │ Resumo da Entrega                            │   │ │
+│ │ │ De: Rua das Flores, 123 - Centro             │   │ │
+│ │ │ Para: Av. Atlântica, 456 - Copacabana        │   │ │
+│ │ │ Pacote: Caixa Pequena | 2.5kg                │   │ │
+│ │ └──────────────────────────────────────────────┘   │ │
+│ │                                                      │ │
+│ │ ℹ️ Entregadores próximos serão notificados.         │ │
+│ │   Você receberá notificação quando alguém aceitar.  │ │
+│ │                                                      │ │
+│ │ [← Voltar]      [Confirmar Solicitação]            │ │
+│ └─────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────┘
+4. CADASTRO DE ENTREGADOR - /app/delivery/profile/setup
+(Mantém a proposta original com 4 etapas)
+Step 1: Dados Pessoais
+Step 2: Veículo
+Step 3: Capacidades
+Step 4: Área de Atuação
+5. DASHBOARD DO ENTREGADOR - /app/delivery/dashboard
+<RequireAuth>
+  <DeliveryDashboard>
+    <AppHeader />
+    
+    <div className="container mx-auto px-4 py-6">
+      {/* Header com Toggle de Disponibilidade */}
+      <header className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Painel do Entregador</h1>
+          <p className="text-sm text-muted-foreground">
+            {deliveryProfile.fullName}
+          </p>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <div className="text-right">
+            <p className="text-sm font-medium">
+              {deliveryProfile.isAvailable ? '🟢 Disponível' : '🔴 Indisponível'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {deliveryProfile.isOnline ? 'Online' : 'Offline'}
+            </p>
+          </div>
+          <Switch
+            checked={deliveryProfile.isAvailable}
+            onCheckedChange={handleToggleAvailability}
+          />
+        </div>
+      </header>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <KPICard
+          icon={<Package />}
+          label="Entregas Hoje"
+          value={stats.today}
+          badge={stats.pending > 0 ? `${stats.pending} pendentes` : undefined}
+        />
+        <KPICard
+          icon={<DollarSign />}
+          label="Ganhos Hoje"
+          value={`${stats.earningsToday} BZR`}
+          trend={stats.earningsTrend}
+        />
+        <KPICard
+          icon={<Star />}
+          label="Avaliação"
+          value={deliveryProfile.avgRating.toFixed(1)}
+          subtitle={`${deliveryProfile.totalRatings} avaliações`}
+        />
+        <KPICard
+          icon={<TrendingUp />}
+          label="Taxa de Conclusão"
+          value={`${deliveryProfile.completionRate.toFixed(0)}%`}
+        />
+      </div>
+
+      {/* Demandas Disponíveis */}
+      <Card className="mb-6">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>📦 Novas Demandas</CardTitle>
+            <Badge>{availableRequests.length} disponíveis</Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {!deliveryProfile.isAvailable && (
+            <Alert className="mb-4">
+              <AlertDescription>
+                Ative sua disponibilidade para receber notificações de novas entregas
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {availableRequests.length === 0 ? (
+            <EmptyState
+              icon={<Package />}
+              title="Nenhuma demanda no momento"
+              description="Você será notificado quando houver novas entregas próximas"
+            />
+          ) : (
+            <div className="space-y-3">
+              {availableRequests.slice(0, 3).map((request) => (
+                <DeliveryRequestCard
+                  key={request.id}
+                  request={request}
+                  compact
+                  onAccept={() => handleAccept(request.id)}
+                  onViewDetails={() => navigate(`/app/delivery/requests/${request.id}`)}
+                />
+              ))}
+              
+              {availableRequests.length > 3 && (
+                <Button variant="outline" className="w-full" onClick={() => navigate('/app/delivery/requests')}>
+                  Ver Todas as {availableRequests.length} Demandas
+                </Button>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Entregas em Andamento */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>🚚 Entregas em Andamento</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {activeDeliveries.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Nenhuma entrega em andamento
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {activeDeliveries.map((delivery) => (
+                <ActiveDeliveryCard
+                  key={delivery.id}
+                  delivery={delivery}
+                  onContinue={() => navigate(`/app/delivery/active/${delivery.id}`)}
+                />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <QuickActionButton
+          icon={<Clock />}
+          label="Histórico"
+          onClick={() => navigate('/app/delivery/history')}
+        />
+        <QuickActionButton
+          icon={<DollarSign />}
+          label="Ganhos"
+          onClick={() => navigate('/app/delivery/earnings')}
+        />
+        <QuickActionButton
+          icon={<Settings />}
+          label="Configurações"
+          onClick={() => navigate('/app/delivery/profile/edit')}
+        />
+        <QuickActionButton
+          icon={<HelpCircle />}
+          label="Ajuda"
+          onClick={() => navigate('/app/help/delivery')}
+        />
+      </div>
+    </div>
+  </DeliveryDashboard>
+</RequireAuth>
+6. DEMANDAS DISPONÍVEIS - /app/delivery/requests
+<RequireAuth>
+  <DeliveryRequestsList>
+    <AppHeader />
+    
+    <div className="container mx-auto px-4 py-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">Demandas Disponíveis</h1>
+          <p className="text-sm text-muted-foreground">
+            {filteredRequests.length} entregas disponíveis no raio de {deliveryProfile.serviceRadius}km
+          </p>
+        </div>
+        
+        <Button variant="outline" onClick={() => navigate('/app/delivery/dashboard')}>
+          ← Voltar ao Dashboard
+        </Button>
+      </div>
+
+      {/* Filtros */}
+      <Card className="mb-6">
+        <CardContent className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Select value={filters.sortBy} onValueChange={(v) => setFilters({ ...filters, sortBy: v })}>
+              <option value="nearest">Mais Próximas</option>
+              <option value="highest_fee">Maior Valor</option>
+              <option value="expiring_soon">Expirando em Breve</option>
+              <option value="newest">Mais Recentes</option>
+            </Select>
+            
+            <Select value={filters.packageType} onValueChange={(v) => setFilters({ ...filters, packageType: v })}>
+              <option value="all">Todos os Tipos</option>
+              <option value="envelope">Envelope</option>
+              <option value="small_box">Caixa Pequena</option>
+              <option value="medium_box">Caixa Média</option>
+              <option value="large_box">Caixa Grande</option>
+            </Select>
+            
+            <Input
+              type="number"
+              placeholder="Distância máxima (km)"
+              value={filters.maxDistance}
+              onChange={(e) => setFilters({ ...filters, maxDistance: e.target.value })}
+            />
+            
+            <Button variant="outline" onClick={handleClearFilters}>
+              Limpar Filtros
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Lista */}
+      <div className="space-y-4">
+        {loading ? (
+          <CatalogSkeleton count={5} />
+        ) : filteredRequests.length === 0 ? (
+          <EmptyState
+            icon={<Package />}
+            title="Nenhuma demanda encontrada"
+            description="Tente ajustar os filtros ou aumentar seu raio de atendimento"
+          />
+        ) : (
+          <>
+            {filteredRequests.map((request) => (
+              <DeliveryRequestCard
+                key={request.id}
+                request={request}
+                expandable
+                onAccept={() => handleAccept(request.id)}
+              />
+            ))}
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <CatalogPagination
+                page={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+              />
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  </DeliveryRequestsList>
+</RequireAuth>
+7. LOJISTA - GERENCIAR ENTREGADORES
+Integração na aba do /app/sellers/:slug:
+<SellerManagePage>
+  <Tabs value={activeTab} onValueChange={setActiveTab}>
+    <TabsList>
+      <TabsTrigger value="products">Produtos</TabsTrigger>
+      <TabsTrigger value="orders">Pedidos</TabsTrigger>
+      <TabsTrigger value="delivery">🚚 Entregadores</TabsTrigger>
+      <TabsTrigger value="analytics">Análises</TabsTrigger>
+    </TabsList>
+
+    <TabsContent value="delivery">
+      <DeliveryPartnersManager storeId={store.onChainStoreId} />
+    </TabsContent>
+  </Tabs>
+</SellerManagePage>
+🧩 COMPONENTES REUTILIZÁVEIS
+DeliveryRequestCard (Compacto)
+<Card className={cn("transition-shadow hover:shadow-lg", request.isPriority && "border-primary")}>
+  <CardContent className="p-4">
+    <div className="flex items-start justify-between gap-4">
+      {/* Info */}
+      <div className="flex-1">
+        {request.isPriority && (
+          <Badge variant="default" className="mb-2">🔥 PRIORITÁRIA</Badge>
+        )}
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+          <MapPin className="h-4 w-4" />
+          <span>{request.pickupAddress.neighborhood} → {request.deliveryAddress.neighborhood}</span>
+        </div>
+        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+          <span>📦 {request.weight}kg</span>
+          <span>📍 {request.distance}km</span>
+          <span>⏱️ ~{request.estimatedTime}min</span>
+        </div>
+        {request.expiresAt && (
+          <Badge variant="destructive" className="mt-2 text-xs">
+            Expira em {formatTimeLeft(request.expiresAt)}
+          </Badge>
+        )}
+      </div>
+      
+      {/* Valor */}
+      <div className="text-right">
+        <p className="text-2xl font-bold text-primary">{request.deliveryFeeBzr} BZR</p>
+      </div>
+    </div>
+    
+    {/* Actions */}
+    <div className="flex gap-2 mt-4">
+      <Button size="sm" variant="outline" onClick={onViewDetails} className="flex-1">
+        Ver Detalhes
+      </Button>
+      <Button size="sm" onClick={onAccept} className="flex-1">
+        Aceitar
+      </Button>
+    </div>
+  </CardContent>
+</Card>
+📱 MOBILE BOTTOM NAV (Atualização)
+const navItems = [
+  { to: '/app', icon: Home, label: 'Dashboard' },
+  { to: '/app/delivery/dashboard', icon: Truck, label: 'Entregas', badge: pendingDeliveries }, // NOVO
+  { to: '/app/wallet', icon: Wallet, label: 'Wallet' },
+  { to: '/app/profile/edit', icon: User, label: 'Perfil' },
+];
+Update Todos
+
+Analisar demanda-001 e especificação técnica
+
+Entender backend implementado (17 endpoints + 3 models)
+
+Criar proposta UI/UX independente do sistema de categorias
+🎯 RESUMO DA PROPOSTA
+✅ O que esta proposta INCLUI:
+Landing Page Pública - Marketing do sistema de delivery
+Solicitar Entrega Direta - Usuário solicita entrega avulsa (3 steps)
+Cadastro de Entregador - 4 etapas (DeliveryProfile)
+Dashboard do Entregador - KPIs, demandas, entregas ativas
+Lista de Demandas - Filtros, ordenação, paginação
+Gerenciar Entregadores (Lojista) - Aprovar/rejeitar vínculos
+Rastreamento de Entrega - Cliente acompanha status
+Integração com Dashboard Principal - Quick action
+Mobile Bottom Nav - Nova aba "Entregas"
+❌ O que esta proposta NÃO INCLUI:
+❌ Sistema de categorias/Services do marketplace
+❌ ServiceDetailPage com botão de contratação
+❌ Anúncios públicos de entregadores
+❌ CategoryPicker
+❌ DynamicForm com specs
+🔗 Como funciona na prática:
+COMPRADOR
+└── /app/delivery/request/new → Preenche formulário
+    └── Backend cria DeliveryRequest (sourceType: 'direct')
+        └── Sistema notifica entregadores próximos (DeliveryProfile)
+
+ENTREGADOR  
+└── /app/delivery/profile/setup → Cadastra DeliveryProfile
+    └── /app/delivery/dashboard → Ativa "Disponível"
+        └── Recebe notificações de DeliveryRequest
+            └── Aceita → Coleta → Entrega → Recebe BZR
+
+LOJISTA
+└── /app/sellers/:slug/delivery → Aprova entregadores
+    └── Próximo Order com entrega → Entregadores vinculados são priorizados

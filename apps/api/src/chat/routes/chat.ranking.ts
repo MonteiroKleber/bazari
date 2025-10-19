@@ -26,7 +26,7 @@ export default async function chatRankingRoutes(app: FastifyInstance) {
       const startTime = period === 'all' ? 0 : now - (periodMs[period] || periodMs['30d']);
 
       // Buscar vendas com promotores
-      const sales = await prisma.chatSale.groupBy({
+      const sales = await prisma.affiliateSale.groupBy({
         by: ['promoter'],
         where: {
           promoter: {
@@ -53,7 +53,7 @@ export default async function chatRankingRoutes(app: FastifyInstance) {
 
       // Enriquecer com dados do perfil
       const enrichedRanking = await Promise.all(
-        sales.map(async (sale, index) => {
+        sales.map(async (sale: any, index: number) => {
           if (!sale.promoter) return null;
 
           const profile = await prisma.profile.findUnique({
@@ -117,7 +117,7 @@ export default async function chatRankingRoutes(app: FastifyInstance) {
       const startTime = period === 'all' ? 0 : now - (periodMs[period] || periodMs['30d']);
 
       // Buscar vendas agrupadas por loja
-      const sales = await prisma.chatSale.groupBy({
+      const sales = await prisma.affiliateSale.groupBy({
         by: ['storeId'],
         where: {
           createdAt: {
@@ -141,7 +141,7 @@ export default async function chatRankingRoutes(app: FastifyInstance) {
 
       // Enriquecer com dados da loja
       const enrichedRanking = await Promise.all(
-        sales.map(async (sale, index) => {
+        sales.map(async (sale: any, index: number) => {
           const store = await prisma.sellerProfile.findFirst({
             where: {
               onChainStoreId: sale.storeId,
@@ -213,7 +213,7 @@ export default async function chatRankingRoutes(app: FastifyInstance) {
       const startTime = period === 'all' ? 0 : now - (periodMs[period] || periodMs['30d']);
 
       // Buscar estatísticas do usuário
-      const myStats = await prisma.chatSale.aggregate({
+      const myStats = await prisma.affiliateSale.aggregate({
         where: {
           promoter: user.profileId,
           createdAt: {
@@ -230,7 +230,7 @@ export default async function chatRankingRoutes(app: FastifyInstance) {
       });
 
       // Calcular posição (quantos promotores tem comissão maior)
-      const betterPromoters = await prisma.chatSale.groupBy({
+      const betterPromoters = await prisma.affiliateSale.groupBy({
         by: ['promoter'],
         where: {
           promoter: {

@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { sellerApi } from '@/modules/seller/api';
-import { Package, ShoppingCart, Settings } from 'lucide-react';
+import { Package, ShoppingCart, Settings, Truck } from 'lucide-react';
+import { DeliveryPartnersPage } from './delivery/DeliveryPartnersPage';
 
 type Status = 'ALL' | 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 
@@ -108,7 +109,7 @@ export default function SellerManagePage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-flex">
+        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
           <TabsTrigger value="products" className="gap-2">
             <Package className="h-4 w-4" />
             {t('seller.manage.products', { defaultValue: 'Produtos' })}
@@ -116,6 +117,10 @@ export default function SellerManagePage() {
           <TabsTrigger value="orders" className="gap-2">
             <ShoppingCart className="h-4 w-4" />
             {t('seller.manage.orders', { defaultValue: 'Pedidos' })}
+          </TabsTrigger>
+          <TabsTrigger value="delivery" className="gap-2">
+            <Truck className="h-4 w-4" />
+            {t('seller.manage.delivery', { defaultValue: 'Entregadores' })}
           </TabsTrigger>
           <TabsTrigger value="settings" className="gap-2">
             <Settings className="h-4 w-4" />
@@ -272,6 +277,11 @@ export default function SellerManagePage() {
               </Button>
             </div>
           )}
+        </TabsContent>
+
+        {/* Tab: Entregadores */}
+        <TabsContent value="delivery" className="space-y-4">
+          <DeliveryPartnersPage embedded={true} />
         </TabsContent>
 
         {/* Tab: Configurações */}

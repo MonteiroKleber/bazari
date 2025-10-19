@@ -5,7 +5,7 @@ import { Card, CardContent } from '../../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { AffiliationCard } from '../../components/affiliates/AffiliationCard';
 import { StoreSearchDialog } from '../../components/affiliates/StoreSearchDialog';
-import { ArrowLeft, Plus, CheckCircle, Clock, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Plus, CheckCircle, Clock, TrendingUp, ShoppingBag, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiHelpers } from '../../lib/api';
 
@@ -93,6 +93,35 @@ export function MyAffiliationsPage() {
           Solicitar Afiliação
         </Button>
       </div>
+
+      {/* Marketplace CTA Banner */}
+      {activeAffiliations.length > 0 && (
+        <Card className="border-2 border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/50 dark:to-pink-950/50">
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+              <div className="p-4 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl">
+                <ShoppingBag className="h-8 w-8 text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold mb-1">
+                  Crie seu Marketplace Personalizado
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Organize seus produtos afiliados em uma vitrine profissional e compartilhe com seu público. Ganhe mais com uma experiência de compra otimizada!
+                </p>
+              </div>
+              <Button
+                size="lg"
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                onClick={() => navigate('/app/affiliate/dashboard')}
+              >
+                Criar Marketplace
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats Summary */}
       {activeAffiliations.length > 0 && (

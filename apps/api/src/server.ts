@@ -62,6 +62,10 @@ import chatRankingRoutes from './chat/routes/chat.ranking.js';
 import chatCallsRoutes from './chat/routes/chat.calls.js';
 import { chatKeysRoutes } from './chat/routes/chat.keys.js';
 import chatAffiliatesRoutes from './chat/routes/chat.affiliates.js';
+import affiliatesRoutes from './routes/affiliates.js';
+import { deliveryRoutes } from './routes/delivery.js';
+import { deliveryProfileRoutes } from './routes/delivery-profile.js';
+import { deliveryPartnerRoutes } from './routes/delivery-partners.js';
 
 // Import workers with side effects
 import './workers/affiliate-stats.worker.js';
@@ -132,6 +136,7 @@ async function buildApp() {
   await app.register(reportsRoutes, { prefix: '/', prisma });
   await app.register(userActionsRoutes, { prefix: '/', prisma });
   await app.register(analyticsRoutes, { prefix: '/', prisma });
+  await app.register(affiliatesRoutes, { prefix: '/affiliates' });
   // Também expor com prefixo /api para compatibilidade com o front
   await app.register(healthRoutes, { prefix: '/api', prisma });
   await app.register(mediaRoutes, { prefix: '/api', prisma, storage });
@@ -162,6 +167,7 @@ async function buildApp() {
   await app.register(reportsRoutes, { prefix: '/api', prisma });
   await app.register(userActionsRoutes, { prefix: '/api', prisma });
   await app.register(analyticsRoutes, { prefix: '/api', prisma });
+  await app.register(affiliatesRoutes, { prefix: '/api/affiliates' });
 
   // Chat routes
   await app.register(chatThreadsRoutes, { prefix: '/api' });
@@ -177,6 +183,11 @@ async function buildApp() {
   await app.register(chatCallsRoutes, { prefix: '/api' });
   await app.register(chatKeysRoutes, { prefix: '/api/chat' });
   await app.register(chatAffiliatesRoutes, { prefix: '/api' });
+
+  // Delivery routes
+  await app.register(deliveryRoutes, { prefix: '/api', prisma });
+  await app.register(deliveryProfileRoutes, { prefix: '/api', prisma });
+  await app.register(deliveryPartnerRoutes, { prefix: '/api', prisma });
 
   // Error handler (dev): log detalhado para diagnosticar 500
   if (process.env.NODE_ENV !== 'production') {

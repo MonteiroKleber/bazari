@@ -193,6 +193,7 @@ export async function searchRoutes(app: FastifyInstance) {
             id: true,
             shopName: true,
             shopSlug: true,
+            onChainStoreId: true,
             about: true,
             avatarUrl: true,
             ratingAvg: true,
@@ -203,7 +204,11 @@ export async function searchRoutes(app: FastifyInstance) {
           },
           take: limit,
         });
-        results.stores = stores;
+        // Convert BigInt to string for JSON serialization
+        results.stores = stores.map(store => ({
+          ...store,
+          onChainStoreId: store.onChainStoreId?.toString() || null,
+        }));
       }
 
       // Search products (only if explicitly requested)

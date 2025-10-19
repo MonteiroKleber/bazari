@@ -1,13 +1,18 @@
 // path: apps/web/src/pages/OrderPage.tsx
 
 import { useCallback, useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { Truck } from 'lucide-react';
 import { apiHelpers } from '@/lib/api';
+import { deliveryApi } from '@/lib/api/delivery';
+import { DeliveryStatusTimeline } from '@/components/delivery';
+import type { DeliveryRequest } from '@/types/delivery';
 
 interface Order {
   id: string;
@@ -19,6 +24,7 @@ interface Order {
   updatedAt: string;
   paymentIntents: PaymentIntent[];
   escrowLogs: EscrowLog[];
+  deliveryRequestId?: string;
 }
 
 interface PaymentIntent {
@@ -57,12 +63,17 @@ interface ActionResponse {
 export function OrderPage() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actionResponse, setActionResponse] = useState<ActionResponse | null>(null);
+
+  // Delivery tracking
+  const [delivery, setDelivery] = useState<DeliveryRequest | null>(null);
+  const [isLoadingDelivery, setIsLoadingDelivery] = useState(false);
 
   const loadOrder = useCallback(async () => {
     if (!id) return;
@@ -82,6 +93,26 @@ export function OrderPage() {
   useEffect(() => {
     loadOrder();
   }, [loadOrder]);
+
+  // Load delivery tracking if order has deliveryRequestId
+  useEffect(() => {
+    if (order?.deliveryRequestId) {
+      loadDelivery(order.deliveryRequestId);
+    }
+  }, [order?.deliveryRequestId]);
+
+  const loadDelivery = async (deliveryRequestId: string) => {
+    try {
+      setIsLoadingDelivery(true);
+      const data = await deliveryApi.getRequest(deliveryRequestId);
+      setDelivery(data);
+    } catch (error) {
+      console.error('Erro ao carregar entrega:', error);
+      setDelivery(null);
+    } finally {
+      setIsLoadingDelivery(false);
+    }
+  };
 
   const handleConfirmReceived = useCallback(async () => {
     if (!id) return;
@@ -137,6 +168,149 @@ export function OrderPage() {
       case 'CANCELLED': case 'TIMEOUT': return 'destructive';
       default: return 'outline';
     }
+  };
+
+  const renderDeliveryTracking = () => {
+    if (!order?.deliveryRequestId) return null;
+
+    if (isLoadingDelivery) {
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Truck className="h-5 w-5" />
+              Status da Entrega
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">Carregando...</p>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (!delivery) return null;
+
+    const getStatusLabel = (status: string) => {
+      const labels: Record<string, string> = {
+        pending: 'Aguardando Entregador',
+        accepted: 'Entregador A Caminho',
+        picked_up: 'Coletado',
+        in_transit: 'Em Trânsito',
+        delivered: 'Entregue',
+        cancelled: 'Cancelado',
+        failed: 'Falhou',
+      };
+      return labels[status] || status;
+    };
+
+    const getStatusColor = (status: string) => {
+      const colors: Record<string, string> = {
+        pending: 'bg-yellow-600',
+        accepted: 'bg-blue-600',
+        picked_up: 'bg-orange-600',
+        in_transit: 'bg-purple-600',
+        delivered: 'bg-green-600',
+        cancelled: 'bg-red-600',
+        failed: 'bg-red-600',
+      };
+      return colors[status] || 'bg-gray-600';
+    };
+
+    return (
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Truck className="h-5 w-5" />
+              Status da Entrega
+            </CardTitle>
+            <Badge className={getStatusColor(delivery.status)}>
+              {getStatusLabel(delivery.status)}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Timeline */}
+          <DeliveryStatusTimeline
+            currentStatus={delivery.status}
+            timestamps={{
+              createdAt: delivery.createdAt,
+              acceptedAt: delivery.acceptedAt,
+              pickedUpAt: delivery.pickedUpAt,
+              deliveredAt: delivery.deliveredAt,
+            }}
+          />
+
+          {/* Delivery Info */}
+          {delivery.distanceKm && delivery.estimatedTimeMinutes && (
+            <div className="grid grid-cols-2 gap-4 py-3 border-t">
+              <div>
+                <p className="text-xs text-muted-foreground">Distância</p>
+                <p className="font-medium">{delivery.distanceKm.toFixed(1)} km</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Tempo Estimado</p>
+                <p className="font-medium">~{delivery.estimatedTimeMinutes} min</p>
+              </div>
+            </div>
+          )}
+
+          {/* Deliverer info (if accepted) */}
+          {delivery.delivererId && delivery.deliverer && (
+            <div className="border-t pt-4">
+              <p className="text-sm text-muted-foreground mb-2">Entregador</p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={delivery.deliverer.profilePhoto || undefined} />
+                    <AvatarFallback>
+                      {delivery.deliverer.fullName
+                        ?.split(' ')
+                        .map((n) => n[0])
+                        .join('')
+                        .toUpperCase() || '?'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-medium">{delivery.deliverer.fullName || 'Entregador'}</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>
+                        {delivery.deliverer.vehicleType === 'bike' && '🚴 Bicicleta'}
+                        {delivery.deliverer.vehicleType === 'motorcycle' && '🏍️ Moto'}
+                        {delivery.deliverer.vehicleType === 'car' && '🚗 Carro'}
+                        {delivery.deliverer.vehicleType === 'van' && '🚐 Van'}
+                      </span>
+                      {delivery.deliverer.avgRating && (
+                        <span>⭐ {delivery.deliverer.avgRating.toFixed(1)}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {delivery.deliverer.phone && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open(`tel:${delivery.deliverer.phone}`)}
+                  >
+                    📞 Ligar
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Action button */}
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => navigate(`/app/delivery/track/${delivery.id}`)}
+          >
+            Ver Detalhes da Entrega
+          </Button>
+        </CardContent>
+      </Card>
+    );
   };
 
   const canConfirmReceived = order?.status === 'SHIPPED' ||
@@ -219,6 +393,9 @@ export function OrderPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Delivery Tracking */}
+        {renderDeliveryTracking()}
 
         {/* Actions */}
         <Card>

@@ -55,6 +55,8 @@ import P2POrderRoomPage from './modules/p2p/pages/P2POrderRoomPage';
 import P2PMyOrdersPage from './modules/p2p/pages/P2PMyOrdersPage';
 import StorePublicPage from './pages/StorePublicPage';
 import MarketplacePage from './pages/MarketplacePage';
+import AffiliateMarketplacePage from './pages/AffiliateMarketplacePage';
+import AffiliateDashboardPage from './pages/AffiliateDashboardPage';
 import { InstallPrompt } from './components/pwa/InstallPrompt';
 import { UpdatePrompt } from './components/pwa/UpdatePrompt';
 import { OfflineIndicator } from './components/pwa/OfflineIndicator';
@@ -71,6 +73,20 @@ import { AffiliatesPage } from './pages/seller/AffiliatesPage';
 import { MyAffiliationsPage } from './pages/promoter/MyAffiliationsPage';
 import { useChat } from './hooks/useChat';
 import { getAccessToken, refreshSession } from './modules/auth/session';
+
+// Delivery pages
+import { DeliveryLandingPage } from './pages/delivery/DeliveryLandingPage';
+import { RequestDeliveryPage } from './pages/delivery/RequestDeliveryPage';
+import { DeliveryProfileSetupPage } from './pages/delivery/DeliveryProfileSetupPage';
+import { DeliveryDashboardPage } from './pages/delivery/DeliveryDashboardPage';
+import { DeliveryRequestsListPage } from './pages/delivery/DeliveryRequestsListPage';
+import { DeliveryRequestDetailPage } from './pages/delivery/DeliveryRequestDetailPage';
+import { ActiveDeliveryPage } from './pages/delivery/ActiveDeliveryPage';
+import { DeliveryHistoryPage } from './pages/delivery/DeliveryHistoryPage';
+import { DeliveryEarningsPage } from './pages/delivery/DeliveryEarningsPage';
+import { DeliveryPartnersPage } from './pages/delivery/DeliveryPartnersPage';
+import { StoreSearchPage } from './pages/delivery/StoreSearchPage';
+import { ComponentsTestPage } from './pages/delivery/ComponentsTestPage';
 
 function LandingPage() {
   const { t } = useTranslation();
@@ -288,6 +304,7 @@ function App() {
               <Route path="/s/:shopSlug" element={<SellerPublicPage mode="branded" />} />
             )}
             <Route path="/loja/:slug" element={<StorePublicPage />} />
+            <Route path="/m/:slug" element={<AffiliateMarketplacePage />} />
             {/* Redirects for backwards compatibility - TODO: Remove after migration period (target: 2026-Q1) */}
             <Route path="/store/:id" element={<Navigate to="/loja/:id" replace />} />
             <Route path="/seller/:slug" element={<Navigate to="/loja/:slug" replace />} />
@@ -295,6 +312,9 @@ function App() {
             <Route path="/auth/import" element={<ImportAccount />} />
             <Route path="/auth/unlock" element={<Unlock />} />
             <Route path="/auth/device-link" element={<DeviceLink />} />
+
+            {/* Delivery - Public landing page */}
+            <Route path="/delivery" element={<DeliveryLandingPage />} />
 
             {/* Profile Public - Requires Auth */}
             <Route
@@ -348,6 +368,23 @@ function App() {
                       <Route path="seller/commission-policy" element={<CommissionPolicyPage />} />
                       <Route path="seller/affiliates" element={<AffiliatesPage />} />
                       <Route path="promoter/affiliates" element={<MyAffiliationsPage />} />
+                      <Route path="affiliate/dashboard" element={<AffiliateDashboardPage />} />
+
+                      {/* Delivery routes */}
+                      <Route path="delivery/request/new" element={<RequestDeliveryPage />} />
+                      <Route path="delivery/profile/setup" element={<DeliveryProfileSetupPage />} />
+                      <Route path="delivery/profile/edit" element={<DeliveryProfileSetupPage />} />
+                      <Route path="delivery/dashboard" element={<DeliveryDashboardPage />} />
+                      <Route path="delivery/requests" element={<DeliveryRequestsListPage />} />
+                      <Route path="delivery/requests/:id" element={<DeliveryRequestDetailPage />} />
+                      <Route path="delivery/active/:id" element={<ActiveDeliveryPage />} />
+                      <Route path="delivery/track/:id" element={<ActiveDeliveryPage />} />
+                      <Route path="delivery/history" element={<DeliveryHistoryPage />} />
+                      <Route path="delivery/earnings" element={<DeliveryEarningsPage />} />
+                      <Route path="delivery/stores" element={<StoreSearchPage />} />
+                      <Route path="store/delivery-partners" element={<DeliveryPartnersPage />} />
+                      <Route path="delivery/test-components" element={<ComponentsTestPage />} />
+
                       {/* Futuras rotas internas */}
                       {/* <Route path="dashboard" element={<Dashboard />} /> */}
                       {/* <Route path="wallet" element={<Wallet />} /> */}

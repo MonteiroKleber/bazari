@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import {
   Newspaper,
   BarChart3,
@@ -9,8 +10,11 @@ import {
   Compass,
   MessageCircle,
   UserCheck,
+  ShoppingBag,
+  Truck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useDeliveryProfile } from '@/hooks/useDeliveryProfile';
 
 interface QuickAction {
   icon: React.ReactNode;
@@ -18,6 +22,7 @@ interface QuickAction {
   to: string;
   description: string;
   color: string;
+  badge?: number;
 }
 
 const QUICK_ACTIONS: QuickAction[] = [
@@ -71,6 +76,13 @@ const QUICK_ACTIONS: QuickAction[] = [
     color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
   },
   {
+    icon: <ShoppingBag className="h-6 w-6" />,
+    label: 'Meu Marketplace',
+    to: '/app/affiliate/dashboard',
+    description: 'Vitrine de produtos',
+    color: 'bg-gradient-to-br from-purple-500/10 to-pink-500/10 text-purple-600 dark:text-purple-400',
+  },
+  {
     icon: <ArrowLeftRight className="h-6 w-6" />,
     label: 'P2P',
     to: '/app/p2p',
@@ -80,12 +92,44 @@ const QUICK_ACTIONS: QuickAction[] = [
 ];
 
 export function QuickActionsGrid() {
+  const { profile: deliveryProfile } = useDeliveryProfile();
+
+  // Add delivery action based on profile status
+  const deliveryAction: QuickAction | null = deliveryProfile
+    ? {
+        icon: <Truck className="h-6 w-6" />,
+        label: 'Minhas Entregas',
+        to: '/app/delivery/dashboard',
+        description: 'Dashboard de entregas',
+        color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+        badge: deliveryProfile.activeDeliveries || 0,
+      }
+    : {
+        icon: <Truck className="h-6 w-6" />,
+        label: 'Virar Entregador',
+        to: '/app/delivery/profile/setup',
+        description: 'Cadastre-se e ganhe',
+        color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+      };
+
+  const allActions = deliveryAction
+    ? [...QUICK_ACTIONS, deliveryAction]
+    : QUICK_ACTIONS;
+
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-      {QUICK_ACTIONS.map((action) => (
+      {allActions.map((action) => (
         <Link key={action.to} to={action.to}>
           <Card className="h-full transition-all hover:shadow-lg hover:scale-105 cursor-pointer group">
-            <CardContent className="p-4">
+            <CardContent className="p-4 relative">
+              {action.badge !== undefined && action.badge > 0 && (
+                <Badge
+                  variant="destructive"
+                  className="absolute top-2 right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+                >
+                  {action.badge}
+                </Badge>
+              )}
               <div className={cn('p-3 rounded-lg w-fit mb-3', action.color)}>
                 {action.icon}
               </div>
