@@ -136,7 +136,7 @@ export default function ProfileEditPage() {
         // Converter para URL completa se necessário
         const fullUrl = uploadedUrl.startsWith('http')
           ? uploadedUrl
-          : `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${uploadedUrl}`;
+          : `${window.location.origin}${uploadedUrl}`;
 
         setForm(p => ({ ...p, avatarUrl: fullUrl }));
       } else {
@@ -182,7 +182,7 @@ export default function ProfileEditPage() {
         // Converter para URL completa se necessário
         const fullUrl = uploadedUrl.startsWith('http')
           ? uploadedUrl
-          : `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${uploadedUrl}`;
+          : `${window.location.origin}${uploadedUrl}`;
 
         setForm(p => ({ ...p, bannerUrl: fullUrl }));
       } else {

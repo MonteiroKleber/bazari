@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/ca
 import { ArrowLeft, Download, ExternalLink } from 'lucide-react';
 import { getPublicJSON } from '../../lib/api';
 import { toast } from 'sonner';
+import { resolveIpfsUrl } from '@/modules/store/onchain';
 
 interface Receipt {
   version: string;
@@ -62,7 +63,8 @@ export function ReceiptViewerPage() {
   };
 
   const handleVerifyIpfs = () => {
-    window.open(`https://ipfs.io/ipfs/${cid}`, '_blank');
+    const url = resolveIpfsUrl(cid);
+    if (url) window.open(url, '_blank');
   };
 
   if (loading) {

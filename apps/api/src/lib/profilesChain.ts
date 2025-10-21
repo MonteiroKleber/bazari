@@ -22,17 +22,48 @@ async function ensureCryptoReady() {
 async function getApi(): Promise<ApiPromise> {
   await ensureCryptoReady();
   if (!apiPromise) {
-    apiPromise = ApiPromise.create({
-      provider: new WsProvider(WS_ENDPOINT)
-    }).then((api) => {
-      api.on('disconnected', () => {
+    console.log('[ProfilesChain] Creating API connection to:', WS_ENDPOINT);
+
+    try {
+      // Criar WsProvider SEM autoConnect, e conectar manualmente
+      console.log('[ProfilesChain] Creating WsProvider...');
+      const provider = new WsProvider(WS_ENDPOINT, false);
+
+      // Conectar manualmente com timeout
+      console.log('[ProfilesChain] Connecting to WebSocket...');
+      await Promise.race([
+        provider.connect(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('WebSocket connection timeout')), 10000))
+      ]);
+
+      console.log('[ProfilesChain] WebSocket connected, creating ApiPromise...');
+
+      provider.on('disconnected', () => {
+        console.log('[ProfilesChain] WebSocket disconnected');
         apiPromise = null;
       });
-      api.on('error', () => {
-        apiPromise = null;
+
+      provider.on('error', (err) => {
+        console.error('[ProfilesChain] WebSocket error:', err);
       });
-      return api;
-    });
+
+      apiPromise = ApiPromise.create({ provider }).then((api) => {
+        console.log('[ProfilesChain] API connected successfully');
+        api.on('error', (err) => {
+          console.error('[ProfilesChain] API error:', err);
+          apiPromise = null;
+        });
+        return api;
+      }).catch((err) => {
+        console.error('[ProfilesChain] Failed to create API:', err);
+        apiPromise = null;
+        throw err;
+      });
+    } catch (err) {
+      console.error('[ProfilesChain] Exception creating provider:', err);
+      apiPromise = null;
+      throw err;
+    }
   }
   return apiPromise;
 }

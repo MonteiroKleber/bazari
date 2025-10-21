@@ -360,8 +360,8 @@ export const apiHelpers = {
   pinPost: (postId: string) => postJSON(`/posts/${postId}/pin`, {}),
   unpinPost: (postId: string) => deleteJSON(`/posts/${postId}/pin`),
 
-  // Polls
-  votePoll: (postId: string, data: { optionIndex: number | number[] }) =>
+  // Polls (social posts)
+  votePollPost: (postId: string, data: { optionIndex: number | number[] }) =>
     postJSON(`/posts/${postId}/poll/vote`, data),
 
   getPostComments: (postId: string, params?: { limit?: number; cursor?: string }) => {

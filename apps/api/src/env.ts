@@ -15,9 +15,28 @@ const envSchema = z.object({
   PAGE_SIZE_DEFAULT: z.string().default('20').transform((v) => Number(v)),
   BAZARICHAIN_WS: z.string().default('ws://127.0.0.1:9944'),
   BAZARICHAIN_SUDO_SEED: z.string().default('//Alice'),
-  IPFS_API_URL: z.string().optional(),
+  // IPFS Multi-Node Configuration
+  IPFS_API_URLS: z
+    .string()
+    .optional()
+    .transform((val) => {
+      if (!val || val.trim() === '') return [];
+      return val.split(',').map((u) => u.trim()).filter((u) => u.length > 0);
+    })
+    .refine(
+      (urls) => urls.every((u) => {
+        try {
+          new URL(u);
+          return true;
+        } catch {
+          return false;
+        }
+      }),
+      { message: 'IPFS_API_URLS deve conter URLs válidas separadas por vírgula' }
+    ),
   IPFS_GATEWAY_URL: z.string().default('https://ipfs.io/ipfs/'),
-  IPFS_TIMEOUT_MS: z.string().default('2000').transform((v) => Number(v)),
+  IPFS_TIMEOUT_MS: z.string().default('30000').transform((v) => Number(v)),
+  IPFS_RETRY_ATTEMPTS: z.string().default('3').transform((v) => Number(v)),
   STORES_REGISTRY_ENABLED: z
     .string()
     .optional()

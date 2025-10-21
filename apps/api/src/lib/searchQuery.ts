@@ -266,6 +266,10 @@ export class SearchQueryBuilder {
     const productAnd: Prisma.ProductWhereInput[] = [];
     const serviceAnd: Prisma.ServiceOfferingWhereInput[] = [];
 
+    // CRÍTICO: Filtrar apenas itens publicados em buscas públicas
+    // Nota: ServiceOffering não tem campo 'status' no schema, apenas Product
+    productAnd.push({ status: 'PUBLISHED' });
+
     // Busca textual
     if (q && q.trim()) {
       const searchTerm = q.trim();

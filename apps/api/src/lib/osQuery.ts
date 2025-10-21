@@ -28,6 +28,9 @@ function buildQuery(filters: Filters) {
   const must: any[] = [];
   const filter: any[] = [];
 
+  // CRÍTICO: Filtrar apenas itens publicados em buscas públicas
+  filter.push({ term: { status: 'PUBLISHED' } });
+
   // Busca textual
   if (filters.q) {
     must.push({

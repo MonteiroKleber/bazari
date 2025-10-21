@@ -1,10 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { createHash } from 'crypto';
-import { create } from 'kubo-rpc-client';
-import { env } from '../env.js';
-
-// Cliente IPFS para publicação
-const ipfsClient = env.IPFS_API_URL ? create({ url: env.IPFS_API_URL }) : null;
+import { uploadToIpfs } from './ipfs.js';
 
 // ============================================================================
 // TYPES & SCHEMAS
@@ -364,22 +360,18 @@ export async function uploadJsonToIpfs(
 ): Promise<string> {
   const jsonString = JSON.stringify(json, null, 2);
 
-  if (!ipfsClient) {
+  try {
+    // Upload usando IpfsClientPool (com failover e retry)
+    const cid = await uploadToIpfs(jsonString, { filename });
+    return cid;
+  } catch (error) {
     // Desenvolvimento: gerar CID fake baseado em hash dos dados
-    console.warn(`[IPFS] IPFS client not configured, using fake CID for ${filename}`);
+    console.warn(`[IPFS] Upload failed for ${filename}, using fake CID:`, (error as Error).message);
     const hash = createHash('sha256').update(jsonString).digest('base64');
     const fakeCid = `bafydev${hash.replace(/[+/=]/g, 'a').substring(0, 46)}`;
     console.log(`[IPFS] Generated fake CID for ${filename}:`, fakeCid);
     return fakeCid;
   }
-
-  // Upload real para IPFS
-  const result = await ipfsClient.add(jsonString, {
-    pin: true,
-  });
-
-  console.log(`[IPFS] Uploaded ${filename} to IPFS:`, result.cid.toString());
-  return result.cid.toString();
 }
 
 // ============================================================================

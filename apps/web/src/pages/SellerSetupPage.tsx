@@ -1436,7 +1436,10 @@ export default function SellerSetupPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => metadataCid && window.open(`https://ipfs.io/ipfs/${metadataCid}`, '_blank')}
+                  onClick={() => {
+                    const url = resolveIpfsUrl(metadataCid);
+                    if (url) window.open(url, '_blank');
+                  }}
                   disabled={!metadataCid}
                 >
                   <ExternalLink className="mr-2 h-4 w-4" />

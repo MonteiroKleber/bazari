@@ -7,6 +7,13 @@ import { decodeCursor, encodeCursor } from '../lib/cursor.js';
 import { env } from '../env.js';
 import { getStore } from '../lib/storesChain.js';
 import { buildCatalogForStore } from '../lib/catalogBuilder.js';
+import {
+  buildStoreJson,
+  buildCategoriesJson,
+  buildProductsJson,
+  uploadJsonToIpfs,
+  calculateJsonHash
+} from '../lib/publishPipeline.js';
 
 /**
  * @deprecated This file contains legacy single-store routes.
@@ -338,7 +345,7 @@ export async function sellersRoutes(app: FastifyInstance, options: { prisma: Pri
         userId: authUser.sub,
         OR: [ { id: request.params.idOrSlug }, { shopSlug: request.params.idOrSlug } ],
       },
-      select: { id: true, shopName: true, onChainStoreId: true },
+      select: { id: true, shopName: true, shopSlug: true, onChainStoreId: true, version: true },
     });
 
     if (!store) return reply.status(404).send({ error: 'Loja não encontrada' });
@@ -346,13 +353,107 @@ export async function sellersRoutes(app: FastifyInstance, options: { prisma: Pri
       return reply.status(400).send({ error: 'Loja não possui ID on-chain. Publique a loja on-chain primeiro.' });
     }
 
-    // Construir catálogo
-    const catalog = await buildCatalogForStore(prisma, store.onChainStoreId);
+    try {
+      app.log.info({ storeId: store.id, shopSlug: store.shopSlug }, '[SYNC] Iniciando sincronização de catálogo...');
 
-    return reply.send({
-      catalog,
-      message: 'Catálogo gerado com sucesso. Envie para IPFS e atualize os metadados on-chain.',
-    });
+      // 1. Construir JSONs
+      const storeJson = await buildStoreJson(prisma, store.id);
+      const categoriesJson = await buildCategoriesJson(prisma, store.id);
+      const productsJson = await buildProductsJson(prisma, store.id);
+
+      app.log.info({ itemCount: productsJson.items.length }, '[SYNC] JSONs construídos');
+
+      // 2. Upload para IPFS (usa IpfsClientPool com failover)
+      app.log.info('[SYNC] Fazendo upload para IPFS...');
+      const [storeCid, categoriesCid, productsCid] = await Promise.all([
+        uploadJsonToIpfs(storeJson, 'store.json'),
+        uploadJsonToIpfs(categoriesJson, 'categories.json'),
+        uploadJsonToIpfs(productsJson, 'products.json'),
+      ]);
+
+      app.log.info({
+        storeCid,
+        categoriesCid,
+        productsCid
+      }, '[SYNC] ✅ Upload IPFS concluído');
+
+      // 3. Calcular hashes
+      const storeHash = calculateJsonHash(storeJson);
+      const categoriesHash = calculateJsonHash(categoriesJson);
+      const productsHash = calculateJsonHash(productsJson);
+
+      // 4. Salvar snapshot no banco (para fallback)
+      const newVersion = (store.version ?? 0) + 1;
+      await prisma.storeSnapshot.upsert({
+        where: {
+          storeId_version: {
+            storeId: store.id,
+            version: newVersion,
+          },
+        },
+        create: {
+          storeId: store.id,
+          version: newVersion,
+          storeJson: storeJson as any,
+          categoriesJson: categoriesJson as any,
+          productsJson: productsJson as any,
+        },
+        update: {
+          storeJson: storeJson as any,
+          categoriesJson: categoriesJson as any,
+          productsJson: productsJson as any,
+          cachedAt: new Date(),
+        },
+      });
+
+      // 5. Atualizar SellerProfile com CIDs e hashes
+      await prisma.sellerProfile.update({
+        where: { id: store.id },
+        data: {
+          metadataCid: storeCid,
+          categoriesCid,
+          categoriesHash,
+          productsCid,
+          productsHash,
+          version: newVersion,
+          syncStatus: 'synced',
+        },
+      });
+
+      app.log.info({ storeId: store.id }, '[SYNC] ✅ Sincronização concluída com sucesso');
+
+      return reply.send({
+        success: true,
+        message: 'Catálogo sincronizado com sucesso!',
+        catalog: {
+          version: String(newVersion),
+          storeId: store.onChainStoreId ? String(store.onChainStoreId) : null,
+          itemCount: productsJson.items.length,
+          items: [], // Frontend não precisa dos items completos na resposta
+          storeCid,
+          categoriesCid,
+          productsCid,
+          storeHash,
+          categoriesHash,
+          productsHash,
+        },
+      });
+
+    } catch (error) {
+      app.log.error({ err: error, storeId: store.id }, '[SYNC] ❌ Erro na sincronização');
+
+      // Atualizar status para erro
+      await prisma.sellerProfile.update({
+        where: { id: store.id },
+        data: { syncStatus: 'error' },
+      }).catch(() => {});
+
+      return reply.status(500).send({
+        success: false,
+        error: 'Falha ao sincronizar catálogo',
+        message: (error as Error).message,
+      });
+    }
   });
 }
 

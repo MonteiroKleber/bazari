@@ -49,7 +49,6 @@ interface CatalogItem {
 
 
 const MAX_LINKS = 8;
-const DEFAULT_GATEWAY_LINK = 'https://ipfs.io/ipfs/';
 
 function copyToClipboard(value?: string | null) {
   if (!value) return;
@@ -108,11 +107,8 @@ function resolveGatewayLink(cid: string | null): string | undefined {
   if (!cid) return undefined;
   // Não gerar link para fake CIDs (usados quando IPFS não está configurado)
   if (cid.startsWith('bafydev')) return undefined;
-
-  const gatewayEnv = (import.meta as any)?.env?.VITE_IPFS_GATEWAY_URL as string | undefined;
-  const base = gatewayEnv && gatewayEnv.trim().length > 0 ? gatewayEnv : DEFAULT_GATEWAY_LINK;
-  const normalized = base.endsWith('/') ? base : `${base}/`;
-  return `${normalized}${cid}`;
+  // Usa função centralizada que respeita VITE_IPFS_GATEWAY_URL
+  return resolveIpfsUrl(cid);
 }
 
 function formatBigInt(value: string | null | undefined): string {

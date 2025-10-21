@@ -1,26 +1,7 @@
-import { create, IPFSHTTPClient } from 'ipfs-http-client';
-import { chatConfig } from '../../config/env';
+import { uploadToIpfs, downloadFromIpfs } from '../../lib/ipfs.js';
 import crypto from 'crypto';
 
 class IpfsService {
-  private client: IPFSHTTPClient | null = null;
-
-  private getClient(): IPFSHTTPClient {
-    if (!this.client) {
-      console.log('[IPFS] Initializing client with config:', {
-        apiUrl: chatConfig.ipfsApiUrl,
-        gatewayUrl: chatConfig.ipfsGatewayUrl,
-        timeout: chatConfig.ipfsTimeoutMs,
-      });
-
-      this.client = create({
-        url: chatConfig.ipfsApiUrl,
-        timeout: chatConfig.ipfsTimeoutMs,
-      });
-    }
-    return this.client;
-  }
-
   /**
    * Upload arquivo cifrado para IPFS
    * @param buffer - Buffer do arquivo
@@ -29,34 +10,27 @@ class IpfsService {
    */
   async uploadEncrypted(buffer: Buffer, encryptionKey: string): Promise<string> {
     try {
-      console.log('[IPFS] Starting upload. Buffer size:', buffer.length, 'bytes');
+      console.log('[IPFS] Starting encrypted upload. Buffer size:', buffer.length, 'bytes');
 
       // Cifrar o buffer
       const encrypted = this.encryptBuffer(buffer, encryptionKey);
       console.log('[IPFS] Buffer encrypted. Encrypted size:', encrypted.length, 'bytes');
 
-      // Upload para IPFS
-      const client = this.getClient();
+      // Upload para IPFS usando pool (com failover e retry)
       console.log('[IPFS] Uploading to IPFS...');
+      const cid = await uploadToIpfs(encrypted, { filename: 'encrypted-media' });
 
-      const result = await client.add(encrypted, {
-        pin: true,
-        cidVersion: 1,
-      });
-
-      const cid = result.cid.toString();
-      console.log('[IPFS] Upload successful! CID:', cid);
-      console.log('[IPFS] Gateway URL:', `${chatConfig.ipfsGatewayUrl}${cid}`);
+      console.log('[IPFS] ✅ Encrypted upload successful! CID:', cid);
 
       return cid;
     } catch (error: any) {
-      console.error('[IPFS] ❌ Upload failed:', {
+      console.error('[IPFS] ❌ Encrypted upload failed:', {
         message: error.message,
         code: error.code,
         type: error.type,
         stack: error.stack?.split('\n').slice(0, 3),
       });
-      throw new Error(`Failed to upload media to IPFS: ${error.message}`);
+      throw new Error(`Failed to upload encrypted media to IPFS: ${error.message}`);
     }
   }
 
@@ -68,22 +42,21 @@ class IpfsService {
    */
   async getDecrypted(cid: string, encryptionKey: string): Promise<Buffer> {
     try {
-      const client = this.getClient();
+      console.log('[IPFS] Downloading encrypted file:', cid);
 
-      // Download do IPFS
-      const chunks: Uint8Array[] = [];
-      for await (const chunk of client.cat(cid)) {
-        chunks.push(chunk);
-      }
+      // Download do IPFS usando pool (com failover)
+      const encrypted = await downloadFromIpfs(cid);
 
-      const encrypted = Buffer.concat(chunks);
+      console.log('[IPFS] Downloaded encrypted file. Size:', encrypted.length, 'bytes');
 
       // Decifrar
-      const decrypted = this.decryptBuffer(encrypted, encryptionKey);
+      const decrypted = this.decryptBuffer(Buffer.from(encrypted), encryptionKey);
+
+      console.log('[IPFS] ✅ Decrypted file. Size:', decrypted.length, 'bytes');
 
       return decrypted;
     } catch (error) {
-      console.error('Failed to download from IPFS:', error);
+      console.error('[IPFS] ❌ Failed to download/decrypt from IPFS:', error);
       throw new Error('Failed to download media from IPFS');
     }
   }

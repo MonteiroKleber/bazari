@@ -35,6 +35,7 @@ export default defineConfig({
         ]
       },
       workbox: {
+        maximumFileSizeToCacheInBytes: 5000000, // 5MB
         // Network-first strategy for API calls
         runtimeCaching: [
           {
@@ -91,4 +92,15 @@ export default defineConfig({
     port: 5173,
     host: true,
   },
+  build: {
+    target: 'esnext',
+    modulePreload: {
+      polyfill: true
+    }
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      target: 'esnext'
+    }
+  }
 })

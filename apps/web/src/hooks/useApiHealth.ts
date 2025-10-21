@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { getJSON } from "../lib/api";
+import { getPublicJSON } from "../lib/api";
 
 interface HealthData {
   ok: boolean;
@@ -25,8 +25,8 @@ export function useApiHealth(pollInterval?: number): UseApiHealthReturn {
     try {
       setLoading(true);
       setError(null);
-      
-      const response = await getJSON<HealthData>("/healthz");
+
+      const response = await getPublicJSON<HealthData>("/api/healthz");
       setData(response);
     } catch (err) {
       setError(err instanceof Error ? err : new Error("Unknown error"));
