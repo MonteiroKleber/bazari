@@ -1,11 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Newspaper, PlusSquare, Bell, User, Truck } from 'lucide-react';
+import { Store, Newspaper, PlusSquare, MessageSquare, User, Truck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import { useDeliveryProfile } from '@/hooks/useDeliveryProfile';
+import { apiHelpers } from '@/lib/api';
 
 interface NavItem {
-  icon: typeof LayoutDashboard;
+  icon: typeof Store;
   label: string;
   path: string;
   badge?: number;
@@ -14,15 +15,32 @@ interface NavItem {
 export function MobileBottomNav() {
   const location = useLocation();
   const { profile: deliveryProfile } = useDeliveryProfile();
-  const [notificationCount, setNotificationCount] = useState(0);
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
+  const [currentUserHandle, setCurrentUserHandle] = useState<string>('');
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
-  // Fetch notification count
+  // Fetch current user profile for handle
   useEffect(() => {
-    // TODO: Implement actual notification count fetch
+    let active = true;
+    (async () => {
+      try {
+        const res: any = await apiHelpers.getMeProfile();
+        if (active && res?.profile?.handle) {
+          setCurrentUserHandle(res.profile.handle);
+        }
+      } catch (error) {
+        console.error('Failed to fetch user profile:', error);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+
+  // Fetch chat unread count
+  useEffect(() => {
+    // TODO: Implement actual chat unread count fetch from API
     // For now, using mock data
-    setNotificationCount(0);
+    setChatUnreadCount(0);
   }, []);
 
   // Auto-hide on scroll down, show on scroll up
@@ -45,9 +63,9 @@ export function MobileBottomNav() {
 
   const baseNavItems: NavItem[] = [
     {
-      icon: LayoutDashboard,
-      label: 'Home',
-      path: '/app/dashboard',
+      icon: Store,
+      label: 'Loja',
+      path: '/search',
     },
     {
       icon: Newspaper,
@@ -56,18 +74,18 @@ export function MobileBottomNav() {
     },
     {
       icon: PlusSquare,
-      label: 'Create',
+      label: 'Criar',
       path: '/app/new',
     },
     {
-      icon: Bell,
-      label: 'Notif',
-      path: '/app/notifications',
-      badge: notificationCount,
+      icon: MessageSquare,
+      label: 'Chat',
+      path: '/app/chat',
+      badge: chatUnreadCount,
     },
   ];
 
-  // Add delivery tab if user has delivery profile
+  // Add delivery tab if user has delivery profile, otherwise add profile
   const navItems: NavItem[] = deliveryProfile
     ? [
         ...baseNavItems,
@@ -82,20 +100,31 @@ export function MobileBottomNav() {
         ...baseNavItems,
         {
           icon: User,
-          label: 'Profile',
-          path: '/app/profile/edit',
+          label: 'Perfil',
+          path: currentUserHandle ? `/u/${currentUserHandle}` : '/app/profile/edit',
         },
       ];
 
   const isActive = (path: string) => {
-    if (path === '/app/dashboard') {
-      return location.pathname === '/app' || location.pathname === '/app/dashboard';
+    // Marketplace/Search
+    if (path === '/search') {
+      return location.pathname === '/search' || location.pathname === '/explore';
     }
+    // Feed
     if (path === '/app/feed') {
       return location.pathname === '/app/feed';
     }
+    // Chat
+    if (path === '/app/chat') {
+      return location.pathname.startsWith('/app/chat');
+    }
+    // Delivery
     if (path === '/app/delivery/dashboard') {
       return location.pathname.startsWith('/app/delivery');
+    }
+    // Profile - check if viewing own profile
+    if (path.startsWith('/u/') && currentUserHandle) {
+      return location.pathname === `/u/${currentUserHandle}`;
     }
     return location.pathname.startsWith(path);
   };

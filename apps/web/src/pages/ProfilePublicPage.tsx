@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { ArrowLeft, Edit } from 'lucide-react';
 import { apiHelpers } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
@@ -157,9 +158,30 @@ export default function ProfilePublicPage() {
   if (!data) return null;
 
   const p = data.profile;
+  const isOwnProfile = currentUser?.handle === p.handle;
 
   return (
     <div className="container mx-auto px-4 py-0">
+      {/* Breadcrumb Navigation */}
+      <div className="py-4 flex items-center justify-between">
+        <Button variant="ghost" size="sm" asChild>
+          <Link to="/app/feed" className="flex items-center gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">Voltar ao Feed</span>
+            <span className="sm:hidden">Feed</span>
+          </Link>
+        </Button>
+        {isOwnProfile && (
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/app/profile/edit" className="flex items-center gap-2">
+              <Edit className="h-4 w-4" />
+              <span className="hidden sm:inline">Editar Perfil</span>
+              <span className="sm:hidden">Editar</span>
+            </Link>
+          </Button>
+        )}
+      </div>
+
       {/* Banner Section */}
       {p.bannerUrl ? (
         <div className="relative w-full h-48 md:h-64 -mx-4 md:mx-0 md:rounded-lg overflow-hidden bg-muted">

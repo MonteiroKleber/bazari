@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Loader2, User, FileText, Store } from 'lucide-react';
+import { Search, Loader2, User, FileText, Store, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { apiHelpers } from '@/lib/api';
 import { useDebounce } from '@/hooks/useDebounce';
+import { cn } from '@/lib/utils';
 
 interface Profile {
   id: string;
@@ -50,13 +52,20 @@ interface SearchResults {
   query: string;
 }
 
-export function GlobalSearchBar() {
+interface GlobalSearchBarProps {
+  variant?: 'full' | 'compact';
+  className?: string;
+}
+
+export function GlobalSearchBar({ variant = 'full', className }: GlobalSearchBarProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResults | null>(null);
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(variant === 'full');
   const debouncedQuery = useDebounce(query, 300);
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
   // Search when debounced query changes
@@ -112,6 +121,22 @@ export function GlobalSearchBar() {
     navigate(path);
     setIsOpen(false);
     setQuery('');
+    if (variant === 'compact') {
+      setIsExpanded(false);
+    }
+  };
+
+  const handleExpand = () => {
+    setIsExpanded(true);
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
+  };
+
+  const handleCollapse = () => {
+    setIsExpanded(false);
+    setQuery('');
+    setIsOpen(false);
   };
 
   const hasResults = results && (
@@ -120,18 +145,45 @@ export function GlobalSearchBar() {
     results.results.stores.length > 0
   );
 
+  // Compact variant - só ícone quando não expandido
+  if (variant === 'compact' && !isExpanded) {
+    return (
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handleExpand}
+        className={cn("md:hidden", className)}
+        aria-label="Abrir busca"
+      >
+        <Search className="h-5 w-5" />
+      </Button>
+    );
+  }
+
   return (
-    <div ref={containerRef} className="relative w-full">
+    <div ref={containerRef} className={cn("relative w-full", className)}>
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
+          ref={inputRef}
           type="text"
-          placeholder="Buscar pessoas, posts, lojas..."
+          placeholder={variant === 'compact' ? "Buscar..." : "Buscar pessoas, posts, lojas..."}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="pl-9 pr-9"
+          className={cn("pl-9", variant === 'compact' ? "pr-9 text-sm" : "pr-9")}
         />
-        {loading && (
+        {variant === 'compact' && isExpanded && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleCollapse}
+            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+            aria-label="Fechar busca"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
+        {loading && !isExpanded && (
           <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
         )}
       </div>

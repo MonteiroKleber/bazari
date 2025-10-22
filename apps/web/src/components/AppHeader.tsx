@@ -1,12 +1,20 @@
 import * as React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu } from "lucide-react";
+import { Menu, MoreHorizontal, MessageSquare, Newspaper } from "lucide-react";
 import { BaseHeader } from "./BaseHeader";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { ApiHealth } from "./ApiHealth";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { CreatePostButton } from "./social/CreatePostButton";
@@ -31,13 +39,23 @@ export function AppHeader() {
     return location.pathname.startsWith(path);
   };
 
-  const navLinks = [
-    { to: '/app', label: t('nav.dashboard', { defaultValue: 'Dashboard' }), checkActive: () => isActive('/app') && !location.pathname.includes('/sellers') && !location.pathname.includes('/wallet') && !location.pathname.includes('/p2p') },
+  // Primary navigation - most used features
+  const primaryNavLinks = [
+    { to: '/app/feed', label: t('nav.feed', { defaultValue: 'Feed' }), icon: Newspaper, checkActive: () => isActive('/app/feed') },
     { to: '/search', label: t('nav.marketplace', { defaultValue: 'Marketplace' }), checkActive: () => isActive('/search') || isActive('/explore') },
-    { to: '/app/sellers', label: t('nav.myStores', { defaultValue: 'Minhas Lojas' }), checkActive: () => isActive('/app/sellers') || isActive('/app/seller') },
-    { to: '/app/p2p', label: t('nav.p2p', { defaultValue: 'P2P' }), checkActive: () => isActive('/app/p2p') },
-    { to: '/app/wallet', label: t('nav.wallet', { defaultValue: 'Wallet' }), checkActive: () => isActive('/app/wallet') },
+    { to: '/app/chat', label: t('nav.chat', { defaultValue: 'Chat' }), icon: MessageSquare, checkActive: () => isActive('/app/chat') },
   ];
+
+  // Secondary navigation - accessed via dropdown "Mais"
+  const secondaryNavLinks = [
+    { to: '/app', label: t('nav.dashboard', { defaultValue: 'Dashboard' }), checkActive: () => isActive('/app') && !location.pathname.includes('/sellers') && !location.pathname.includes('/wallet') && !location.pathname.includes('/p2p') && !location.pathname.includes('/feed') && !location.pathname.includes('/chat') },
+    { to: '/app/sellers', label: t('nav.myStores', { defaultValue: 'Minhas Lojas' }), checkActive: () => isActive('/app/sellers') || isActive('/app/seller') },
+    { to: '/app/wallet', label: t('nav.wallet', { defaultValue: 'Wallet' }), checkActive: () => isActive('/app/wallet') },
+    { to: '/app/p2p', label: t('nav.p2p', { defaultValue: 'P2P' }), checkActive: () => isActive('/app/p2p') },
+  ];
+
+  // All links for mobile menu
+  const allNavLinks = [...primaryNavLinks, ...secondaryNavLinks];
 
   return (
     <BaseHeader
@@ -55,7 +73,7 @@ export function AppHeader() {
                 <SheetTitle>{t('nav.navigation', { defaultValue: 'Navegação' })}</SheetTitle>
               </SheetHeader>
               <nav className="flex flex-col gap-4 mt-6" aria-label={t('nav.main', { defaultValue: 'Navegação principal' })}>
-                {navLinks.map((link) => {
+                {allNavLinks.map((link) => {
                   const active = link.checkActive();
                   return (
                     <Link
@@ -98,14 +116,20 @@ export function AppHeader() {
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <span className="text-primary-foreground font-bold">B</span>
             </div>
-            <span className="text-xl font-bold">Bazari</span>
+            <span className="text-xl font-bold hidden sm:inline">Bazari</span>
           </Link>
+
+          {/* Global Search Bar - Mobile Compact */}
+          <div className="md:hidden">
+            <GlobalSearchBar variant="compact" />
+          </div>
         </>
       }
       nav={
         <>
           <nav className="hidden md:flex items-center gap-6" aria-label={t('nav.main', { defaultValue: 'Navegação principal' })}>
-            {navLinks.map((link) => {
+            {/* Primary Navigation Links */}
+            {primaryNavLinks.map((link) => {
               const active = link.checkActive();
               return (
                 <Link
@@ -123,11 +147,41 @@ export function AppHeader() {
                 </Link>
               );
             })}
+
+            {/* "Mais" Dropdown Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-sm font-medium text-muted-foreground hover:text-primary">
+                  <MoreHorizontal className="h-4 w-4 mr-1" />
+                  {t('nav.more', { defaultValue: 'Mais' })}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel>{t('nav.otherPages', { defaultValue: 'Outras Páginas' })}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {secondaryNavLinks.map((link) => {
+                  const active = link.checkActive();
+                  return (
+                    <DropdownMenuItem key={link.to} asChild>
+                      <Link
+                        to={link.to}
+                        className={cn(
+                          "cursor-pointer",
+                          active && "bg-accent text-accent-foreground"
+                        )}
+                      >
+                        {link.label}
+                      </Link>
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </nav>
 
-          {/* Global Search Bar */}
+          {/* Global Search Bar - Desktop Full */}
           <div className="hidden md:block flex-1 max-w-md mx-4">
-            <GlobalSearchBar />
+            <GlobalSearchBar variant="full" />
           </div>
         </>
       }
