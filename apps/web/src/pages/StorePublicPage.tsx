@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Header } from '@/components/Header';
+import { DynamicHeader } from '@/components/DynamicHeader';
 import { Footer } from '@/components/Footer';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -278,7 +278,7 @@ export default function StorePublicPage() {
           {catalogItems.map((item) => {
             const cover = pickCover(item);
             const priceLabel = formatPrice(item.priceBzr, i18n.language);
-            const href = item.kind === 'service' ? `/app/service/${item.id}` : `/app/product/${item.id}`;
+            const href = item.kind === 'service' ? `/service/${item.id}` : `/product/${item.id}`;
             return (
               <motion.div
                 key={item.id}
@@ -338,8 +338,8 @@ export default function StorePublicPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <Header />
-      <main className="flex-1 bg-muted/20 py-8">
+      <DynamicHeader />
+      <main className="flex-1 bg-muted/20 py-8 mobile-safe-bottom pt-16">
         <div className="container mx-auto px-4">
           {loading ? (
             <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-sm text-muted-foreground">

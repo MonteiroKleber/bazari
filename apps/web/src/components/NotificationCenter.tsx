@@ -126,12 +126,29 @@ function NotificationItem({ notification, onUpdate }: { notification: any; onUpd
       link = `/u/${notification.actor?.handle}`;
       break;
     case 'LIKE':
-      message = `curtiu seu post`;
-      link = `/u/${notification.actor?.handle}`; // TODO: link direto pro post
+      const reactionEmoji = notification.metadata?.reaction
+        ? { love: '❤️', laugh: '😂', wow: '😮', sad: '😢', angry: '😠' }[notification.metadata.reaction] || ''
+        : '';
+      message = notification.metadata?.commentId
+        ? `curtiu seu comentário ${reactionEmoji}`.trim()
+        : `reagiu ${reactionEmoji} ao seu post`.trim();
+      link = `/post/${notification.targetId}`;
       break;
     case 'COMMENT':
       message = `comentou no seu post`;
-      link = `/u/${notification.actor?.handle}`;
+      link = `/post/${notification.targetId}`;
+      break;
+    case 'REPOST':
+      message = `repostou seu post`;
+      link = `/post/${notification.targetId}`;
+      break;
+    case 'MENTION':
+      message = `mencionou você em um post`;
+      link = `/post/${notification.targetId}`;
+      break;
+    case 'ACHIEVEMENT_UNLOCKED':
+      message = `Você desbloqueou a conquista "${notification.metadata?.achievementName}"!`;
+      link = `/app/profile/edit`;
       break;
     case 'BADGE':
       message = `Você conquistou um novo badge!`;
@@ -249,7 +266,11 @@ function NotificationItem({ notification, onUpdate }: { notification: any; onUpd
           />
         ) : (
           <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-            {notification.type === 'BADGE' ? '🏆' : '🔔'}
+            {notification.type === 'BADGE' ? '🏆' :
+             notification.type === 'ACHIEVEMENT_UNLOCKED' ? '🎉' :
+             notification.type === 'REPOST' ? '🔁' :
+             notification.type === 'MENTION' ? '💬' :
+             '🔔'}
           </div>
         )}
 

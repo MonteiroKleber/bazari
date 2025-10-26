@@ -420,7 +420,7 @@ export function DeliveryRequestDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="container max-w-4xl mx-auto py-8 px-4">
+      <div className="container max-w-4xl mx-auto py-2 md:py-3 px-4">
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
@@ -430,7 +430,7 @@ export function DeliveryRequestDetailPage() {
 
   if (error || !request) {
     return (
-      <div className="container max-w-4xl mx-auto py-8 px-4">
+      <div className="container max-w-4xl mx-auto py-2 md:py-3 px-4">
         <Button
           variant="ghost"
           onClick={() => navigate('/app/delivery/requests')}
@@ -455,7 +455,7 @@ export function DeliveryRequestDetailPage() {
   }
 
   return (
-    <div className="container max-w-4xl mx-auto py-8 px-4">
+    <div className="container max-w-4xl mx-auto py-2 md:py-3 px-4">
       {renderHeader()}
 
       <div className="space-y-4">

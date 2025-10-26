@@ -531,7 +531,7 @@ export function ActiveDeliveryPage() {
   }
 
   return (
-    <div className="container max-w-6xl mx-auto py-8 px-4">
+    <div className="container max-w-6xl mx-auto py-2 md:py-3 px-4">
       {renderHeader()}
 
       {delivery.status === DeliveryRequestStatus.DELIVERED ? (

@@ -90,7 +90,7 @@ export default function AffiliateMarketplacePage() {
     // TODO: Track click analytics
 
     // Redirecionar para página do produto
-    navigate(`/app/product/${product.productId}`);
+    navigate(`/product/${product.productId}`);
   };
 
   if (loading) {

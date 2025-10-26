@@ -10,13 +10,23 @@ export function CreatePostButton() {
 
   return (
     <>
+      {/* Botão Mobile - Fixed no canto inferior direito, acima da barra de navegação */}
       <Button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg md:h-auto md:w-auto md:rounded-md md:px-4"
+        className="fixed bottom-20 right-6 h-14 w-14 rounded-full shadow-lg md:hidden z-50"
         size="icon"
       >
-        <Plus className="h-6 w-6 md:mr-2" />
-        <span className="hidden md:inline">Criar Post</span>
+        <Plus className="h-6 w-6" />
+      </Button>
+
+      {/* Botão Desktop - Static no header */}
+      <Button
+        onClick={() => setOpen(true)}
+        className="hidden md:inline-flex"
+        size="default"
+      >
+        <Plus className="h-5 w-5 mr-2" />
+        Criar Post
       </Button>
 
       <CreatePostModal open={open} onOpenChange={setOpen} />

@@ -2,18 +2,20 @@
 // path: apps/web/src/App.tsx
 
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { Header } from './components/Header';
 import { AppHeader } from './components/AppHeader';
 import { Toaster } from 'sonner';
-import { Hero } from './components/Hero';
-import { Features } from './components/Features';
-import { Roadmap } from './components/Roadmap';
-import { CTASection } from './components/CTASection';
+import { HeroManifesto } from './components/landing/HeroManifesto';
+import { BZRSection } from './components/landing/BZRSection';
+import { MarketplacePreview } from './components/landing/MarketplacePreview';
+import { TokenizedStoresSection } from './components/landing/TokenizedStoresSection';
+import { EcosystemSection } from './components/landing/EcosystemSection';
+import { BlockchainSection } from './components/landing/BlockchainSection';
+import { FinalCTA } from './components/landing/FinalCTA';
 import { Footer } from './components/Footer';
-import { ThemeGallery } from './components/ThemeGallery';
 import { DevPanel } from './components/DevPanel';
 import { SearchPage } from './pages/SearchPage';
 import ExplorePage from './pages/ExplorePage';
@@ -28,6 +30,9 @@ import { CreateAccount } from './pages/auth/CreateAccount';
 import { ImportAccount } from './pages/auth/ImportAccount';
 import { Unlock } from './pages/auth/Unlock';
 import { DeviceLink } from './pages/auth/DeviceLink';
+import { WelcomePage } from './pages/auth/WelcomePage';
+import { GuestWelcomePage } from './pages/auth/GuestWelcomePage';
+import { RecoverPin } from './pages/auth/RecoverPin';
 import { SessionBoundary } from './components/auth/SessionBoundary';
 import { PinProvider } from './modules/wallet/pin/PinProvider';
 import { RequireAuth } from './components/auth/RequireAuth';
@@ -44,6 +49,7 @@ import AnalyticsDashboard from './pages/AnalyticsDashboard';
 import FeedPage from './pages/FeedPage';
 import { PostDetailPage } from './pages/PostDetailPage';
 import BookmarksPage from './pages/BookmarksPage';
+import { NotificationsPage } from './pages/NotificationsPage';
 import SellerSetupPage from './pages/SellerSetupPage';
 import SellerPublicPage from './pages/SellerPublicPage';
 import SellerManagePage from './pages/SellerManagePage';
@@ -61,6 +67,7 @@ import { InstallPrompt } from './components/pwa/InstallPrompt';
 import { UpdatePrompt } from './components/pwa/UpdatePrompt';
 import { OfflineIndicator } from './components/pwa/OfflineIndicator';
 import { MobileBottomNav } from './components/MobileBottomNav';
+import { CreatePostButton } from './components/social/CreatePostButton';
 import { FEATURE_FLAGS } from './config';
 import { ChatInboxPage } from './pages/chat/ChatInboxPage';
 import { ChatThreadPage } from './pages/chat/ChatThreadPage';
@@ -95,11 +102,15 @@ function LandingPage() {
   const [hasVault, setHasVault] = useState(false);
   const gateRef = useRef<HTMLElement | null>(null);
 
+  console.log('🏠 LandingPage rendered');
+
   useEffect(() => {
+    console.log('🏠 LandingPage mounted');
     let active = true;
     hasEncryptedSeed()
       .then((value) => {
         if (active) {
+          console.log('🏠 hasEncryptedSeed result:', value);
           setHasVault(value);
         }
       })
@@ -109,6 +120,7 @@ function LandingPage() {
         }
       });
     return () => {
+      console.log('🏠 LandingPage unmounted');
       active = false;
     };
   }, []);
@@ -136,9 +148,13 @@ function LandingPage() {
     <>
       <Header />
       <main>
-        <Hero onPrimaryAction={handleProtectedNavigate} />
-        <Features />
-        <Roadmap />
+        <HeroManifesto onScrollToAuth={scrollToGate} />
+        <BZRSection />
+        <MarketplacePreview />
+        <TokenizedStoresSection />
+        <EcosystemSection />
+        <BlockchainSection />
+        <FinalCTA />
 
         <section
           ref={gateRef}
@@ -197,23 +213,6 @@ function LandingPage() {
             </div>
           </div>
         </section>
-
-        {/* Theme Gallery Section (opcional - pode remover em produção) */}
-        <section className="py-20 bg-muted/30">
-          <div className="container mx-auto px-4">
-            <div className="max-w-6xl mx-auto">
-              <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
-                Temas Disponíveis
-              </h2>
-              <p className="text-center text-muted-foreground mb-12">
-                Escolha o tema que mais combina com você
-              </p>
-              <ThemeGallery />
-            </div>
-          </div>
-        </section>
-
-        <CTASection onPrimaryClick={handleProtectedNavigate} />
       </main>
       <Footer />
 
@@ -231,18 +230,35 @@ function AppLayout({ children }: { children: ReactNode }) {
         {children}
       </main>
       <Footer />
+      <MobileBottomNav />
     </>
   );
 }
 
-function App() {
-  // Initialize chat when user is authenticated
+// Helper function to check if route is public
+function isPublicRoute(pathname: string): boolean {
+  const publicRoutes = ['/', '/auth', '/search', '/explore'];
+  return publicRoutes.some(route => pathname === route) ||
+    pathname.startsWith('/auth/') ||
+    pathname.startsWith('/product/') ||
+    pathname.startsWith('/service/');
+}
+
+// Internal component that uses router hooks
+function AppInitializer() {
+  const location = useLocation();
   const { initialize: initializeChat } = useChat();
 
   useEffect(() => {
     // Try to restore session and initialize chat
     const initializeApp = async () => {
-      console.log('[App] Initializing app...');
+      console.log('[App] Initializing app...', { pathname: location.pathname });
+
+      // Skip session refresh on public routes
+      if (isPublicRoute(location.pathname)) {
+        console.log('[App] Public route detected, skipping session refresh');
+        return;
+      }
 
       // If no active session, try to refresh from cookie
       if (!isSessionActive()) {
@@ -273,11 +289,17 @@ function App() {
     };
 
     initializeApp();
-  }, []);
+  }, [location.pathname, initializeChat]);
+
+  return null;
+}
+
+function App() {
 
   return (
     <ThemeProvider>
       <BrowserRouter>
+        <AppInitializer />
         <div className="min-h-screen bg-background">
           <Toaster position="top-right" richColors />
           <SessionBoundary />
@@ -300,6 +322,9 @@ function App() {
             <Route path="/search" element={<SearchPage />} />
             <Route path="/explore" element={<ExplorePage />} />
             <Route path="/marketplace" element={<MarketplacePage />} />
+            {/* Product & Service Detail Pages - PUBLIC for SEO and sharing */}
+            <Route path="/product/:id" element={<ProductDetailPage />} />
+            <Route path="/service/:id" element={<ServiceDetailPage />} />
             {FEATURE_FLAGS.store_branded_v1 && (
               <Route path="/s/:shopSlug" element={<SellerPublicPage mode="branded" />} />
             )}
@@ -308,9 +333,13 @@ function App() {
             {/* Redirects for backwards compatibility - TODO: Remove after migration period (target: 2026-Q1) */}
             <Route path="/store/:id" element={<Navigate to="/loja/:id" replace />} />
             <Route path="/seller/:slug" element={<Navigate to="/loja/:slug" replace />} />
+            <Route path="/auth" element={<WelcomePage />} />
+            <Route path="/auth/welcome" element={<WelcomePage />} />
+            <Route path="/auth/guest-welcome" element={<GuestWelcomePage />} />
             <Route path="/auth/create" element={<CreateAccount />} />
             <Route path="/auth/import" element={<ImportAccount />} />
             <Route path="/auth/unlock" element={<Unlock />} />
+            <Route path="/auth/recover-pin" element={<RecoverPin />} />
             <Route path="/auth/device-link" element={<DeviceLink />} />
 
             {/* Delivery - Public landing page */}
@@ -338,6 +367,7 @@ function App() {
                       <Route index element={<DashboardPage />} />
                       <Route path="dashboard" element={<DashboardPage />} />
                       <Route path="feed" element={<FeedPage />} />
+                      <Route path="notifications" element={<NotificationsPage />} />
                       <Route path="profile/edit" element={<ProfileEditPage />} />
                       <Route path="posts/:postId" element={<PostDetailPage />} />
                       <Route path="bookmarks" element={<BookmarksPage />} />
@@ -348,8 +378,6 @@ function App() {
                       <Route path="sellers" element={<SellersListPage />} />
                       <Route path="sellers/:shopSlug" element={<SellerManagePage />} />
                       <Route path="new" element={<NewListingPage />} />
-                      <Route path="product/:id" element={<ProductDetailPage />} />
-                      <Route path="service/:id" element={<ServiceDetailPage />} />
                       <Route path="cart" element={<CartPage />} />
                       <Route path="checkout" element={<CheckoutPage />} />
                       <Route path="orders/:id/pay" element={<OrderPayPage />} />

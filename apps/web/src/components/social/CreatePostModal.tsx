@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import { apiHelpers } from '@/lib/api';
 import { toast } from 'sonner';
 import { ImagePlus, Smile, AtSign, X, BarChart3, Video } from 'lucide-react';
+import { uploadVideoChunked, UploadProgress as UploadProgressType } from '@/lib/chunkedUpload';
+import { UploadProgressBar } from '@/components/UploadProgress';
 
 const MAX_LENGTH = 5000;
 
@@ -31,6 +33,11 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
   const [showPollForm, setShowPollForm] = useState(false);
   const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
   const [pollDuration, setPollDuration] = useState<string>('1440'); // 24h default
+
+  // Upload progress states
+  const [uploadProgress, setUploadProgress] = useState<UploadProgressType | null>(null);
+  const [uploadingFile, setUploadingFile] = useState<File | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleSubmit = async () => {
     if (!content.trim()) {
@@ -110,7 +117,14 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
 
     try {
       const res = await apiHelpers.uploadPostImage(file);
-      setImages([...images, res.asset.url]);
+      const uploadedUrl = res.asset.url;
+
+      // Converter para URL completa se necessário (padrão ProfileEditPage)
+      const fullUrl = uploadedUrl.startsWith('http')
+        ? uploadedUrl
+        : `${window.location.origin}${uploadedUrl}`;
+
+      setImages([...images, fullUrl]);
       toast.success('Imagem carregada!');
     } catch (error) {
       toast.error('Erro ao fazer upload da imagem');
@@ -148,13 +162,59 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
     }
 
     try {
-      toast.info('Enviando vídeo... Isso pode levar alguns instantes.');
-      const res = await apiHelpers.uploadPostVideo(file) as any;
-      setVideos([{ url: res.asset.url, thumbnailUrl: res.asset.thumbnailUrl }]);
+      // Criar AbortController para cancelamento
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+
+      // Iniciar upload com progresso
+      setUploadingFile(file);
+      setUploadProgress(null);
+
+      const res = await uploadVideoChunked(file, {
+        signal: abortController.signal,
+        onProgress: (progress) => {
+          setUploadProgress(progress);
+        },
+        onError: (error) => {
+          console.error('Erro no upload:', error);
+        },
+      });
+
+      const uploadedUrl = res.asset.url;
+      const thumbnailUrl = res.asset.thumbnailUrl;
+
+      // Converter para URLs completas se necessário (padrão ProfileEditPage)
+      const fullUrl = uploadedUrl.startsWith('http')
+        ? uploadedUrl
+        : `${window.location.origin}${uploadedUrl}`;
+
+      const fullThumbnailUrl = thumbnailUrl
+        ? (thumbnailUrl.startsWith('http')
+          ? thumbnailUrl
+          : `${window.location.origin}${thumbnailUrl}`)
+        : undefined;
+
+      setVideos([{ url: fullUrl, thumbnailUrl: fullThumbnailUrl }]);
       setImages([]); // Limpar imagens (não pode ter vídeo + imagem)
+      setUploadProgress(null);
+      setUploadingFile(null);
       toast.success('Vídeo carregado!');
-    } catch (error) {
-      toast.error('Erro ao fazer upload do vídeo');
+    } catch (error: any) {
+      setUploadProgress(null);
+      setUploadingFile(null);
+      if (error.message !== 'Upload cancelado') {
+        toast.error('Erro ao fazer upload do vídeo');
+      }
+    }
+  };
+
+  const handleCancelUpload = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setUploadProgress(null);
+      setUploadingFile(null);
+      toast.info('Upload cancelado');
     }
   };
 
@@ -205,20 +265,19 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[85vh] md:max-h-[90vh] top-[5vh] md:top-[50%] translate-y-0 md:translate-y-[-50%] flex flex-col gap-0 p-0">
+        <DialogHeader className="px-6 pt-6 pb-4 flex-shrink-0">
           <DialogTitle>Criar Post</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 overflow-y-auto flex-1 px-6 pb-4">
           <Textarea
             placeholder="O que você está pensando?"
             value={content}
             onChange={(e) => setContent(e.target.value)}
             onKeyDown={handleKeyDown}
             maxLength={MAX_LENGTH}
-            rows={6}
-            className="resize-none"
+            className="resize-none min-h-[96px] md:min-h-[144px]"
           />
 
           {/* Preview de imagens */}
@@ -229,7 +288,7 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
                   <img
                     src={url}
                     alt={`Upload ${index + 1}`}
-                    className="w-full h-32 object-cover rounded-md"
+                    className="w-full h-24 md:h-32 object-cover rounded-md"
                   />
                   <Button
                     variant="secondary"
@@ -244,6 +303,15 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
             </div>
           )}
 
+          {/* Upload Progress */}
+          {uploadProgress && uploadingFile && (
+            <UploadProgressBar
+              progress={uploadProgress}
+              filename={uploadingFile.name}
+              onCancel={handleCancelUpload}
+            />
+          )}
+
           {/* Preview de vídeos */}
           {videos.length > 0 && (
             <div className="space-y-2">
@@ -252,7 +320,7 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
                   <video
                     src={video.url}
                     controls
-                    className="w-full max-h-64 rounded-md bg-black"
+                    className="w-full max-h-48 md:max-h-64 rounded-md bg-black"
                     poster={video.thumbnailUrl}
                   />
                   <Button
@@ -339,16 +407,20 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
               </div>
             </div>
           )}
+        </div>
 
-          {/* Toolbar */}
-          <div className="flex items-center justify-between border-t pt-4">
-            <div className="flex gap-2">
+        {/* Footer fixo (Toolbar + Ações) */}
+        <div className="flex-shrink-0 border-t px-4 md:px-6 py-3 md:py-4 bg-background space-y-3">
+          {/* Linha 1: Toolbar (mobile + desktop) */}
+          <div className="flex items-center justify-between">
+            <div className="flex gap-1 md:gap-2">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={images.length >= 4 || showPollForm || videos.length > 0}
                 title="Adicionar imagem"
+                className="h-9 w-9"
               >
                 <ImagePlus className="h-5 w-5" />
               </Button>
@@ -359,6 +431,7 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
                 onClick={() => videoInputRef.current?.click()}
                 disabled={videos.length >= 1 || images.length > 0 || showPollForm}
                 title="Adicionar vídeo"
+                className="h-9 w-9"
               >
                 <Video className="h-5 w-5" />
               </Button>
@@ -368,17 +441,17 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
                 size="icon"
                 onClick={togglePollForm}
                 disabled={images.length > 0 || videos.length > 0}
-                className={showPollForm ? 'bg-primary/10 text-primary' : ''}
+                className={`h-9 w-9 ${showPollForm ? 'bg-primary/10 text-primary' : ''}`}
                 title="Criar enquete"
               >
                 <BarChart3 className="h-5 w-5" />
               </Button>
 
-              <Button variant="ghost" size="icon" disabled>
+              <Button variant="ghost" size="icon" disabled className="h-9 w-9 hidden md:inline-flex">
                 <Smile className="h-5 w-5" />
               </Button>
 
-              <Button variant="ghost" size="icon" disabled>
+              <Button variant="ghost" size="icon" disabled className="h-9 w-9 hidden md:inline-flex">
                 <AtSign className="h-5 w-5" />
               </Button>
 
@@ -405,7 +478,8 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
               />
             </div>
 
-            <div className="flex items-center gap-4">
+            {/* Contador de caracteres + Botão Publicar (desktop only) */}
+            <div className="hidden md:flex items-center gap-4">
               <span className="text-sm text-muted-foreground">
                 {content.length}/{MAX_LENGTH}
               </span>
@@ -419,7 +493,23 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
             </div>
           </div>
 
-          <p className="text-xs text-muted-foreground">
+          {/* Linha 2: Contador + Botão Publicar (mobile only) */}
+          <div className="flex md:hidden items-center justify-between gap-3">
+            <span className="text-sm text-muted-foreground">
+              {content.length}/{MAX_LENGTH}
+            </span>
+
+            <Button
+              onClick={handleSubmit}
+              disabled={loading || !content.trim()}
+              className="flex-1"
+            >
+              {loading ? 'Publicando...' : 'Publicar'}
+            </Button>
+          </div>
+
+          {/* Dica de teclado (desktop only) */}
+          <p className="hidden md:block text-xs text-muted-foreground text-center">
             💡 Dica: Pressione <kbd>Ctrl</kbd>+<kbd>Enter</kbd> para publicar
           </p>
         </div>

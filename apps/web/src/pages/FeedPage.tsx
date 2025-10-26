@@ -43,7 +43,7 @@ export default function FeedPage() {
   return (
     <>
       <PullToRefreshIndicator isRefreshing={isRefreshing} pullDistance={pullDistance} />
-      <section className="py-0 md:py-6 mobile-safe-bottom">
+      <section className="py-2 md:py-3 mobile-safe-bottom">
         <CreatePostModal open={createPostOpen} onOpenChange={setCreatePostOpen} />
 
         {/* Main Content - Full Width */}

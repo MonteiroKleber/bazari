@@ -19,20 +19,44 @@ export function ChatInboxPage() {
   }, [connected]);
 
   return (
-    <div className="max-w-2xl mx-auto p-4">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Conversas</h1>
+    <div className="max-w-2xl mx-auto px-4 py-2 md:py-3">
+      <div className="mb-6">
+        {/* Título e botões desktop na mesma linha */}
+        <div className="flex items-center justify-between mb-3 md:mb-0">
+          <h1 className="text-2xl font-bold">Conversas</h1>
 
-        <div className="flex gap-2">
+          {/* Botões visíveis apenas no desktop */}
+          <div className="hidden md:flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setCreateGroupOpen(true)}
+            >
+              <Users className="mr-2 h-4 w-4" />
+              Criar Grupo
+            </Button>
+
+            <Button onClick={() => navigate('/app/chat/new')}>
+              <MessageSquarePlus className="mr-2 h-4 w-4" />
+              Nova conversa
+            </Button>
+          </div>
+        </div>
+
+        {/* Botões em linha própria no mobile */}
+        <div className="flex gap-2 md:hidden">
           <Button
             variant="outline"
             onClick={() => setCreateGroupOpen(true)}
+            className="flex-1"
           >
             <Users className="mr-2 h-4 w-4" />
             Criar Grupo
           </Button>
 
-          <Button onClick={() => navigate('/app/chat/new')}>
+          <Button
+            onClick={() => navigate('/app/chat/new')}
+            className="flex-1"
+          >
             <MessageSquarePlus className="mr-2 h-4 w-4" />
             Nova conversa
           </Button>

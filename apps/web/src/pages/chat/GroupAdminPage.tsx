@@ -257,7 +257,7 @@ export function GroupAdminPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-4 space-y-6">
+    <div className="max-w-4xl mx-auto px-4 py-2 md:py-3 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <Button variant="ghost" onClick={() => navigate('/app/chat')}>

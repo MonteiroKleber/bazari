@@ -11,7 +11,7 @@ import { Input } from '../components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { useSearch } from '../hooks/useSearch';
-import { Header } from '../components/Header';
+import { DynamicHeader } from '../components/DynamicHeader';
 import { Footer } from '../components/Footer';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { API_BASE_URL } from '../config';
@@ -294,8 +294,9 @@ export function SearchPage() {
 
   return (
     <>
-      <Header />
-      <div className="container mx-auto px-4 py-8">
+      <DynamicHeader />
+      <main className="pt-16">
+        <div className="container mx-auto px-4 py-8 mobile-safe-bottom">
         {/* Search Header */}
         <div className="mb-6 flex items-center gap-2">
           <form onSubmit={handleSearch} className="flex-1 flex items-center gap-2">
@@ -638,8 +639,8 @@ export function SearchPage() {
                     const originalUrl = extractBestImageUrl(item);
                     const src = originalUrl ? resolveMediaUrl(originalUrl) : undefined;
                     const href = item?.kind === 'service'
-                      ? `/app/service/${item.id}`
-                      : `/app/product/${item.id}`;
+                      ? `/service/${item.id}`
+                      : `/product/${item.id}`;
                     const ariaLabel = typeof item?.title === 'string' && item.title.trim().length > 0
                       ? item.title
                       : t('search.open_detail', { defaultValue: 'Abrir detalhes' }) as string;
@@ -723,7 +724,8 @@ export function SearchPage() {
             )}
           </div>
         </div>
-      </div>
+        </div>
+      </main>
       <Footer />
     </>
   );

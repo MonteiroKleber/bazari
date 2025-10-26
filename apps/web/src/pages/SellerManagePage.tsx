@@ -94,7 +94,7 @@ export default function SellerManagePage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-2 md:py-3">
       <Breadcrumbs items={[
         { label: t('nav.dashboard', { defaultValue: 'Dashboard' }), href: '/app' },
         { label: t('nav.myStores', { defaultValue: 'Minhas Lojas' }), href: '/app/sellers' },

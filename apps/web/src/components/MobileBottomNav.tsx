@@ -1,8 +1,9 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Store, Newspaper, PlusSquare, MessageSquare, User, Truck } from 'lucide-react';
+import { Store, Newspaper, PlusSquare, MessageSquare, User, Truck, Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import { useDeliveryProfile } from '@/hooks/useDeliveryProfile';
+import { useUnreadNotifications } from '@/hooks/useUnreadNotifications';
 import { apiHelpers } from '@/lib/api';
 
 interface NavItem {
@@ -15,6 +16,7 @@ interface NavItem {
 export function MobileBottomNav() {
   const location = useLocation();
   const { profile: deliveryProfile } = useDeliveryProfile();
+  const { unreadCount: notificationUnreadCount } = useUnreadNotifications();
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [currentUserHandle, setCurrentUserHandle] = useState<string>('');
   const [isVisible, setIsVisible] = useState(true);
@@ -73,6 +75,12 @@ export function MobileBottomNav() {
       path: '/app/feed',
     },
     {
+      icon: Bell,
+      label: 'Avisos',
+      path: '/app/notifications',
+      badge: notificationUnreadCount,
+    },
+    {
       icon: PlusSquare,
       label: 'Criar',
       path: '/app/new',
@@ -114,6 +122,10 @@ export function MobileBottomNav() {
     if (path === '/app/feed') {
       return location.pathname === '/app/feed';
     }
+    // Notifications
+    if (path === '/app/notifications') {
+      return location.pathname === '/app/notifications';
+    }
     // Chat
     if (path === '/app/chat') {
       return location.pathname.startsWith('/app/chat');
@@ -139,7 +151,7 @@ export function MobileBottomNav() {
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}
     >
-      <div className={cn('grid h-16', deliveryProfile ? 'grid-cols-5' : 'grid-cols-5')}>
+      <div className={cn('grid h-16', deliveryProfile ? 'grid-cols-6' : 'grid-cols-6')}>
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path);

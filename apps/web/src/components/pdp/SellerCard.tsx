@@ -86,7 +86,7 @@ export function SellerCard({ name, reputationPercent, profilePath, handle, class
             {t('pdp.seller')}
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3 text-sm text-muted-foreground">
+        <CardContent className="space-y-3 text-sm text-muted-foreground break-words overflow-wrap-anywhere">
           <p className="text-base font-medium text-foreground">{displayName}</p>
 
           {reputationText ? (
@@ -113,14 +113,14 @@ export function SellerCard({ name, reputationPercent, profilePath, handle, class
             </div>
           ) : null}
 
-          <div className="flex items-center gap-3" aria-live="polite">
+          <div className="flex flex-wrap items-center gap-3" aria-live="polite">
             {typeof followersCount === 'number' && (
               <span className="text-xs text-muted-foreground">{followersCount} {t('profile.followers')}</span>
             )}
             {computedProfilePath ? (
               <Link
                 to={computedProfilePath}
-                className="inline-flex items-center text-sm font-medium text-primary underline-offset-4 hover:underline"
+                className="inline-flex items-center text-sm font-medium text-primary underline-offset-4 hover:underline break-words"
               >
                 {t('pdp.seeProfile')}
               </Link>
@@ -128,7 +128,7 @@ export function SellerCard({ name, reputationPercent, profilePath, handle, class
             {onChainStoreId ? (
               <Link
                 to={`/loja/${onChainStoreId}`}
-                className="inline-flex items-center text-sm font-medium text-primary/80 underline-offset-4 hover:underline"
+                className="inline-flex items-center text-sm font-medium text-primary/80 underline-offset-4 hover:underline break-words"
               >
                 {t('store.onchain.openPublic', { defaultValue: 'Ver loja on-chain' })}
               </Link>

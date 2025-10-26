@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Link, useLocation } from "react-router-dom";
-import { Menu, MoreHorizontal, MessageSquare, Newspaper } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Menu, MoreHorizontal, MessageSquare, Newspaper, LogOut, User } from "lucide-react";
 import { BaseHeader } from "./BaseHeader";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 import { LanguageSwitcher } from "./LanguageSwitcher";
@@ -21,6 +21,11 @@ import { CreatePostButton } from "./social/CreatePostButton";
 import { UserMenu } from "./UserMenu";
 import { GlobalSearchBar } from "./GlobalSearchBar";
 import { NotificationCenter } from "./NotificationCenter";
+import { ReputationBadge } from "./profile/ReputationBadge";
+import { logoutSession } from "@/modules/auth/api";
+import { clearSession } from "@/modules/auth/session";
+import { toast } from "sonner";
+import { apiHelpers } from "@/lib/api";
 // import { WalletMenu } from "./WalletMenu"; // placeholder futuro
 
 /**
@@ -30,7 +35,11 @@ import { NotificationCenter } from "./NotificationCenter";
 export function AppHeader() {
   const { t } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [profile, setProfile] = React.useState<any>(null);
+  const [loadingProfile, setLoadingProfile] = React.useState(true);
+  const [loggingOut, setLoggingOut] = React.useState(false);
 
   const isActive = (path: string) => {
     if (path === '/app') {
@@ -57,6 +66,46 @@ export function AppHeader() {
   // All links for mobile menu
   const allNavLinks = [...primaryNavLinks, ...secondaryNavLinks];
 
+  // Fetch user profile for mobile menu
+  React.useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res: any = await apiHelpers.getMeProfile();
+        if (active) {
+          setProfile(res.profile);
+        }
+      } catch (error) {
+        // Handle error silently
+      } finally {
+        if (active) setLoadingProfile(false);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+
+  // Handle logout
+  const handleLogout = async () => {
+    if (loggingOut) return;
+
+    setLoggingOut(true);
+
+    try {
+      await logoutSession();
+      toast.success(t('auth.logout.success', { defaultValue: 'Logout realizado com sucesso!' }));
+      setMobileMenuOpen(false);
+      navigate('/');
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+      clearSession();
+      toast.error(t('auth.logout.error', { defaultValue: 'Erro ao fazer logout, mas você foi desconectado localmente.' }));
+      setMobileMenuOpen(false);
+      navigate('/');
+    } finally {
+      setLoggingOut(false);
+    }
+  };
+
   return (
     <BaseHeader
       left={
@@ -68,46 +117,102 @@ export function AppHeader() {
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-[280px] sm:w-[320px]">
-              <SheetHeader>
+            <SheetContent side="left" className="w-[280px] sm:w-[320px] flex flex-col p-0">
+              <SheetHeader className="px-6 py-4 border-b">
                 <SheetTitle>{t('nav.navigation', { defaultValue: 'Navegação' })}</SheetTitle>
               </SheetHeader>
-              <nav className="flex flex-col gap-4 mt-6" aria-label={t('nav.main', { defaultValue: 'Navegação principal' })}>
-                {allNavLinks.map((link) => {
-                  const active = link.checkActive();
-                  return (
-                    <Link
-                      key={link.to}
-                      to={link.to}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className={cn(
-                        "text-base font-medium transition-colors hover:text-primary px-2 py-2 rounded-md",
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-foreground hover:bg-accent"
-                      )}
-                      aria-current={active ? 'page' : undefined}
-                    >
-                      {link.label}
-                    </Link>
-                  );
-                })}
-              </nav>
 
-              {/* Mobile actions */}
-              <div className="mt-8 pt-6 border-t flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">{t('nav.theme', { defaultValue: 'Tema' })}</span>
-                  <ThemeSwitcher />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">{t('nav.language', { defaultValue: 'Idioma' })}</span>
-                  <LanguageSwitcher />
-                </div>
-                <div className="mt-2">
-                  <ApiHealth />
+              {/* Scrollable content area */}
+              <div className="flex-1 overflow-y-auto px-6 py-4">
+                {/* User Profile Section */}
+                {!loadingProfile && profile && (
+                  <div className="p-4 bg-muted/30 rounded-lg mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {profile.avatarUrl ? (
+                          <img
+                            src={profile.avatarUrl}
+                            alt={profile.displayName}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <User className="h-6 w-6 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">
+                          {profile.displayName}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          @{profile.handle}
+                        </p>
+                        {profile.reputationScore !== undefined && (
+                          <div className="mt-1">
+                            <ReputationBadge
+                              score={profile.reputationScore}
+                              tier={profile.reputationTier || 'bronze'}
+                              size="sm"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Navigation Links */}
+                <nav className="flex flex-col gap-2" aria-label={t('nav.main', { defaultValue: 'Navegação principal' })}>
+                  {allNavLinks.map((link) => {
+                    const active = link.checkActive();
+                    return (
+                      <Link
+                        key={link.to}
+                        to={link.to}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={cn(
+                          "text-sm font-medium transition-colors hover:text-primary px-3 py-2 rounded-md",
+                          active
+                            ? "bg-primary/10 text-primary"
+                            : "text-foreground hover:bg-accent"
+                        )}
+                        aria-current={active ? 'page' : undefined}
+                      >
+                        {link.label}
+                      </Link>
+                    );
+                  })}
+                </nav>
+
+                {/* Mobile actions */}
+                <div className="mt-6 pt-4 border-t space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">{t('nav.theme', { defaultValue: 'Tema' })}</span>
+                    <ThemeSwitcher />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">{t('nav.language', { defaultValue: 'Idioma' })}</span>
+                    <LanguageSwitcher />
+                  </div>
+                  <div>
+                    <ApiHealth />
+                  </div>
                 </div>
               </div>
+
+              {/* Fixed bottom section with Logout */}
+              {!loadingProfile && profile && (
+                <div className="border-t px-6 py-4 bg-background">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+                    onClick={handleLogout}
+                    disabled={loggingOut}
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    {loggingOut ? t('auth.logout.loading', { defaultValue: 'Saindo...' }) : t('auth.logout.button', { defaultValue: 'Sair' })}
+                  </Button>
+                </div>
+              )}
             </SheetContent>
           </Sheet>
 
@@ -126,8 +231,8 @@ export function AppHeader() {
         </>
       }
       nav={
-        <>
-          <nav className="hidden md:flex items-center gap-6" aria-label={t('nav.main', { defaultValue: 'Navegação principal' })}>
+        <div className="hidden md:flex items-center gap-6 flex-1">
+          <nav className="flex items-center gap-6 flex-shrink-0" aria-label={t('nav.main', { defaultValue: 'Navegação principal' })}>
             {/* Primary Navigation Links */}
             {primaryNavLinks.map((link) => {
               const active = link.checkActive();
@@ -136,7 +241,7 @@ export function AppHeader() {
                   key={link.to}
                   to={link.to}
                   className={cn(
-                    "text-sm font-medium transition-colors hover:text-primary",
+                    "text-sm font-medium transition-colors hover:text-primary whitespace-nowrap",
                     active
                       ? "text-foreground border-b-2 border-primary pb-1"
                       : "text-muted-foreground"
@@ -151,7 +256,7 @@ export function AppHeader() {
             {/* "Mais" Dropdown Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-sm font-medium text-muted-foreground hover:text-primary">
+                <Button variant="ghost" size="sm" className="text-sm font-medium text-muted-foreground hover:text-primary whitespace-nowrap">
                   <MoreHorizontal className="h-4 w-4 mr-1" />
                   {t('nav.more', { defaultValue: 'Mais' })}
                 </Button>
@@ -180,25 +285,23 @@ export function AppHeader() {
           </nav>
 
           {/* Global Search Bar - Desktop Full */}
-          <div className="hidden md:block flex-1 max-w-md mx-4">
+          <div className="flex-1 mx-6">
             <GlobalSearchBar variant="full" />
           </div>
-        </>
+        </div>
       }
       right={
         <>
           {/* Ações internas */}
-          <div className="flex items-center gap-4">
-            <div className="hidden md:flex items-center gap-3">
-              {/* Futuramente adicionar: Search, Notifications, Wallet */}
-              <CreatePostButton />
-              <ApiHealth />
-              <LanguageSwitcher />
-              <ThemeSwitcher />
-              <NotificationCenter />
-              <UserMenu />
-              {/* <WalletMenu /> */}
-            </div>
+          <div className="hidden md:flex items-center gap-6">
+            {/* Futuramente adicionar: Search, Notifications, Wallet */}
+            <CreatePostButton />
+            <ApiHealth />
+            <LanguageSwitcher />
+            <ThemeSwitcher />
+            <NotificationCenter />
+            <UserMenu />
+            {/* <WalletMenu /> */}
           </div>
         </>
       }

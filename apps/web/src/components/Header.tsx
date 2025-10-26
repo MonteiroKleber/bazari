@@ -31,12 +31,12 @@ export function Header() {
     <>
       <BaseHeader
         left={
-          <div className="flex items-center gap-2">
+          <a href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <span className="text-primary-foreground font-bold">B</span>
             </div>
             <span className="text-xl font-bold">Bazari</span>
-          </div>
+          </a>
         }
         nav={
           <nav className="hidden md:flex items-center gap-6">
@@ -50,7 +50,14 @@ export function Header() {
               <LanguageSwitcher />
               <ThemeSwitcher />
             </div>
-            <a href="/auth/unlock" className="hidden md:inline-block text-sm font-medium hover:text-primary">{t('header.login')}</a>
+            <div className="hidden md:flex items-center gap-2">
+              <a href="/auth" className="text-sm font-medium hover:text-primary transition-colors">
+                {t('header.login', { defaultValue: 'Acessar' })}
+              </a>
+              <Button asChild size="sm">
+                <a href="/auth/create">{t('header.createAccount', { defaultValue: 'Criar Conta' })}</a>
+              </Button>
+            </div>
             <Button
               variant="ghost"
               size="icon"
@@ -63,9 +70,10 @@ export function Header() {
         }
       />
 
+      {/* Menu mobile expansível - fixo abaixo do header */}
       {isMenuOpen && (
-        <div className="md:hidden py-4 border-t">
-          <div className="container mx-auto px-4">
+        <div className="md:hidden fixed top-16 left-0 right-0 z-40 bg-background border-b shadow-lg">
+          <div className="container mx-auto px-4 py-4">
             <nav className="flex flex-col gap-3">
               {navItems.map((item) => (
                 <a key={item.href} href={item.href} className="text-sm font-medium transition-colors hover:text-primary px-2 py-1" onClick={() => setIsMenuOpen(false)}>
@@ -77,7 +85,12 @@ export function Header() {
               <ApiHealth compact />
               <LanguageSwitcher />
               <ThemeSwitcher />
-              <a href="/auth/unlock" className="text-sm font-medium transition-colors hover:text-primary px-2 py-1">{t('header.login')}</a>
+              <a href="/auth" className="text-sm font-medium transition-colors hover:text-primary px-2 py-1" onClick={() => setIsMenuOpen(false)}>
+                {t('header.login', { defaultValue: 'Acessar' })}
+              </a>
+              <Button asChild className="w-full" size="sm">
+                <a href="/auth/create">{t('header.createAccount', { defaultValue: 'Criar Conta' })}</a>
+              </Button>
             </div>
           </div>
         </div>

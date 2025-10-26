@@ -43,8 +43,9 @@ export default function ExplorePage() {
   return (
     <>
       <Header />
-      <div className="container mx-auto px-4 py-10">
-        <div className="max-w-3xl mx-auto text-center mb-8">
+      <main className="pt-16">
+        <div className="container mx-auto px-4 py-10 mobile-safe-bottom">
+          <div className="max-w-3xl mx-auto text-center mb-8">
           <h1 className="text-3xl md:text-4xl font-bold mb-2">{t('explore.title')}</h1>
           <p className="text-muted-foreground">{t('explore.subtitle')}</p>
           <form onSubmit={onSubmit} className="mt-6 flex gap-2 items-center">
@@ -101,7 +102,8 @@ export default function ExplorePage() {
             </div>
           )}
         </section>
-      </div>
+        </div>
+      </main>
       <Footer />
     </>
   );

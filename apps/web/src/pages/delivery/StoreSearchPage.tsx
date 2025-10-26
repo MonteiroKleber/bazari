@@ -335,7 +335,7 @@ export function StoreSearchPage() {
   );
 
   return (
-    <div className="container max-w-4xl mx-auto py-8 px-4">
+    <div className="container max-w-4xl mx-auto py-2 md:py-3 px-4">
       {renderHeader()}
       {renderSearchBox()}
       {renderStoresList()}

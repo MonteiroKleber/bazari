@@ -48,12 +48,24 @@ async function apiFetch<T>(path: string, init: RequestInit = {}, options: ApiOpt
     clearTimeout(timeoutId);
 
     if (response.status === 401 && requireAuth && !isRetry) {
+      console.log('[apiFetch] Got 401, attempting refresh...', {
+        path,
+        requireAuth,
+        isRetry,
+        isReauthInProgress: isReauthInProgress()
+      });
+
       if (!isReauthInProgress()) {
         const refreshed = await refreshSession();
+        console.log('[apiFetch] Refresh result:', refreshed);
+
         if (refreshed) {
+          console.log('[apiFetch] Refresh successful, retrying request...');
           return apiFetch<T>(path, init, { requireAuth, isRetry: true });
         }
       }
+
+      console.error('[apiFetch] Throwing 401 Unauthorized error');
       throw new ApiError(401, 'Unauthorized');
     }
 
@@ -63,14 +75,37 @@ async function apiFetch<T>(path: string, init: RequestInit = {}, options: ApiOpt
     }
 
     if (response.status === 204) {
+      console.log('[apiFetch] 204 No Content, returning {}');
       return {} as T;
     }
 
     const contentType = response.headers.get('content-type');
+    console.log('[apiFetch] Response details:', {
+      path,
+      status: response.status,
+      contentType,
+      ok: response.ok
+    });
+
     if (contentType?.includes('application/json')) {
-      return (await response.json()) as T;
+      const jsonData = await response.json();
+
+      // Debug logging for analytics endpoint
+      if (path.includes('/analytics')) {
+        console.log('[apiFetch] Analytics response:', {
+          path,
+          status: response.status,
+          contentType,
+          dataKeys: Object.keys(jsonData || {}),
+          hasOverview: !!(jsonData as any)?.overview,
+          data: jsonData
+        });
+      }
+
+      return jsonData as T;
     }
 
+    console.warn('[apiFetch] Non-JSON response, returning {}. Content-Type:', contentType);
     return {} as T;
   } catch (error) {
     clearTimeout(timeoutId);
@@ -130,14 +165,13 @@ export async function postJSON<T>(
 }
 
 // Helper para POST com multipart/form-data
-export async function postMultipart<T>(path: string, form: FormData): Promise<T> {
+export async function postMultipart<T>(path: string, form: FormData, options?: { timeout?: number }): Promise<T> {
+  // IMPORTANTE: Não definir Content-Type! O browser define automaticamente com boundary
+  // Timeout padrão de 5 minutos (300000ms) para uploads grandes
   return apiFetch<T>(path, {
     method: "POST",
-    headers: {
-      "Accept": "application/json",
-    },
     body: form,
-  });
+  }, { timeout: options?.timeout ?? 300000 });
 }
 
 // Helper para PUT com JSON
@@ -319,10 +353,7 @@ export const apiHelpers = {
   uploadPostVideo: (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    return apiFetch('/media/upload-video', {
-      method: 'POST',
-      body: formData,
-    }, { requireAuth: true });
+    return postMultipart<{ asset: { id: string; url: string; mime: string; size: number; thumbnailUrl?: string } }>('/media/upload-video', formData);
   },
 
   // Global search

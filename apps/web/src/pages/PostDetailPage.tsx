@@ -138,7 +138,7 @@ export function PostDetailPage() {
   }
 
   return (
-    <div className="container max-w-2xl mx-auto p-4">
+    <div className="container max-w-2xl mx-auto px-4 py-2 md:py-3">
       {/* Botão Voltar */}
       <Button
         variant="ghost"

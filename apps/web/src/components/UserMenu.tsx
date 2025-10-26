@@ -24,10 +24,14 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/theme/ThemeProvider';
 import { ReputationBadge } from './profile/ReputationBadge';
+import { logoutSession } from '@/modules/auth/api';
+import { clearSession } from '@/modules/auth/session';
+import { toast } from 'sonner';
 
 export function UserMenu() {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
 
@@ -48,10 +52,32 @@ export function UserMenu() {
     return () => { active = false; };
   }, []);
 
-  const handleLogout = () => {
-    // TODO: implement logout
-    localStorage.removeItem('accessToken');
-    navigate('/');
+  const handleLogout = async () => {
+    if (loggingOut) return; // Previne múltiplos cliques
+
+    setLoggingOut(true);
+
+    try {
+      // Chama a função oficial de logout que:
+      // 1. Faz POST para /auth/logout (revoga refresh token no backend)
+      // 2. Limpa cookie refresh_token
+      // 3. Remove 'bazari_session' do localStorage
+      // 4. Notifica componentes sobre o logout
+      await logoutSession();
+
+      toast.success('Logout realizado com sucesso!');
+      navigate('/');
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+
+      // Mesmo com erro na API, limpar sessão local por segurança
+      clearSession();
+
+      toast.error('Erro ao fazer logout, mas você foi desconectado localmente.');
+      navigate('/');
+    } finally {
+      setLoggingOut(false);
+    }
   };
 
   const toggleTheme = () => {
@@ -144,7 +170,7 @@ export function UserMenu() {
         </DropdownMenuItem>
 
         <DropdownMenuItem asChild>
-          <Link to="/app/stats" className="cursor-pointer">
+          <Link to="/app/analytics" className="cursor-pointer">
             <BarChart3 className="mr-2 h-4 w-4" />
             Estatísticas
           </Link>
@@ -166,9 +192,13 @@ export function UserMenu() {
 
         <DropdownMenuSeparator />
 
-        <DropdownMenuItem onClick={handleLogout} className="text-red-600">
+        <DropdownMenuItem
+          onClick={handleLogout}
+          className="text-red-600"
+          disabled={loggingOut}
+        >
           <LogOut className="mr-2 h-4 w-4" />
-          Sair
+          {loggingOut ? 'Saindo...' : 'Sair'}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

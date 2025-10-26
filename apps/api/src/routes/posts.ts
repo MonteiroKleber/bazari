@@ -3,6 +3,7 @@ import type { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { authOnRequest, optionalAuthOnRequest } from '../lib/auth/middleware.js';
 import { createNotification } from '../lib/notifications.js';
+import { checkAchievements } from '../lib/achievementChecker.js';
 import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
@@ -20,6 +21,51 @@ export async function postsRoutes(app: FastifyInstance, options: { prisma: Prism
   function sanitizePlainText(input: string): string {
     // remove quaisquer tags HTML e normaliza espaços
     return input.replace(TAGS_REGEX, '').replace(/\s+$/g, '').trim();
+  }
+
+  // Função para extrair @mentions do conteúdo
+  function extractMentions(content: string): string[] {
+    const mentionRegex = /@([a-zA-Z0-9_]+)/g;
+    const mentions = new Set<string>();
+    let match;
+    while ((match = mentionRegex.exec(content)) !== null) {
+      mentions.add(match[1]); // Captura o handle sem o @
+    }
+    return Array.from(mentions);
+  }
+
+  // Função para criar notificações de mention
+  async function notifyMentions(
+    content: string,
+    authorProfileId: string,
+    authorUserId: string,
+    targetId: string,
+    targetType: 'post' | 'comment'
+  ): Promise<void> {
+    const handles = extractMentions(content);
+    if (handles.length === 0) return;
+
+    // Buscar perfis mencionados
+    const profiles = await prisma.profile.findMany({
+      where: {
+        handle: { in: handles, mode: 'insensitive' },
+        id: { not: authorProfileId }, // Não notificar a si mesmo
+      },
+      select: { id: true, userId: true },
+    });
+
+    // Criar notificações para cada perfil mencionado
+    for (const profile of profiles) {
+      await createNotification(prisma, {
+        userId: profile.userId,
+        type: 'MENTION',
+        actorId: authorProfileId,
+        targetId,
+        metadata: { targetType },
+      }).catch(err =>
+        app.log.error({ err, userId: profile.userId }, 'Erro ao criar notificação de mention')
+      );
+    }
   }
 
   // POST /posts/upload-image
@@ -144,6 +190,17 @@ export async function postsRoutes(app: FastifyInstance, options: { prisma: Prism
     });
 
     app.log.info({ event: 'post.create', authorProfileId: meProfile.id, postId: result.id });
+
+    // Verificar conquistas após criar post (não bloquear resposta)
+    checkAchievements(prisma, authUser.sub, 'POST_CREATED').catch(err =>
+      app.log.error({ err, userId: authUser.sub }, 'Erro ao verificar conquistas')
+    );
+
+    // Notificar usuários mencionados (não bloquear resposta)
+    notifyMentions(safeContent, meProfile.id, authUser.sub, result.id, 'post').catch(err =>
+      app.log.error({ err, postId: result.id }, 'Erro ao notificar mentions')
+    );
+
     return reply.status(201).send({ post: { id: result.id, createdAt: result.createdAt.toISOString() } });
   });
 
@@ -222,6 +279,11 @@ export async function postsRoutes(app: FastifyInstance, options: { prisma: Prism
         actorId: meProfile.id,
         targetId: post.id
       });
+
+      // Verificar conquistas do autor do post (recebeu like)
+      checkAchievements(prisma, post.author.userId, 'LIKE_RECEIVED').catch(err =>
+        app.log.error({ err, userId: post.author.userId }, 'Erro ao verificar conquistas')
+      );
     }
 
     // Contar likes
@@ -373,13 +435,27 @@ export async function postsRoutes(app: FastifyInstance, options: { prisma: Prism
     const meProfile = await prisma.profile.findUnique({ where: { userId: authUser.sub }, select: { id: true } });
     if (!meProfile) return reply.status(400).send({ error: 'Perfil do usuário não encontrado' });
 
-    // Verificar se post existe
+    // Verificar se post existe e buscar autor
     const post = await prisma.post.findUnique({
       where: { id },
-      select: { id: true, status: true }
+      select: {
+        id: true,
+        status: true,
+        author: { select: { userId: true } }
+      }
     });
     if (!post) return reply.status(404).send({ error: 'Post não encontrado' });
     if (post.status !== 'PUBLISHED') return reply.status(400).send({ error: 'Post não está publicado' });
+
+    // Verificar se já existe reação para saber se deve notificar
+    const existingReaction = await prisma.postReaction.findUnique({
+      where: {
+        postId_profileId: {
+          postId: id,
+          profileId: meProfile.id,
+        },
+      },
+    });
 
     // Upsert reação (criar ou atualizar)
     await prisma.postReaction.upsert({
@@ -398,6 +474,22 @@ export async function postsRoutes(app: FastifyInstance, options: { prisma: Prism
         reaction,
       },
     });
+
+    // Criar notificação apenas se é uma nova reação (não update)
+    if (!existingReaction) {
+      await createNotification(prisma, {
+        userId: post.author.userId,
+        type: 'LIKE',
+        actorId: meProfile.id,
+        targetId: id,
+        metadata: { reaction }
+      });
+
+      // Verificar conquistas do autor do post (recebeu reação/like)
+      checkAchievements(prisma, post.author.userId, 'LIKE_RECEIVED').catch(err =>
+        app.log.error({ err, userId: post.author.userId }, 'Erro ao verificar conquistas')
+      );
+    }
 
     // Buscar contadores de reações agrupadas
     const reactionCounts = await prisma.postReaction.groupBy({
@@ -663,7 +755,7 @@ export async function postsRoutes(app: FastifyInstance, options: { prisma: Prism
       },
     });
 
-    // Criar notificação
+    // Criar notificação para o autor do post
     await createNotification(prisma, {
       userId: post.author.userId,
       type: 'COMMENT',
@@ -671,6 +763,16 @@ export async function postsRoutes(app: FastifyInstance, options: { prisma: Prism
       targetId: post.id,
       metadata: { commentId: comment.id }
     });
+
+    // Notificar usuários mencionados no comentário (não bloquear resposta)
+    notifyMentions(body.content.trim(), meProfile.id, authUser.sub, post.id, 'comment').catch(err =>
+      app.log.error({ err, commentId: comment.id }, 'Erro ao notificar mentions no comentário')
+    );
+
+    // Verificar conquistas (comentou)
+    checkAchievements(prisma, authUser.sub, 'COMMENT_CREATED').catch(err =>
+      app.log.error({ err, userId: authUser.sub }, 'Erro ao verificar conquistas')
+    );
 
     app.log.info({ event: 'post.comment', postId: id, commentId: comment.id, profileId: meProfile.id });
 
@@ -920,13 +1022,23 @@ export async function postsRoutes(app: FastifyInstance, options: { prisma: Prism
       // Verificar se comentário existe e pertence ao post
       const comment = await prisma.postComment.findUnique({
         where: { id: commentId },
-        select: { id: true, postId: true, authorId: true },
+        select: { id: true, postId: true, authorId: true, author: { select: { userId: true } } },
       });
 
       if (!comment) return reply.status(404).send({ error: 'Comentário não encontrado' });
       if (comment.postId !== postId) {
         return reply.status(400).send({ error: 'Comentário não pertence a este post' });
       }
+
+      // Verificar se já existe para saber se deve criar notificação
+      const existingLike = await prisma.postCommentLike.findUnique({
+        where: {
+          commentId_profileId: {
+            commentId,
+            profileId: meProfile.id,
+          },
+        },
+      });
 
       // Upsert (idempotente)
       await prisma.postCommentLike.upsert({
@@ -942,6 +1054,17 @@ export async function postsRoutes(app: FastifyInstance, options: { prisma: Prism
           profileId: meProfile.id,
         },
       });
+
+      // Criar notificação apenas se foi um novo like
+      if (!existingLike) {
+        await createNotification(prisma, {
+          userId: comment.author.userId,
+          type: 'LIKE',
+          actorId: meProfile.id,
+          targetId: postId,
+          metadata: { commentId: comment.id },
+        });
+      }
 
       // Contar likes
       const likesCount = await prisma.postCommentLike.count({

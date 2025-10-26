@@ -47,7 +47,7 @@ export default function P2PHomePage() {
   }, []);
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="container mx-auto px-4 py-2 md:py-3">
       <div className="flex items-center justify-between gap-3 mb-4">
         <div className="flex gap-2" role="tablist" aria-label="P2P tabs">
           <Button variant={tab==='BUY'?'default':'outline'} role="tab" aria-selected={tab==='BUY'} onClick={() => setTab('BUY')}>{t('p2p.tabs.buyBzr')}</Button>

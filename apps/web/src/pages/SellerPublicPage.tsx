@@ -266,7 +266,7 @@ export default function SellerPublicPage({ mode = 'default' }: SellerPublicPageP
 
     const storeUrl = `${window.location.origin}/s/${profile.shopSlug}`;
     const productSources = items.slice(0, 20).map((item: any) => {
-      const itemPath = item?.kind === 'service' ? `/app/service/${item.id}` : `/app/product/${item.id}`;
+      const itemPath = item?.kind === 'service' ? `/service/${item.id}` : `/product/${item.id}`;
       const itemUrl = `${window.location.origin}${itemPath}`;
       return {
         id: item.id,
@@ -460,7 +460,7 @@ export default function SellerPublicPage({ mode = 'default' }: SellerPublicPageP
   const renderCard = (item: any) => {
     const cover = extractCoverUrl(item);
     const priceLabel = formatPrice(item.priceBzr, i18n.language);
-    const href = item?.kind === 'service' ? `/app/service/${item.id}` : `/app/product/${item.id}`;
+    const href = item?.kind === 'service' ? `/service/${item.id}` : `/product/${item.id}`;
     const kindLabel = item.kind === 'service' ? t('search.services') : t('search.products');
     const srcSet = cover ? buildSrcSet(cover) : undefined;
     const sizes = getImageSizes(viewMode);
@@ -649,7 +649,7 @@ export default function SellerPublicPage({ mode = 'default' }: SellerPublicPageP
         <Header />
       )}
       <StoreLayout theme={storeTheme} className="min-h-screen">
-        <main className="container mx-auto flex flex-col gap-8 px-4 py-8">
+        <main className="container mx-auto flex flex-col gap-8 px-4 py-8 mobile-safe-bottom pt-16">
           {profileLoading ? (
             <div className="h-48 animate-pulse rounded-xl border border-store-ink/15 bg-store-brand/10" />
           ) : profileError ? (

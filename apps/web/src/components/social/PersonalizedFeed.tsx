@@ -98,10 +98,10 @@ export function PersonalizedFeed({ showQuickPost = false, userProfile, onCreateP
       </div>
 
       {/* Feed Content */}
-      <div className="divide-y">
+      <div className="space-y-3">
         {/* Loading Initial */}
         {loading && (
-          <div className="divide-y">
+          <div className="space-y-3">
             <SkeletonList count={5} SkeletonComponent={PostCardSkeleton} />
           </div>
         )}

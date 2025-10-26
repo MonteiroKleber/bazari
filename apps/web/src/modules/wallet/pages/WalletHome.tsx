@@ -24,7 +24,7 @@ export function WalletHome() {
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <main className="container mx-auto px-4 py-10">
+      <main className="container mx-auto px-4 py-10 pt-20">
         <nav aria-label={t('wallet.nav.aria')} className="mb-6">
           <ul className="flex flex-wrap gap-2 rounded-lg border border-border/60 bg-muted/40 p-2 text-sm">
             {navigation.map((item) => (

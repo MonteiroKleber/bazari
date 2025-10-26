@@ -160,7 +160,7 @@ export function ProductInfo({ product }: ProductInfoProps) {
       </div>
 
       {product.daoId ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground break-all">
           {product.daoId}
         </p>
       ) : null}

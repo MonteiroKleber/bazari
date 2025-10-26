@@ -230,7 +230,7 @@ export default function ProfileEditPage() {
   if (loading) return <div className="container mx-auto px-4 py-8">Carregando…</div>;
 
   return (
-    <section className="container mx-auto px-4 py-8">
+    <section className="container mx-auto px-4 py-2 md:py-3">
       <Breadcrumbs items={[
         { label: t('nav.dashboard', { defaultValue: 'Dashboard' }), href: '/app' },
         { label: isNew ? t('profile.create', { defaultValue: 'Criar Perfil' }) : t('profile.edit', { defaultValue: 'Editar Perfil' }) }

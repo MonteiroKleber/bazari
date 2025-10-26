@@ -87,11 +87,11 @@ export default function P2POfferPublicPage() {
     }
   };
 
-  if (loading) return <div className="container mx-auto px-4 py-6">{t('common.loading')}</div>;
-  if (err || !offer) return <div className="container mx-auto px-4 py-6">{err || t('common.error')}</div>;
+  if (loading) return <div className="container mx-auto px-4 py-2 md:py-3">{t('common.loading')}</div>;
+  if (err || !offer) return <div className="container mx-auto px-4 py-2 md:py-3">{err || t('common.error')}</div>;
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="container mx-auto px-4 py-2 md:py-3">
       <Card>
         <CardHeader className="flex items-center justify-between">
           <CardTitle className="text-base">{offer.owner?.handle ? `@${offer.owner.handle}` : offer.ownerId.substring(0,6) + '…'}</CardTitle>

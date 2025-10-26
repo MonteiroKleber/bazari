@@ -487,7 +487,7 @@ export function DeliveryEarningsPage() {
 
   if (isLoading) {
     return (
-      <div className="container max-w-6xl mx-auto py-8 px-4">
+      <div className="container max-w-6xl mx-auto py-2 md:py-3 px-4">
         <div className="flex items-center justify-center h-64">
           <p>Carregando ganhos...</p>
         </div>
@@ -496,7 +496,7 @@ export function DeliveryEarningsPage() {
   }
 
   return (
-    <div className="container max-w-6xl mx-auto py-8 px-4">
+    <div className="container max-w-6xl mx-auto py-2 md:py-3 px-4">
       {renderHeader()}
       {renderSummaryCards()}
       {period === 'month' && renderChart()}

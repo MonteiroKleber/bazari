@@ -102,7 +102,7 @@ export default function P2POfferNewPage() {
   }, [pixInput, t]);
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="container mx-auto px-4 py-2 md:py-3">
       <Card>
         <CardHeader>
           <CardTitle>{t('p2p.new.title')}</CardTitle>

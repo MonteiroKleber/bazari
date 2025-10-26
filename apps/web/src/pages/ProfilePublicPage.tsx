@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Edit } from 'lucide-react';
 import { apiHelpers } from '../lib/api';
 import { Button } from '../components/ui/button';
+import { cn } from '@/lib/utils';
 import { Card, CardContent } from '../components/ui/card';
 import { useTranslation } from 'react-i18next';
 import { SellerCard } from '@/components/pdp/SellerCard';
@@ -161,9 +162,9 @@ export default function ProfilePublicPage() {
   const isOwnProfile = currentUser?.handle === p.handle;
 
   return (
-    <div className="container mx-auto px-4 py-0">
+    <div className="container mx-auto px-4 py-0 mobile-safe-bottom">
       {/* Breadcrumb Navigation */}
-      <div className="py-4 flex items-center justify-between">
+      <div className="py-2 md:py-3 flex items-center justify-between">
         <Button variant="ghost" size="sm" asChild>
           <Link to="/app/feed" className="flex items-center gap-2">
             <ArrowLeft className="h-4 w-4" />
@@ -182,9 +183,9 @@ export default function ProfilePublicPage() {
         )}
       </div>
 
-      {/* Banner Section */}
+      {/* Banner Section - Edge-to-edge no mobile, contido no desktop */}
       {p.bannerUrl ? (
-        <div className="relative w-full h-48 md:h-64 -mx-4 md:mx-0 md:rounded-lg overflow-hidden bg-muted">
+        <div className="relative w-screen h-48 md:w-full md:h-64 -ml-4 md:ml-0 md:rounded-lg overflow-hidden bg-muted">
           <img
             src={p.bannerUrl}
             alt={`${p.displayName} banner`}
@@ -192,7 +193,7 @@ export default function ProfilePublicPage() {
           />
         </div>
       ) : (
-        <div className="relative w-full h-48 md:h-64 -mx-4 md:mx-0 md:rounded-lg bg-gradient-to-br from-primary/20 to-primary/5" />
+        <div className="relative w-screen h-48 md:w-full md:h-64 -ml-4 md:ml-0 md:rounded-lg bg-gradient-to-br from-primary/20 to-primary/5" />
       )}
 
       {/* Profile Header - Sobreposto ao banner */}
@@ -283,17 +284,36 @@ export default function ProfilePublicPage() {
         </Card>
       )}
 
-      {/* Tabs */}
-      <div className="flex gap-3 border-b border-border mb-4">
-        {(['posts','reputation','store','followers','following'] as const).map((tabKey) => (
-          <button key={tabKey} className={`px-3 py-2 -mb-px border-b-2 ${tab===tabKey? 'border-primary text-foreground':'border-transparent text-muted-foreground'}`} onClick={() => setTab(tabKey)}>
-            {tabKey === 'posts' && t('profile.posts')}
-            {tabKey === 'reputation' && 'Reputação'}
-            {tabKey === 'store' && t('profile.store')}
-            {tabKey === 'followers' && t('profile.followers')}
-            {tabKey === 'following' && t('profile.following')}
-          </button>
-        ))}
+      {/* Tabs - Mobile Scrollable, Desktop Normal */}
+      <div className="relative mb-4">
+        <div className="overflow-x-auto scrollbar-hide border-b border-border">
+          <div className="flex gap-1 min-w-max md:min-w-0">
+            {(['posts','reputation','store','followers','following'] as const).map((tabKey) => (
+              <button
+                key={tabKey}
+                className={cn(
+                  "px-4 py-2.5 whitespace-nowrap text-sm font-medium transition-colors -mb-px border-b-2",
+                  tab === tabKey
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                )}
+                onClick={() => setTab(tabKey)}
+              >
+                {tabKey === 'posts' && t('profile.posts', { defaultValue: 'Posts' })}
+                {tabKey === 'reputation' && t('profile.reputation', { defaultValue: 'Reputação' })}
+                {tabKey === 'store' && t('profile.store', { defaultValue: 'Loja' })}
+                {tabKey === 'followers' && t('profile.followers', { defaultValue: 'Seguidores' })}
+                {tabKey === 'following' && t('profile.following', { defaultValue: 'Seguindo' })}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Indicador visual de scroll disponível (gradiente sutil) */}
+        <div
+          className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none md:hidden"
+          aria-hidden="true"
+        />
       </div>
 
       {/* Content */}
@@ -424,7 +444,7 @@ export default function ProfilePublicPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {storeItems.map((prod) => (
                       <Card key={prod.id} className="overflow-hidden">
-                        <Link to={`/app/product/${prod.id}`} className="block">
+                        <Link to={`/product/${prod.id}`} className="block">
                           {prod.coverUrl ? (
                             <img src={resolveMediaUrl(prod.coverUrl)} alt={prod.title} loading="lazy" className="w-full aspect-video object-cover bg-muted" />
                           ) : (

@@ -16,6 +16,8 @@ import { useServiceDetail } from '../hooks/useServiceDetail';
 import { useEffectiveSpec } from '../hooks/useEffectiveSpec';
 import { useRelatedItems } from '../hooks/useRelatedItems';
 import { generateServiceSchema } from '../utils/seo';
+import { DynamicHeader } from '../components/DynamicHeader';
+import { Footer } from '../components/Footer';
 
 export function ServiceDetailPage() {
   const { t } = useTranslation();
@@ -101,84 +103,108 @@ export function ServiceDetailPage() {
 
   if (!itemId) {
     return (
-      <section className="container mx-auto px-4 py-12" role="alert">
-        <p className="text-muted-foreground">{t('pdp.error')}</p>
-      </section>
+      <>
+        <DynamicHeader />
+        <main className="pt-16">
+          <section className="container mx-auto px-4 py-12 mobile-safe-bottom" role="alert">
+            <p className="text-muted-foreground">{t('pdp.error')}</p>
+          </section>
+        </main>
+        <Footer />
+      </>
     );
   }
 
   if (status === 'loading') {
     return (
-      <section className="container mx-auto px-4 py-12" aria-busy="true">
-        <p className="sr-only">{t('pdp.loading')}</p>
-        <div className="animate-pulse space-y-6">
-          <div className="h-4 w-1/3 rounded bg-muted" />
-          <div className="grid gap-8 lg:grid-cols-2">
-            <div className="aspect-square rounded bg-muted" />
-            <div className="space-y-4">
-              <div className="h-8 w-2/3 rounded bg-muted" />
-              <div className="h-6 w-1/4 rounded bg-muted" />
-              <div className="h-24 rounded bg-muted" />
+      <>
+        <DynamicHeader />
+        <main className="pt-16">
+          <section className="container mx-auto px-4 py-12 mobile-safe-bottom" aria-busy="true">
+            <p className="sr-only">{t('pdp.loading')}</p>
+            <div className="animate-pulse space-y-6">
+              <div className="h-4 w-1/3 rounded bg-muted" />
+              <div className="grid gap-8 lg:grid-cols-2">
+                <div className="aspect-square rounded bg-muted" />
+                <div className="space-y-4">
+                  <div className="h-8 w-2/3 rounded bg-muted" />
+                  <div className="h-6 w-1/4 rounded bg-muted" />
+                  <div className="h-24 rounded bg-muted" />
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      </section>
+          </section>
+        </main>
+        <Footer />
+      </>
     );
   }
 
   if (status === 'error' || !data) {
     return (
-      <section className="container mx-auto px-4 py-12" role="alert">
-        <div className="rounded border border-destructive/50 bg-destructive/5 p-6">
-          <p className="text-destructive font-medium">
-            {error === 'not_found' ? t('pdp.error') : t('pdp.error')}
-          </p>
-        </div>
-      </section>
+      <>
+        <DynamicHeader />
+        <main className="pt-16">
+          <section className="container mx-auto px-4 py-12 mobile-safe-bottom" role="alert">
+            <div className="rounded border border-destructive/50 bg-destructive/5 p-6">
+              <p className="text-destructive font-medium">
+                {error === 'not_found' ? t('pdp.error') : t('pdp.error')}
+              </p>
+            </div>
+          </section>
+        </main>
+        <Footer />
+      </>
     );
   }
 
   return (
-    <section className="container mx-auto px-4 py-12" aria-labelledby="service-title">
-      <Breadcrumbs categoryPath={data.categoryPath} title={data.title} />
+    <>
+      <DynamicHeader />
+      <main className="pt-16">
+        <section className="container mx-auto px-4 py-2 md:py-3 mobile-safe-bottom" aria-labelledby="service-title">
+        <Breadcrumbs categoryPath={data.categoryPath} title={data.title} />
 
-      <div className="mt-6 grid gap-8 lg:grid-cols-2">
-        <ImageGallery images={data.mediaNormalized} title={data.title} />
+        <div className="mt-6 grid gap-8 lg:grid-cols-2">
+          <ImageGallery images={data.mediaNormalized} title={data.title} />
 
-        <article className="space-y-6">
-          <ServiceInfo service={data} />
+          <article className="space-y-6">
+            <ServiceInfo service={data} />
 
-          <div className="space-y-6">
-            <AttributesDisplay attributes={data.attributes} categorySpec={spec} />
-            <DescriptionBlock description={data.description ?? undefined} />
-            <SellerCard
-              name={data.seller?.shopName ?? data.daoName ?? data.daoId}
-              reputationPercent={data.sellerReputation ?? null}
-              handle={data.seller?.handle ?? null}
-              profilePath={data.seller?.shopSlug ? `/seller/${data.seller.shopSlug}` : undefined}
-              onChainStats={data.onChainReputation ?? null}
-              onChainStoreId={data.onChainStoreId ?? null}
-            />
-            <ShippingCalculator />
-          </div>
-        </article>
-      </div>
+            <div className="space-y-6">
+              <AttributesDisplay attributes={data.attributes} categorySpec={spec} />
+              <DescriptionBlock description={data.description ?? undefined} />
+              <SellerCard
+                name={data.seller?.shopName ?? data.daoName ?? data.daoId}
+                reputationPercent={data.sellerReputation ?? null}
+                handle={data.seller?.handle ?? null}
+                profilePath={data.seller?.shopSlug ? `/seller/${data.seller.shopSlug}` : undefined}
+                onChainStats={data.onChainReputation ?? null}
+                onChainStoreId={data.onChainStoreId ?? null}
+              />
+              <ShippingCalculator />
+            </div>
+          </article>
+        </div>
 
-      {shouldShowFallback ? (
-        <section className="mt-12" aria-live="polite">
-          <h2 className="text-2xl font-semibold text-foreground">
-            {t('pdp.related', { defaultValue: 'Produtos Relacionados' })}
-          </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {related.status === 'loading' ? t('pdp.loading') : t('pdp.error')}
-          </p>
+        {shouldShowFallback ? (
+          <section className="mt-12" aria-live="polite">
+            <h2 className="text-2xl font-semibold text-foreground">
+              {t('pdp.related', { defaultValue: 'Produtos Relacionados' })}
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {related.status === 'loading' ? t('pdp.loading') : t('pdp.error')}
+            </p>
+          </section>
+        ) : null}
+
+        {hasRelatedItems ? (
+          <RelatedItems items={filteredRelatedItems} kind="service" />
+        ) : null}
         </section>
-      ) : null}
-
-      {hasRelatedItems ? (
-        <RelatedItems items={filteredRelatedItems} kind="service" />
-      ) : null}
-    </section>
+      </main>
+      <Footer />
+    </>
   );
 }
 

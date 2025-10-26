@@ -165,7 +165,7 @@ export function ServiceInfo({ service }: ServiceInfoProps) {
       </div>
 
       {service.daoId ? (
-        <p className="text-sm text-muted-foreground">{service.daoId}</p>
+        <p className="text-sm text-muted-foreground break-all">{service.daoId}</p>
       ) : null}
 
       {!hasMedia(service.media) ? (

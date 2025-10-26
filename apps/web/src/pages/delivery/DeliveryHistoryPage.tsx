@@ -448,7 +448,7 @@ export function DeliveryHistoryPage() {
   };
 
   return (
-    <div className="container max-w-6xl mx-auto py-8 px-4">
+    <div className="container max-w-6xl mx-auto py-2 md:py-3 px-4">
       {renderHeader()}
       {renderStats()}
       {renderFilters()}

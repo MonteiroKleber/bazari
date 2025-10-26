@@ -10,6 +10,8 @@
     --foreground: 0 0% 10%;
     --card: 0 0% 100%;
     --card-foreground: 0 0% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
     --primary: 0 100% 27%;       /* #8B0000 */
     --primary-foreground: 0 0% 100%;
     --secondary: 45 100% 54%;    /* #FFB300 */
@@ -30,6 +32,8 @@
     --foreground: 0 0% 96%;
     --card: 0 0% 12%;
     --card-foreground: 0 0% 96%;
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 96%;
     --primary: 0 80% 45%;
     --primary-foreground: 0 0% 100%;
     --secondary: 45 100% 54%;
@@ -50,6 +54,8 @@
     --foreground: 0 0% 12%;
     --card: 0 0% 100%;
     --card-foreground: 0 0% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
     --primary: 45 100% 45%;
     --primary-foreground: 0 0% 10%;
     --secondary: 12 80% 52%;
@@ -70,6 +76,8 @@
     --foreground: 160 50% 12%;
     --card: 0 0% 100%;
     --card-foreground: 160 50% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 160 50% 12%;
     --primary: 160 85% 35%;
     --primary-foreground: 0 0% 100%;
     --secondary: 45 100% 54%;
@@ -90,6 +98,8 @@
     --foreground: 250 30% 12%;
     --card: 0 0% 100%;
     --card-foreground: 250 30% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 250 30% 12%;
     --primary: 258 80% 50%;
     --primary-foreground: 0 0% 100%;
     --secondary: 210 90% 50%;
@@ -110,6 +120,8 @@
     --foreground: 0 0% 96%;
     --card: 230 25% 12%;
     --card-foreground: 0 0% 96%;
+    --popover: 230 25% 12%;
+    --popover-foreground: 0 0% 96%;
     --primary: 170 95% 55%;
     --primary-foreground: 0 0% 12%;
     --secondary: 318 95% 55%;
@@ -127,13 +139,25 @@
     @apply border-border;
   }
 
-  body {
+  html, body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+    overflow-x: hidden;
+    width: 100%;
   }
 }
 
 @layer utilities {
+  /* Esconder scrollbar mas manter funcionalidade de scroll */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari, Opera */
+  }
+
   @keyframes blob {
     0% {
       transform: translate(0px, 0px) scale(1);
@@ -167,28 +191,35 @@
     .mobile-safe-bottom {
       padding-bottom: calc(4rem + env(safe-area-inset-bottom));
     }
+  }
 
-    /* Optimize touch targets */
-    .touch-target {
-      min-height: 44px;
-      min-width: 44px;
+  /* Desktop padding for footer spacing */
+  @media (min-width: 769px) {
+    .mobile-safe-bottom {
+      padding-bottom: 2rem;
     }
+  }
 
-    /* Prevent text selection on tap */
-    .no-tap-highlight {
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
-    }
+  /* Optimize touch targets */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
 
-    /* Hide scrollbar on mobile */
-    .hide-scrollbar {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
-    }
+  /* Prevent text selection on tap */
+  .no-tap-highlight {
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
 
-    .hide-scrollbar::-webkit-scrollbar {
-      display: none;
-    }
+  /* Hide scrollbar on mobile */
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 
   /* Smooth scrolling for mobile */

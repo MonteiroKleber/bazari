@@ -63,7 +63,7 @@ export default function BookmarksPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-3xl">
+    <div className="container mx-auto px-4 py-2 md:py-3 max-w-3xl">
       <div className="flex items-center gap-3 mb-6">
         <Bookmark className="h-6 w-6" />
         <h1 className="text-2xl font-bold">Posts Salvos</h1>

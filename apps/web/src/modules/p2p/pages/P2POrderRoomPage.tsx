@@ -430,11 +430,11 @@ ${t('wallet.ed', 'Depósito existencial (ED)')}: ${edS}
 => ${ok}`;
   }, [intent, freeBalance, estimatedFee, ed, hasFunds, t, formatBzr]);
 
-  if (loading) return <div className="container mx-auto px-4 py-6">{t('common.loading')}</div>;
-  if (err || !order) return <div className="container mx-auto px-4 py-6">{err || t('common.error')}</div>;
+  if (loading) return <div className="container mx-auto px-4 py-2 md:py-3">{t('common.loading')}</div>;
+  if (err || !order) return <div className="container mx-auto px-4 py-2 md:py-3">{err || t('common.error')}</div>;
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-4">
+    <div className="container mx-auto px-4 py-2 md:py-3 space-y-4">
       <Card>
         <CardHeader className="flex items-center justify-between">
           <CardTitle>#{order.id.substring(0, 8)}</CardTitle>

@@ -81,7 +81,7 @@ export function RelatedItems({ items, kind }: RelatedItemsProps) {
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {list.map(item => {
-            const href = kind === 'service' ? `/app/service/${item.id}` : `/app/product/${item.id}`;
+            const href = kind === 'service' ? `/service/${item.id}` : `/product/${item.id}`;
             const priceCandidate = coercePrice(item.priceBzr ?? item.basePriceBzr ?? null);
             const imageUrl = extractImage(item);
 

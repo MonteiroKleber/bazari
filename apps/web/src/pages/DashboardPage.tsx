@@ -112,7 +112,7 @@ export default function DashboardPage() {
   return (
     <>
       <PullToRefreshIndicator isRefreshing={isRefreshing} pullDistance={pullDistance} />
-      <section className="container mx-auto px-4 py-6 mobile-safe-bottom">
+      <section className="container mx-auto px-4 py-2 md:py-3 mobile-safe-bottom">
         {/* Compact Header */}
         <header className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">

@@ -44,11 +44,30 @@ export default function AnalyticsDashboard() {
 
     (async () => {
       try {
+        console.log('[AnalyticsDashboard] Fetching analytics for timeRange:', timeRange);
         const analytics = await getJSON<AnalyticsData>(`/users/me/analytics?timeRange=${timeRange}`);
+        console.log('[AnalyticsDashboard] Raw response received:', analytics);
+        console.log('[AnalyticsDashboard] Response type:', typeof analytics);
+        console.log('[AnalyticsDashboard] Has overview?', !!analytics?.overview);
+        console.log('[AnalyticsDashboard] Overview structure:', analytics?.overview);
+
         if (active) {
+          // Validate data structure before setting
+          if (!analytics || typeof analytics !== 'object') {
+            throw new Error('Invalid response: not an object');
+          }
+          if (!analytics.overview) {
+            console.error('[AnalyticsDashboard] Missing overview in response!');
+            throw new Error('Invalid response: missing overview data');
+          }
+
           setData(analytics);
+          console.log('[AnalyticsDashboard] Data successfully set');
         }
       } catch (e: any) {
+        console.error('[AnalyticsDashboard] Error caught:', e);
+        console.error('[AnalyticsDashboard] Error message:', e.message);
+        console.error('[AnalyticsDashboard] Error stack:', e.stack);
         if (active) {
           setError(e.message || 'Failed to fetch analytics');
         }
@@ -121,7 +140,7 @@ export default function AnalyticsDashboard() {
   }
 
   return (
-    <section className="container mx-auto px-4 py-8">
+    <section className="container mx-auto px-4 py-2 md:py-3">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">Analytics Dashboard</h1>

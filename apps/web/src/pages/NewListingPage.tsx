@@ -746,7 +746,7 @@ export function NewListingPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="container mx-auto px-4 py-2 md:py-3 max-w-4xl">
       <Breadcrumbs items={[
         { label: t('nav.dashboard', { defaultValue: 'Dashboard' }), href: '/app' },
         { label: t('new.title', { defaultValue: 'Novo Anúncio' }) }

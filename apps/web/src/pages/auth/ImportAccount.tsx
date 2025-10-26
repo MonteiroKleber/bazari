@@ -8,7 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { ArrowLeft } from 'lucide-react';
 import { buildSiwsMessage, encryptMnemonic, fetchNonce, fetchProfile, loginSiws, saveAccount, useKeyring } from '@/modules/auth';
+import { PinStrengthIndicator } from '@/components/auth/PinStrengthIndicator';
 
 interface ImportForm {
   seed: string;
@@ -16,7 +18,7 @@ interface ImportForm {
   confirmPin: string;
 }
 
-const MIN_PIN_LENGTH = 6;
+const MIN_PIN_LENGTH = 8;
 
 export function ImportAccount() {
   const { t } = useTranslation();
@@ -24,6 +26,7 @@ export function ImportAccount() {
   const { validateMnemonic, deriveAddress, signMessage } = useKeyring();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [pinValue, setPinValue] = useState('');
 
   const form = useForm<ImportForm>({
     mode: 'onSubmit',
@@ -82,6 +85,15 @@ export function ImportAccount() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30 py-12">
       <div className="max-w-2xl mx-auto px-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate('/auth')}
+          className="mb-4 gap-1"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          {t('common.back', { defaultValue: 'Voltar' })}
+        </Button>
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="text-2xl font-semibold">
@@ -102,7 +114,7 @@ export function ImportAccount() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="pin">{t('auth.pin.create')}</Label>
                   <Input
@@ -111,7 +123,12 @@ export function ImportAccount() {
                     inputMode="numeric"
                     autoComplete="new-password"
                     {...form.register('pin', { required: true })}
+                    onChange={(e) => {
+                      form.register('pin').onChange(e);
+                      setPinValue(e.target.value);
+                    }}
                   />
+                  <PinStrengthIndicator pin={pinValue} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="confirmPin">{t('auth.pin.confirm')}</Label>

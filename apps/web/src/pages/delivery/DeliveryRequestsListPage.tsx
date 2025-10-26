@@ -426,7 +426,7 @@ export function DeliveryRequestsListPage() {
 
   if (!profile || !profile.isAvailable) {
     return (
-      <div className="container max-w-4xl mx-auto py-8 px-4">
+      <div className="container max-w-4xl mx-auto py-2 md:py-3 px-4">
         <Card className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950 dark:border-yellow-800">
           <CardContent className="pt-6 text-center py-12">
             <h2 className="text-xl font-bold text-yellow-900 dark:text-yellow-200 mb-2">
@@ -445,7 +445,7 @@ export function DeliveryRequestsListPage() {
   }
 
   return (
-    <div className="container max-w-6xl mx-auto py-8 px-4">
+    <div className="container max-w-6xl mx-auto py-2 md:py-3 px-4">
       {renderHeader()}
 
       {/* GPS Status */}

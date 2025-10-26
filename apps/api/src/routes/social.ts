@@ -3,6 +3,7 @@ import type { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { authOnRequest } from '../lib/auth/middleware.js';
 import { createNotification } from '../lib/notifications.js';
+import { checkAchievements } from '../lib/achievementChecker.js';
 
 export async function socialRoutes(app: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
@@ -50,6 +51,14 @@ export async function socialRoutes(app: FastifyInstance, options: { prisma: Pris
         type: 'FOLLOW',
         actorId: meProfile.id
       });
+
+      // Verificar conquistas (tanto quem seguiu quanto quem foi seguido)
+      checkAchievements(prisma, authUser.sub, 'FOLLOW').catch(err =>
+        app.log.error({ err, userId: authUser.sub }, 'Erro ao verificar conquistas')
+      );
+      checkAchievements(prisma, target.userId, 'FOLLOW').catch(err =>
+        app.log.error({ err, userId: target.userId }, 'Erro ao verificar conquistas')
+      );
     }
 
     // Buscar contadores atualizados
