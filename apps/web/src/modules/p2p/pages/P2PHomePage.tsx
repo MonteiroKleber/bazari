@@ -6,12 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
+import { ZARIPhaseBadge } from '../components/ZARIPhaseBadge';
+
+type TabType = 'BUY_BZR' | 'SELL_BZR' | 'BUY_ZARI' | 'SELL_ZARI';
 
 export default function P2PHomePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  // UI intent: 'BUY' lists SELL_BZR offers; 'SELL' lists BUY_BZR offers
-  const [tab, setTab] = useState<'BUY' | 'SELL'>('BUY');
+  const [tab, setTab] = useState<TabType>('BUY_BZR');
   const [items, setItems] = useState<P2POffer[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,20 +21,40 @@ export default function P2PHomePage() {
   const [myError, setMyError] = useState<string | null>(null);
   const [minBRL, setMinBRL] = useState('');
   const [maxBRL, setMaxBRL] = useState('');
+  const [phaseFilter, setPhaseFilter] = useState<string>('');
 
   const load = useMemo(() => async () => {
     setLoading(true);
     setError(null);
     try {
-      const side = tab === 'BUY' ? 'SELL_BZR' : 'BUY_BZR';
-      const res = await p2pApi.listOffers({ side, method: 'PIX', minBRL: minBRL ? Number(minBRL) : undefined, maxBRL: maxBRL ? Number(maxBRL) : undefined });
+      let params: any = {
+        method: 'PIX',
+        minBRL: minBRL ? Number(minBRL) : undefined,
+        maxBRL: maxBRL ? Number(maxBRL) : undefined
+      };
+
+      if (tab === 'BUY_BZR') {
+        params.side = 'SELL_BZR';
+        params.assetType = 'BZR';
+      } else if (tab === 'SELL_BZR') {
+        params.side = 'BUY_BZR';
+        params.assetType = 'BZR';
+      } else if (tab === 'BUY_ZARI') {
+        params.assetType = 'ZARI';
+        if (phaseFilter) params.phase = phaseFilter;
+      } else if (tab === 'SELL_ZARI') {
+        params.assetType = 'ZARI';
+        if (phaseFilter) params.phase = phaseFilter;
+      }
+
+      const res = await p2pApi.listOffers(params);
       setItems(res.items);
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setLoading(false);
     }
-  }, [tab, minBRL, maxBRL]);
+  }, [tab, minBRL, maxBRL, phaseFilter]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -49,15 +71,38 @@ export default function P2PHomePage() {
   return (
     <div className="container mx-auto px-4 py-2 md:py-3">
       <div className="flex items-center justify-between gap-3 mb-4">
-        <div className="flex gap-2" role="tablist" aria-label="P2P tabs">
-          <Button variant={tab==='BUY'?'default':'outline'} role="tab" aria-selected={tab==='BUY'} onClick={() => setTab('BUY')}>{t('p2p.tabs.buyBzr')}</Button>
-          <Button variant={tab==='SELL'?'default':'outline'} role="tab" aria-selected={tab==='SELL'} onClick={() => setTab('SELL')}>{t('p2p.tabs.sellBzr')}</Button>
+        <div className="flex flex-wrap gap-2" role="tablist" aria-label="P2P tabs">
+          <Button variant={tab==='BUY_BZR'?'default':'outline'} role="tab" aria-selected={tab==='BUY_BZR'} onClick={() => setTab('BUY_BZR')}>{t('p2p.tabs.buyBzr')}</Button>
+          <Button variant={tab==='SELL_BZR'?'default':'outline'} role="tab" aria-selected={tab==='SELL_BZR'} onClick={() => setTab('SELL_BZR')}>{t('p2p.tabs.sellBzr')}</Button>
+          <Button variant={tab==='BUY_ZARI'?'default':'outline'} role="tab" aria-selected={tab==='BUY_ZARI'} onClick={() => setTab('BUY_ZARI')}>{t('p2p.tabs.buyZari', 'Comprar ZARI')}</Button>
+          <Button variant={tab==='SELL_ZARI'?'default':'outline'} role="tab" aria-selected={tab==='SELL_ZARI'} onClick={() => setTab('SELL_ZARI')}>{t('p2p.tabs.sellZari', 'Vender ZARI')}</Button>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => navigate('/app/p2p/my-orders')}>{t('p2p.my.title', 'Minhas ordens')}</Button>
           <Button onClick={() => navigate('/app/p2p/offers/new')}>{t('p2p.cta.createOffer')}</Button>
         </div>
       </div>
+
+      {/* NOVO: ZARIPhaseBadge e filtro de fase para ZARI */}
+      {(tab === 'BUY_ZARI' || tab === 'SELL_ZARI') && (
+        <div className="mb-4 space-y-3">
+          <ZARIPhaseBadge variant="full" onPhaseClick={() => navigate('/app/p2p/zari/stats')} />
+          <div className="flex gap-2">
+            <Button variant={phaseFilter === '' ? 'default' : 'outline'} size="sm" onClick={() => setPhaseFilter('')}>
+              {t('p2p.filters.allPhases', 'Todas as fases')}
+            </Button>
+            <Button variant={phaseFilter === '2A' ? 'default' : 'outline'} size="sm" onClick={() => setPhaseFilter('2A')}>
+              Fase 2A
+            </Button>
+            <Button variant={phaseFilter === '2B' ? 'default' : 'outline'} size="sm" onClick={() => setPhaseFilter('2B')}>
+              Fase 2B
+            </Button>
+            <Button variant={phaseFilter === '3' ? 'default' : 'outline'} size="sm" onClick={() => setPhaseFilter('3')}>
+              Fase 3
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2 mb-4 items-end">
         <div>
@@ -86,16 +131,31 @@ export default function P2PHomePage() {
               </CardTitle>
               <div className="flex gap-2">
                 <Badge>PIX</Badge>
-                <Badge variant="secondary">{o.side === 'SELL_BZR' ? t('p2p.badge.selling') : t('p2p.badge.buying')}</Badge>
+                {o.assetType === 'ZARI' && o.phase && (
+                  <Badge variant="secondary">🏛️ Fase {o.phase}</Badge>
+                )}
+                <Badge variant="secondary">
+                  {o.assetType === 'ZARI'
+                    ? (tab === 'BUY_ZARI' ? t('p2p.badge.sellingZari', 'Vendendo ZARI') : t('p2p.badge.buyingZari', 'Comprando ZARI'))
+                    : (o.side === 'SELL_BZR' ? t('p2p.badge.selling') : t('p2p.badge.buying'))
+                  }
+                </Badge>
               </div>
             </CardHeader>
             <CardContent className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-sm text-muted-foreground">
-                <div>{t('p2p.offer.price')}: R$ {o.priceBRLPerBZR}</div>
+                <div>
+                  {o.assetType === 'ZARI'
+                    ? `${t('p2p.offer.price')}: R$ ${o.priceBRLPerUnit}/ZARI`
+                    : `${t('p2p.offer.price')}: R$ ${o.priceBRLPerBZR}/BZR`
+                  }
+                </div>
                 <div>{t('p2p.offer.range')}: R$ {o.minBRL} – R$ {o.maxBRL}</div>
               </div>
               <div className="flex gap-2">
-                <Button onClick={() => navigate(`/app/p2p/offers/${o.id}`)}>{o.side==='SELL_BZR'?t('p2p.actions.buy'):t('p2p.actions.sell')}</Button>
+                <Button onClick={() => navigate(`/app/p2p/offers/${o.id}`)}>
+                  {tab === 'BUY_BZR' || tab === 'BUY_ZARI' ? t('p2p.actions.buy') : t('p2p.actions.sell')}
+                </Button>
               </div>
             </CardContent>
           </Card>

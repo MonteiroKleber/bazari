@@ -18,6 +18,7 @@ import { PinService } from '@/modules/wallet/pin/PinService';
 import { getNativeBalance } from '@/modules/wallet/services/balances';
 import { BZR } from '@/utils/bzr';
 import { Info, Copy, Check } from 'lucide-react';
+import { ZARIPhaseBadge } from '../components/ZARIPhaseBadge';
 
 type Order = {
   id: string;
@@ -33,6 +34,13 @@ type Order = {
   makerId: string;
   takerId: string;
   proofUrls?: string[] | null;
+  // NOVOS CAMPOS ZARI:
+  assetType?: 'BZR' | 'ZARI';
+  assetId?: string | null;
+  phase?: string | null;
+  amountAsset?: string;
+  makerProfile?: any;
+  takerProfile?: any;
 };
 
 export default function P2POrderRoomPage() {
@@ -65,6 +73,10 @@ export default function P2POrderRoomPage() {
   const [estimatedFee, setEstimatedFee] = useState<string | null>(null);
   const [ed, setEd] = useState<string | null>(null);
   const [freeBalance, setFreeBalance] = useState<string | null>(null);
+  // NOVO: Backend-side escrow states
+  const [lockingViaBackend, setLockingViaBackend] = useState(false);
+  const [releasingViaBackend, setReleasingViaBackend] = useState(false);
+  const [backendTxResult, setBackendTxResult] = useState<any>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -204,8 +216,53 @@ export default function P2POrderRoomPage() {
     }
   };
 
+  // NOVO: Backend-side escrow handlers
+  const handleLockViaBackend = async () => {
+    if (!id || !order || !account) return;
+    setLockingViaBackend(true);
+    setBackendTxResult(null);
+    try {
+      const res = await p2pApi.escrowLock(id, { makerAddress: account.address });
+      setBackendTxResult(res);
+      toast.success(t('p2p.room.escrow.txSuccess', 'Transação executada com sucesso'));
+      await load();
+    } catch (e) {
+      const msg = (e as Error).message || 'Erro';
+      toast.error(msg);
+    } finally {
+      setLockingViaBackend(false);
+    }
+  };
+
+  const handleReleaseViaBackend = async () => {
+    if (!id || !order) return;
+    if (!confirm(t('p2p.room.escrow.confirmRelease', 'Confirmar liberação de fundos?'))) return;
+
+    const takerProfile = order.side === 'SELL_BZR' ? order.takerProfile : order.makerProfile;
+    const takerAddress = takerProfile?.address;
+
+    if (!takerAddress) {
+      toast.error(t('p2p.room.escrow.addressMissing', 'Endereço do comprador não encontrado'));
+      return;
+    }
+
+    setReleasingViaBackend(true);
+    setBackendTxResult(null);
+    try {
+      const res = await p2pApi.escrowRelease(id, { takerAddress });
+      setBackendTxResult(res);
+      toast.success(t('p2p.room.escrow.txSuccess', 'Transação executada com sucesso'));
+      await load();
+    } catch (e) {
+      const msg = (e as Error).message || 'Erro';
+      toast.error(msg);
+    } finally {
+      setReleasingViaBackend(false);
+    }
+  };
+
   const signAndLockEscrow = async (pin: string) => {
-    if (!id || !intent) return;
+    if (!id || !intent || !order) return;
     setLocking(true);
     setErr(null);
     try {
@@ -217,8 +274,20 @@ export default function P2POrderRoomPage() {
       const pair = keyring.addFromMnemonic(mnemonic);
       mnemonic = '';
 
-      const planck = decimalToPlanck(intent.amountBZR);
-      const tx = api.tx.balances.transferKeepAlive(intent.escrowAddress, planck);
+      const assetType = order.assetType || 'BZR';
+      let tx;
+
+      if (assetType === 'BZR') {
+        const planck = decimalToPlanck(intent.amountBZR);
+        tx = api.tx.balances.transferKeepAlive(intent.escrowAddress, planck);
+      } else if (assetType === 'ZARI') {
+        const assetId = order.assetId || '1';
+        const planck = decimalToPlanck((intent as any).amountZARI || intent.amountBZR);
+        tx = api.tx.assets.transferKeepAlive(assetId, intent.escrowAddress, planck);
+      } else {
+        throw new Error(`Unsupported asset type: ${assetType}`);
+      }
+
       const unsub = await tx.signAndSend(pair, async (result: any) => {
         const { status, dispatchError, txHash } = result;
         if (dispatchError) {
@@ -248,7 +317,7 @@ export default function P2POrderRoomPage() {
         }
       });
     } catch (e) {
-      setPinError((e as Error).message || 'Erro');
+      toast.error((e as Error).message || 'Erro');
       setLocking(false);
     }
   };
@@ -337,9 +406,16 @@ export default function P2POrderRoomPage() {
   };
 
   const statusLabel = useMemo(() => {
+    const assetName = order?.assetType === 'ZARI' ? 'ZARI' : 'BZR';
     switch (order?.status) {
-      case 'AWAITING_ESCROW': return t('p2p.room.status.awaitingEscrow', 'Aguardando escrow de BZR');
-      case 'AWAITING_FIAT_PAYMENT': return t('p2p.room.status.awaitingFiat', 'Aguardando pagamento PIX');
+      case 'AWAITING_ESCROW':
+        return order.assetType === 'ZARI'
+          ? t('p2p.room.status.awaitingEscrowZari', 'Aguardando escrow de ZARI')
+          : t('p2p.room.status.awaitingEscrow', 'Aguardando escrow de BZR');
+      case 'AWAITING_FIAT_PAYMENT':
+        return order.assetType === 'ZARI'
+          ? t('p2p.room.status.awaitingFiatZari', 'Aguardando pagamento PIX (ZARI)')
+          : t('p2p.room.status.awaitingFiat', 'Aguardando pagamento PIX');
       case 'AWAITING_CONFIRMATION': return t('p2p.room.status.awaitingConfirm', 'Aguardando confirmação');
       case 'RELEASED': return t('p2p.room.status.released', 'Liberado');
       case 'EXPIRED': return t('p2p.room.status.expired', 'Expirada');
@@ -386,14 +462,19 @@ export default function P2POrderRoomPage() {
 
   const myRoleLabel = useMemo(() => {
     if (!order || !me) return null;
-    const amSellingBzr = order.side === 'SELL_BZR' ? me.id === order.makerId : me.id === order.takerId;
-    return amSellingBzr ? t('p2p.badge.selling', 'Vendendo BZR') : t('p2p.badge.buying', 'Comprando BZR');
+    const assetName = order.assetType === 'ZARI' ? 'ZARI' : 'BZR';
+    const amSellingAsset = order.side === 'SELL_BZR' ? me.id === order.makerId : me.id === order.takerId;
+    return amSellingAsset
+      ? (order.assetType === 'ZARI' ? t('p2p.badge.sellingZari', 'Vendendo ZARI') : t('p2p.badge.selling', 'Vendendo BZR'))
+      : (order.assetType === 'ZARI' ? t('p2p.badge.buyingZari', 'Comprando ZARI') : t('p2p.badge.buying', 'Comprando BZR'));
   }, [order, me, t]);
 
   const counterpartyRoleLabel = useMemo(() => {
     if (!order || !me) return null;
-    const amSellingBzr = order.side === 'SELL_BZR' ? me.id === order.makerId : me.id === order.takerId;
-    return amSellingBzr ? t('p2p.badge.buying', 'Comprando BZR') : t('p2p.badge.selling', 'Vendendo BZR');
+    const amSellingAsset = order.side === 'SELL_BZR' ? me.id === order.makerId : me.id === order.takerId;
+    return amSellingAsset
+      ? (order.assetType === 'ZARI' ? t('p2p.badge.buyingZari', 'Comprando ZARI') : t('p2p.badge.buying', 'Comprando BZR'))
+      : (order.assetType === 'ZARI' ? t('p2p.badge.sellingZari', 'Vendendo ZARI') : t('p2p.badge.selling', 'Vendendo BZR'));
   }, [order, me, t]);
 
   const counterpartyProfile = useMemo(() => {
@@ -441,6 +522,9 @@ ${t('wallet.ed', 'Depósito existencial (ED)')}: ${edS}
           <div className="flex items-center gap-2">
             {myRoleLabel && <Badge variant="secondary">{myRoleLabel}</Badge>}
             {counterpartyRoleLabel && <Badge title={t('p2p.room.counterparty', 'Sua contraparte') || 'Contraparte'}>{counterpartyRoleLabel}</Badge>}
+            {order.assetType === 'ZARI' && order.phase && (
+              <Badge variant="secondary">🏛️ Fase {order.phase}</Badge>
+            )}
             <Badge>{statusLabel}</Badge>
             {remainingSec > 0 && (
               <Badge variant="secondary" aria-live="polite">
@@ -469,14 +553,27 @@ ${t('wallet.ed', 'Depósito existencial (ED)')}: ${edS}
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2">
           <div className="space-y-2">
-            <div className="text-sm text-muted-foreground">{t('p2p.room.summary.price', 'Preço')}: R$ {order.priceBRLPerBZR}</div>
-            <div className="text-sm text-muted-foreground">{t('p2p.room.summary.amountBZR', 'Quantidade BZR')}: {order.amountBZR}</div>
+            <div className="text-sm text-muted-foreground">
+              {t('p2p.room.summary.price', 'Preço')}: R$ {order.priceBRLPerBZR}
+              {order.assetType === 'ZARI' ? '/ZARI' : '/BZR'}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {order.assetType === 'ZARI'
+                ? `${t('p2p.room.summary.amountZARI', 'Quantidade ZARI')}: ${order.amountAsset || order.amountBZR}`
+                : `${t('p2p.room.summary.amountBZR', 'Quantidade BZR')}: ${order.amountBZR}`
+              }
+            </div>
             <div className="text-sm text-muted-foreground">{t('p2p.room.summary.amountBRL', 'Valor BRL')}: R$ {order.amountBRL}</div>
           </div>
           <div className="space-y-2">
             <div className="text-sm">{t('p2p.room.steps.title', 'Passos')}</div>
             <ol className="list-decimal pl-5 text-sm space-y-1">
-              <li className={order.status==='AWAITING_ESCROW'?'font-medium':''}>{t('p2p.room.steps.lock', 'Travar BZR em escrow')}</li>
+              <li className={order.status==='AWAITING_ESCROW'?'font-medium':''}>
+                {order.assetType === 'ZARI'
+                  ? t('p2p.room.steps.lockZari', 'Travar ZARI em escrow')
+                  : t('p2p.room.steps.lock', 'Travar BZR em escrow')
+                }
+              </li>
               <li className={order.status==='AWAITING_FIAT_PAYMENT'?'font-medium':''}>{t('p2p.room.steps.pay', 'Pagar via PIX')}</li>
               <li className={order.status==='AWAITING_CONFIRMATION'?'font-medium':''}>{t('p2p.room.steps.confirm', 'Confirmar recebimento')}</li>
             </ol>
@@ -503,7 +600,12 @@ ${t('wallet.ed', 'Depósito existencial (ED)')}: ${edS}
                 </div>
               )}
               {order.status === 'AWAITING_CONFIRMATION' && me && me.id === receiverId && (
-                <Button size="sm" onClick={handleConfirmReceived}>{t('p2p.room.actions.confirmReceived', 'Confirmar recebimento')}</Button>
+                <>
+                  <Button size="sm" onClick={handleConfirmReceived}>{t('p2p.room.actions.confirmReceived', 'Confirmar recebimento')}</Button>
+                  <Button size="sm" variant="secondary" onClick={handleReleaseViaBackend} disabled={releasingViaBackend}>
+                    {releasingViaBackend ? t('common.loading') : t('p2p.room.escrow.releaseViaBackend', 'Executar Release via Backend')}
+                  </Button>
+                </>
               )}
               {(order.status === 'DRAFT' || order.status === 'AWAITING_ESCROW') && me && (me.id === order.makerId || me.id === order.takerId) && (
                 <Button size="sm" variant="outline" onClick={async () => {
@@ -522,22 +624,42 @@ ${t('wallet.ed', 'Depósito existencial (ED)')}: ${edS}
 
       <Card>
         <CardHeader>
-          <CardTitle>{t('p2p.room.escrow.title', 'Escrow de BZR')}</CardTitle>
+          <CardTitle>
+            {order.assetType === 'ZARI'
+              ? t('p2p.room.escrow.titleZari', 'Escrow de ZARI')
+              : t('p2p.room.escrow.title', 'Escrow de BZR')
+            }
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button onClick={handleEscrowIntent} disabled={intentLoading}>{intentLoading ? t('common.loading') : t('p2p.room.escrow.getIntent', 'Obter instruções')}</Button>
+
+            {/* NOVO: Backend-side lock button */}
+            {order.status === 'AWAITING_ESCROW' && me && me.id === escrowerId && (
+              <Button
+                size="sm"
+                onClick={handleLockViaBackend}
+                disabled={lockingViaBackend || !account}
+              >
+                {lockingViaBackend ? t('common.loading') : t('p2p.room.escrow.lockViaBackend', 'Executar Lock via Backend')}
+              </Button>
+            )}
+
             {order.status === 'AWAITING_ESCROW' && me && me.id === escrowerId && intent && (
               <>
                 <Button
                   variant="secondary"
+                  size="sm"
                   disabled={locking || !account || !hasFunds}
                   onClick={async () => {
                     const acct = await getActiveAccount();
                     if (!acct) return;
 
                     // Prepare transaction details for modal
-                    const amount = BigInt(decimalToPlanck(intent.amountBZR));
+                    const assetType = order.assetType || 'BZR';
+                    const assetAmount = assetType === 'ZARI' ? ((intent as any).amountZARI || intent.amountBZR) : intent.amountBZR;
+                    const amount = BigInt(decimalToPlanck(assetAmount));
                     const fee = estimatedFee ? BigInt(estimatedFee) : 0n;
                     const total = amount + fee;
                     const free = freeBalance ? BigInt(freeBalance) : 0n;
@@ -549,8 +671,8 @@ ${t('wallet.ed', 'Depósito existencial (ED)')}: ${edS}
                       description: t('wallet.send.pinDescription', 'Digite o PIN para assinar a transação'),
                       transaction: {
                         type: 'lockEscrow',
-                        description: `Travar ${intent.amountBZR} BZR em escrow P2P`,
-                        amount: `${intent.amountBZR} BZR`,
+                        description: `Travar ${assetAmount} ${assetType} em escrow P2P`,
+                        amount: `${assetAmount} ${assetType}`,
                         fee: estimatedFee ? formatBzr(fee) : 'Calculando...',
                         total: formatBzr(total),
                         balance: freeBalance ? formatBzr(free) : undefined,
@@ -586,7 +708,12 @@ ${t('wallet.ed', 'Depósito existencial (ED)')}: ${edS}
                 }
               </div>
               <div className="text-sm">{t('p2p.room.escrow.address', 'Endereço escrow')}: <code className="break-all">{intent.escrowAddress}</code></div>
-              <div className="text-sm">{t('p2p.room.escrow.amount', 'Quantidade a enviar (BZR)')}: {intent.amountBZR}</div>
+              <div className="text-sm">
+                {order.assetType === 'ZARI'
+                  ? `${t('p2p.room.escrow.amountZari', 'Quantidade a enviar (ZARI)')}: ${(intent as any).amountZARI || intent.amountBZR}`
+                  : `${t('p2p.room.escrow.amount', 'Quantidade a enviar (BZR)')}: ${intent.amountBZR}`
+                }
+              </div>
               <div className="flex gap-3 items-center">
                 <div className="flex items-center gap-2">
                   <Button size="sm" variant="secondary" onClick={() => copy(intent.escrowAddress, 'escrowAddr')}>
@@ -625,7 +752,12 @@ ${t('wallet.ed', 'Depósito existencial (ED)')}: ${edS}
                   </div>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">{t('p2p.room.escrow.note', 'Assine a transação na carteira (balances.transfer_keep_alive).')}</p>
+              <p className="text-xs text-muted-foreground">
+                {order.assetType === 'ZARI'
+                  ? t('p2p.room.escrow.noteZari', 'Assine a transação na carteira (assets.transfer_keep_alive).')
+                  : t('p2p.room.escrow.note', 'Assine a transação na carteira (balances.transfer_keep_alive).')
+                }
+              </p>
               {!account && (
                 <div className="p-3 rounded bg-amber-50 border border-amber-200 text-sm">
                   {t('pay.payment.connectWallet', 'Conecte sua carteira para continuar.')}
@@ -641,9 +773,26 @@ ${t('wallet.ed', 'Depósito existencial (ED)')}: ${edS}
               )}
               {order.status === 'AWAITING_ESCROW' && me && me.id !== escrowerId && (
                 <div className="p-3 rounded bg-muted/40 border text-sm" aria-live="polite">
-                  {t('p2p.room.escrow.notEscrower', 'Você não é o responsável por travar o escrow nesta ordem. Aguardando a outra parte travar BZR.')}
+                  {order.assetType === 'ZARI'
+                    ? t('p2p.room.escrow.notEscrowserZari', 'Você não é o responsável por travar o escrow nesta ordem. Aguardando a outra parte travar ZARI.')
+                    : t('p2p.room.escrow.notEscrower', 'Você não é o responsável por travar o escrow nesta ordem. Aguardando a outra parte travar BZR.')
+                  }
                 </div>
               )}
+            </div>
+          )}
+
+          {/* NOVO: Mostrar resultado de TX backend */}
+          {backendTxResult && (
+            <div className="p-3 rounded bg-green-50 border border-green-200 text-sm space-y-1">
+              <div className="font-medium">{backendTxResult.message}</div>
+              <div className="text-xs text-muted-foreground space-y-0.5">
+                <div>{t('p2p.room.escrow.txHash', 'Hash da transação')}: <code className="break-all">{backendTxResult.txHash}</code></div>
+                <div>{t('p2p.room.escrow.blockNumber', 'Bloco')}: {backendTxResult.blockNumber}</div>
+                <div>
+                  {t('p2p.room.escrow.amount', 'Quantidade')}: {(Number(backendTxResult.amount) / 1e12).toFixed(6)} {backendTxResult.assetType}
+                </div>
+              </div>
             </div>
           )}
         </CardContent>

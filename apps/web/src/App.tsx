@@ -59,6 +59,7 @@ import P2POfferNewPage from './modules/p2p/pages/P2POfferNewPage';
 import P2POfferPublicPage from './modules/p2p/pages/P2POfferPublicPage';
 import P2POrderRoomPage from './modules/p2p/pages/P2POrderRoomPage';
 import P2PMyOrdersPage from './modules/p2p/pages/P2PMyOrdersPage';
+import ZARIStatsPage from './modules/p2p/pages/ZARIStatsPage';
 import StorePublicPage from './pages/StorePublicPage';
 import MarketplacePage from './pages/MarketplacePage';
 import AffiliateMarketplacePage from './pages/AffiliateMarketplacePage';
@@ -388,6 +389,7 @@ function App() {
                       <Route path="p2p/offers/new" element={<P2POfferNewPage />} />
                       <Route path="p2p/offers/:id" element={<P2POfferPublicPage />} />
                       <Route path="p2p/orders/:id" element={<P2POrderRoomPage />} />
+                      <Route path="p2p/zari/stats" element={<ZARIStatsPage />} />
                       <Route path="chat" element={<ChatInboxPage />} />
                       <Route path="chat/new" element={<ChatNewPage />} />
                       <Route path="chat/:threadId" element={<ChatThreadPage />} />

@@ -14,6 +14,12 @@ export interface P2POffer {
   updatedAt: string;
   owner?: { userId?: string; handle?: string; displayName?: string; avatarUrl?: string | null } | null;
   ownerStats?: { avgStars: number | null; completionRate: number | null; volume30dBRL: number; volume30dBZR: number };
+  // NOVOS CAMPOS ZARI:
+  assetType?: 'BZR' | 'ZARI';
+  assetId?: string | null;
+  phase?: string | null;
+  phasePrice?: string | null;
+  priceBRLPerUnit?: string | null;
 }
 
 export interface P2PPaymentProfile {
@@ -66,4 +72,51 @@ export const p2pApi = {
     const qs = params ? '?' + new URLSearchParams(params as any).toString() : '';
     return getJSON<{ items: P2POffer[]; nextCursor: string | null }>(`/p2p/my-offers${qs}`);
   },
+
+  // NOVOS MÉTODOS ZARI:
+  getZARIPhase: (): Promise<{
+    phase: string;
+    priceBZR: string;
+    supplyLimit: string;
+    supplySold: string;
+    supplyRemaining: string;
+    progressPercent: number;
+    isActive: boolean;
+    nextPhase: string | null;
+  }> => getPublicJSON('/p2p/zari/phase'),
+
+  getZARIStats: (): Promise<{
+    phases: Array<{
+      phase: string;
+      priceBZR: string;
+      supplyLimit: string;
+      active: boolean;
+      startBlock: string | null;
+      endBlock: string | null;
+    }>;
+    activePhase: string | null;
+    totalSold: string;
+    totalP2PSupply: string;
+    overallProgress: number;
+    completedOrders: number;
+  }> => getPublicJSON('/p2p/zari/stats'),
+
+  escrowLock: (orderId: string, payload: { makerAddress: string }): Promise<{
+    success: boolean;
+    txHash: string;
+    blockNumber: string;
+    amount: string;
+    assetType: 'BZR' | 'ZARI';
+    message: string;
+  }> => postJSON(`/p2p/orders/${encodeURIComponent(orderId)}/escrow-lock`, payload),
+
+  escrowRelease: (orderId: string, payload: { takerAddress: string }): Promise<{
+    success: boolean;
+    txHash: string;
+    blockNumber: string;
+    amount: string;
+    assetType: 'BZR' | 'ZARI';
+    recipient: string;
+    message: string;
+  }> => postJSON(`/p2p/orders/${encodeURIComponent(orderId)}/escrow-release`, payload),
 };

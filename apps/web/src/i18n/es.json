@@ -1073,6 +1073,126 @@
         "created": "Pedido creado",
         "createError": "Error al crear pedido"
       }
+    },
+    "zari": {
+      "phase": {
+        "active": "Fase activa",
+        "soldOut": "Fase agotada",
+        "completed": "Completada",
+        "pending": "Pendiente",
+        "error": "Error al cargar fase ZARI",
+        "current": "Fase actual",
+        "next": "Próxima fase",
+        "progress": "Progreso",
+        "remaining": "restantes de",
+        "price": "Precio"
+      },
+      "stats": {
+        "title": "Estadísticas ZARI",
+        "noData": "No hay estadísticas disponibles",
+        "overall": "Visión General",
+        "totalSupply": "Oferta total P2P",
+        "totalSold": "Total vendido",
+        "totalRemaining": "Total restante",
+        "completedOrders": "Pedidos completados",
+        "progress": "Progreso general",
+        "currentPhase": "Fase actual",
+        "phaseHistory": "Historial de Fases",
+        "table": {
+          "phase": "Fase",
+          "priceBZR": "Precio (BZR)",
+          "priceBRL": "Precio (BRL)",
+          "supply": "Oferta",
+          "sold": "Vendido",
+          "remaining": "Restante",
+          "startBlock": "Bloque Inicio",
+          "endBlock": "Bloque Fin",
+          "status": "Estado"
+        },
+        "info": {
+          "title": "Sobre ZARI",
+          "desc1": "ZARI es el token de gobernanza de la red Bazari, distribuido en fases progresivas a través del sistema P2P.",
+          "desc2": "Cada fase tiene un precio fijo en BZR y una oferta limitada. Cuando una fase se agota, la siguiente fase se activa automáticamente con un precio más alto.",
+          "phases": "Fases:",
+          "phase2a": "Fase 2A: 0.25 BZR/ZARI (10 millones ZARI)",
+          "phase2b": "Fase 2B: 0.35 BZR/ZARI (10 millones ZARI)",
+          "phase3": "Fase 3: 0.50 BZR/ZARI (10 millones ZARI)",
+          "totalSupply": "Oferta total: 30 millones ZARI distribuidos vía P2P."
+        }
+      }
+    },
+    "new": {
+      "assetType": "Tipo de activo",
+      "assetBZR": "BZR",
+      "assetZARI": "ZARI",
+      "amountZARI": "Cantidad ZARI",
+      "phaseSoldOut": "Fase {{phase}} agotada. Espere la próxima fase."
+    },
+    "tabs": {
+      "buyBzr": "Comprar BZR",
+      "sellBzr": "Vender BZR",
+      "buyZari": "Comprar ZARI",
+      "sellZari": "Vender ZARI"
+    },
+    "filters": {
+      "phase": "Fase",
+      "allPhases": "Todas las fases"
+    },
+    "badge": {
+      "sellingZari": "Vendiendo ZARI",
+      "buyingZari": "Comprando ZARI"
+    },
+    "room": {
+      "status": {
+        "awaitingEscrowZari": "Esperando escrow de ZARI",
+        "awaitingFiatZari": "Esperando pago PIX (ZARI)"
+      },
+      "summary": {
+        "amountZARI": "Cantidad ZARI"
+      },
+      "steps": {
+        "lockZari": "Bloquear ZARI en escrow"
+      },
+      "escrow": {
+        "titleZari": "Escrow de ZARI",
+        "amountZari": "Cantidad a enviar (ZARI)",
+        "noteZari": "Firme la transacción en su billetera (assets.transfer_keep_alive).",
+        "notEscrowserZari": "Usted no es responsable de bloquear el escrow en este pedido. Esperando a que la otra parte bloquee ZARI.",
+        "lockViaBackend": "Ejecutar Lock vía Backend",
+        "releaseViaBackend": "Ejecutar Release vía Backend",
+        "txSuccess": "Transacción ejecutada con éxito",
+        "confirmRelease": "¿Confirmar liberación de fondos?",
+        "addressMissing": "Dirección del comprador no encontrada",
+        "txHash": "Hash de la transacción",
+        "blockNumber": "Bloque",
+        "youAreEscrower": "Usted es responsable de bloquear el escrow.",
+        "responsible": "Responsable de bloquear",
+        "roleSeller": "Vendedor (maker)",
+        "roleBuyer": "Comprador (taker)",
+        "lockViaWallet": "Bloquear vía billetera",
+        "hintLabel": "Ayuda de saldo",
+        "hint": "Para habilitar: saldo libre - tarifa - cantidad >= ED"
+      },
+      "counterparty": "Su contraparte",
+      "viewProfile": "Ver perfil",
+      "timer": {
+        "label": "Tiempo restante"
+      },
+      "cancel": {
+        "confirm": "¿Está seguro de que desea cancelar este pedido?"
+      },
+      "cancelled": "Pedido cancelado"
+    },
+    "my": {
+      "reason": {
+        "awaitingFiat": "Escrow confirmado; esperando pago. Cancelación no disponible.",
+        "awaitingConfirm": "Pago marcado; esperando confirmación. Cancelación no disponible.",
+        "released": "Completado. Cancelación no disponible.",
+        "expired": "Expirado. Cancelación no disponible.",
+        "cancelled": "Ya cancelado.",
+        "dispute": "En disputa. Cancelación no disponible.",
+        "disputeResolved": "Disputa resuelta. Cancelación no disponible."
+      }
     }
   }
 }

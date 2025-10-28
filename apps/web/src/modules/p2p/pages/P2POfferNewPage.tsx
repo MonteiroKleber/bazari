@@ -7,12 +7,17 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { AssetSelector } from '../components/AssetSelector';
+import { ZARIPhaseBadge } from '../components/ZARIPhaseBadge';
 
 export default function P2POfferNewPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [assetType, setAssetType] = useState<'BZR' | 'ZARI'>('BZR');
   const [side, setSide] = useState<'SELL_BZR' | 'BUY_BZR'>('SELL_BZR');
   const [price, setPrice] = useState('');
+  const [amountZARI, setAmountZARI] = useState('');
+  const [zariPhase, setZariPhase] = useState<any>(null);
   const [minBRL, setMinBRL] = useState('100');
   const [maxBRL, setMaxBRL] = useState('500');
   const [autoReply, setAutoReply] = useState('');
@@ -40,16 +45,26 @@ export default function P2POfferNewPage() {
     return () => { active = false; };
   }, []);
 
+  // Carregar fase ZARI quando assetType === 'ZARI'
+  useEffect(() => {
+    if (assetType === 'ZARI') {
+      p2pApi.getZARIPhase()
+        .then(setZariPhase)
+        .catch((err) => {
+          console.error('Failed to load ZARI phase:', err);
+          toast.error(t('p2p.zari.phase.error', 'Erro ao carregar fase ZARI'));
+        });
+    } else {
+      setZariPhase(null);
+    }
+  }, [assetType, t]);
+
   const onSave = useCallback(async () => {
     setSaving(true);
     try {
-      const priceNum = Number(price);
       const minNum = Number(minBRL);
       const maxNum = Number(maxBRL);
-      if (!Number.isFinite(priceNum) || priceNum <= 0) {
-        toast.error(t('p2p.offer.toast.invalidPrice', 'Preço inválido'));
-        return;
-      }
+
       if (!Number.isFinite(minNum) || !Number.isFinite(maxNum) || minNum <= 0 || maxNum <= 0) {
         toast.error(t('p2p.offer.toast.invalidRange', 'Faixa inválida'));
         return;
@@ -58,22 +73,59 @@ export default function P2POfferNewPage() {
         toast.error(t('p2p.offer.toast.rangeOrder', 'Máximo deve ser maior ou igual ao mínimo'));
         return;
       }
-      const res = await p2pApi.createOffer({
-        side,
-        priceBRLPerBZR: Number(price),
-        minBRL: Number(minBRL),
-        maxBRL: Number(maxBRL),
-        method: 'PIX',
-        autoReply: autoReply || undefined,
-      });
-      toast.success(t('p2p.offer.toast.published', 'Oferta publicada'));
-      navigate('/app/p2p');
+
+      if (assetType === 'BZR') {
+        // Lógica existente para BZR
+        const priceNum = Number(price);
+        if (!Number.isFinite(priceNum) || priceNum <= 0) {
+          toast.error(t('p2p.offer.toast.invalidPrice', 'Preço inválido'));
+          return;
+        }
+        await p2pApi.createOffer({
+          side,
+          priceBRLPerBZR: Number(price),
+          minBRL: minNum,
+          maxBRL: maxNum,
+          method: 'PIX',
+          autoReply: autoReply || undefined,
+        });
+        toast.success(t('p2p.offer.toast.published', 'Oferta publicada'));
+        navigate('/app/p2p');
+      } else if (assetType === 'ZARI') {
+        // NOVA LÓGICA ZARI
+        if (!zariPhase) {
+          toast.error(t('p2p.zari.phase.error', 'Erro ao carregar fase ZARI'));
+          return;
+        }
+
+        if (!zariPhase.isActive) {
+          toast.error(t('p2p.new.phaseSoldOut', { phase: zariPhase.phase }));
+          return;
+        }
+
+        const amountZARINum = Number(amountZARI);
+        if (!amountZARINum || amountZARINum <= 0) {
+          toast.error(t('p2p.new.invalidAmount', 'Quantidade inválida'));
+          return;
+        }
+
+        await p2pApi.createOffer({
+          assetType: 'ZARI',
+          amountZARI: amountZARINum,
+          minBRL: minNum,
+          maxBRL: maxNum,
+          method: 'PIX',
+          autoReply: autoReply || undefined,
+        } as any);
+        toast.success(t('p2p.offer.toast.published', 'Oferta publicada'));
+        navigate('/app/p2p');
+      }
     } catch (e) {
       toast.error((e as Error).message || 'Erro');
     } finally {
       setSaving(false);
     }
-  }, [side, price, minBRL, maxBRL, autoReply, navigate]);
+  }, [assetType, side, price, minBRL, maxBRL, autoReply, amountZARI, zariPhase, navigate, t]);
 
   const [showPixInput, setShowPixInput] = useState(false);
   const [pixInput, setPixInput] = useState('');
@@ -127,16 +179,56 @@ export default function P2POfferNewPage() {
             </div>
           )}
 
-          <div className="flex gap-2">
-            <Button variant={side==='SELL_BZR'?'default':'outline'} onClick={() => setSide('SELL_BZR')}>{t('p2p.new.sideSell')}</Button>
-            <Button variant={side==='BUY_BZR'?'default':'outline'} onClick={() => setSide('BUY_BZR')}>{t('p2p.new.sideBuy')}</Button>
+          {/* NOVO: Seletor de Asset */}
+          <div>
+            <Label>{t('p2p.new.assetType', 'Tipo de ativo')}</Label>
+            <AssetSelector value={assetType} onChange={setAssetType} />
           </div>
 
-          <div className="grid sm:grid-cols-3 gap-4">
+          {/* NOVO: Badge de fase ZARI (se ZARI selecionado) */}
+          {assetType === 'ZARI' && zariPhase && (
+            <ZARIPhaseBadge variant="full" />
+          )}
+
+          {/* Side: apenas se BZR */}
+          {assetType === 'BZR' && (
+            <div className="flex gap-2">
+              <Button variant={side==='SELL_BZR'?'default':'outline'} onClick={() => setSide('SELL_BZR')}>{t('p2p.new.sideSell')}</Button>
+              <Button variant={side==='BUY_BZR'?'default':'outline'} onClick={() => setSide('BUY_BZR')}>{t('p2p.new.sideBuy')}</Button>
+            </div>
+          )}
+
+          {/* Preço BZR: apenas se BZR */}
+          {assetType === 'BZR' && (
             <div>
               <Label htmlFor="price">{t('p2p.new.price')}</Label>
               <Input id="price" inputMode="decimal" placeholder="R$" value={price} onChange={(e) => setPrice(e.target.value)} />
             </div>
+          )}
+
+          {/* Quantidade ZARI: apenas se ZARI */}
+          {assetType === 'ZARI' && (
+            <div>
+              <Label htmlFor="amountZARI">{t('p2p.new.amountZARI', 'Quantidade ZARI')}</Label>
+              <Input
+                id="amountZARI"
+                inputMode="decimal"
+                placeholder="1000"
+                value={amountZARI}
+                onChange={(e) => setAmountZARI(e.target.value)}
+              />
+              {zariPhase && amountZARI && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t('p2p.new.calculatedPrice', {
+                    total: (Number(amountZARI || 0) * (Number(zariPhase.priceBZR) / 1e12)).toFixed(2),
+                  })}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* MinBRL, MaxBRL: sempre exibir */}
+          <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="min">{t('p2p.new.minBRL')}</Label>
               <Input id="min" inputMode="decimal" value={minBRL} onChange={(e) => setMinBRL(e.target.value)} />
@@ -147,13 +239,26 @@ export default function P2POfferNewPage() {
             </div>
           </div>
 
+          {/* AutoReply: sempre exibir */}
           <div>
             <Label htmlFor="auto">{t('p2p.new.autoReply')}</Label>
             <Input id="auto" value={autoReply} onChange={(e) => setAutoReply(e.target.value)} placeholder={t('p2p.new.autoReplyPh') || ''} />
           </div>
 
           <div className="flex justify-end">
-            <Button onClick={onSave} disabled={saving || !price.trim() || !minBRL.trim() || !maxBRL.trim() || hasPix === false}>{saving ? t('common.saving') : t('common.save')}</Button>
+            <Button
+              onClick={onSave}
+              disabled={
+                saving ||
+                !minBRL.trim() ||
+                !maxBRL.trim() ||
+                hasPix === false ||
+                (assetType === 'BZR' && !price.trim()) ||
+                (assetType === 'ZARI' && (!zariPhase || !zariPhase.isActive || !amountZARI.trim()))
+              }
+            >
+              {saving ? t('common.saving') : t('common.save')}
+            </Button>
           </div>
         </CardContent>
       </Card>
