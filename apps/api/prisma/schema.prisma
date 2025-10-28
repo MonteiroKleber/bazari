@@ -670,6 +670,12 @@ enum P2PPaymentMethod {
   PIX
 }
 
+// FASE 5: Asset types for P2P trading
+enum P2PAssetType {
+  BZR
+  ZARI
+}
+
 model P2PPaymentProfile {
   id          String   @id @default(cuid())
   userId      String   @unique
@@ -684,17 +690,34 @@ model P2POffer {
   id             String           @id @default(cuid())
   ownerId        String
   side           P2POfferSide
-  priceBRLPerBZR Decimal          @db.Decimal(18, 2)
+
+  // FASE 5: Asset being traded
+  assetType      P2PAssetType     @default(BZR)
+  assetId        String?          // '1' for ZARI, null for BZR
+
+  // FASE 5: Phase info (only for ZARI)
+  phase          String?          // '2A' | '2B' | '3' | null
+  phasePrice     Decimal?         @db.Decimal(18, 12) // 0.25 | 0.35 | 0.50 (in BZR)
+
+  // Pricing (now generic)
+  priceBRLPerBZR Decimal          @db.Decimal(18, 2)  // Deprecated, use priceBRLPerUnit
+  priceBRLPerUnit Decimal?        @db.Decimal(18, 2)  // R$/BZR or R$/ZARI
   minBRL         Decimal          @db.Decimal(18, 2)
   maxBRL         Decimal          @db.Decimal(18, 2)
+
   method         P2PPaymentMethod
   autoReply      String?
   status         P2POfferStatus   @default(ACTIVE)
-  stats          Json?
+
+  // FASE 5: Expanded stats
+  stats          Json?            // { totalSold, totalVolume, phaseSupplyLeft }
+
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
   @@index([ownerId, status, side])
+  @@index([ownerId, status, side, assetType])
+  @@index([assetType, phase, status])
 }
 
 model P2POrder {
@@ -703,17 +726,29 @@ model P2POrder {
   makerId        String
   takerId        String
   side           P2POfferSide
-  priceBRLPerBZR Decimal          @db.Decimal(18, 2)
-  amountBZR      Decimal          @db.Decimal(38, 18)
+
+  // FASE 5: Asset info
+  assetType      P2PAssetType     @default(BZR)
+  assetId        String?          // '1' for ZARI
+  phase          String?          // '2A', '2B', '3'
+
+  // Pricing
+  priceBRLPerBZR Decimal          @db.Decimal(18, 2)  // Deprecated, use priceBRLPerUnit
+  priceBRLPerUnit Decimal?        @db.Decimal(18, 2)
+  amountBZR      Decimal          @db.Decimal(38, 18) // Deprecated, use amountAsset
+  amountAsset    Decimal?         @db.Decimal(38, 18) // BZR or ZARI
   amountBRL      Decimal          @db.Decimal(18, 2)
+
   method         P2PPaymentMethod
   status         P2POrderStatus   @default(DRAFT)
 
+  // Escrow on-chain
   escrowTxHash   String?
   escrowAt       DateTime?
   releasedTxHash String?
   releasedAt     DateTime?
 
+  // PIX proof
   pixKeySnapshot  String?
   payerDeclaredAt DateTime?
   proofUrls       Json?
@@ -723,7 +758,9 @@ model P2POrder {
   updatedAt DateTime @updatedAt
 
   @@index([makerId, takerId, status])
+  @@index([makerId, takerId, status, assetType])
   @@index([offerId])
+  @@index([assetType, phase])
 }
 
 model P2PMessage {
@@ -756,6 +793,21 @@ model P2PReview {
   stars     Int
   comment   String?
   createdAt DateTime @default(now())
+}
+
+// FASE 5: ZARI Phase Configuration
+model ZARIPhaseConfig {
+  id          String   @id @default(cuid())
+  phase       String   @unique  // '2A', '2B', '3'
+  priceBZR    Decimal  @db.Decimal(18, 12)  // 0.25, 0.35, 0.50
+  supplyLimit BigInt                         // 2_100_000 * 10^12 (decimals)
+  startBlock  BigInt?                        // Block number when phase started
+  endBlock    BigInt?                        // Block number when phase ended
+  active      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([phase, active])
 }
 
 /// --- Store Publishing History ---

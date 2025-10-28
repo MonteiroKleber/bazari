@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -21,6 +21,7 @@ import { PinService } from '@/modules/wallet/pin/PinService';
 import { getApi } from '../services/polkadot';
 import { parseAmountToPlanck, formatBalance, isValidAddress, normaliseAddress, shortenAddress } from '../utils/format';
 import { Scanner } from '../components/Scanner';
+import { TokenSelector } from '../components/TokenSelector';
 
 type FormValues = z.infer<typeof schema>;
 
@@ -40,7 +41,9 @@ export function SendPage() {
   const { t } = useTranslation();
   const { active } = useVaultAccounts();
   const { props: chainProps } = useChainProps();
+  const [searchParams] = useSearchParams();
   const tokens = useTokens(active?.address);
+  const [selectedToken, setSelectedToken] = useState<WalletToken | null>(null);
   const [balances, setBalances] = useState<Record<string, BalanceSnapshot | null>>({});
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -65,6 +68,24 @@ export function SendPage() {
   const activeAddress = active?.address ?? null;
   const nativeSymbol = chainProps?.tokenSymbol ?? 'BZR';
   const nativeDecimals = chainProps?.tokenDecimals ?? balances.native?.decimals ?? 12;
+
+  // Handle preselection from URL query parameter
+  useEffect(() => {
+    if (tokens.length === 0) return;
+
+    const preselectedTokenId = searchParams.get('token') || 'native';
+    const token = tokens.find((t) => t.assetId === preselectedTokenId);
+
+    if (token) {
+      setSelectedToken(token);
+      form.setValue('assetId', token.assetId);
+    } else {
+      // Default to first token (BZR)
+      setSelectedToken(tokens[0]);
+      form.setValue('assetId', tokens[0].assetId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokens, searchParams]);
 
   const assetOptions = useMemo(() => {
     const base = [
@@ -108,7 +129,10 @@ export function SendPage() {
       }
     })();
 
-    tokens.forEach((token) => {
+    // Filter out native token - it's already handled by subscribeNativeBalance above
+    const assetTokens = tokens.filter((token) => token.assetId !== 'native');
+
+    assetTokens.forEach((token) => {
       (async () => {
         try {
           const snapshot = await getAssetBalance(token.assetId, activeAddress, token);
@@ -399,46 +423,43 @@ export function SendPage() {
           <CardDescription>{t('wallet.send.formDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <form className="grid gap-6" onSubmit={handleSubmit}>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="asset">{t('wallet.send.fields.asset')}</Label>
-                <select
-                  id="asset"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  {...form.register('assetId')}
-                >
-                  {assetOptions.map((option) => (
-                    <option key={option.assetId} value={option.assetId}>
-                      {option.symbol} {option.name ? `(${option.name})` : ''}
-                    </option>
-                  ))}
-                </select>
-                {form.formState.errors.assetId && (
-                  <p className="text-xs text-destructive">{form.formState.errors.assetId.message}</p>
-                )}
-              </div>
+          <TokenSelector
+            tokens={tokens}
+            selectedToken={selectedToken}
+            onSelect={(token) => {
+              setSelectedToken(token);
+              form.setValue('assetId', token.assetId, { shouldDirty: true });
+            }}
+            balances={balances}
+            label={t('wallet.send.fields.asset')}
+          />
 
-              <div className="space-y-2">
-                <Label htmlFor="amount">{t('wallet.send.fields.amount')}</Label>
-                <Input
-                  id="amount"
-                  inputMode="decimal"
-                  placeholder="0.0"
-                  {...form.register('amount')}
-                />
-                <AssetBalanceHint
-                  assetId={selectedAssetId}
-                  balances={balances}
-                  nativeSymbol={nativeSymbol}
-                  tokens={tokens}
-                  chainDecimals={nativeDecimals}
-                />
-                {form.formState.errors.amount && (
-                  <p className="text-xs text-destructive">{form.formState.errors.amount.message}</p>
-                )}
+          {selectedToken && (
+            <form className="grid gap-6" onSubmit={handleSubmit}>
+              <div className="grid gap-4 sm:grid-cols-2">
+
+                <div className="space-y-2">
+                  <Label htmlFor="amount">
+                    {t('wallet.send.fields.amount')} ({selectedToken.symbol})
+                  </Label>
+                  <Input
+                    id="amount"
+                    inputMode="decimal"
+                    placeholder="0.0"
+                    {...form.register('amount')}
+                  />
+                  <AssetBalanceHint
+                    assetId={selectedAssetId}
+                    balances={balances}
+                    nativeSymbol={nativeSymbol}
+                    tokens={tokens}
+                    chainDecimals={nativeDecimals}
+                  />
+                  {form.formState.errors.amount && (
+                    <p className="text-xs text-destructive">{form.formState.errors.amount.message}</p>
+                  )}
+                </div>
               </div>
-            </div>
 
             <div className="space-y-2">
               <Label htmlFor="recipient">{t('wallet.send.fields.recipient')}</Label>
@@ -488,8 +509,9 @@ export function SendPage() {
               <Button type="button" variant="ghost" onClick={() => form.reset()} disabled={isProcessing}>
                 {t('wallet.send.reset')}
               </Button>
-            </div>
-          </form>
+              </div>
+            </form>
+          )}
 
           {showScanner && (
             <div className="rounded-lg border border-border/60 bg-muted/20 p-4">

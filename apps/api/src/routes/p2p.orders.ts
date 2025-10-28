@@ -1,10 +1,12 @@
 import type { FastifyInstance } from 'fastify';
-import type { PrismaClient, P2PPaymentMethod, P2POfferSide, P2POrderStatus } from '@prisma/client';
+import type { PrismaClient, P2PPaymentMethod, P2POfferSide, P2POrderStatus, P2PAssetType } from '@prisma/client';
 import { z } from 'zod';
 import { authOnRequest } from '../lib/auth/middleware.js';
 import { getPaymentsConfig } from '../config/payments.js';
 import { decodeCursor } from '../lib/cursor.js';
 import { runReputationSync } from '../workers/reputation.worker.js';
+import { PhaseControlService } from '../services/p2p/phase-control.service.js';
+import { EscrowService } from '../services/p2p/escrow.service.js';
 
 export async function p2pOrdersRoutes(app: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
@@ -20,56 +22,146 @@ export async function p2pOrdersRoutes(app: FastifyInstance, options: { prisma: P
       return reply.status(404).send({ error: 'Oferta indisponível' });
     }
 
-    // Body: amountBRL or amountBZR
-    const bodySchema = z.object({ amountBRL: z.coerce.number().positive().optional(), amountBZR: z.coerce.number().positive().optional() })
-      .refine(v => !!v.amountBRL || !!v.amountBZR, { message: 'Informe amountBRL ou amountBZR' });
-    const body = bodySchema.parse(request.body ?? {});
-
-    const price = Number(offer.priceBRLPerBZR as any);
-    const amountBRL = body.amountBRL ? Number(body.amountBRL) : Number((Number(body.amountBZR) * price).toFixed(2));
-    const amountBZR = body.amountBZR ? Number(body.amountBZR) : Number((Number(body.amountBRL) / price).toFixed(12));
-
-    // Verificar limites
-    const min = Number(offer.minBRL as any);
-    const max = Number(offer.maxBRL as any);
-    if (amountBRL < min || amountBRL > max) {
-      return reply.status(400).send({ error: `Valor fora da faixa (min ${min}, max ${max})` });
-    }
-
+    const assetType = (offer.assetType as P2PAssetType) || 'BZR';
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30min
 
-    // Lado que deve travar escrow é quem entrega BZR
-    const side = offer.side as P2POfferSide;
+    // Handle BZR orders (existing logic)
+    if (assetType === 'BZR') {
+      // Body: amountBRL or amountBZR
+      const bodySchema = z.object({ amountBRL: z.coerce.number().positive().optional(), amountBZR: z.coerce.number().positive().optional() })
+        .refine(v => !!v.amountBRL || !!v.amountBZR, { message: 'Informe amountBRL ou amountBZR' });
+      const body = bodySchema.parse(request.body ?? {});
 
-    // PIX receiver depends on side:
-    // - SELL_BZR: maker (offer owner) recebe BRL
-    // - BUY_BZR: taker (quem inicia a ordem) recebe BRL
-    let pixKeySnapshot: string | null = null;
-    if (side === 'SELL_BZR') {
-      const pay = await prisma.p2PPaymentProfile.findUnique({ where: { userId: offer.ownerId } });
-      pixKeySnapshot = pay?.pixKey ?? null;
-    } else {
-      const pay = await prisma.p2PPaymentProfile.findUnique({ where: { userId: authUser.sub } });
-      pixKeySnapshot = pay?.pixKey ?? null;
+      const price = Number(offer.priceBRLPerBZR as any);
+      const amountBRL = body.amountBRL ? Number(body.amountBRL) : Number((Number(body.amountBZR) * price).toFixed(2));
+      const amountBZR = body.amountBZR ? Number(body.amountBZR) : Number((Number(body.amountBRL) / price).toFixed(12));
+
+      // Verificar limites
+      const min = Number(offer.minBRL as any);
+      const max = Number(offer.maxBRL as any);
+      if (amountBRL < min || amountBRL > max) {
+        return reply.status(400).send({ error: `Valor fora da faixa (min ${min}, max ${max})` });
+      }
+
+      // Lado que deve travar escrow é quem entrega BZR
+      const side = offer.side as P2POfferSide;
+
+      // PIX receiver depends on side:
+      // - SELL_BZR: maker (offer owner) recebe BRL
+      // - BUY_BZR: taker (quem inicia a ordem) recebe BRL
+      let pixKeySnapshot: string | null = null;
+      if (side === 'SELL_BZR') {
+        const pay = await prisma.p2PPaymentProfile.findUnique({ where: { userId: offer.ownerId } });
+        pixKeySnapshot = pay?.pixKey ?? null;
+      } else {
+        const pay = await prisma.p2PPaymentProfile.findUnique({ where: { userId: authUser.sub } });
+        pixKeySnapshot = pay?.pixKey ?? null;
+      }
+
+      const order = await prisma.p2POrder.create({
+        data: ({
+          offerId: offer.id,
+          makerId: offer.ownerId,
+          takerId: authUser.sub,
+          assetType: 'BZR',
+          assetId: null,
+          side: side,
+          priceBRLPerBZR: String(price),
+          amountBZR: String(amountBZR),
+          amountBRL: String(amountBRL),
+          amountAsset: null,
+          phase: null,
+          priceBRLPerUnit: null,
+          method: offer.method as P2PPaymentMethod,
+          status: 'AWAITING_ESCROW',
+          pixKeySnapshot,
+          expiresAt,
+        } as any),
+      } as any);
+
+      return reply.status(201).send(order);
     }
 
-    const order = await prisma.p2POrder.create({
-      data: ({
-        offerId: offer.id,
-        makerId: offer.ownerId,
-        takerId: authUser.sub,
-        side: side,
-        priceBRLPerBZR: String(price),
-        amountBZR: String(amountBZR),
-        amountBRL: String(amountBRL),
-        method: offer.method as P2PPaymentMethod,
-        status: 'AWAITING_ESCROW',
-        pixKeySnapshot,
-        expiresAt,
-      } as any),
-    } as any);
+    // Handle ZARI orders (FASE 5 logic)
+    if (assetType === 'ZARI') {
+      const phaseControl = new PhaseControlService(prisma);
 
-    return reply.status(201).send(order);
+      try {
+        // Body: amountBRL or amountZARI
+        const bodySchema = z.object({
+          amountBRL: z.coerce.number().positive().optional(),
+          amountZARI: z.coerce.number().positive().optional()
+        }).refine(v => !!v.amountBRL || !!v.amountZARI, { message: 'Informe amountBRL ou amountZARI' });
+        const body = bodySchema.parse(request.body ?? {});
+
+        // Validate active phase
+        const activePhase = await phaseControl.getActivePhase();
+        if (!activePhase || !activePhase.isActive) {
+          await phaseControl.disconnect();
+          return reply.status(400).send({ error: 'ZARI phase is not active or sold out' });
+        }
+
+        // Price per ZARI in BRL (from phase)
+        const priceBRLPerZARI = Number(activePhase.priceBZR) / 1e12;
+
+        // Calculate amounts
+        const amountBRL = body.amountBRL
+          ? Number(body.amountBRL)
+          : Number((Number(body.amountZARI) * priceBRLPerZARI).toFixed(2));
+
+        const amountZARI = body.amountZARI
+          ? Number(body.amountZARI)
+          : Number((Number(body.amountBRL) / priceBRLPerZARI).toFixed(12));
+
+        // Verify limits
+        const min = Number(offer.minBRL as any);
+        const max = Number(offer.maxBRL as any);
+        if (amountBRL < min || amountBRL > max) {
+          await phaseControl.disconnect();
+          return reply.status(400).send({ error: `Valor fora da faixa (min ${min}, max ${max})` });
+        }
+
+        // Validate supply availability
+        const amountZARIPlanck = BigInt(Math.floor(amountZARI * 1e12));
+        await phaseControl.canCreateZARIOffer(amountZARIPlanck);
+
+        // ZARI orders: maker (seller) receives BRL, taker (buyer) pays BRL
+        const pay = await prisma.p2PPaymentProfile.findUnique({ where: { userId: offer.ownerId } });
+        const pixKeySnapshot = pay?.pixKey ?? null;
+
+        const order = await prisma.p2POrder.create({
+          data: ({
+            offerId: offer.id,
+            makerId: offer.ownerId,
+            takerId: authUser.sub,
+            assetType: 'ZARI',
+            assetId: '1', // ZARI asset ID
+            side: 'SELL_BZR' as P2POfferSide, // Reuse enum (seller sells ZARI)
+            phase: activePhase.phase,
+            priceBRLPerUnit: String(priceBRLPerZARI),
+            priceBRLPerBZR: String(priceBRLPerZARI), // For compatibility
+            amountAsset: String(amountZARI),
+            amountBZR: String(amountZARI), // For compatibility with existing queries
+            amountBRL: String(amountBRL),
+            method: offer.method as P2PPaymentMethod,
+            status: 'AWAITING_ESCROW',
+            pixKeySnapshot,
+            expiresAt,
+          } as any),
+        } as any);
+
+        await phaseControl.disconnect();
+        return reply.status(201).send(order);
+      } catch (error: any) {
+        await phaseControl.disconnect();
+        return reply.status(400).send({
+          error: 'ZARIOrderCreationFailed',
+          message: error.message
+        });
+      }
+    }
+
+    return reply.status(400).send({ error: 'Invalid asset type' });
   });
 
   // GET /p2p/orders/:id — maker/taker only
@@ -93,7 +185,7 @@ export async function p2pOrdersRoutes(app: FastifyInstance, options: { prisma: P
     });
   });
 
-  // POST /p2p/orders/:id/escrow-intent — gerar payload para travar BZR
+  // POST /p2p/orders/:id/escrow-intent — gerar payload para travar BZR ou ZARI
   app.post('/p2p/orders/:id/escrow-intent', { preHandler: authOnRequest }, async (request, reply) => {
     const authUser = (request as any).authUser as { sub: string };
     const { id } = idParam.parse(request.params);
@@ -102,12 +194,30 @@ export async function p2pOrdersRoutes(app: FastifyInstance, options: { prisma: P
     if (order.makerId !== authUser.sub && order.takerId !== authUser.sub) return reply.status(403).send({ error: 'Sem permissão' });
 
     const config = getPaymentsConfig();
-    // Sempre travar amountBZR para a conta escrow
-    return reply.send({
-      escrowAddress: config.escrowAddress,
-      amountBZR: String(order.amountBZR),
-      note: 'Use balances.transfer_keep_alive para enviar BZR ao escrow',
-    });
+    const assetType = (order.assetType as P2PAssetType) || 'BZR';
+
+    if (assetType === 'BZR') {
+      // BZR escrow: use balances.transfer_keep_alive
+      return reply.send({
+        escrowAddress: config.escrowAddress,
+        assetType: 'BZR',
+        amountBZR: String(order.amountBZR),
+        note: 'Use balances.transfer_keep_alive para enviar BZR ao escrow',
+      });
+    }
+
+    if (assetType === 'ZARI') {
+      // ZARI escrow: use assets.transfer_keep_alive with asset ID 1
+      return reply.send({
+        escrowAddress: config.escrowAddress,
+        assetType: 'ZARI',
+        assetId: '1',
+        amountZARI: String(order.amountAsset),
+        note: 'Use assets.transfer_keep_alive com asset_id=1 para enviar ZARI ao escrow',
+      });
+    }
+
+    return reply.status(400).send({ error: 'Invalid asset type' });
   });
 
   // POST /p2p/orders/:id/escrow-confirm — registra hash e avança para AWAITING_FIAT_PAYMENT
@@ -129,6 +239,119 @@ export async function p2pOrdersRoutes(app: FastifyInstance, options: { prisma: P
     // System message
     try { await prisma.p2PMessage.create({ data: { orderId: id, senderId: authUser.sub, kind: 'system', body: `ESCROW_CONFIRMED:${body.txHash}` } as any } as any); } catch {}
     return reply.send(updated);
+  });
+
+  // ✨ FASE 5: POST /p2p/orders/:id/escrow-lock — executar lock automático no blockchain
+  app.post('/p2p/orders/:id/escrow-lock', { preHandler: authOnRequest }, async (request, reply) => {
+    const authUser = (request as any).authUser as { sub: string };
+    const { id } = idParam.parse(request.params);
+    const body = z.object({ makerAddress: z.string().min(10) }).parse(request.body ?? {});
+
+    const order = await prisma.p2POrder.findUnique({ where: { id } });
+    if (!order) return reply.status(404).send({ error: 'Ordem não encontrada' });
+
+    // Apenas maker pode executar lock
+    if (order.makerId !== authUser.sub) {
+      return reply.status(403).send({ error: 'Apenas o maker pode executar o lock' });
+    }
+
+    if (order.status !== 'AWAITING_ESCROW') {
+      return reply.status(400).send({ error: 'Estado inválido para lock. Status atual: ' + order.status });
+    }
+
+    try {
+      const escrowService = new EscrowService(prisma);
+      const result = await escrowService.lockFunds(order, body.makerAddress);
+
+      // System message
+      try {
+        await prisma.p2PMessage.create({
+          data: {
+            orderId: id,
+            senderId: authUser.sub,
+            kind: 'system',
+            body: `ESCROW_LOCKED:${result.txHash}`,
+          } as any,
+        } as any);
+      } catch {}
+
+      return reply.send({
+        success: true,
+        txHash: result.txHash,
+        blockNumber: result.blockNumber.toString(),
+        amount: result.amount.toString(),
+        assetType: result.assetType,
+        message: `${result.assetType} locked in escrow successfully`,
+      });
+    } catch (error: any) {
+      console.error('[P2P Orders] Escrow lock failed:', error);
+      return reply.status(500).send({
+        error: 'EscrowLockFailed',
+        message: error.message,
+      });
+    }
+  });
+
+  // ✨ FASE 5: POST /p2p/orders/:id/escrow-release — executar release automático do blockchain
+  app.post('/p2p/orders/:id/escrow-release', { preHandler: authOnRequest }, async (request, reply) => {
+    const authUser = (request as any).authUser as { sub: string };
+    const { id } = idParam.parse(request.params);
+    const body = z.object({ takerAddress: z.string().min(10) }).parse(request.body ?? {});
+
+    const order = await prisma.p2POrder.findUnique({ where: { id } });
+    if (!order) return reply.status(404).send({ error: 'Ordem não encontrada' });
+
+    // Quem recebeu BRL pode liberar:
+    // - SELL_BZR: recebedor é o maker
+    const receiverId = order.side === 'SELL_BZR' ? order.makerId : order.takerId;
+    if (receiverId !== authUser.sub) {
+      return reply.status(403).send({ error: 'Apenas quem recebeu BRL pode liberar' });
+    }
+
+    if (order.status !== 'AWAITING_CONFIRMATION') {
+      return reply.status(400).send({ error: 'Estado inválido para release. Status atual: ' + order.status });
+    }
+
+    try {
+      const escrowService = new EscrowService(prisma);
+      const result = await escrowService.releaseFunds(order, body.takerAddress);
+
+      // System message
+      try {
+        await prisma.p2PMessage.create({
+          data: {
+            orderId: id,
+            senderId: authUser.sub,
+            kind: 'system',
+            body: `ESCROW_RELEASED:${result.txHash}`,
+          } as any,
+        } as any);
+      } catch {}
+
+      // Trigger reputation sync
+      try {
+        await runReputationSync(prisma, { logger: app.log });
+        app.log.info({ p2pOrderId: id }, 'Reputação atualizada após escrow release');
+      } catch (err) {
+        app.log.warn({ err, p2pOrderId: id }, 'Falha ao atualizar reputação');
+      }
+
+      return reply.send({
+        success: true,
+        txHash: result.txHash,
+        blockNumber: result.blockNumber.toString(),
+        amount: result.amount.toString(),
+        assetType: result.assetType,
+        recipient: result.recipient,
+        message: `${result.assetType} released from escrow successfully`,
+      });
+    } catch (error: any) {
+      console.error('[P2P Orders] Escrow release failed:', error);
+      return reply.status(500).send({
+        error: 'EscrowReleaseFailed',
+        message: error.message,
+      });
+    }
   });
 
   // POST /p2p/orders/:id/mark-paid — BRL pagante marca como pago

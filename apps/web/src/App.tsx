@@ -247,7 +247,6 @@ function isPublicRoute(pathname: string): boolean {
 // Internal component that uses router hooks
 function AppInitializer() {
   const location = useLocation();
-  const { initialize: initializeChat } = useChat();
 
   useEffect(() => {
     // Try to restore session and initialize chat
@@ -277,7 +276,8 @@ function AppInitializer() {
         const token = getAccessToken();
         if (token) {
           console.log('[App] Access token found, initializing chat...');
-          initializeChat(token).catch(err => {
+          // Use getState() to access the store directly without creating a dependency
+          useChat.getState().initialize(token).catch(err => {
             console.error('[App] Failed to initialize chat:', err);
           });
         } else {
@@ -289,7 +289,8 @@ function AppInitializer() {
     };
 
     initializeApp();
-  }, [location.pathname, initializeChat]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
 
   return null;
 }

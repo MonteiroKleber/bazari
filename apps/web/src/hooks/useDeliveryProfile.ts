@@ -42,7 +42,8 @@ export function useDeliveryProfile(): UseDeliveryProfileReturn {
 
   useEffect(() => {
     loadProfile();
-  }, [loadProfile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
 
   const toggleAvailability = useCallback(async () => {
     if (!profile) {

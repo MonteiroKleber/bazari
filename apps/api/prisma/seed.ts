@@ -225,6 +225,42 @@ async function main() {
     console.log(`✅ Serviço criado: ${service.title}`);
   }
 
+  // FASE 5: Seed ZARI Phase Configuration
+  console.log('🏛️ Criando configurações de fases ZARI...');
+
+  // Verificar se já existe
+  const existingPhase = await prisma.zARIPhaseConfig.findFirst();
+
+  if (!existingPhase) {
+    const phases = [
+      {
+        phase: '2A',
+        priceBZR: '0.250000000000', // 0.25 BZR
+        supplyLimit: BigInt('2100000000000000000'), // 2.1M * 10^12
+        active: true, // Fase inicial ativa
+      },
+      {
+        phase: '2B',
+        priceBZR: '0.350000000000', // 0.35 BZR
+        supplyLimit: BigInt('2100000000000000000'), // 2.1M * 10^12
+        active: false,
+      },
+      {
+        phase: '3',
+        priceBZR: '0.500000000000', // 0.50 BZR
+        supplyLimit: BigInt('2100000000000000000'), // 2.1M * 10^12
+        active: false,
+      },
+    ];
+
+    for (const phase of phases) {
+      await prisma.zARIPhaseConfig.create({ data: phase });
+      console.log(`✅ Fase ZARI criada: ${phase.phase} (${phase.priceBZR} BZR) - ${phase.active ? 'ATIVA' : 'inativa'}`);
+    }
+  } else {
+    console.log('ℹ️  Fases ZARI já existem, pulando seed.');
+  }
+
   console.log('✨ Seed concluído com sucesso!');
 }
 

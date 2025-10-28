@@ -94,6 +94,11 @@ export async function getAssetBalance(
   address: string,
   metadata?: AssetMetadata
 ): Promise<BalanceSnapshot | null> {
+  // Defensive check: prevent querying native token as asset
+  if (assetId === 'native') {
+    throw new Error('[balances] Cannot query native token as asset. Use getNativeBalance() instead.');
+  }
+
   const api = await getApi();
   const id = assetId.toString();
   const assetAccount: any = await api.query.assets.account(id, address);
@@ -130,6 +135,11 @@ export async function subscribeAssetBalance(
   metadata: AssetMetadata,
   callback: (balance: BalanceSnapshot | null) => void
 ): Promise<() => void> {
+  // Defensive check: prevent subscribing to native token as asset
+  if (assetId === 'native') {
+    throw new Error('[balances] Cannot subscribe to native token as asset. Use subscribeNativeBalance() instead.');
+  }
+
   const api = await getApi();
   const id = assetId.toString();
 

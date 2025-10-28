@@ -606,7 +606,13 @@
       "activeLabel": "Tokens habilitados",
       "empty": "Aún no hay tokens extra. Agrega un activo por ID.",
       "remove": "Eliminar",
-      "assetIdDisplay": "ID {{id}}"
+      "assetIdDisplay": "ID {{id}}",
+      "nativeAsset": "Activo Nativo",
+      "governanceToken": "Token de Gobernanza",
+      "noTokensAvailable": "No hay tokens disponibles",
+      "selectToken": "Seleccionar Token",
+      "selected": "Seleccionado",
+      "available": "Disponible"
     },
     "balances": {
       "title": "Saldos",
@@ -620,7 +626,7 @@
         "actions": "Acciones"
       },
       "assetId": "ID del activo: {{id}}",
-      "nativeActions": "Activo nativo"
+      "nativeActions": "BZR (Activo Nativo)"
     },
     "history": {
       "title": "Actividad reciente",
@@ -724,7 +730,7 @@
     "send": {
       "title": "Enviar activos",
       "subtitle": "Crea y firma transferencias directamente con tu cofre local.",
-      "nativeName": "Saldo nativo",
+      "nativeName": "Saldo BZR",
       "errors": {
         "noAccount": "No se encontró una cuenta activa.",
         "assetUnknown": "Selecciona un activo para continuar.",

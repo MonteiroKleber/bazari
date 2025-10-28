@@ -27,6 +27,7 @@ import {
   type TransferHistoryItem,
 } from '../services/history';
 import { formatBalance, shortenAddress, normaliseAddress } from '../utils/format';
+import { TokenList } from '../components/TokenList';
 
 const HISTORY_BATCH = 25;
 
@@ -120,18 +121,10 @@ export function WalletDashboard() {
     let cancelled = false;
     const unsubscribers: Array<() => void> = [];
 
-    setBalances((prev) => {
-      const next: Record<string, BalanceSnapshot | null> = {};
-      if (prev.native) {
-        next.native = prev.native;
-      }
-      tokens.forEach((token) => {
-        next[token.assetId] = prev[token.assetId] ?? null;
-      });
-      return next;
-    });
+    // Filter out native token - it's already handled by subscribeNativeBalance in the previous useEffect
+    const assetTokens = tokens.filter((token) => token.assetId !== 'native');
 
-    tokens.forEach((token) => {
+    assetTokens.forEach((token) => {
       (async () => {
         try {
           const snapshot = await getAssetBalance(token.assetId, activeAddress, token);
@@ -299,7 +292,9 @@ export function WalletDashboard() {
         assetId: assetPreview.assetId,
         symbol: assetPreview.symbol,
         decimals: assetPreview.decimals,
-        name: assetPreview.name,
+        name: assetPreview.name || assetPreview.symbol,
+        type: 'asset' as const,
+        icon: assetPreview.symbol === 'ZARI' ? '🏛️' : '🪙',
       });
       setAssetSuccess(t('wallet.tokens.added'));
       setAssetPreview(null);
@@ -317,16 +312,6 @@ export function WalletDashboard() {
     removeToken(activeAddress, token.assetId);
   };
 
-  const balancesList = useMemo(() => {
-    const entries: Array<{ assetId: string; snapshot: BalanceSnapshot | null; token?: WalletToken }> = [];
-    if (nativeBalance) {
-      entries.push({ assetId: 'native', snapshot: nativeBalance });
-    }
-    tokens.forEach((token) => {
-      entries.push({ assetId: token.assetId, snapshot: balances[token.assetId] ?? null, token });
-    });
-    return entries;
-  }, [balances, nativeBalance, tokens]);
 
   const historyRows = useMemo(() => {
     return history.map((item) => {
@@ -553,64 +538,25 @@ export function WalletDashboard() {
             {t('wallet.balances.refresh')}
           </Button>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-border/60 text-sm">
-            <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-3 py-2 text-left font-medium">{t('wallet.balances.columns.asset')}</th>
-                <th className="px-3 py-2 text-right font-medium">{t('wallet.balances.columns.free')}</th>
-                <th className="px-3 py-2 text-right font-medium">{t('wallet.balances.columns.reserved')}</th>
-                <th className="px-3 py-2 text-right font-medium">{t('wallet.balances.columns.frozen')}</th>
-                <th className="px-3 py-2 text-right font-medium">{t('wallet.balances.columns.actions')}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/40">
-              {balancesList.map(({ assetId, snapshot, token }) => {
-                const decimals = snapshot?.decimals ?? token?.decimals ?? 0;
-                const symbol = assetId === 'native' ? chainProps?.tokenSymbol ?? 'BZR' : token?.symbol ?? assetId;
-                return (
-                  <tr key={assetId}>
-                    <td className="px-3 py-3 align-top">
-                      <div className="flex flex-col gap-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-medium text-foreground">{token?.name ?? symbol}</span>
-                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                            {symbol}
-                          </span>
-                        </div>
-                        {assetId !== 'native' && (
-                          <span className="text-xs text-muted-foreground">{t('wallet.balances.assetId', { id: assetId })}</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 text-right align-top">
-                      {snapshot ? formatBalance(snapshot.free, decimals) : '—'}
-                    </td>
-                    <td className="px-3 py-3 text-right align-top">
-                      {snapshot ? formatBalance(snapshot.reserved, decimals) : '—'}
-                    </td>
-                    <td className="px-3 py-3 text-right align-top">
-                      {snapshot ? formatBalance(snapshot.frozen, decimals) : '—'}
-                    </td>
-                    <td className="px-3 py-3 text-right align-top">
-                      {assetId === 'native' ? (
-                        <span className="text-xs text-muted-foreground">{t('wallet.balances.nativeActions')}</span>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 px-2 text-xs"
-                          onClick={() => handleRemoveToken(token!)}
-                        >
-                          {t('wallet.tokens.remove')}
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <CardContent>
+          <TokenList
+            tokens={tokens}
+            balances={balances}
+            onReceive={(token) => {
+              // Navigate to receive page with token
+              window.location.href = `/app/wallet/receive?token=${token.assetId}`;
+            }}
+            onSend={(token) => {
+              // Navigate to send page with token
+              window.location.href = `/app/wallet/send?token=${token.assetId}`;
+            }}
+            onHistory={(token) => {
+              // TODO: Filter history by token
+              console.log('Show history for', token.symbol);
+            }}
+            onRemove={(token) => handleRemoveToken(token)}
+            loading={loading}
+          />
         </CardContent>
       </Card>
 

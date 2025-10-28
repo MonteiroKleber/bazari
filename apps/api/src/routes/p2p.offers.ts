@@ -1,13 +1,15 @@
 import type { FastifyInstance } from 'fastify';
-import type { PrismaClient, P2PPaymentMethod, P2POfferSide } from '@prisma/client';
+import type { PrismaClient, P2PPaymentMethod, P2POfferSide, P2PAssetType } from '@prisma/client';
 import { z } from 'zod';
 import { authOnRequest } from '../lib/auth/middleware.js';
 import { decodeCursor, encodeCursor } from '../lib/cursor.js';
+import { PhaseControlService } from '../services/p2p/phase-control.service.js';
 
 export async function p2pOffersRoutes(app: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
   const listQuery = z.object({
+    assetType: z.enum(['BZR', 'ZARI']).optional(),
     side: z.enum(['BUY_BZR', 'SELL_BZR']).optional(),
     method: z.enum(['PIX']).optional(),
     minBRL: z.coerce.number().optional(),
@@ -27,11 +29,12 @@ export async function p2pOffersRoutes(app: FastifyInstance, options: { prisma: P
           delete cleaned[k];
         }
       });
-      const { side, method, minBRL, maxBRL, cursor, limit } = listQuery.parse(cleaned);
+      const { assetType, side, method, minBRL, maxBRL, cursor, limit } = listQuery.parse(cleaned);
       const take = Math.min(limit ?? 20, 100);
 
       const c = decodeCursor(cursor ?? null);
       const where: any = { status: 'ACTIVE' };
+      if (assetType) where.assetType = assetType;
       if (side) where.side = side;
       if (method) where.method = method;
       if (minBRL != null) where.maxBRL = { gte: minBRL };
@@ -168,13 +171,36 @@ export async function p2pOffersRoutes(app: FastifyInstance, options: { prisma: P
   });
 
   const createBody = z.object({
-    side: z.enum(['BUY_BZR', 'SELL_BZR']),
-    priceBRLPerBZR: z.coerce.number().positive(),
+    // Asset type: BZR (default) or ZARI
+    assetType: z.enum(['BZR', 'ZARI']).default('BZR'),
+
+    // For BZR offers
+    side: z.enum(['BUY_BZR', 'SELL_BZR']).optional(),
+    priceBRLPerBZR: z.coerce.number().positive().optional(),
+
+    // For ZARI offers (always SELL_ZARI, price is determined by phase)
+    amountZARI: z.coerce.number().positive().optional(), // Amount of ZARI to sell
+
+    // Common fields
     minBRL: z.coerce.number().positive(),
     maxBRL: z.coerce.number().positive(),
     method: z.enum(['PIX']).default('PIX'),
     autoReply: z.string().max(500).optional(),
-  }).refine(v => v.maxBRL >= v.minBRL, { message: 'maxBRL deve ser >= minBRL', path: ['maxBRL'] });
+  }).refine(v => v.maxBRL >= v.minBRL, { message: 'maxBRL deve ser >= minBRL', path: ['maxBRL'] })
+    .refine(v => {
+      // BZR offers must have side and priceBRLPerBZR
+      if (v.assetType === 'BZR') {
+        return v.side != null && v.priceBRLPerBZR != null;
+      }
+      return true;
+    }, { message: 'BZR offers require side and priceBRLPerBZR' })
+    .refine(v => {
+      // ZARI offers must have amountZARI
+      if (v.assetType === 'ZARI') {
+        return v.amountZARI != null && v.amountZARI > 0;
+      }
+      return true;
+    }, { message: 'ZARI offers require amountZARI' });
 
   // POST /p2p/offers — autenticado
   app.post('/p2p/offers', { preHandler: authOnRequest }, async (request, reply) => {
@@ -187,19 +213,86 @@ export async function p2pOffersRoutes(app: FastifyInstance, options: { prisma: P
       return reply.status(400).send({ error: 'Configure uma chave PIX em /p2p/payment-profile antes de publicar ofertas.' });
     }
 
-    const offer = await prisma.p2POffer.create({
-      data: {
-        ownerId: authUser.sub,
-        side: body.side as P2POfferSide,
-        priceBRLPerBZR: String(body.priceBRLPerBZR),
-        minBRL: String(body.minBRL),
-        maxBRL: String(body.maxBRL),
-        method: body.method as P2PPaymentMethod,
-        autoReply: body.autoReply ?? null,
-      } as any,
-    } as any);
+    // Handle BZR offers (existing logic)
+    if (body.assetType === 'BZR') {
+      const offer = await prisma.p2POffer.create({
+        data: {
+          ownerId: authUser.sub,
+          assetType: 'BZR',
+          assetId: null,
+          side: body.side as P2POfferSide,
+          priceBRLPerBZR: String(body.priceBRLPerBZR),
+          minBRL: String(body.minBRL),
+          maxBRL: String(body.maxBRL),
+          method: body.method as P2PPaymentMethod,
+          autoReply: body.autoReply ?? null,
+          phase: null,
+          phasePrice: null,
+          priceBRLPerUnit: null,
+        } as any,
+      } as any);
 
-    return reply.status(201).send(offer);
+      return reply.status(201).send(offer);
+    }
+
+    // Handle ZARI offers (FASE 5 logic)
+    if (body.assetType === 'ZARI') {
+      const phaseControl = new PhaseControlService(prisma);
+
+      try {
+        // Get active phase
+        const activePhase = await phaseControl.getActivePhase();
+        if (!activePhase) {
+          return reply.status(400).send({ error: 'No active ZARI phase' });
+        }
+
+        if (!activePhase.isActive) {
+          return reply.status(400).send({
+            error: 'PhaseExhausted',
+            message: `Phase ${activePhase.phase} is sold out. Wait for next phase.`
+          });
+        }
+
+        // Convert ZARI amount to planck (10^12)
+        const amountZARIPlanck = BigInt(Math.floor(body.amountZARI! * 1e12));
+
+        // Validate supply availability
+        await phaseControl.canCreateZARIOffer(amountZARIPlanck);
+
+        // Calculate BRL price per ZARI unit
+        // phasePrice is in planck (e.g., 0.25 BZR = 250000000000 planck)
+        // Assuming 1 BZR = 1 BRL for simplicity (can be adjusted)
+        const priceBRLPerZARI = Number(activePhase.priceBZR) / 1e12;
+
+        const offer = await prisma.p2POffer.create({
+          data: {
+            ownerId: authUser.sub,
+            assetType: 'ZARI',
+            assetId: '1', // ZARI asset ID on blockchain
+            side: 'SELL_BZR' as P2POfferSide, // Reuse enum (seller sells ZARI for BRL)
+            phase: activePhase.phase,
+            phasePrice: activePhase.priceBZR.toString(),
+            priceBRLPerUnit: String(priceBRLPerZARI),
+            priceBRLPerBZR: String(priceBRLPerZARI), // For compatibility
+            minBRL: String(body.minBRL),
+            maxBRL: String(body.maxBRL),
+            method: body.method as P2PPaymentMethod,
+            autoReply: body.autoReply ?? null,
+          } as any,
+        } as any);
+
+        await phaseControl.disconnect();
+        return reply.status(201).send(offer);
+      } catch (error: any) {
+        await phaseControl.disconnect();
+        return reply.status(400).send({
+          error: 'ZARIOfferCreationFailed',
+          message: error.message
+        });
+      }
+    }
+
+    return reply.status(400).send({ error: 'Invalid asset type' });
   });
 
   const offerParam = z.object({ id: z.string().min(1) });

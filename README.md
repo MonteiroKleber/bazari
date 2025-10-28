@@ -69,6 +69,43 @@ Suporte completo para:
 - **Storage**: S3 (produção) / Filesystem (dev)
 - **Moeda**: BZR (12 decimais) + LIVO (cashback)
 
+## 💰 BZR - Token Nativo
+
+BZR é o token nativo da blockchain Bazari, usado para todas as transações no ecossistema.
+
+### Especificações Técnicas
+- **Símbolo**: BZR
+- **Decimais**: 12 (1 BZR = 10^12 planck)
+- **Unidade mínima**: 1 planck
+- **Formatação**: Intl.NumberFormat com 2-4 casas decimais
+
+### Uso no Código
+
+```tsx
+// Importar utilities
+import { formatBzrPlanck } from '@/utils/bzr';
+
+// Formatação manual
+const balancePlanck = '1000000000000'; // 1 BZR
+const formatted = formatBzrPlanck(balancePlanck, 'pt-BR', true);
+// Resultado: "BZR 1.00"
+
+// Usando o componente Balance
+import { Balance } from '@/components/wallet/Balance';
+
+<Balance amount={balance.free} withSymbol={true} />
+```
+
+### Obter Propriedades da Chain
+
+```typescript
+import { getChainProps } from '@/modules/wallet/services/balances';
+
+const { tokenSymbol, tokenDecimals } = await getChainProps();
+// tokenSymbol: "BZR"
+// tokenDecimals: 12
+```
+
 ## 📝 Licença
 
 MIT © Bazari Team

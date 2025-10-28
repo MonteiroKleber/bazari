@@ -606,7 +606,13 @@
       "activeLabel": "Enabled tokens",
       "empty": "No extra tokens yet. Add an asset by ID.",
       "remove": "Remove",
-      "assetIdDisplay": "ID {{id}}"
+      "assetIdDisplay": "ID {{id}}",
+      "nativeAsset": "Native Asset",
+      "governanceToken": "Governance Token",
+      "noTokensAvailable": "No tokens available",
+      "selectToken": "Select Token",
+      "selected": "Selected",
+      "available": "Available"
     },
     "balances": {
       "title": "Balances",
@@ -620,7 +626,7 @@
         "actions": "Actions"
       },
       "assetId": "Asset ID: {{id}}",
-      "nativeActions": "Native asset"
+      "nativeActions": "BZR (Native Asset)"
     },
     "history": {
       "title": "Recent activity",
@@ -724,7 +730,7 @@
     "send": {
       "title": "Send assets",
       "subtitle": "Create and sign transfers directly with your local vault.",
-      "nativeName": "Native balance",
+      "nativeName": "BZR Balance",
       "errors": {
         "noAccount": "No active account found.",
         "assetUnknown": "Select an asset to continue.",

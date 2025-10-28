@@ -4,7 +4,9 @@ export interface WalletToken {
   assetId: string;
   symbol: string;
   decimals: number;
-  name?: string;
+  name: string;
+  type: 'native' | 'asset';
+  icon?: string;
 }
 
 type TokensState = Record<string, WalletToken[]>;
@@ -14,6 +16,9 @@ const EMPTY_LIST: WalletToken[] = [];
 
 let state: TokensState = {};
 const listeners = new Set<() => void>();
+
+// Cache to maintain stable array references when content doesn't change
+const cache = new Map<string, { tokens: WalletToken[]; result: WalletToken[] }>();
 
 function loadFromStorage(): TokensState {
   if (typeof window === 'undefined') {
@@ -72,12 +77,83 @@ function initialise() {
 
 initialise();
 
+// Native BZR token (always present and first)
+const NATIVE_BZR: WalletToken = {
+  assetId: 'native',
+  symbol: 'BZR',
+  name: 'Bazari Token',
+  decimals: 12,
+  type: 'native',
+  icon: '💎',
+};
+
+// ZARI governance token (default asset, always included after BZR)
+const ZARI_TOKEN: WalletToken = {
+  assetId: '1',
+  symbol: 'ZARI',
+  name: 'Bazari Governance Token',
+  decimals: 12,
+  type: 'asset',
+  icon: '🏛️',
+};
+
 export function getTokens(address?: string | null): WalletToken[] {
   if (!address) {
     return EMPTY_LIST;
   }
 
-  return state[address] ?? EMPTY_LIST;
+  const tokens = state[address] ?? [];
+
+  // Check if we have a cached result for this address with the same content
+  const cached = cache.get(address);
+  if (cached && arraysEqual(cached.tokens, tokens)) {
+    // Content hasn't changed, return cached reference
+    return cached.result;
+  }
+
+  // Content changed or no cache, compute new result
+  let result: WalletToken[];
+
+  // Always include BZR native first
+  const hasNative = tokens.some((t) => t.assetId === 'native');
+  // Always include ZARI after BZR (if not already in list)
+  const hasZari = tokens.some((t) => t.assetId === '1');
+
+  if (!hasNative && !hasZari) {
+    result = [NATIVE_BZR, ZARI_TOKEN, ...tokens];
+  } else if (!hasNative) {
+    result = [NATIVE_BZR, ...tokens];
+  } else if (!hasZari) {
+    // Find position after native to insert ZARI
+    const nativeIndex = tokens.findIndex((t) => t.assetId === 'native');
+    result = [
+      ...tokens.slice(0, nativeIndex + 1),
+      ZARI_TOKEN,
+      ...tokens.slice(nativeIndex + 1),
+    ];
+  } else {
+    // Sort to ensure native is always first
+    result = [...tokens].sort((a, b) => {
+      if (a.assetId === 'native') return -1;
+      if (b.assetId === 'native') return 1;
+      return 0;
+    });
+  }
+
+  // Update cache with new reference
+  cache.set(address, { tokens: [...tokens], result });
+  return result;
+}
+
+// Helper to check if two arrays have the same tokens (by assetId)
+function arraysEqual(a: WalletToken[], b: WalletToken[]): boolean {
+  if (a.length !== b.length) return false;
+
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].assetId !== b[i].assetId) return false;
+  }
+
+  return true;
 }
 
 export function setTokens(address: string, tokens: WalletToken[]): WalletToken[] {
@@ -85,6 +161,8 @@ export function setTokens(address: string, tokens: WalletToken[]): WalletToken[]
     ...state,
     [address]: tokens,
   };
+  // Invalidate cache for this address since tokens changed
+  cache.delete(address);
   persist();
   emit();
   return tokens;
@@ -98,6 +176,12 @@ export function addToken(address: string, token: WalletToken): WalletToken[] {
 }
 
 export function removeToken(address: string, assetId: string): WalletToken[] {
+  // Prevent removing native BZR token
+  if (assetId === 'native') {
+    console.warn('[wallet] Cannot remove native BZR token');
+    return getTokens(address);
+  }
+
   const list = getTokens(address);
   const next = list.filter((entry) => entry.assetId !== assetId);
   return setTokens(address, next);
@@ -116,9 +200,11 @@ export function useTokens(address?: string | null): WalletToken[] {
 export function clearTokens(address?: string) {
   if (!address) {
     state = {};
+    cache.clear(); // Clear entire cache
   } else {
     const { [address]: _, ...rest } = state;
     state = rest;
+    cache.delete(address); // Clear cache for this address
   }
   persist();
   emit();

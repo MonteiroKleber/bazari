@@ -38,6 +38,7 @@ import { p2pOffersRoutes } from './routes/p2p.offers.js';
 import { p2pOrdersRoutes } from './routes/p2p.orders.js';
 import { p2pPaymentProfileRoutes } from './routes/p2p.paymentProfile.js';
 import { p2pMessagesRoutes } from './routes/p2p.messages.js';
+import { p2pZariRoutes } from './routes/p2p.zari.js';
 import { storePublishRoutes } from './routes/storePublish.js';
 import { marketplaceRoutes } from './routes/marketplace.js';
 import { notificationsRoutes } from './routes/notifications.js';
@@ -127,6 +128,7 @@ async function buildApp() {
   await app.register(p2pOrdersRoutes, { prefix: '/', prisma });
   await app.register(p2pPaymentProfileRoutes, { prefix: '/', prisma });
   await app.register(p2pMessagesRoutes, { prefix: '/', prisma });
+  await app.register(p2pZariRoutes, { prefix: '/', prisma });
   await app.register(marketplaceRoutes, { prefix: '/' });
   await app.register(notificationsRoutes, { prefix: '/', prisma });
   await app.register(feedRoutes, { prefix: '/', prisma });
@@ -158,6 +160,7 @@ async function buildApp() {
   await app.register(p2pOrdersRoutes, { prefix: '/api', prisma });
   await app.register(p2pPaymentProfileRoutes, { prefix: '/api', prisma });
   await app.register(p2pMessagesRoutes, { prefix: '/api', prisma });
+  await app.register(p2pZariRoutes, { prefix: '/api', prisma });
   await app.register(marketplaceRoutes, { prefix: '/api' });
   await app.register(notificationsRoutes, { prefix: '/api', prisma });
   await app.register(feedRoutes, { prefix: '/api', prisma });

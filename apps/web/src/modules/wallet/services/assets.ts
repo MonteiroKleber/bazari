@@ -6,6 +6,8 @@ export interface AssetMetadata {
   symbol: string;
   decimals: number;
   name?: string;
+  supply?: bigint;
+  owner?: string;
 }
 
 const metadataCache = new Map<string, AssetMetadata>();
@@ -64,11 +66,18 @@ export async function fetchAssetMetadata(assetId: string | number | bigint): Pro
   const symbol = symbolDecoded || `#${id}`;
   const decimals = rawMetadata.decimals?.toNumber?.() ?? Number(rawMetadata.decimals ?? 0);
 
+  // Extract supply and owner from asset details
+  const assetDetails = (assetInfo as any).isSome ? (assetInfo as any).unwrap() : assetInfo;
+  const supply = assetDetails.supply ? BigInt(assetDetails.supply.toString()) : undefined;
+  const owner = assetDetails.owner ? assetDetails.owner.toString() : undefined;
+
   const payload: AssetMetadata = {
     assetId: id,
     symbol,
     decimals: Number.isFinite(decimals) ? decimals : 0,
     name: name || undefined,
+    supply,
+    owner,
   };
 
   metadataCache.set(id, payload);
