@@ -42,6 +42,7 @@ import { p2pZariRoutes } from './routes/p2p.zari.js';
 import { storePublishRoutes } from './routes/storePublish.js';
 import { marketplaceRoutes } from './routes/marketplace.js';
 import { notificationsRoutes } from './routes/notifications.js';
+import { governanceRoutes } from './routes/governance.js';
 import { feedRoutes } from './routes/feed.js';
 import { achievementsRoutes } from './routes/achievements.js';
 import { questsRoutes } from './routes/quests.js';
@@ -131,6 +132,7 @@ async function buildApp() {
   await app.register(p2pZariRoutes, { prefix: '/', prisma });
   await app.register(marketplaceRoutes, { prefix: '/' });
   await app.register(notificationsRoutes, { prefix: '/', prisma });
+  await app.register(governanceRoutes, { prefix: '/' });
   await app.register(feedRoutes, { prefix: '/', prisma });
   await app.register(achievementsRoutes, { prefix: '/', prisma });
   await app.register(questsRoutes, { prefix: '/', prisma });
