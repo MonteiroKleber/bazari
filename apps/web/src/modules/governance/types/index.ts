@@ -113,3 +113,160 @@ export interface VoteForm {
   balance: string;
   conviction: Conviction;
 }
+
+// ============================================================
+// FASE 8: New Types for UI Enhancements
+// ============================================================
+
+/**
+ * Stats Widget - Dashboard component
+ */
+export interface StatsWidgetData {
+  title: string;
+  value: string | number;
+  change?: {
+    value: number;
+    period: string;
+    trend: 'up' | 'down';
+  };
+  icon: React.ReactNode;
+  color: 'blue' | 'green' | 'red' | 'amber' | 'purple';
+  onClick?: () => void;
+}
+
+/**
+ * Voting Chart Data
+ */
+export interface VotingChartData {
+  proposalId: number;
+  proposalTitle?: string;
+  ayeVotes: number;
+  nayVotes: number;
+  abstain?: number;
+  turnout?: number;
+  timestamp?: string;
+}
+
+export type ChartType = 'bar' | 'pie' | 'line' | 'area';
+
+/**
+ * Event Timeline
+ */
+export type GovernanceEventType =
+  | 'PROPOSAL_CREATED'
+  | 'PROPOSAL_TABLED'
+  | 'VOTING_STARTED'
+  | 'VOTE_CAST'
+  | 'PROPOSAL_PASSED'
+  | 'PROPOSAL_REJECTED'
+  | 'PROPOSAL_EXECUTED'
+  | 'TREASURY_APPROVED'
+  | 'COUNCIL_MEMBER_ADDED'
+  | 'COUNCIL_MEMBER_REMOVED'
+  | 'MULTISIG_APPROVAL'
+  | 'MULTISIG_EXECUTED';
+
+export interface GovernanceEvent {
+  id: string;
+  type: GovernanceEventType;
+  title: string;
+  description?: string;
+  timestamp: string;
+  actor?: string; // Address of who triggered the event
+  metadata?: Record<string, any>;
+  proposalId?: number;
+}
+
+/**
+ * Notifications
+ */
+export type NotificationPriority = 'low' | 'medium' | 'high' | 'critical';
+
+export interface GovernanceNotification {
+  id: string;
+  type: GovernanceEventType;
+  title: string;
+  message: string;
+  priority: NotificationPriority;
+  read: boolean;
+  timestamp: string;
+  actionUrl?: string;
+  metadata?: Record<string, any>;
+}
+
+/**
+ * Advanced Filters
+ */
+export interface ProposalFilters {
+  types?: ProposalType[];
+  statuses?: ProposalStatus[];
+  dateRange?: {
+    from: Date | null;
+    to: Date | null;
+  };
+  valueRange?: {
+    min: number | null;
+    max: number | null;
+  };
+  proposer?: string;
+  searchQuery?: string;
+}
+
+/**
+ * Multi-sig Workflow
+ */
+export interface MultisigTransaction {
+  id: string;
+  multisigAddress: string;
+  callHash: string;
+  callData?: any;
+  description?: string;
+  threshold: number;
+  signatories: string[];
+  approvals: string[];
+  status: 'PENDING' | 'APPROVED' | 'EXECUTED' | 'CANCELLED';
+  createdAt: string;
+  executedAt?: string;
+  depositor: string;
+}
+
+export interface WorkflowStep {
+  id: string;
+  label: string;
+  description?: string;
+  status: 'pending' | 'active' | 'completed' | 'rejected';
+  timestamp?: string;
+  actor?: string;
+}
+
+/**
+ * Quick Actions
+ */
+export interface QuickAction {
+  id: string;
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  color: string;
+  onClick: () => void;
+  disabled?: boolean;
+}
+
+/**
+ * Chart Helpers
+ */
+export interface ChartDataPoint {
+  label: string;
+  value: number;
+  color?: string;
+  metadata?: Record<string, any>;
+}
+
+/**
+ * Skeleton/Loading States
+ */
+export interface LoadingState {
+  isLoading: boolean;
+  error?: string | null;
+  retry?: () => void;
+}
