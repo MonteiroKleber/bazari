@@ -29,6 +29,7 @@ export function GovernancePage() {
   });
 
   // FASE 8 - PROMPT 6: Governance notifications
+  // NOTE: WebSocket backend not implemented yet, auto-connect disabled
   const {
     notifications,
     unreadCount,
@@ -38,6 +39,7 @@ export function GovernancePage() {
     remove,
     clearAll,
   } = useGovernanceNotifications({
+    autoConnect: false, // Disable until WebSocket backend is ready
     showToasts: true,
     autoReconnect: true,
   });
