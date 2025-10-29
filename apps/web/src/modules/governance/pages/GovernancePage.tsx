@@ -6,6 +6,7 @@ import { governanceApi } from '../api';
 import type { GovernanceStats } from '../types';
 import { GovernanceStatsWidget, QuickActions, EventTimeline } from '../components/dashboard';
 import { NotificationBell, NotificationPanel } from '../components/notifications';
+import { GovernancePageSkeleton } from '../components/SkeletonLoader';
 import { useGovernanceEvents, useGovernanceNotifications } from '../hooks';
 import {
   Vote,
@@ -69,16 +70,7 @@ export function GovernancePage() {
   }, [loadStats]);
 
   if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center space-y-4">
-            <div className="animate-spin h-12 w-12 border-4 border-primary border-t-transparent rounded-full mx-auto" />
-            <p className="text-muted-foreground">Loading governance data...</p>
-          </div>
-        </div>
-      </div>
-    );
+    return <GovernancePageSkeleton />;
   }
 
   if (error) {
