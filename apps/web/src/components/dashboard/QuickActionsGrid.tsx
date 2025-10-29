@@ -12,6 +12,7 @@ import {
   UserCheck,
   ShoppingBag,
   Truck,
+  Vote,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDeliveryProfile } from '@/hooks/useDeliveryProfile';
@@ -88,6 +89,13 @@ const QUICK_ACTIONS: QuickAction[] = [
     to: '/app/p2p',
     description: 'Câmbio direto',
     color: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400',
+  },
+  {
+    icon: <Vote className="h-6 w-6" />,
+    label: 'Governança',
+    to: '/app/governance',
+    description: 'Propostas e votações',
+    color: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
   },
 ];
 
