@@ -1,16 +1,15 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { governanceApi } from '../api';
 import type { GovernanceStats } from '../types';
+import { GovernanceStatsWidget, QuickActions } from '../components/dashboard';
 import {
   Vote,
   Coins,
   Users,
   FileText,
-  TrendingUp,
-  PlusCircle
+  TrendingUp
 } from 'lucide-react';
 
 export function GovernancePage() {
@@ -84,129 +83,61 @@ export function GovernancePage() {
         </p>
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-8">
-        <Button
-          size="lg"
-          onClick={() => navigate('/app/governance/proposals/new')}
-          className="h-auto py-4"
-        >
-          <PlusCircle className="mr-2 h-5 w-5" />
-          <div className="text-left">
-            <div className="font-semibold">Criar Proposta</div>
-            <div className="text-xs font-normal opacity-90">
-              Submit nova proposta
-            </div>
-          </div>
-        </Button>
-
-        <Button
-          size="lg"
-          variant="outline"
-          onClick={() => navigate('/app/governance/proposals')}
-          className="h-auto py-4"
-        >
-          <Vote className="mr-2 h-5 w-5" />
-          <div className="text-left">
-            <div className="font-semibold">Ver Propostas</div>
-            <div className="text-xs font-normal opacity-90">
-              Browse e vote
-            </div>
-          </div>
-        </Button>
-
-        <Button
-          size="lg"
-          variant="outline"
-          onClick={() => navigate('/app/governance/treasury')}
-          className="h-auto py-4"
-        >
-          <Coins className="mr-2 h-5 w-5" />
-          <div className="text-left">
-            <div className="font-semibold">Tesouro</div>
-            <div className="text-xs font-normal opacity-90">
-              Ver fundos
-            </div>
-          </div>
-        </Button>
-      </div>
-
-      {/* Stats Grid */}
+      {/* FASE 8: Enhanced Stats Widgets */}
       {stats && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
-          {/* Treasury Stats */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Saldo do Tesouro
-              </CardTitle>
-              <Coins className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {parseFloat(stats.treasury.balance).toFixed(2)} BZR
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {stats.treasury.proposalCount} propostas
-              </p>
-            </CardContent>
-          </Card>
+          <GovernanceStatsWidget
+            title="Saldo do Tesouro"
+            value={`${parseFloat(stats.treasury.balance).toFixed(2)} BZR`}
+            change={{
+              value: 12,
+              period: 'esta semana',
+              trend: 'up',
+            }}
+            icon={<Coins className="h-4 w-4" />}
+            color="amber"
+            onClick={() => navigate('/app/governance/treasury')}
+            loading={loading}
+          />
 
-          {/* Referendums */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Referendos Ativos
-              </CardTitle>
-              <Vote className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {stats.democracy.activeReferendums}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {stats.democracy.referendumCount} total
-              </p>
-            </CardContent>
-          </Card>
+          <GovernanceStatsWidget
+            title="Referendos Ativos"
+            value={stats.democracy.activeReferendums}
+            change={{
+              value: 5,
+              period: 'vs. mês passado',
+              trend: 'up',
+            }}
+            icon={<Vote className="h-4 w-4" />}
+            color="blue"
+            onClick={() => navigate('/app/governance/proposals')}
+            loading={loading}
+          />
 
-          {/* Council */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Conselho
-              </CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {stats.council.memberCount}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                membros ativos
-              </p>
-            </CardContent>
-          </Card>
+          <GovernanceStatsWidget
+            title="Membros do Conselho"
+            value={stats.council.memberCount}
+            icon={<Users className="h-4 w-4" />}
+            color="purple"
+            onClick={() => navigate('/app/governance/council')}
+            loading={loading}
+          />
 
-          {/* Tech Committee */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Comitê Técnico
-              </CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {stats.techCommittee.memberCount}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                membros ativos
-              </p>
-            </CardContent>
-          </Card>
+          <GovernanceStatsWidget
+            title="Comitê Técnico"
+            value={stats.techCommittee.memberCount}
+            icon={<TrendingUp className="h-4 w-4" />}
+            color="green"
+            onClick={() => navigate('/app/governance/council')}
+            loading={loading}
+          />
         </div>
       )}
+
+      {/* FASE 8: Quick Actions */}
+      <div className="mb-8">
+        <QuickActions />
+      </div>
 
       {/* Navigation Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
