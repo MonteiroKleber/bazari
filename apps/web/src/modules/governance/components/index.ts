@@ -9,3 +9,4 @@ export { TreasuryStats } from './TreasuryStats';
 export * from './dashboard';
 export * from './multisig';
 export * from './notifications';
+export * from './filters';

@@ -2,21 +2,12 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
 import { ProposalCard } from '../components/ProposalCard';
+import { SearchBar, AdvancedFilters, FilterChips } from '../components/filters';
+import { useProposalFilters } from '../hooks';
 import { governanceApi } from '../api';
 import type { GovernanceProposal, ProposalType, ProposalStatus } from '../types';
-import { Filter, Search, PlusCircle, RefreshCw } from 'lucide-react';
-
-type FilterType = 'ALL' | ProposalType;
-type FilterStatus = 'ALL' | ProposalStatus;
+import { Filter, PlusCircle, RefreshCw } from 'lucide-react';
 
 export function ProposalsListPage() {
   const navigate = useNavigate();
@@ -26,9 +17,17 @@ export function ProposalsListPage() {
   const [proposals, setProposals] = useState<GovernanceProposal[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const [filterType, setFilterType] = useState<FilterType>('ALL');
-  const [filterStatus, setFilterStatus] = useState<FilterStatus>('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
+  // FASE 8 - PROMPT 7: Use advanced filters
+  const {
+    filters,
+    setFilters,
+    updateFilter,
+    searchQuery,
+    setSearchQuery,
+    filteredProposals,
+    resetFilters,
+    activeFilterCount,
+  } = useProposalFilters({ proposals });
 
   const loadProposals = useCallback(async () => {
     setLoading(true);
@@ -117,34 +116,6 @@ export function ProposalsListPage() {
     loadProposals();
   }, [loadProposals]);
 
-  // Apply filters
-  const filteredProposals = proposals.filter((proposal) => {
-    // Type filter
-    if (filterType !== 'ALL' && proposal.type !== filterType) {
-      return false;
-    }
-
-    // Status filter
-    if (filterStatus !== 'ALL' && proposal.status !== filterStatus) {
-      return false;
-    }
-
-    // Search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      const matchesId = proposal.id.toString().includes(query);
-      const matchesTitle = proposal.title?.toLowerCase().includes(query);
-      const matchesDescription = proposal.description?.toLowerCase().includes(query);
-      const matchesProposer = proposal.proposer.toLowerCase().includes(query);
-
-      if (!matchesId && !matchesTitle && !matchesDescription && !matchesProposer) {
-        return false;
-      }
-    }
-
-    return true;
-  });
-
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -184,59 +155,61 @@ export function ProposalsListPage() {
         </div>
       </div>
 
-      {/* Filters */}
-      <Card className="mb-6">
-        <CardContent className="pt-6">
-          <div className="grid gap-4 md:grid-cols-3">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por ID, título, proposer..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
-            </div>
+      {/* FASE 8 - PROMPT 7: Search Bar */}
+      <div className="mb-6">
+        <SearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Buscar propostas por ID, título, descrição ou proposer..."
+        />
+      </div>
 
-            {/* Type Filter */}
-            <Select
-              value={filterType}
-              onValueChange={(value) => setFilterType(value as FilterType)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Filtrar por tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Todos os tipos</SelectItem>
-                <SelectItem value="DEMOCRACY">Democracia</SelectItem>
-                <SelectItem value="TREASURY">Tesouro</SelectItem>
-                <SelectItem value="COUNCIL">Conselho</SelectItem>
-                <SelectItem value="TECHNICAL">Técnico</SelectItem>
-              </SelectContent>
-            </Select>
+      {/* FASE 8 - PROMPT 7: Filter Chips */}
+      {activeFilterCount > 0 && (
+        <div className="mb-4">
+          <FilterChips
+            filters={filters}
+            searchQuery={searchQuery}
+            onRemoveFilter={(key, value) => {
+              if (key === 'types') {
+                updateFilter('types', filters.types?.filter(t => t !== value) || []);
+              } else if (key === 'statuses') {
+                updateFilter('statuses', filters.statuses?.filter(s => s !== value) || []);
+              } else if (key === 'dateRange') {
+                updateFilter('dateRange', { from: null, to: null });
+              } else if (key === 'valueRange') {
+                updateFilter('valueRange', { min: null, max: null });
+              } else if (key === 'proposer') {
+                updateFilter('proposer', undefined);
+              }
+            }}
+            onClearSearch={() => setSearchQuery('')}
+            onClearAll={resetFilters}
+          />
+        </div>
+      )}
 
-            {/* Status Filter */}
-            <Select
-              value={filterStatus}
-              onValueChange={(value) => setFilterStatus(value as FilterStatus)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Filtrar por status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Todos os status</SelectItem>
-                <SelectItem value="PROPOSED">Proposta</SelectItem>
-                <SelectItem value="STARTED">Votação Ativa</SelectItem>
-                <SelectItem value="PASSED">Aprovada</SelectItem>
-                <SelectItem value="NOT_PASSED">Rejeitada</SelectItem>
-                <SelectItem value="EXECUTED">Executada</SelectItem>
-                <SelectItem value="CANCELLED">Cancelada</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+      {/* FASE 8 - PROMPT 7: Layout with Advanced Filters */}
+      <div className="grid md:grid-cols-[300px_1fr] gap-6 mb-6">
+        {/* Advanced Filters Sidebar */}
+        <div className="hidden md:block">
+          <AdvancedFilters
+            filters={filters}
+            onChange={setFilters}
+            onReset={resetFilters}
+          />
+        </div>
+
+        {/* Mobile Filters (collapsed by default) */}
+        <div className="md:hidden mb-4">
+          <AdvancedFilters
+            filters={filters}
+            onChange={setFilters}
+            onReset={resetFilters}
+            defaultCollapsed={true}
+          />
+        </div>
+      </div>
 
       {/* Error State */}
       {error && (
@@ -250,48 +223,49 @@ export function ProposalsListPage() {
         </Card>
       )}
 
-      {/* Proposals Grid */}
-      {filteredProposals.length === 0 ? (
-        <Card>
-          <CardContent className="pt-6 text-center py-12">
-            <Filter className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="text-lg font-semibold mb-2">Nenhuma proposta encontrada</h3>
-            <p className="text-muted-foreground mb-4">
-              {searchQuery || filterType !== 'ALL' || filterStatus !== 'ALL'
-                ? 'Tente ajustar os filtros'
-                : 'Ainda não há propostas cadastradas'}
-            </p>
-            {searchQuery || filterType !== 'ALL' || filterStatus !== 'ALL' ? (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSearchQuery('');
-                  setFilterType('ALL');
-                  setFilterStatus('ALL');
-                }}
-              >
-                Limpar Filtros
-              </Button>
-            ) : (
-              <Button onClick={() => navigate('/app/governance/proposals/new')}>
-                Criar Primeira Proposta
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredProposals.map((proposal) => (
-            <ProposalCard
-              key={`${proposal.type}-${proposal.id}`}
-              proposal={proposal}
-              onClick={() =>
-                navigate(`/app/governance/proposals/${proposal.type.toLowerCase()}/${proposal.id}`)
-              }
-            />
-          ))}
+      {/* Proposals Grid - with filters sidebar */}
+      <div className="grid md:grid-cols-[300px_1fr] gap-6">
+        {/* Empty space for alignment with filters sidebar */}
+        <div className="hidden md:block" />
+
+        {/* Proposals List */}
+        <div>
+          {filteredProposals.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6 text-center py-12">
+                <Filter className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-semibold mb-2">Nenhuma proposta encontrada</h3>
+                <p className="text-muted-foreground mb-4">
+                  {activeFilterCount > 0
+                    ? 'Tente ajustar os filtros'
+                    : 'Ainda não há propostas cadastradas'}
+                </p>
+                {activeFilterCount > 0 ? (
+                  <Button variant="outline" onClick={resetFilters}>
+                    Limpar Filtros
+                  </Button>
+                ) : (
+                  <Button onClick={() => navigate('/app/governance/proposals/new')}>
+                    Criar Primeira Proposta
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {filteredProposals.map((proposal) => (
+                <ProposalCard
+                  key={`${proposal.type}-${proposal.id}`}
+                  proposal={proposal}
+                  onClick={() =>
+                    navigate(`/app/governance/proposals/${proposal.type.toLowerCase()}/${proposal.id}`)
+                  }
+                />
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

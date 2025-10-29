@@ -13,5 +13,5 @@ export type { UseGovernanceEventsOptions, UseGovernanceEventsReturn } from './us
 export { useGovernanceNotifications } from './useGovernanceNotifications';
 export type { UseGovernanceNotificationsOptions, UseGovernanceNotificationsReturn } from './useGovernanceNotifications';
 
-// To be implemented in next prompts:
-// export { useProposalFilters } from './useProposalFilters';
+export { useProposalFilters } from './useProposalFilters';
+export type { UseProposalFiltersOptions, UseProposalFiltersReturn } from './useProposalFilters';
