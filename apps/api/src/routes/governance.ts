@@ -281,19 +281,41 @@ export async function governanceRoutes(app: FastifyInstance) {
         referendumsCount,
         councilMembers,
         techMembers,
+        referendums,
       ] = await Promise.all([
         api.query.treasury.proposalCount(),
         api.query.democracy.referendumCount(),
         api.query.council.members(),
         api.query.technicalCommittee.members(),
+        api.query.democracy.referendumInfoOf.entries(),
       ]);
+
+      // Contar referendums ativos
+      const activeReferendums = (referendums as any[]).filter(([_, info]: any) => {
+        return info.isSome && info.unwrap().isOngoing;
+      }).length;
+
+      // Obter saldo do tesouro (treasury pot)
+      let treasuryBalance = '0';
+      try {
+        const treasuryAccount = await api.query.system.account(
+          (api as any).consts.treasury.palletId ||
+          '0x70792f74727372790000000000000000000000000000000000000000000000'
+        );
+        treasuryBalance = (treasuryAccount as any).data.free.toString();
+      } catch (err) {
+        // Fallback: usar saldo zero se falhar
+        treasuryBalance = '0';
+      }
 
       const stats = {
         treasury: {
           proposalCount: (treasuryProposalsCount as any).toNumber(),
+          balance: treasuryBalance,
         },
         democracy: {
           referendumCount: (referendumsCount as any).toNumber(),
+          activeReferendums,
         },
         council: {
           memberCount: (councilMembers as any).length,
