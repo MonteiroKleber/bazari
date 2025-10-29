@@ -7,7 +7,8 @@
 export { GovernanceStatsWidget } from './GovernanceStatsWidget';
 export type { GovernanceStatsWidgetProps } from './GovernanceStatsWidget';
 export { QuickActions } from './QuickActions';
+export { VotingChart } from './VotingChart';
+export type { VotingChartProps } from './VotingChart';
 
 // To be implemented in next prompts:
-// export { VotingChart } from './VotingChart';
 // export { EventTimeline } from './EventTimeline';

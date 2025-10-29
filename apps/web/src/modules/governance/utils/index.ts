@@ -4,7 +4,8 @@
  * Helper functions for charts, formatting, etc.
  */
 
-// Export utilities here as they are created
-// export * from './chartHelpers';
+export * from './chartHelpers';
+
+// To be implemented in next prompts:
 // export * from './notificationHelpers';
 // export * from './filterHelpers';

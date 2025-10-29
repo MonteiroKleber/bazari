@@ -19,6 +19,8 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { VoteModal } from '../components/VoteModal';
+import { VotingChart } from '../components/dashboard';
+import { useVotingData } from '../hooks';
 import { formatAddress, formatBalance } from '@/lib/utils';
 
 export function ProposalDetailPage() {
@@ -32,6 +34,12 @@ export function ProposalDetailPage() {
 
   const proposalType = type?.toUpperCase() as ProposalType;
   const proposalId = parseInt(id || '0');
+
+  // FASE 8: Fetch voting data for chart
+  const { data: votingData, loading: votingDataLoading } = useVotingData({
+    proposalIds: [proposalId],
+    autoFetch: true,
+  });
 
   const loadProposal = useCallback(async () => {
     setLoading(true);
@@ -238,6 +246,32 @@ export function ProposalDetailPage() {
                       <span className="text-sm">{proposal.turnout}%</span>
                     </div>
                   </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* FASE 8: Voting Chart */}
+          {votingData.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Visualização de Votos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {votingDataLoading ? (
+                  <div className="h-[300px] flex items-center justify-center">
+                    <div className="text-center space-y-2">
+                      <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto" />
+                      <p className="text-sm text-muted-foreground">Carregando dados...</p>
+                    </div>
+                  </div>
+                ) : (
+                  <VotingChart
+                    data={votingData}
+                    type="pie"
+                    height={300}
+                    showLegend={true}
+                  />
                 )}
               </CardContent>
             </Card>
