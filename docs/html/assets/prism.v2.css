@@ -1,0 +1,231 @@
+/**
+ * BAZARI DOCUMENTATION - SYNTAX HIGHLIGHTING
+ * Tema customizado baseado em Prism.js
+ */
+
+code[class*="language-"],
+pre[class*="language-"] {
+  color: #2d3748;
+  font-family: var(--font-mono);
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+  line-height: 1.6;
+  tab-size: 4;
+  hyphens: none;
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+  padding: 1rem;
+  margin: 1rem 0;
+  overflow: auto;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+  padding: 0.2em 0.4em;
+  border-radius: 0.3em;
+  background: #edf2f7;
+  color: #8b0000;
+}
+
+/* Tokens */
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #718096;
+  font-style: italic;
+}
+
+.token.punctuation {
+  color: #4a5568;
+}
+
+.token.namespace {
+  opacity: 0.7;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #c05621;
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+  color: #38a169;
+}
+
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string {
+  color: #d69e2e;
+  background: transparent;
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #8b0000;
+  font-weight: 600;
+}
+
+.token.function,
+.token.class-name {
+  color: #3182ce;
+  font-weight: 600;
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #805ad5;
+}
+
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+
+.token.italic {
+  font-style: italic;
+}
+
+.token.entity {
+  cursor: help;
+}
+
+/* Dark Mode */
+[data-theme="dark"] code[class*="language-"],
+[data-theme="dark"] pre[class*="language-"] {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] pre[class*="language-"] {
+  background: #1a202c;
+  border-color: #2d3748;
+}
+
+[data-theme="dark"] :not(pre) > code[class*="language-"] {
+  background: #2d3748;
+  color: #fc8181;
+}
+
+[data-theme="dark"] .token.comment,
+[data-theme="dark"] .token.prolog,
+[data-theme="dark"] .token.doctype,
+[data-theme="dark"] .token.cdata {
+  color: #a0aec0;
+}
+
+[data-theme="dark"] .token.punctuation {
+  color: #cbd5e0;
+}
+
+[data-theme="dark"] .token.property,
+[data-theme="dark"] .token.tag,
+[data-theme="dark"] .token.boolean,
+[data-theme="dark"] .token.number,
+[data-theme="dark"] .token.constant,
+[data-theme="dark"] .token.symbol,
+[data-theme="dark"] .token.deleted {
+  color: #fc8181;
+}
+
+[data-theme="dark"] .token.selector,
+[data-theme="dark"] .token.attr-name,
+[data-theme="dark"] .token.string,
+[data-theme="dark"] .token.char,
+[data-theme="dark"] .token.builtin,
+[data-theme="dark"] .token.inserted {
+  color: #68d391;
+}
+
+[data-theme="dark"] .token.operator,
+[data-theme="dark"] .token.entity,
+[data-theme="dark"] .token.url,
+[data-theme="dark"] .language-css .token.string,
+[data-theme="dark"] .style .token.string {
+  color: #f6e05e;
+}
+
+[data-theme="dark"] .token.atrule,
+[data-theme="dark"] .token.attr-value,
+[data-theme="dark"] .token.keyword {
+  color: #fc8181;
+}
+
+[data-theme="dark"] .token.function,
+[data-theme="dark"] .token.class-name {
+  color: #63b3ed;
+}
+
+[data-theme="dark"] .token.regex,
+[data-theme="dark"] .token.important,
+[data-theme="dark"] .token.variable {
+  color: #b794f4;
+}
+
+/* Language badges */
+pre[class*="language-"]::before {
+  content: attr(data-language);
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 0.25rem 0.75rem;
+  background: var(--primary);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  border-bottom-left-radius: 0.5rem;
+  letter-spacing: 0.5px;
+}
+
+pre[class~="language-rust"]::before {
+  content: "rust";
+}
+
+pre[class~="language-javascript"]::before,
+pre[class~="language-js"]::before {
+  content: "javascript";
+}
+
+pre[class~="language-typescript"]::before,
+pre[class~="language-ts"]::before {
+  content: "typescript";
+}
+
+pre[class~="language-json"]::before {
+  content: "json";
+}
+
+pre[class~="language-bash"]::before,
+pre[class~="language-shell"]::before {
+  content: "shell";
+}
+
+pre[class~="language-html"]::before {
+  content: "html";
+}
+
+pre[class~="language-css"]::before {
+  content: "css";
+}

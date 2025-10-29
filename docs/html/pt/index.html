@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Documentação executiva completa do Protocolo Bazari e Proof of Commerce">
+  <meta name="keywords" content="Bazari, Proof of Commerce, PoC, blockchain, marketplace descentralizado">
+  <title>Bazari - Documentação Executiva</title>
+  <link rel="stylesheet" href="../assets/style.v2.css">
+  <link rel="stylesheet" href="../assets/prism.v2.css">
+</head>
+<body>
+  <div class="doc-container">
+    <!-- Header -->
+    <header class="doc-header">
+      <h1><span class="logo">🏪</span> Bazari Docs</h1>
+      <div class="doc-controls">
+        <nav class="lang-switcher" aria-label="Seletor de idioma">
+          <button data-lang="pt" class="active">🇧🇷 PT</button>
+          <button data-lang="en">🇺🇸 EN</button>
+          </nav>
+        <button class="theme-toggle" aria-label="Alternar tema">🌙</button>
+      </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside class="doc-sidebar">
+      <h2>📚 Documentação</h2>
+      <nav class="doc-nav">
+        <ul>
+          <li><a href="index.html" class="active">🏠 Início</a></li>
+          <li><a href="01-visao-geral.html">01. Visão Geral e Contexto</a></li>
+          <li><a href="02-proof-of-commerce.html">02. Proof of Commerce Técnico</a></li>
+          <li><a href="03-dores-mercado.html">03. Dores do Mercado</a></li>
+          <li><a href="04-modulos-ecossistema.html">04. Módulos do Ecossistema</a></li>
+          <li><a href="05-arquitetura.html">05. Arquitetura Técnica</a></li>
+          <li><a href="06-roadmap.html">06. Roadmap e Evolução</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="doc-main">
+      <h1>📖 Documentação Executiva Bazari</h1>
+
+      <p style="font-size: 1.2rem; color: var(--primary); font-weight: 600; margin-bottom: 2rem;">
+        Bem-vindo à documentação completa do <strong>Protocolo Bazari</strong> e seu revolucionário sistema <strong>Proof of Commerce (PoC)</strong>.
+      </p>
+
+      <blockquote>
+        <p><strong>Missão:</strong> "Devolver o comércio para quem produz e consome, eliminando intermediários extrativistas através de provas matemáticas e coordenação descentralizada."</p>
+      </blockquote>
+
+      <h2>📚 Estrutura da Documentação</h2>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin: 2rem 0;">
+
+        <a href="01-visao-geral.html" style="display: block; padding: 1.5rem; background: var(--card); border: 2px solid var(--border); border-radius: var(--radius); text-decoration: none; transition: all 0.2s;">
+          <h3 style="color: var(--primary); margin-top: 0;">01. Visão Geral e Contexto</h3>
+          <p style="margin-bottom: 0.5rem;">História da evolução monetária, análise crítica de Fiat, Bitcoin, Ethereum e Stablecoins.</p>
+          <span class="badge badge-primary">20 min de leitura</span>
+        </a>
+
+        <a href="02-proof-of-commerce.html" style="display: block; padding: 1.5rem; background: var(--card); border: 2px solid var(--border); border-radius: var(--radius); text-decoration: none; transition: all 0.2s;">
+          <h3 style="color: var(--primary); margin-top: 0;">02. Proof of Commerce Técnico ⭐</h3>
+          <p style="margin-bottom: 0.5rem;">Especificação técnica completa do protocolo PoC com todos os vetores de fraude resolvidos.</p>
+          <span class="badge badge-primary">60 min de leitura</span>
+          <span class="badge badge-secondary">Documento Principal</span>
+        </a>
+
+        <a href="03-dores-mercado.html" style="display: block; padding: 1.5rem; background: var(--card); border: 2px solid var(--border); border-radius: var(--radius); text-decoration: none; transition: all 0.2s;">
+          <h3 style="color: var(--primary); margin-top: 0;">03. Dores do Mercado</h3>
+          <p style="margin-bottom: 0.5rem;">Análise profunda dos problemas dos marketplaces centralizados e como Bazari resolve.</p>
+          <span class="badge badge-primary">30 min de leitura</span>
+        </a>
+
+        <a href="04-modulos-ecossistema.html" style="display: block; padding: 1.5rem; background: var(--card); border: 2px solid var(--border); border-radius: var(--radius); text-decoration: none; transition: all 0.2s;">
+          <h3 style="color: var(--primary); margin-top: 0;">04. Módulos do Ecossistema</h3>
+          <p style="margin-bottom: 0.5rem;">Marketplace, BazChat, Wallet, P2P, DAO, Feed Social e suas interconexões.</p>
+          <span class="badge badge-primary">45 min de leitura</span>
+        </a>
+
+        <a href="05-arquitetura.html" style="display: block; padding: 1.5rem; background: var(--card); border: 2px solid var(--border); border-radius: var(--radius); text-decoration: none; transition: all 0.2s;">
+          <h3 style="color: var(--primary); margin-top: 0;">05. Arquitetura Técnica</h3>
+          <p style="margin-bottom: 0.5rem;">Stack completo, pallets Substrate, schemas de dados e infraestrutura.</p>
+          <span class="badge badge-primary">50 min de leitura</span>
+        </a>
+
+        <a href="06-roadmap.html" style="display: block; padding: 1.5rem; background: var(--card); border: 2px solid var(--border); border-radius: var(--radius); text-decoration: none; transition: all 0.2s;">
+          <h3 style="color: var(--primary); margin-top: 0;">06. Roadmap e Evolução</h3>
+          <p style="margin-bottom: 0.5rem;">Fases de implementação (2025-2030+), ZK-PoD, BLS, IA assistiva e visão de longo prazo.</p>
+          <span class="badge badge-primary">35 min de leitura</span>
+        </a>
+
+      </div>
+
+      <h2>🎯 Guias de Leitura por Perfil</h2>
+
+      <h3>👔 Para Investidores / VCs</h3>
+      <p><strong>Sequência recomendada:</strong></p>
+      <ol>
+        <li><a href="01-visao-geral.html">Visão Geral</a> — Entenda o problema e a oportunidade</li>
+        <li><a href="03-dores-mercado.html">Dores do Mercado</a> — Veja o impacto econômico real</li>
+        <li><a href="06-roadmap.html">Roadmap</a> — Avalie viabilidade e timeline</li>
+        <li><a href="02-proof-of-commerce.html#2">PoC Técnico (seção 2)</a> — Inovações técnicas</li>
+      </ol>
+      <p><strong>Tempo total:</strong> 1h30</p>
+
+      <h3>💻 Para Desenvolvedores / Engenheiros</h3>
+      <p><strong>Sequência recomendada:</strong></p>
+      <ol>
+        <li><a href="02-proof-of-commerce.html">Proof of Commerce Técnico</a> — Domine o protocolo</li>
+        <li><a href="05-arquitetura.html">Arquitetura</a> — Stack e pallets</li>
+        <li><a href="04-modulos-ecossistema.html">Módulos</a> — Como tudo se integra</li>
+        <li><a href="06-roadmap.html">Roadmap (seções 2-4)</a> — O que vem em cada fase</li>
+      </ol>
+      <p><strong>Tempo total:</strong> 2h45</p>
+
+      <h3>🏪 Para Empreendedores / Comerciantes</h3>
+      <p><strong>Sequência recomendada:</strong></p>
+      <ol>
+        <li><a href="03-dores-mercado.html">Dores do Mercado</a> — Veja como Bazari resolve suas dores</li>
+        <li><a href="04-modulos-ecossistema.html">Módulos (seções 2, 5, 10, 11)</a> — Experiência do vendedor</li>
+        <li><a href="01-visao-geral.html#1-5">Visão Geral (seção 1.5)</a> — Por que isso é o futuro</li>
+      </ol>
+      <p><strong>Tempo total:</strong> 45 minutos</p>
+
+      <h2>📊 Estatísticas</h2>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Métrica</th>
+            <th>Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Total de documentos</strong></td>
+            <td>6 principais + README</td>
+          </tr>
+          <tr>
+            <td><strong>Total de palavras</strong></td>
+            <td>~60.000</td>
+          </tr>
+          <tr>
+            <td><strong>Páginas (impresso)</strong></td>
+            <td>~200</td>
+          </tr>
+          <tr>
+            <td><strong>Tempo de leitura</strong></td>
+            <td>~4 horas (completo)</td>
+          </tr>
+          <tr>
+            <td><strong>Exemplos de código</strong></td>
+            <td>~1.500 linhas (Rust)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>🔑 Conceitos-Chave</h2>
+
+      <div style="background: var(--muted); padding: 1.5rem; border-radius: var(--radius); margin: 1.5rem 0;">
+        <h4 style="margin-top: 0; color: var(--primary);">Proof of Commerce (PoC)</h4>
+        <p>Protocolo de consenso onde a <strong>emissão de valor</strong> (liquidação do pagamento) é condicionada a <strong>provas criptográficas de trabalho real</strong> — co-assinaturas de retirada, entrega e recebimento.</p>
+      </div>
+
+      <div style="background: var(--muted); padding: 1.5rem; border-radius: var(--radius); margin: 1.5rem 0;">
+        <h4 style="margin-top: 0; color: var(--primary);">Quórum Mínimo</h4>
+        <p>Conjunto de atestados co-assinados necessários para finalizar um pedido:</p>
+        <ul style="margin-bottom: 0;">
+          <li><code>ORDER_CREATED</code>: Buyer (implícito pelo escrow)</li>
+          <li><code>HANDOFF</code>: Seller + Courier</li>
+          <li><code>DELIVERED</code>: Courier + Buyer</li>
+        </ul>
+      </div>
+
+      <h2>🚀 Próximos Passos</h2>
+
+      <h3>Para Começar a Usar</h3>
+      <ul>
+        <li>Acesse o testnet: <a href="https://testnet.bazari.network" target="_blank">testnet.bazari.network</a> (disponível em Abril 2025)</li>
+        <li>Pegue BZR no faucet</li>
+        <li>Siga o guia de início rápido</li>
+      </ul>
+
+      <h3>Para Desenvolver</h3>
+      <ul>
+        <li>Clone o repositório: <code>git clone https://github.com/bazari/bazari-chain</code></li>
+        <li>Leia o guia de contribuição</li>
+        <li>Junte-se ao Discord</li>
+      </ul>
+
+      <h3>Para Investir/Parceria</h3>
+      <ul>
+        <li>Entre em contato: <a href="mailto:contact@libervia.xyz">contact@libervia.xyz</a></li>
+        <li>Veja o pitch deck</li>
+      </ul>
+
+      <div style="margin-top: 3rem; padding: 2rem; background: var(--primary); color: white; border-radius: var(--radius); text-align: center;">
+        <h2 style="margin-top: 0; color: white;">💡 Pronto para começar?</h2>
+        <p style="font-size: 1.1rem; margin-bottom: 1.5rem;">Comece pelo documento que mais se adequa ao seu perfil ou leia na ordem sequencial.</p>
+        <a href="01-visao-geral.html" style="display: inline-block; padding: 1rem 2rem; background: var(--secondary); color: var(--foreground); font-weight: 700; border-radius: var(--radius); text-decoration: none; transition: all 0.2s;">
+          Começar pela Visão Geral →
+        </a>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="../assets/script.v2.js"></script>
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Documentación ejecutiva completa del Protocolo Bazari y Proof of Commerce">
+  <meta name="keywords" content="Bazari, Proof of Commerce, PoC, blockchain, marketplace descentralizado">
+  <title>Bazari - Documentación Ejecutiva</title>
+  <link rel="stylesheet" href="../assets/style.css">
+  <link rel="stylesheet" href="../assets/prism.css">
+</head>
+<body>
+  <div class="doc-container">
+    <!-- Header -->
+    <header class="doc-header">
+      <h1><span class="logo">🏪</span> Bazari Docs</h1>
+      <div class="doc-controls">
+        <nav class="lang-switcher" aria-label="Selector de idioma">
+          <button data-lang="pt">🇧🇷 PT</button>
+          <button data-lang="en">🇺🇸 EN</button>
+          <button data-lang="es" class="active">🇪🇸 ES</button>
+        </nav>
+        <button class="theme-toggle" aria-label="Cambiar tema">🌙</button>
+      </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside class="doc-sidebar">
+      <h2>📚 Documentación</h2>
+      <nav class="doc-nav">
+        <ul>
+          <li><a href="index.html" class="active">🏠 Inicio</a></li>
+          <li><a href="01-vision-general.html">01. Visión General y Contexto</a></li>
+          <li><a href="02-proof-of-commerce.html">02. Proof of Commerce Técnico</a></li>
+          <li><a href="03-problemas-mercado.html">03. Problemas del Mercado</a></li>
+          <li><a href="04-modulos-ecosistema.html">04. Módulos del Ecosistema</a></li>
+          <li><a href="05-arquitectura.html">05. Arquitectura Técnica</a></li>
+          <li><a href="06-roadmap.html">06. Roadmap y Evolución</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="doc-main">
+      <h1>📖 Documentación Ejecutiva de Bazari</h1>
+
+      <p style="font-size: 1.2rem; color: var(--primary); font-weight: 600; margin-bottom: 2rem;">
+        Bienvenido a la documentación completa del <strong>Protocolo Bazari</strong> y su revolucionario sistema <strong>Proof of Commerce (PoC)</strong>.
+      </p>
+
+      <blockquote>
+        <p><strong>Misión:</strong> "Devolver el comercio a quienes producen y consumen, eliminando intermediarios extractivos mediante pruebas matemáticas y coordinación descentralizada."</p>
+      </blockquote>
+
+      <h2>📚 Estructura de la Documentación</h2>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin: 2rem 0;">
+
+        <a href="01-vision-general.html" style="display: block; padding: 1.5rem; background: var(--card); border: 2px solid var(--border); border-radius: var(--radius); text-decoration: none; transition: all 0.2s;">
+          <h3 style="color: var(--primary); margin-top: 0;">01. Visión General y Contexto</h3>
+          <p style="margin-bottom: 0.5rem;">Historia de la evolución monetaria, análisis crítico de Fiat, Bitcoin, Ethereum y Stablecoins.</p>
+          <span class="badge badge-primary">20 min de lectura</span>
+        </a>
+
+        <a href="02-proof-of-commerce.html" style="display: block; padding: 1.5rem; background: var(--card); border: 2px solid var(--border); border-radius: var(--radius); text-decoration: none; transition: all 0.2s;">
+          <h3 style="color: var(--primary); margin-top: 0;">02. Proof of Commerce Técnico ⭐</h3>
+          <p style="margin-bottom: 0.5rem;">Especificación técnica completa del protocolo PoC con todos los vectores de fraude resueltos.</p>
+          <span class="badge badge-primary">60 min de lectura</span>
+          <span class="badge badge-secondary">Documento Principal</span>
+        </a>
+
+        <a href="03-problemas-mercado.html" style="display: block; padding: 1.5rem; background: var(--card); border: 2px solid var(--border); border-radius: var(--radius); text-decoration: none; transition: all 0.2s;">
+          <h3 style="color: var(--primary); margin-top: 0;">03. Problemas del Mercado</h3>
+          <p style="margin-bottom: 0.5rem;">Análisis profundo de los problemas de los marketplaces centralizados y cómo Bazari los resuelve.</p>
+          <span class="badge badge-primary">30 min de lectura</span>
+        </a>
+
+        <a href="04-modulos-ecosistema.html" style="display: block; padding: 1.5rem; background: var(--card); border: 2px solid var(--border); border-radius: var(--radius); text-decoration: none; transition: all 0.2s;">
+          <h3 style="color: var(--primary); margin-top: 0;">04. Módulos del Ecosistema</h3>
+          <p style="margin-bottom: 0.5rem;">Marketplace, BazChat, Wallet, P2P, DAO, Feed Social y sus interconexiones.</p>
+          <span class="badge badge-primary">45 min de lectura</span>
+        </a>
+
+        <a href="05-arquitectura.html" style="display: block; padding: 1.5rem; background: var(--card); border: 2px solid var(--border); border-radius: var(--radius); text-decoration: none; transition: all 0.2s;">
+          <h3 style="color: var(--primary); margin-top: 0;">05. Arquitectura Técnica</h3>
+          <p style="margin-bottom: 0.5rem;">Stack completo, pallets de Substrate, esquemas de datos e infraestructura.</p>
+          <span class="badge badge-primary">50 min de lectura</span>
+        </a>
+
+        <a href="06-roadmap.html" style="display: block; padding: 1.5rem; background: var(--card); border: 2px solid var(--border); border-radius: var(--radius); text-decoration: none; transition: all 0.2s;">
+          <h3 style="color: var(--primary); margin-top: 0;">06. Roadmap y Evolución</h3>
+          <p style="margin-bottom: 0.5rem;">Fases de implementación (2025-2030+), ZK-PoD, BLS, IA asistente y visión a largo plazo.</p>
+          <span class="badge badge-primary">35 min de lectura</span>
+        </a>
+
+      </div>
+
+      <h2>🎯 Guías de Lectura por Perfil</h2>
+
+      <h3>👔 Para Inversores / VCs</h3>
+      <p><strong>Secuencia recomendada:</strong></p>
+      <ol>
+        <li><a href="01-vision-general.html">Visión General</a> — Comprenda el problema y la oportunidad</li>
+        <li><a href="03-problemas-mercado.html">Problemas del Mercado</a> — Vea el impacto económico real</li>
+        <li><a href="06-roadmap.html">Roadmap</a> — Evalúe viabilidad y cronograma</li>
+        <li><a href="02-proof-of-commerce.html#2">PoC Técnico (sección 2)</a> — Innovaciones técnicas</li>
+      </ol>
+      <p><strong>Tiempo total:</strong> 1h30</p>
+
+      <h3>💻 Para Desarrolladores / Ingenieros</h3>
+      <p><strong>Secuencia recomendada:</strong></p>
+      <ol>
+        <li><a href="02-proof-of-commerce.html">Proof of Commerce Técnico</a> — Domine el protocolo</li>
+        <li><a href="05-arquitectura.html">Arquitectura</a> — Stack y pallets</li>
+        <li><a href="04-modulos-ecosistema.html">Módulos</a> — Cómo todo se integra</li>
+        <li><a href="06-roadmap.html">Roadmap (secciones 2-4)</a> — Qué viene en cada fase</li>
+      </ol>
+      <p><strong>Tiempo total:</strong> 2h45</p>
+
+      <h3>🏪 Para Emprendedores / Comerciantes</h3>
+      <p><strong>Secuencia recomendada:</strong></p>
+      <ol>
+        <li><a href="03-problemas-mercado.html">Problemas del Mercado</a> — Vea cómo Bazari resuelve sus problemas</li>
+        <li><a href="04-modulos-ecosistema.html">Módulos (secciones 2, 5, 10, 11)</a> — Experiencia del vendedor</li>
+        <li><a href="01-vision-general.html#1-5">Visión General (sección 1.5)</a> — Por qué esto es el futuro</li>
+      </ol>
+      <p><strong>Tiempo total:</strong> 45 minutos</p>
+
+      <h2>🔑 Conceptos Clave</h2>
+
+      <div style="background: var(--muted); padding: 1.5rem; border-radius: var(--radius); margin: 1.5rem 0;">
+        <h4 style="margin-top: 0; color: var(--primary);">Proof of Commerce (PoC)</h4>
+        <p>Protocolo de consenso donde la <strong>emisión de valor</strong> (liquidación del pago) está condicionada a <strong>pruebas criptográficas de trabajo real</strong> — co-firmas de retirada, entrega y recepción.</p>
+      </div>
+
+      <div style="background: var(--muted); padding: 1.5rem; border-radius: var(--radius); margin: 1.5rem 0;">
+        <h4 style="margin-top: 0; color: var(--primary);">Quórum Mínimo</h4>
+        <p>Conjunto de atestaciones co-firmadas necesarias para finalizar un pedido:</p>
+        <ul style="margin-bottom: 0;">
+          <li><code>ORDER_CREATED</code>: Comprador (implícito por el escrow)</li>
+          <li><code>HANDOFF</code>: Vendedor + Mensajero</li>
+          <li><code>DELIVERED</code>: Mensajero + Comprador</li>
+        </ul>
+      </div>
+
+      <div style="margin-top: 3rem; padding: 2rem; background: var(--primary); color: white; border-radius: var(--radius); text-align: center;">
+        <h2 style="margin-top: 0; color: white;">💡 ¿Listo para empezar?</h2>
+        <p style="font-size: 1.1rem; margin-bottom: 1.5rem;">Comience con el documento que mejor se adapte a su perfil o lea en orden secuencial.</p>
+        <a href="01-vision-general.html" style="display: inline-block; padding: 1rem 2rem; background: var(--secondary); color: var(--foreground); font-weight: 700; border-radius: var(--radius); text-decoration: none; transition: all 0.2s;">
+          Comenzar con Visión General →
+        </a>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="../assets/script.js"></script>
+</body>
+</html>

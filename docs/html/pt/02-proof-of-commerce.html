@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Proof of Commerce - Especificação Técnica - Bazari Documentation">
+  <title>Proof of Commerce - Especificação Técnica | Bazari Docs</title>
+  <link rel="stylesheet" href="../assets/style.v2.css">
+  <link rel="stylesheet" href="../assets/prism.v2.css">
+</head>
+<body>
+  <div class="doc-container">
+    <!-- Header -->
+    <header class="doc-header">
+      <h1><span class="logo">🏪</span> Bazari Docs</h1>
+      <div class="doc-controls">
+        <nav class="lang-switcher">
+          <button data-lang="pt" class='active'>🇧🇷 PT</button>
+          <button data-lang="en" >🇺🇸 EN</button>
+          </nav>
+        <button class="theme-toggle">🌙</button>
+      </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside class="doc-sidebar">
+      <h2 id="documentacao">📚 Documentação</h2>
+      <nav class="doc-nav">
+        <ul>
+          <li><a href="index.html">🏠 Início</a></li>
+          <li><a href="01-visao-geral.html" >01. Visão Geral e Contexto</a></li>
+          <li><a href="02-proof-of-commerce.html" class="active">02. Proof of Commerce - Especificação Técnica</a></li>
+          <li><a href="03-dores-mercado.html" >03. Dores do Mercado e Soluções Bazari</a></li>
+          <li><a href="04-modulos-ecossistema.html" >04. Módulos do Ecossistema Bazari</a></li>
+          <li><a href="05-arquitetura.html" >05. Arquitetura e Implementação Técnica</a></li>
+          <li><a href="06-roadmap.html" >06. Roadmap e Evolução Futura</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="doc-main">
+      <h2 id="indice">Índice</h2>
+<p>1. <a href="#1-visao-geral-do-protocolo">Visão Geral do Protocolo</a></p>
+<p>2. <a href="#2-problemas-de-fraude-resolvidos">Problemas de Fraude Resolvidos</a></p>
+<p>3. <a href="#3-entidades-e-papeis">Entidades e Papéis</a></p>
+<p>4. <a href="#4-primitivos-do-protocolo">Primitivos do Protocolo</a></p>
+<p>5. <a href="#5-provas-criptograficas-e-ancoras">Provas Criptográficas e Âncoras</a></p>
+<p>6. <a href="#6-maquina-de-estados">Máquina de Estados</a></p>
+<p>7. <a href="#7-fluxos-essenciais">Fluxos Essenciais</a></p>
+<p>8. <a href="#8-sistema-de-afiliados">Sistema de Afiliados</a></p>
+<p>9. <a href="#9-sistema-de-reputacao">Sistema de Reputação</a></p>
+<p>10. <a href="#10-economia-e-seguranca">Economia e Segurança</a></p>
+<p>11. <a href="#11-invariantes-de-protocolo">Invariantes de Protocolo</a></p>
+<p>12. <a href="#12-exemplos-praticos-detalhados">Exemplos Práticos Detalhados</a></p>
+<p>13. <a href="#13-hardening-do-modulo-de-disputas">Hardening do Módulo de Disputas</a></p>
+<p>---</p>
+<h2 id="1-visao-geral-do-protocolo">1. Visão Geral do Protocolo</h2>
+<h3 id="11-a-ideia-central">1.1 A Ideia Central</h3>
+<p>O <strong>Proof of Commerce</strong> substitui confiança por provas matemáticas. Cada pedido no marketplace Bazari cria um <strong>micro-consenso</strong> entre as partes envolvidas:</p>
+<ul><li><strong>Comprador</strong> (Buyer)</li>
+<li><strong>Lojista</strong> (Seller)</li>
+<li><strong>Entregador</strong> (Courier)</li>
+<li><strong>Afiliados</strong> (Affiliates) - opcional</li>
+<pre><code class="language-">┌─────────────────────────────────────────────────────┐
+<p>│          PEDIDO = MICRO-CONSENSO                    │</p>
+<p>├─────────────────────────────────────────────────────┤</p>
+<p>│                                                     │</p>
+<p>│  Buyer cria Order + deposita BZR em Escrow         │</p>
+<p>│         ↓                                           │</p>
+<p>│  Seller aceita                                      │</p>
+<p>│         ↓                                           │</p>
+<p>│  Courier assume (deposita stake)                    │</p>
+<p>│         ↓                                           │</p>
+<p>│  HandoffProof: Seller + Courier co-assinam         │</p>
+<p>│         ↓                                           │</p>
+<p>│  DeliveryProof: Courier + Buyer co-assinam         │</p>
+<p>│         ↓                                           │</p>
+<p>│  PoCEngine valida QUÓRUM                            │</p>
+<p>│         ↓                                           │</p>
+<p>│  Split automático:                                  │</p>
+<p>│    • Seller recebe preço do produto                 │</p>
+<p>│    • Courier recebe frete                           │</p>
+<p>│    • Affiliates recebem comissões                   │</p>
+<p>│    • DAO recebe taxa                                │</p>
+<p>│         ↓                                           │</p>
+<p>│  Reputações atualizadas                             │</p>
+<p>│                                                     │</p>
+└─────────────────────────────────────────────────────┘</code></pre>
+<h3 id="12-quorum-minimo">1.2 Quórum Mínimo</h3>
+<p>O protocolo exige <strong>atestados co-assinados</strong> nas etapas críticas:</p>
+<p>| Etapa | Signatários Requeridos | Prova Gerada |</p>
+<p>|-------|------------------------|--------------|</p>
+| <code>ORDER_CREATED</code> | Buyer (implícito pelo escrow) | Transação on-chain |
+| <code>HANDOFF</code> | Seller + Courier | HandoffProof |
+| <code>DELIVERED</code> | Courier + Buyer | DeliveryProof |
+<p><strong>Regra Fundamental</strong>: Sem o quórum mínimo de atestados válidos, não há liquidação. O escrow permanece bloqueado ou o caso vai para disputa.</p>
+<h3 id="13-descentralizacao-radical">1.3 Descentralização Radical</h3>
+<li><strong>Não há autoridade central</strong> para aprovar/negar pedidos</li>
+<li><strong>Não há custódia de fundos</strong> por empresa (apenas smart contracts)</li>
+<li><strong>Não há decisões arbitrárias</strong> — apenas execução determinística de regras</li>
+<li><strong>Disputas</strong> são resolvidas por júri descentralizado (jurors com stake) selecionado por aleatoriedade verificável (VRF)</li>
+<p>---</p>
+<h2 id="2-problemas-de-fraude-resolvidos">2. Problemas de Fraude Resolvidos</h2>
+<p>O PoC foi projetado para neutralizar <strong>todos os vetores comuns de fraude</strong> em marketplaces. Abaixo, cada fraude é mapeada com:</p>
+<li>Cenário real</li>
+<li>Defesa do PoC</li>
+<li>Mecanismo técnico</li>
+<li>Efeito econômico</li>
+<p>---</p>
+<h3 id="21-fraude-produto-nao-recebido-buyer-fraud">2.1 Fraude: "Produto Não Recebido" (Buyer Fraud)</h3>
+<h4 id="cenario-real">Cenário Real</h4>
+<p>Comprador recebe o produto mas afirma que não chegou, tentando reembolso ou chargeback social.</p>
+<h4 id="defesa-poc">Defesa PoC</h4>
+<strong>Prova Necessária</strong>: <code>DeliveryProof</code> co-assinado por <strong>Courier + Buyer</strong>
+<pre><code class="language-json">{
+<p>  "order_id": "0x1a2b3c...",</p>
+<p>  "step": "DELIVERED",</p>
+<p>  "timestamp": "2025-10-28T14:32:00Z",</p>
+<p>  "geo": {"lat": -23.5505, "lon": -46.6333, "accuracy": 10},</p>
+<p>  "media_cid": "QmXyz...",  // IPFS: foto da entrega</p>
+<p>  "signature_method": "photo_capture_with_recipient",</p>
+<p>  "observation": "Entregue ao morador, assinado digitalmente",</p>
+<p>  "signers": [</p>
+<p>    {"account_id": "5Courier...", "signature": "0xabc..."},</p>
+<p>    {"account_id": "5Buyer...", "signature": "0xdef..."}</p>
+<p>  ]</p>
+}</code></pre>
+<strong>Âncora On-Chain</strong>: Apenas o <code>payload_hash</code> (Blake2-256 do JSON acima) é gravado na blockchain.
+<p><strong>Mecanismo</strong>:</p>
+<p>1. Sem a assinatura do Buyer, o pedido não finaliza automaticamente</p>
+<p>2. Se o Buyer assina no momento da entrega, qualquer alegação posterior de "não recebimento" é contraprova fraca</p>
+<p>3. Júri pode comparar timestamp, geo e mídia em caso de disputa</p>
+<h4 id="efeito-economico">Efeito Econômico</h4>
+<li><strong>Chargeback social eliminado</strong>: Prova criptográfica > palavra contra palavra</li>
+<li><strong>Custo de fraude</strong>: Se o Buyer abrir disputa infundada, perde reputação e pode ter stake exigido em compras futuras</li>
+<p>---</p>
+<h3 id="22-fraude-entreguei-mas-cliente-nao-confirma-courierseller-fraud">2.2 Fraude: "Entreguei, Mas Cliente Não Confirma" (Courier/Seller Fraud)</h3>
+<h4 id="cenario-real">Cenário Real</h4>
+<p>Lojista ou entregador alegam entrega sem comprovação do destinatário, tentando liberar pagamento unilateralmente.</p>
+<h4 id="defesa-poc">Defesa PoC</h4>
+<strong>Finalização Requer</strong>: <code>DELIVERED = Courier + Buyer</code>
+<p><strong>Mecanismo</strong>:</p>
+<li>Sem co-assinatura do Buyer, o escrow <strong>não é liberado</strong></li>
+<li>Se o Buyer está ausente e o Courier entrega a terceiro (ex.: porteiro), deve registrar:</li>
+<p>  - Foto do recebedor</p>
+<p>  - Assinatura digital ou captura do rosto</p>
+<p>  - Observação no payload: "left with doorman - photo attached"</p>
+<p>  - Isso ancora via hash</p>
+<p><strong>Exceção</strong>: Timeout + evidência fotográfica pode acionar disputa automática para júri avaliar</p>
+<h4 id="efeito-economico">Efeito Econômico</h4>
+<li><strong>Liberação unilateral impedida</strong>: Courier não pode "fingir entrega" sozinho</li>
+<li><strong>Incentivo para boas práticas</strong>: Courier tem interesse em capturar provas robustas para evitar disputas</li>
+<p>---</p>
+<h3 id="23-fraude-produto-diferentedefeituoso-seller-quality-fraud">2.3 Fraude: "Produto Diferente/Defeituoso" (Seller Quality Fraud)</h3>
+<h4 id="cenario-real">Cenário Real</h4>
+<li>Item trocado (enviou chinelo em vez de tênis)</li>
+<li>Lacre violado</li>
+<li>Defeito oculto</li>
+<h4 id="defesa-poc">Defesa PoC</h4>
+<p><strong>Duas Provas Cruzadas</strong>:</p>
+<p>1. <strong>HandoffProof</strong> (Seller + Courier) — captura <strong>estado do pacote na retirada</strong></p>
+<p>   - Foto do lacre</p>
+<p>   - Número de série visível</p>
+<p>   - Peso/dimensões</p>
+<p>2. <strong>DeliveryProof</strong> (Courier + Buyer) — captura <strong>estado no recebimento</strong></p>
+<p>   - Foto do pacote recebido</p>
+<p>   - Condição do lacre</p>
+<p>   - Assinatura de recebimento</p>
+<p><strong>Mecanismo de Atribuição de Responsabilidade</strong>:</p>
+<pre><code class="language-">HandoffProof mostra: lacre INTACTO, produto correto
+<p>DeliveryProof mostra: lacre VIOLADO, produto diferente</p>
+<p>        ↓</p>
+<p>Responsabilidade: COURIER (dano no trajeto)</p>
+<p>        ↓</p>
+<p>Slashing do stake do Courier</p>
+<p>Compensação ao Buyer</p>
+Seller recebe pagamento</code></pre>
+<pre><code class="language-">HandoffProof mostra: lacre VIOLADO
+<p>        ↓</p>
+<p>Responsabilidade: SELLER (produto já saiu errado)</p>
+<p>        ↓</p>
+<p>Escrow retorna ao Buyer</p>
+Slashing de reputação do Seller</code></pre>
+<h4 id="efeito-economico">Efeito Econômico</h4>
+<li><strong>Rastreabilidade completa</strong>: Divergências entre provas identificam exatamente onde ocorreu o problema</li>
+<li><strong>Responsabilização objetiva</strong>: Júri tem evidências timestamped e imutáveis</li>
+<p>---</p>
+<h3 id="24-fraude-golpe-do-intermediario-man-in-the-middle-social">2.4 Fraude: "Golpe do Intermediário" (Man-in-the-Middle Social)</h3>
+<h4 id="cenario-real">Cenário Real</h4>
+<p>Alguém se passa por lojista ou entregador legítimo e tenta capturar pagamento fora do app (ex.: "me pague por PIX que é mais rápido").</p>
+<h4 id="defesa-poc">Defesa PoC</h4>
+<p><strong>Pagamento Reconhecido APENAS se</strong>:</p>
+<li>Escrow on-chain em BZR</li>
+<li>Identidades dos papéis são contas verificadas on-chain</li>
+<li>Split só ocorre com atestados válidos com assinaturas das contas cadastradas</li>
+<p><strong>Identidades Podem Ter</strong>:</p>
+<li>DID (Decentralized Identifier)</li>
+<li>Verifiable Credentials emitidos por comunidades (ex.: "Entregador verificado pela Cooperativa X")</li>
+<li>Reputação pública (PoC Score visível)</li>
+<h4 id="efeito-economico">Efeito Econômico</h4>
+<li><strong>Transações fora do protocolo não liberam fundos</strong></li>
+<li><strong>Golpista não pode forjar assinaturas</strong> (chaves privadas das contas legítimas)</li>
+<li><strong>Usuários educados</strong>: "Pagamento só vale se for pelo app"</li>
+<p>---</p>
+<h3 id="25-fraude-spam-de-afiliados-affiliate-inflation">2.5 Fraude: "Spam de Afiliados" (Affiliate Inflation)</h3>
+<h4 id="cenario-real">Cenário Real</h4>
+<p>Cadeia artificial de compartilhamentos para inflar comissões (ex.: 30 contas falsas em série para capturar mais % da comissão).</p>
+<h4 id="defesa-poc">Defesa PoC</h4>
+<p><strong>Mecanismo: Merkle Proof + DAG de Campanha</strong></p>
+<p>1. Seller cria campanha com parâmetros:</p>
+<p>   - Taxa de comissão total (ex.: 5%)</p>
+<p>   - Cap de hops (máximo 5 níveis)</p>
+<p>   - Decay por nível (ex.: 50% do anterior)</p>
+<p>2. Cada compartilhamento gera nó no DAG; root do DAG é publicado on-chain</p>
+3. Order inclui <code>AffiliatePath</code> (Merkle proof do caminho completo)
+4. <code>finalize()</code> valida:
+   <pre><code class="language-">   - Merkle proof é válido contra root publicado?
+<p>   - Hops <= cap configurado?</p>
+<p>   - Cada afiliado tem stake/reputação mínima?</p>
+<p>   - Não há loops (mesmo account_id repetido)?</p>
+   ``<code>
+<p>5. Se válido, split percorre o caminho e distribui comissões com decay</p>
+<h4 id="efeito-economico">Efeito Econômico</h4>
+<li><strong>Somente caminhos pré-anunciados</strong> (root publicado) recebem comissão</li>
+<li><strong>Spam desincentivado</strong>: Exige stake mínimo por afiliado; fraude queima stake</li>
+<li><strong>Transparência</strong>: Qualquer um pode auditar caminhos via Merkle proof</li>
+<p>---</p>
+<h3 id="26-fraude-conluio-entre-partes-collusion">2.6 Fraude: "Conluio Entre Partes" (Collusion)</h3>
+<h4 id="cenario-real">Cenário Real</h4>
+<li>Buyer + Seller combinam criar pedidos falsos para drenar incentivos/airdrops</li>
+<li>Buyer + Courier tentam lesar Seller (alegam não recebimento sendo cúmplices)</li>
+<h4 id="defesa-poc">Defesa PoC</h4>
+<p><strong>Mecanismos Cruzados</strong>:</p>
+<p>1. <strong>Múltiplas Co-Assinaturas Cruzadas</strong></p>
+<p>   - Handoff: Seller + Courier</p>
+<p>   - Delivery: Courier + Buyer</p>
+<p>   - Nenhuma dupla pode finalizar sozinha</p>
+<p>2. <strong>Stake & Slashing</strong></p>
+<p>   - Courier deposita stake (ex.: 10-30% do valor do pedido)</p>
+<p>   - Seller pode ter stake opcional para alto valor</p>
+<p>   - Fraude comprovada = perda de stake</p>
+<p>3. <strong>Reputação por Papel</strong></p>
+<p>   - SellerScore, CourierScore, BuyerScore são independentes</p>
+<p>   - Padrões suspeitos (mesmas contas sempre trabalhando juntas + alto índice de disputas) podem acionar auditoria</p>
+<p>4. <strong>Amostragem Aleatória (Fase 2)</strong></p>
+<p>   - Pedidos de alto valor podem ter auditoria por jurors mesmo sem disputa aberta</p>
+<p>   - Seleção por VRF (imprevisível)</p>
+<h4 id="efeito-economico">Efeito Econômico</h4>
+<li><strong>Custo de fraudar > ganho esperado</strong></li>
+<p>   - Stake perdido + reputação destruída + ban temporário</p>
+<li><strong>Fraudes recorrentes</strong>:</li>
+<p>   - Aumento progressivo de stake exigido</p>
+<p>   - Limitação de valor máximo por pedido para contas de baixa reputação</p>
+<p>---</p>
+<h2 id="3-entidades-e-papeis">3. Entidades e Papéis</h2>
+<h3 id="31-participantes-principais">3.1 Participantes Principais</h3>
+<p>| Papel | Descrição | Responsabilidades | Incentivos |</p>
+<p>|-------|-----------|-------------------|------------|</p>
+<p>| <strong>Buyer</strong> | Comprador final | • Criar Order<br>• Depositar escrow<br>• Co-assinar DeliveryProof | • Receber produto<br>• Reputação para compras futuras |</p>
+<p>| <strong>Seller</strong> | Comerciante/Lojista | • Aceitar Order<br>• Co-assinar HandoffProof<br>• Entregar produto ao Courier | • Receber pagamento instantâneo<br>• Construir reputação |</p>
+<p>| <strong>Courier</strong> | Entregador | • Depositar stake<br>• Co-assinar Handoff e Delivery<br>• Transportar produto | • Receber frete<br>• Construir PoC Score<br>• Stake devolvido |</p>
+<p>| <strong>Affiliate</strong> | Indicador/Influencer | • Compartilhar produto<br>• Gerar conversões | • Comissão por venda<br>• Reputação de conversão |</p>
+<h3 id="32-entidades-de-governanca">3.2 Entidades de Governança</h3>
+<p>| Papel | Função | Seleção |</p>
+<p>|-------|--------|---------|</p>
+<p>| <strong>Juror</strong> | Resolve disputas | VRF (aleatório) entre stakers |</p>
+<p>| <strong>Arbiter</strong> | Mesmo que Juror | (termos intercambiáveis) |</p>
+<p>| <strong>BazariDAO</strong> | Governa parâmetros do protocolo | Token holders (BZR) |</p>
+<p><strong>Importante</strong>: DAO <strong>não decide pedidos individuais</strong>. Apenas define:</p>
+<li>% de taxas</li>
+<li>Timeouts</li>
+<li>Stakes mínimos</li>
+<li>Destinos de fundos (Tesouro, incentivos)</li>
+<p>---</p>
+<h2 id="4-primitivos-do-protocolo">4. Primitivos do Protocolo</h2>
+<h3 id="41-pallets-nucleo-fase-1">4.1 Pallets Núcleo (Fase 1)</h3>
+<p>O protocolo é implementado como módulos (pallets) em Substrate:</p>
+<h4></code>pallet-order<code></h4>
+<li><strong>Função</strong>: Gerencia ciclo de vida do pedido</li>
+<li><strong>Storage</strong>:</li>
+  - </code>Orders<OrderId, OrderData><code>: estado atual, partes envolvidas, valores
+  - </code>OrderHistory<OrderId, Vec<StateTransition>><code>: log de mudanças
+<li><strong>Extrinsics</strong>:</li>
+  - </code>create_order(product, quantity, price, escrow_amount)<code>
+  - </code>accept_order(order_id)<code>
+  - </code>cancel_order(order_id, reason)<code>
+<h4></code>pallet-escrow<code></h4>
+<li><strong>Função</strong>: Guarda BZR até conclusão do pedido</li>
+<li><strong>Storage</strong>:</li>
+  - </code>Locks<OrderId, Balance><code>: fundos bloqueados
+  - </code>Releases<OrderId, Vec<(AccountId, Balance)>><code>: destinatários pendentes
+<li><strong>Extrinsics</strong>:</li>
+  - </code>deposit(order_id, amount)<code> — Buyer bloqueia fundos
+  - </code>release(order_id)<code> — split automático após finalize
+  - </code>slash(order_id, account_id, amount)<code> — penalidade
+<h4></code>pallet-attestation<code></h4>
+<li><strong>Função</strong>: Ancora provas (hashes) e valida signatários</li>
+<li><strong>Storage</strong>:</li>
+  - </code>Attestations<OrderId, Step, AttestationData><code>
+    </code>`<code>rust
+<p>    struct AttestationData {</p>
+<p>        payload_hash: H256,</p>
+<p>        signers: Vec<(AccountId, Signature)>,</p>
+<p>        timestamp: BlockNumber,</p>
+<p>        metadata: BoundedVec<u8>  // opcional: geo, IPFS CIDs</p>
+<p>    }</p>
+    </code>`<code>
+<li><strong>Extrinsics</strong>:</li>
+  - </code>submit_attestation(order_id, step, payload_hash, signatures)<code>
+<h4></code>pallet-fulfillment<code></h4>
+<li><strong>Função</strong>: Matching de Courier + gestão de stake</li>
+<li><strong>Storage</strong>:</li>
+  - </code>Couriers<AccountId, CourierProfile><code>
+  - </code>CourierStakes<OrderId, (AccountId, Balance)><code>
+  - </code>LogisticStatus<OrderId, FulfillmentState><code>
+<li><strong>Extrinsics</strong>:</li>
+  - </code>apply_as_courier(order_id)<code>
+  - </code>assign_courier(order_id, courier_account)<code> — Seller escolhe
+  - </code>deposit_stake(order_id, amount)<code>
+<h4></code>pallet-affiliate<code></h4>
+<li><strong>Função</strong>: DAG de comissões + Merkle proofs</li>
+<li><strong>Storage</strong>:</li>
+  - </code>Campaigns<CampaignId, CampaignConfig><code>
+  - </code>AffiliateRoots<CampaignId, MerkleRoot><code>
+  - </code>AffiliatePayouts<OrderId, Vec<(AccountId, Balance)>><code>
+<li><strong>Extrinsics</strong>:</li>
+  - </code>create_campaign(rate, max_hops, decay)<code>
+  - </code>submit_affiliate_path(order_id, merkle_proof)<code>
+<h4></code>pallet-fee<code></h4>
+<li><strong>Função</strong>: Cálculo e destino de taxas</li>
+<li><strong>Storage</strong>:</li>
+  - </code>FeeConfig<code>: % para DAO, Tesouro, pools de incentivo
+<li><strong>Extrinsics</strong>:</li>
+  - </code>set_fee_config(new_config)<code> — DAO governance
+<p>---</p>
+<h3 id="42-pallets-de-robustez-fase-12">4.2 Pallets de Robustez (Fase 1.2)</h3>
+<h4></code>pallet-reputation<code></h4>
+<li><strong>Função</strong>: Pontuação por papel com decay temporal</li>
+<li><strong>Storage</strong>:</li>
+  - </code>SellerScores<AccountId, Score><code>
+  - </code>CourierScores<AccountId, Score><code>
+  - </code>BuyerScores<AccountId, Score><code>
+  - </code>AffiliateScores<AccountId, Score><code>
+<li><strong>Inputs</strong>:</li>
+<p>  - Conclusões sem disputa (+)</p>
+<p>  - SLAs cumpridos (+)</p>
+<p>  - Disputas perdidas (-)</p>
+<p>  - Slashes (---)</p>
+<li><strong>Outputs</strong>:</li>
+<p>  - Score 0-1000</p>
+<p>  - Gates dinâmicos (valor máx. por pedido, stake exigido)</p>
+<h4></code>pallet-dispute<code></h4>
+<li><strong>Função</strong>: Gestão de disputas + júri</li>
+<li><strong>Storage</strong>:</li>
+  - </code>Disputes<OrderId, DisputeData><code>
+    </code>`<code>rust
+<p>    struct DisputeData {</p>
+<p>        opened_by: AccountId,</p>
+<p>        opened_at: BlockNumber,</p>
+<p>        jurors: Vec<AccountId>,</p>
+<p>        votes: Vec<(AccountId, Vote, Justification)>,</p>
+<p>        ruling: Option<Ruling>,</p>
+<p>    }</p>
+    </code>`<code>
+  - </code>JurorPool<Vec<AccountId>><code>: stakers elegíveis
+<li><strong>Extrinsics</strong>:</li>
+  - </code>open_dispute(order_id, reason, evidence_cids)<code>
+  - </code>vote_on_dispute(order_id, vote, justification_hash)<code>
+  - </code>finalize_dispute(order_id)<code> — aplica ruling
+<p>---</p>
+<h3 id="43-steps-canonicos">4.3 Steps Canônicos</h3>
+</code></pre>rust
+<p>enum OrderStep {</p>
+<p>    ORDER_CREATED,</p>
+<p>    ACCEPTED,</p>
+<p>    HANDOFF_SELLER_TO_COURIER,</p>
+<p>    IN_TRANSIT,</p>
+<p>    DELIVERED_COURIER_TO_BUYER,</p>
+<p>    FINALIZED,</p>
+<p>    RETURNED,</p>
+<p>    CANCELLED,</p>
+<p>    DISPUTE_OPENED,</p>
+<p>    RULING_APPLIED,</p>
+<p>}</p>
+<pre><code class="language-">
+<p>---</p>
+<h2 id="5-provas-criptograficas-e-ancoras">5. Provas Criptográficas e Âncoras</h2>
+<h3 id="51-recibos-co-assinados-off-chain">5.1 Recibos Co-Assinados (Off-Chain)</h3>
+<p><strong>Formato JSON</strong> (exemplo HandoffProof):</p>
+</code></pre>json
+<p>{</p>
+<p>  "order_id": "0x1a2b3c4d5e6f...",</p>
+<p>  "step": "HANDOFF_SELLER_TO_COURIER",</p>
+<p>  "timestamp": "2025-10-28T10:15:00Z",</p>
+<p>  "geo": {</p>
+<p>    "lat": -23.5505,</p>
+<p>    "lon": -46.6333,</p>
+<p>    "accuracy_meters": 5</p>
+<p>  },</p>
+<p>  "media": [</p>
+<p>    {</p>
+<p>      "type": "photo",</p>
+<p>      "cid": "QmAbC123...",</p>
+<p>      "description": "Pacote lacrado com etiqueta visível"</p>
+<p>    }</p>
+<p>  ],</p>
+<p>  "product_condition": {</p>
+<p>    "seal": "intact",</p>
+<p>    "weight_kg": 1.2,</p>
+<p>    "dimensions_cm": [30, 20, 10]</p>
+<p>  },</p>
+<p>  "observation": "Produto conferido, lacre OK",</p>
+<p>  "signers": [</p>
+<p>    {</p>
+<p>      "role": "Seller",</p>
+<p>      "account_id": "5Seller123...",</p>
+<p>      "signature": "0xabc123def456...",</p>
+<p>      "signature_method": "sr25519"</p>
+<p>    },</p>
+<p>    {</p>
+<p>      "role": "Courier",</p>
+<p>      "account_id": "5Courier456...",</p>
+<p>      "signature": "0xdef789ghi012...",</p>
+<p>      "signature_method": "sr25519"</p>
+<p>    }</p>
+<p>  ],</p>
+<p>  "device_attestation": {</p>
+<p>    "platform": "iOS",</p>
+<p>    "integrity_token": "eyJhbGc...",</p>
+<p>    "app_version": "1.2.3"</p>
+<p>  }</p>
+<p>}</p>
+<pre><code class="language-">
+<h3 id="52-ancora-on-chain">5.2 Âncora On-Chain</h3>
+<p>Apenas o <strong>payload_hash</strong> (Blake2-256 do JSON acima) é gravado na blockchain:</p>
+</code></pre>rust
+<p>pallet_attestation::Attestations::insert(</p>
+<p>    order_id,</p>
+<p>    OrderStep::HANDOFF_SELLER_TO_COURIER,</p>
+<p>    AttestationData {</p>
+<p>        payload_hash: blake2_256(&json_bytes),</p>
+<p>        signers: vec![</p>
+<p>            (seller_account, signature_seller),</p>
+<p>            (courier_account, signature_courier),</p>
+<p>        ],</p>
+<p>        timestamp: current_block,</p>
+<p>        metadata: Some(b"ipfs:QmAbC123..."),</p>
+<p>    }</p>
+<p>);</p>
+<pre><code class="language-">
+<h3 id="53-privacidade-e-verificabilidade">5.3 Privacidade e Verificabilidade</h3>
+<p><strong>Dados Off-Chain</strong> (IPFS ou storage comunitário):</p>
+<li>Mídias (fotos, vídeos)</li>
+<li>PII (endereços completos, nomes)</li>
+<li>Metadados detalhados</li>
+<p><strong>Dados On-Chain</strong>:</p>
+<li>Hashes (imutáveis)</li>
+<li>Assinaturas (verificáveis)</li>
+<li>Timestamps (ordem temporal)</li>
+<p><strong>Benefício</strong>:</p>
+<li>✅ Verificabilidade: Qualquer um pode recomputar hash e checar assinatura</li>
+<li>✅ Privacidade: Dados sensíveis não vazam na blockchain pública</li>
+<li>✅ Eficiência: Blockchain não fica sobrecarregada com GBs de fotos</li>
+<p><strong>Fase 3 (ZK-PoD)</strong>:</p>
+<li>Prova de conhecimento zero de que a entrega ocorreu em região autorizada <strong>sem revelar coordenadas exatas</strong></li>
+<p>---</p>
+<h2 id="6-maquina-de-estados">6. Máquina de Estados</h2>
+<h3 id="61-diagrama-simplificado">6.1 Diagrama Simplificado</h3>
+</code></pre>
+<p>┌──────────────┐</p>
+<p>│   CREATED    │ ← Buyer cria Order + Escrow</p>
+<p>└──────┬───────┘</p>
+<p>       │ Seller aceita</p>
+<p>       ↓</p>
+<p>┌──────────────┐</p>
+<p>│   ACCEPTED   │ ← Courier aplica + deposita stake</p>
+<p>└──────┬───────┘</p>
+<p>       │ HandoffProof (Seller+Courier)</p>
+<p>       ↓</p>
+<p>┌──────────────┐</p>
+<p>│  IN_TRANSIT  │</p>
+<p>└──────┬───────┘</p>
+<p>       │ DeliveryProof (Courier+Buyer)</p>
+<p>       ↓</p>
+<p>┌──────────────┐</p>
+<p>│  DELIVERED   │</p>
+<p>└──────┬───────┘</p>
+<p>       │ PoCEngine valida quórum</p>
+<p>       ↓</p>
+<p>┌──────────────┐</p>
+<p>│  FINALIZED   │ ← Split, reputações ↑, eventos</p>
+<p>└──────────────┘</p>
+<p>       (qualquer falha)</p>
+<p>            ↓</p>
+<p>┌──────────────┐</p>
+<p>│   DISPUTE    │ → Jurors → RULING → aplicação</p>
+<p>└──────────────┘</p>
+<pre><code class="language-">
+<h3 id="62-condicoes-de-transicao">6.2 Condições de Transição</h3>
+<p>| De | Para | Condição | Ação On-Chain |</p>
+<p>|----|------|----------|---------------|</p>
+| </code>CREATED<code> | </code>ACCEPTED<code> | Seller chama </code>accept_order<code> | Atualiza </code>Order.seller_accepted = true<code> |
+| </code>ACCEPTED<code> | </code>HANDOFF<code> | Courier selecionado + stake depositado | </code>CourierStakes.insert(order, (courier, stake))<code> |
+| </code>HANDOFF<code> | </code>IN_TRANSIT<code> | </code>submit_attestation(HANDOFF)<code> com Seller+Courier | Valida signers, ancora hash |
+| </code>IN_TRANSIT<code> | </code>DELIVERED<code> | </code>submit_attestation(DELIVERED)<code> com Courier+Buyer | Valida signers, ancora hash |
+| </code>DELIVERED<code> | </code>FINALIZED<code> | </code>finalize(order_id)<code> + quórum válido | Split escrow, retorna stake, atualiza rep |
+| </code>*<code> | </code>DISPUTE<code> | Timeout OU assinaturas conflitantes OU parte chama </code>open_dispute<code> | Cria </code>Dispute<code>, seleciona jurors |
+| </code>DISPUTE<code> | </code>RULING_APPLIED<code> | Jurors votam + </code>finalize_dispute<code> | Aplica ruling (release/refund + slashing) |
+<p>---</p>
+<h2 id="7-fluxos-essenciais">7. Fluxos Essenciais</h2>
+<h3 id="71-fluxo-feliz-compra-entrega-liquidacao">7.1 Fluxo Feliz (Compra → Entrega → Liquidação)</h3>
+<p><strong>Passo a Passo</strong>:</p>
+<p>1. <strong>Buyer Cria Order</strong></p>
+   </code>`<code>rust
+<p>   Order::create_order(</p>
+<p>       origin = Buyer,</p>
+<p>       product_id,</p>
+<p>       quantity,</p>
+<p>       price = 100 BZR,</p>
+<p>       escrow_amount = 100 BZR</p>
+<p>   )</p>
+   </code>`<code>
+<p>   - Escrow trava 100 BZR da conta do Buyer</p>
+   - Evento: </code>OrderCreated(order_id, buyer, seller, amount)<code>
+<p>2. <strong>Seller Aceita</strong></p>
+   </code>`<code>rust
+<p>   Order::accept_order(origin = Seller, order_id)</p>
+   </code>`<code>
+   - </code>Order.status = ACCEPTED<code>
+<p>   - Notificação para couriers disponíveis</p>
+<p>3. <strong>Courier Aplica e Deposita Stake</strong></p>
+   </code>`<code>rust
+<p>   Fulfillment::apply_as_courier(origin = Courier, order_id)</p>
+<p>   Fulfillment::deposit_stake(origin = Courier, order_id, stake = 20 BZR)</p>
+   </code>`<code>
+<p>   - Seller escolhe Courier (ou sistema auto-assign por reputação)</p>
+   - </code>CourierStakes.insert(order, (courier, 20 BZR))<code>
+<p>4. <strong>Handoff: Seller Entrega ao Courier</strong></p>
+<p>   - BazChat abre tela de co-assinatura</p>
+<p>   - Seller e Courier tiram foto do pacote</p>
+<p>   - App gera JSON, ambos assinam</p>
+<p>   - App chama:</p>
+   </code>`<code>rust
+<p>   Attestation::submit_attestation(</p>
+<p>       origin = Either(Seller ou Courier),</p>
+<p>       order_id,</p>
+<p>       step = HANDOFF,</p>
+<p>       payload_hash,</p>
+<p>       signatures = [(Seller, sig1), (Courier, sig2)]</p>
+<p>   )</p>
+   </code>`<code>
+<p>   - Validação on-chain: signers corretos? hash válido?</p>
+   - </code>Order.status = IN_TRANSIT<code>
+<p>5. <strong>Delivery: Courier Entrega ao Buyer</strong></p>
+<p>   - BazChat abre tela de co-assinatura</p>
+<p>   - Courier e Buyer tiram foto/assinatura de recebimento</p>
+<p>   - App gera JSON, ambos assinam</p>
+<p>   - App chama:</p>
+   </code>`<code>rust
+<p>   Attestation::submit_attestation(</p>
+<p>       origin = Either(Courier ou Buyer),</p>
+<p>       order_id,</p>
+<p>       step = DELIVERED,</p>
+<p>       payload_hash,</p>
+<p>       signatures = [(Courier, sig1), (Buyer, sig2)]</p>
+<p>   )</p>
+   </code>`<code>
+   - </code>Order.status = DELIVERED<code>
+<p>6. <strong>Finalização Automática</strong></p>
+   </code>`<code>rust
+<p>   PoCEngine::finalize(order_id)</p>
+   </code>`<code>
+<p>   - Valida que existe:</p>
+     - </code>ORDER_CREATED<code> (implícito)
+     - </code>HANDOFF<code> com Seller+Courier
+     - </code>DELIVERED<code> com Courier+Buyer
+<p>   - Se válido:</p>
+<p>     - Split escrow:</p>
+<p>       - Seller: 100 BZR (preço produto)</p>
+<p>       - Courier: 15 BZR (frete)</p>
+<p>       - Affiliates: 5 BZR (comissão 5%)</p>
+<p>       - DAO: 2 BZR (taxa 2%)</p>
+<p>     - Retorna stake do Courier (20 BZR)</p>
+<p>     - Atualiza reputações:</p>
+       - </code>SellerScore += 10<code>
+       - </code>CourierScore += 10<code>
+       - </code>BuyerScore += 1<code> (não deu no-show)
+   - Evento: </code>OrderFinalized(order_id, splits)<code>
+<p><strong>Tempo Total</strong>: Segundos (confirmação de 2 blocos Substrate, ~12s)</p>
+<p>---</p>
+<h3 id="72-fluxo-de-disputa">7.2 Fluxo de Disputa</h3>
+<p><strong>Trigger</strong>: Qualquer das condições:</p>
+<li>Timeout sem atestado (ex.: 7 dias sem DELIVERED)</li>
+<li>Assinaturas conflitantes</li>
+<li>Parte chama </code>open_dispute<code> explicitamente</li>
+<p><strong>Passo a Passo</strong>:</p>
+<p>1. <strong>Abertura</strong></p>
+   </code>`<code>rust
+<p>   Dispute::open_dispute(</p>
+<p>       origin = Buyer | Seller | Courier,</p>
+<p>       order_id,</p>
+<p>       reason = "Product damaged",</p>
+<p>       evidence_cids = ["QmEvidence1", "QmEvidence2"]</p>
+<p>   )</p>
+   </code>`<code>
+   - </code>Order.status = DISPUTE_OPENED<code>
+   - Evento: </code>DisputeOpened(order_id, opener, reason)<code>
+<p>2. <strong>Seleção de Jurors (Fase 2: VRF)</strong></p>
+   </code>`<code>rust
+<p>   // VRF gera aleatoriedade verificável</p>
+<p>   let random_seed = VRF::get_randomness(block_number, order_id);</p>
+<p>   let jurors = JurorPool::select_random(7, random_seed);</p>
+<p>   Dispute::assign_jurors(order_id, jurors)</p>
+   </code>`<code>
+<p>   - Jurors são notificados</p>
+<p>   - Prazo para análise: 48h</p>
+<p>3. <strong>Análise de Evidências</strong></p>
+<p>   Jurors recebem:</p>
+<p>   - Hashes on-chain de todas as attestations</p>
+<p>   - CIDs IPFS das mídias</p>
+<p>   - Timeline do pedido</p>
+<p>   - Scorecards pré-computados (Fase 3: IA assistiva)</p>
+<p>4. <strong>Voto Commit-Reveal (anti-suborno)</strong></p>
+<p>   - <strong>Commit</strong>: Juror envia hash do voto</p>
+   </code>`<code>rust
+<p>   Dispute::commit_vote(</p>
+<p>       origin = Juror,</p>
+<p>       order_id,</p>
+<p>       vote_hash = blake2_256(vote || salt)</p>
+<p>   )</p>
+   </code>`<code>
+<p>   - <strong>Reveal</strong>: Após todos commitarem, revela voto</p>
+   </code>`<code>rust
+<p>   Dispute::reveal_vote(</p>
+<p>       origin = Juror,</p>
+<p>       order_id,</p>
+<p>       vote = RefundBuyer,  // ou ReleaseSeller</p>
+<p>       salt,</p>
+<p>       justification_hash</p>
+<p>   )</p>
+   </code>`<code>
+<p>5. <strong>Ruling</strong></p>
+   </code>`<code>rust
+<p>   Dispute::finalize_dispute(order_id)</p>
+   </code>`<code>
+<p>   - Contabiliza votos (maioria simples ou supermaioria 2/3)</p>
+<p>   - Aplica ruling:</p>
+<p>     - <strong>RefundBuyer</strong>: Escrow retorna ao Buyer; Slashing de Seller/Courier se culpa comprovada</p>
+<p>     - <strong>ReleaseSeller</strong>: Split normal; Slashing de reputação do Buyer</p>
+<p>     - <strong>Partial</strong>: Split proporcional</p>
+<p>   - Atualiza reputações de todos (incluindo jurors: acertaram ou não?)</p>
+   - Evento: </code>DisputeResolved(order_id, ruling, slashes)<code>
+<p><strong>Tempo Total</strong>: 2-7 dias (dependendo de complexidade)</p>
+<p>---</p>
+<h2 id="8-sistema-de-afiliados">8. Sistema de Afiliados</h2>
+<h3 id="81-modelo-dag-merkle-trees">8.1 Modelo DAG + Merkle Trees</h3>
+<p><strong>Problema</strong>: Como provar cadeia de compartilhamento sem armazenar gigabytes on-chain?</p>
+<p><strong>Solução</strong>: Directed Acyclic Graph (DAG) off-chain + Merkle root on-chain</p>
+</code></pre>
+<p>Campanha criada por Seller:</p>
+<p>  - Taxa: 5%</p>
+<p>  - Max hops: 5</p>
+<p>  - Decay: 50% por nível</p>
+<p>DAG de compartilhamentos:</p>
+<p>Seller (root)</p>
+<p>  ├─ Affiliate1 (nível 1, 2.5%)</p>
+<p>  │   ├─ Affiliate2 (nível 2, 1.25%)</p>
+<p>  │   └─ Affiliate3 (nível 2, 1.25%)</p>
+<p>  └─ Affiliate4 (nível 1, 2.5%)</p>
+<p>      └─ Affiliate5 (nível 2, 1.25%)</p>
+<p>Merkle Root = Hash(todos os nós e arestas)</p>
+<p>→ Publicado on-chain</p>
+<pre><code class="language-">
+<h3 id="82-inclusao-no-order">8.2 Inclusão no Order</h3>
+<p>Quando Buyer compra via link de Affiliate5:</p>
+</code></pre>rust
+<p>Order::create_order_with_affiliate(</p>
+<p>    ...</p>
+<p>    affiliate_path = MerkleProof {</p>
+<p>        campaign_id,</p>
+<p>        path: [Affiliate1, Affiliate2, Affiliate5],</p>
+<p>        proof: [hash1, hash2, hash3],  // siblings necessários</p>
+<p>        root: 0xabc123...  // corresponde ao publicado</p>
+<p>    }</p>
+<p>)</p>
+<pre><code class="language-">
+<h3 id="83-validacao-e-split">8.3 Validação e Split</h3>
+</code></pre>rust
+<p>fn validate_and_split_affiliates(order: &Order) -> Result<Vec<(AccountId, Balance)>, Error> {</p>
+<p>    let campaign = Campaigns::get(order.affiliate_path.campaign_id)?;</p>
+<p>    // 1. Valida Merkle proof</p>
+<p>    ensure!(</p>
+<p>        verify_merkle_proof(</p>
+<p>            order.affiliate_path.proof,</p>
+<p>            order.affiliate_path.root,</p>
+<p>            order.affiliate_path.path</p>
+<p>        ),</p>
+<p>        "Invalid Merkle proof"</p>
+<p>    );</p>
+<p>    // 2. Verifica hops <= max</p>
+<p>    ensure!(</p>
+<p>        order.affiliate_path.path.len() <= campaign.max_hops,</p>
+<p>        "Exceeded max hops"</p>
+<p>    );</p>
+<p>    // 3. Verifica stakes/reputação mínima</p>
+<p>    for affiliate in &order.affiliate_path.path {</p>
+<p>        ensure!(</p>
+<p>            AffiliateScores::get(affiliate) >= campaign.min_score,</p>
+<p>            "Affiliate below min reputation"</p>
+<p>        );</p>
+<p>    }</p>
+<p>    // 4. Calcula splits com decay</p>
+<p>    let total_commission = order.amount * campaign.rate / 100;</p>
+<p>    let mut payouts = Vec::new();</p>
+<p>    let mut remaining = total_commission;</p>
+<p>    for (level, affiliate) in order.affiliate_path.path.iter().enumerate() {</p>
+<p>        let share = remaining * campaign.decay_per_level.pow(level);</p>
+<p>        payouts.push((affiliate.clone(), share));</p>
+<p>        remaining -= share;</p>
+<p>    }</p>
+<p>    Ok(payouts)</p>
+<p>}</p>
+<pre><code class="language-">
+<h3 id="84-anti-spam">8.4 Anti-Spam</h3>
+<li><strong>Stake mínimo</strong>: Cada afiliado precisa ter X BZR travado</li>
+<li><strong>Reputação mínima</strong>: AffiliateScore >= threshold</li>
+<li><strong>Detecção de loops</strong>: Mesmo account_id não pode aparecer 2x no caminho</li>
+<li><strong>Limite de hops</strong>: Configurable por campanha (típico: 3-5)</li>
+<p>---</p>
+<h2 id="9-sistema-de-reputacao">9. Sistema de Reputação</h2>
+<h3 id="91-poc-score-por-papel">9.1 PoC Score por Papel</h3>
+<p>Cada entidade tem score independente para cada papel que desempenha:</p>
+<p>| Score | Range | Significado |</p>
+<p>|-------|-------|-------------|</p>
+<p>| <strong>SellerScore</strong> | 0-1000 | Qualidade de produtos, tempo de confirmação, taxa de disputas |</p>
+<p>| <strong>CourierScore</strong> | 0-1000 | Pontualidade, cuidado com produtos, taxa de sucesso |</p>
+<p>| <strong>BuyerScore</strong> | 0-1000 | Confiabilidade (não dá no-show), não abre disputas frívolas |</p>
+<p>| <strong>AffiliateScore</strong> | 0-1000 | Taxa de conversão real (vs. spam) |</p>
+<h3 id="92-inputs-do-score">9.2 Inputs do Score</h3>
+</code></pre>rust
+<p>struct ReputationInputs {</p>
+<p>    // Positivos</p>
+<p>    successful_completions: u32,      // +10 por pedido sem disputa</p>
+<p>    on_time_deliveries: u32,          // +5 se entrega dentro do SLA</p>
+<p>    positive_feedback: u32,           // +3 por avaliação 5 estrelas</p>
+<p>    // Negativos</p>
+<p>    disputes_opened_against: u32,     // -20 por disputa aberta contra você</p>
+<p>    disputes_lost: u32,               // -50 se júri decide contra você</p>
+<p>    timeouts: u32,                    // -15 por timeout (não respondeu)</p>
+<p>    slashes: Balance,                 // -100 por 1% do stake slashado</p>
+<p>    // Temporal</p>
+<p>    last_activity: BlockNumber,       // Decay se ficar inativo</p>
+<p>    account_age: BlockNumber,         // Bônus por longevidade</p>
+<p>}</p>
+<pre><code class="language-">
+<h3 id="93-formula-simplificada">9.3 Fórmula (simplificada)</h3>
+</code></pre>rust
+<p>fn calculate_score(inputs: ReputationInputs) -> u32 {</p>
+<p>    let base = 500;  // Score inicial</p>
+<p>    let positive = inputs.successful_completions * 10</p>
+<p>                 + inputs.on_time_deliveries * 5</p>
+<p>                 + inputs.positive_feedback * 3;</p>
+<p>    let negative = inputs.disputes_opened_against * 20</p>
+<p>                 + inputs.disputes_lost * 50</p>
+<p>                 + inputs.timeouts * 15</p>
+<p>                 + (inputs.slashes / UNIT) as u32 * 100;</p>
+<p>    let decay = if inputs.last_activity < current_block - DECAY_THRESHOLD {</p>
+<p>        (current_block - inputs.last_activity) / DECAY_FACTOR</p>
+<p>    } else {</p>
+<p>        0</p>
+<p>    };</p>
+<p>    let age_bonus = min(inputs.account_age / AGE_FACTOR, 50);</p>
+<p>    let score = base + positive - negative - decay + age_bonus;</p>
+<p>    score.clamp(0, 1000)</p>
+<p>}</p>
+<pre><code class="language-">
+<h3 id="94-uso-dos-scores">9.4 Uso dos Scores</h3>
+<p><strong>Gates Dinâmicos</strong>:</p>
+<p>| Score | Valor Máx/Pedido | Stake Courier Exigido | Visibilidade |</p>
+<p>|-------|------------------|----------------------|--------------|</p>
+<p>| 0-200 | 50 BZR | 50% do valor | Baixa no ranking |</p>
+<p>| 200-500 | 500 BZR | 20% do valor | Média |</p>
+<p>| 500-800 | 5000 BZR | 10% do valor | Alta |</p>
+<p>| 800-1000 | Sem limite | 5% do valor | Destaque no marketplace |</p>
+<p><strong>Seleção Preferencial</strong>:</p>
+<li>Couriers com score alto aparecem primeiro nas buscas</li>
+<li>Sellers com score alto têm produtos promovidos</li>
+<li>Afiliados com score alto recebem taxas de comissão maiores</li>
+<p>---</p>
+<h2 id="10-economia-e-seguranca">10. Economia e Segurança</h2>
+<h3 id="101-escrow-obrigatorio">10.1 Escrow Obrigatório</h3>
+<p><strong>Regra de Ouro</strong>: Sem escrow, não há handoff.</p>
+</code></pre>rust
+<p>fn accept_order(origin, order_id) -> DispatchResult {</p>
+<p>    let order = Orders::get(order_id)?;</p>
+<p>    ensure!(</p>
+<p>        Escrow::Locks::contains_key(order_id),</p>
+<p>        "Escrow must be deposited before acceptance"</p>
+<p>    );</p>
+<p>    ensure!(</p>
+<p>        Escrow::Locks::get(order_id) >= order.total_amount,</p>
+<p>        "Insufficient escrow"</p>
+<p>    );</p>
+<p>    // ... restante da lógica</p>
+<p>}</p>
+<pre><code class="language-">
+<h3 id="102-stake-de-courier">10.2 Stake de Courier</h3>
+<p><strong>Propósito</strong>: Skin in the game + colateral para slashing</p>
+<strong>Cálculo Dinâmico</strong>:</code></pre>rust
+<p>fn calculate_required_stake(order_value: Balance, courier_score: u32) -> Balance {</p>
+<p>    let base_rate = 0.2;  // 20%</p>
+<p>    let score_factor = (1000 - courier_score) / 1000;  // quanto menor score, maior stake</p>
+<p>    let rate = base_rate * (1.0 + score_factor);</p>
+<p>    order_value * rate</p>
+<p>}</p>
+<pre><code class="language-">
+<p><strong>Exemplo</strong>:</p>
+<li>Order de 100 BZR</li>
+<li>Courier com score 800 (alto)</li>
+<li>Stake exigido: 100 <em> 0.2 </em> (1 + 0.2) = 24 BZR</li>
+<li>Courier com score 300 (baixo)</li>
+<li>Stake exigido: 100 <em> 0.2 </em> (1 + 0.7) = 34 BZR</li>
+<h3 id="103-slashing">10.3 Slashing</h3>
+<p><strong>Cenários de Slashing</strong>:</p>
+<p>| Infração | Penalidade | Quem Perde |</p>
+<p>|----------|-----------|------------|</p>
+<p>| Handoff forjado (prova falsa) | 50-100% do stake | Courier |</p>
+<p>| Delivery não realizada (culpa provada) | 30-50% do stake | Courier |</p>
+<p>| Produto trocado/defeituoso | Perda de reputação + possível ban | Seller |</p>
+<p>| Disputa frívola (má-fé comprovada) | Taxa de disputa não devolvida + rep-- | Buyer |</p>
+<p>| Juror vota contra evidências óbvias | 20% do stake de juror | Juror |</p>
+<strong>Slashing é Progressivo</strong>:</code></pre>rust
+<p>fn calculate_slash_amount(</p>
+<p>    base_stake: Balance,</p>
+<p>    infraction_severity: u8,  // 1-10</p>
+<p>    repeat_offender: bool</p>
+<p>) -> Balance {</p>
+<p>    let severity_factor = infraction_severity as f64 / 10.0;</p>
+<p>    let repeat_multiplier = if repeat_offender { 2.0 } else { 1.0 };</p>
+<p>    (base_stake <em> severity_factor </em> repeat_multiplier).min(base_stake)</p>
+<p>}</p>
+<pre><code class="language-">
+<h3 id="104-fees-taxas">10.4 Fees (Taxas)</h3>
+<p><strong>Configuração DAO-governed</strong>:</p>
+</code></pre>rust
+<p>struct FeeConfig {</p>
+<p>    dao_fee_percent: u8,           // ex.: 2%</p>
+<p>    treasury_percent: u8,          // ex.: 1%</p>
+<p>    juror_pool_percent: u8,        // ex.: 0.5%</p>
+<p>    burn_percent: u8,              // ex.: 0.5% (deflação)</p>
+<p>}</p>
+<pre><code class="language-">
+<strong>Distribuição no </code>finalize()<code></strong>:</code></pre>rust
+<p>let total = escrow_amount;</p>
+<p>let dao_fee = total * config.dao_fee_percent / 100;</p>
+<p>let treasury_fee = total * config.treasury_percent / 100;</p>
+<p>// ...</p>
+<p>Escrow::transfer(dao_account, dao_fee);</p>
+<p>Escrow::transfer(treasury_account, treasury_fee);</p>
+<p>Escrow::burn(total * config.burn_percent / 100);</p>
+<pre><code class="language-">
+<p>---</p>
+<h2 id="11-invariantes-de-protocolo">11. Invariantes de Protocolo</h2>
+<p><strong>Invariantes</strong> são propriedades que <strong>nunca</strong> podem ser violadas. Se forem, o protocolo está comprometido.</p>
+<h3 id="111-invariantes-economicos">11.1 Invariantes Econômicos</h3>
+<p>1. <strong>Conservação de Valor</strong></p>
+   </code>`<code>
+<p>   ∑(Escrow bloqueados) + ∑(Stakes de couriers) = ∑(Saldos antes dos locks)</p>
+   </code>`<code>
+<p>   - Nenhum BZR pode ser criado ou destruído fora de mint/burn autorizados</p>
+<p>2. <strong>Split Total Correto</strong></p>
+   </code>`<code>
+<p>   Após finalize():</p>
+<p>   Seller recebido + Courier recebido + Affiliates recebidos + Taxas = Escrow original</p>
+   </code>`<code>
+<p>3. <strong>Stake Sempre Retornado (se sem culpa)</strong></p>
+   </code>`<code>
+<p>   Se Courier não foi slashado ⇒ Stake é devolvido integralmente</p>
+   </code>`<code>
+<h3 id="112-invariantes-de-autorizacao">11.2 Invariantes de Autorização</h3>
+<p>4. <strong>Apenas Signers Válidos Podem Atestar</strong></p>
+   </code>`<code>
+<p>   submit_attestation(HANDOFF, [sigA, sigB]) ⇒</p>
+<p>     sigA ∈ {Seller, Courier} ∧ sigB ∈ {Seller, Courier} ∧ sigA ≠ sigB</p>
+   </code>`<code>
+<p>5. <strong>Ninguém Recebe Sem Quórum</strong></p>
+   </code>`<code>
+<p>   finalize() só executa se ∃:</p>
+<p>     - Attestation(ORDER_CREATED)</p>
+<p>     - Attestation(HANDOFF) com [Seller, Courier]</p>
+<p>     - Attestation(DELIVERED) com [Courier, Buyer]</p>
+   </code>`<code>
+<h3 id="113-invariantes-de-estado">11.3 Invariantes de Estado</h3>
+<p>6. <strong>Idempotência de Finalização</strong></p>
+   </code>`<code>
+<p>   finalize(order_id) chamado 2x ⇒ segunda chamada falha (Order.status já FINALIZED)</p>
+   </code>`<code>
+<p>7. <strong>Ordem Monotônica de Steps</strong></p>
+   </code>`<code>
+<p>   DELIVERED não pode ocorrer antes de HANDOFF</p>
+<p>   (verificação de timestamp e dependências)</p>
+   </code>`<code>
+<p>8. <strong>Timeout Antes de Finalização Forçada</strong></p>
+   </code>`<code>
+<p>   finalize() sem DELIVERED ⇒ Só se timeout expirado OU ruling de disputa</p>
+   </code>`<code>
+<h3 id="114-invariantes-de-seguranca">11.4 Invariantes de Segurança</h3>
+<p>9. <strong>Proteção a Reentrância</strong></p>
+   </code>`<code>
+<p>   finalize() usa mutex on-chain (ex.: status flag):</p>
+<p>   if Order.finalizing { return Err(ReentrancyGuard) }</p>
+<p>   Order.finalizing = true;</p>
+<p>   // ... executa split</p>
+<p>   Order.finalizing = false;</p>
+<p>   Order.status = FINALIZED;</p>
+   </code>`<code>
+<p>10. <strong>Challenge Window</strong></p>
+    </code>`<code>
+<p>    Após DELIVERED, existe janela de 24-48h antes de finalize() automático</p>
+<p>    → Permite que partes abram disputas se houver problema</p>
+    </code>`<code>
+<p>---</p>
+<h2 id="12-exemplos-praticos-detalhados">12. Exemplos Práticos Detalhados</h2>
+<h3 id="121-caso-a-entrega-no-condominio">12.1 Caso A: "Entrega no Condomínio"</h3>
+<p><strong>Situação</strong>:</p>
+<li>Courier entrega pacote ao porteiro às 14h</li>
+<li>Buyer chega em casa às 20h e afirma não ter recebido</li>
+<p><strong>Provas Coletadas</strong>:</p>
+<strong>DeliveryProof</strong>:</code></pre>json
+<p>{</p>
+<p>  "order_id": "0xABC",</p>
+<p>  "step": "DELIVERED",</p>
+<p>  "timestamp": "2025-10-28T14:00:00Z",</p>
+<p>  "geo": {"lat": -23.550, "lon": -46.633},</p>
+<p>  "media": [{</p>
+<p>    "cid": "QmPhoto1",</p>
+<p>    "description": "Pacote com etiqueta #ABC visível"</p>
+<p>  }],</p>
+<p>  "recipient": {</p>
+<p>    "name": "João Silva (Porteiro)",</p>
+<p>    "id_type": "CPF_partial",</p>
+<p>    "signature_capture": "QmSig1"</p>
+<p>  },</p>
+<p>  "observation": "Entregue ao porteiro - Buyer ausente",</p>
+<p>  "signers": [</p>
+<p>    {"account": "5Courier", "sig": "0x..."},</p>
+<p>    {"account": "5Buyer", "sig": null}  // Buyer não presente</p>
+<p>  ]</p>
+<p>}</p>
+<pre><code class="language-">
+<p><strong>Ação do Courier</strong>:</p>
+<li>Como Buyer não estava presente, Courier fotografou:</li>
+<p>  1. Etiqueta do pacote</p>
+<p>  2. Rosto do porteiro (blur automático no app)</p>
+<p>  3. Assinatura digital do porteiro</p>
+<li>Submeteu attestation com observação</li>
+<p><strong>Fluxo</strong>:</p>
+<p>1. Courier submete DeliveryProof às 14h05</p>
+<p>2. Sistema detecta que falta assinatura do Buyer</p>
+<p>3. Inicia timer de 48h para Buyer co-assinar OU abrir disputa</p>
+<p>4. Buyer às 20h vê notificação no app: "Seu pedido foi entregue ao porteiro"</p>
+<p>5. Buyer pode:</p>
+<p>   - <strong>Opção A</strong>: Confirmar que retirou (co-assinar tardiamente) → finaliza</p>
+<p>   - <strong>Opção B</strong>: Abrir disputa "Não encontrei o pacote"</p>
+<p><strong>Se Disputa é Aberta</strong>:</p>
+<li>Jurors analisam:</li>
+<p>  - ✅ Foto da etiqueta corresponde ao order_id</p>
+<p>  - ✅ Timestamp e geo corretos (portaria do condomínio)</p>
+<p>  - ✅ Porteiro identificado (prática comum)</p>
+<p>  - ❌ Buyer não tem contra-evidência (não fotografou ausência do pacote)</p>
+<li><strong>Ruling</strong>: Release para Seller e Courier (entrega válida)</li>
+<li><strong>Ação educativa</strong>: Buyer instruído a retirar com portaria</li>
+<p>---</p>
+<h3 id="122-caso-b-lacre-violado-no-trajeto">12.2 Caso B: "Lacre Violado no Trajeto"</h3>
+<p><strong>Situação</strong>:</p>
+<li>Seller lacra caixa com produto (tênis Nike)</li>
+<li>Courier transporta</li>
+<li>Buyer recebe caixa amassada com lacre rompido</li>
+<p><strong>Provas</strong>:</p>
+<strong>HandoffProof</strong> (Seller → Courier):</code></pre>json
+<p>{</p>
+<p>  "step": "HANDOFF",</p>
+<p>  "timestamp": "2025-10-28T09:00:00Z",</p>
+<p>  "media": [</p>
+<p>    {"cid": "QmLacre1", "description": "Lacre intacto, série #12345"},</p>
+<p>    {"cid": "QmCaixa1", "description": "Caixa em perfeito estado"}</p>
+<p>  ],</p>
+<p>  "product_condition": {</p>
+<p>    "seal": "intact",</p>
+<p>    "seal_number": "12345",</p>
+<p>    "weight_kg": 1.0</p>
+<p>  },</p>
+<p>  "signers": [</p>
+<p>    {"account": "5Seller", "sig": "0x..."},</p>
+<p>    {"account": "5Courier", "sig": "0x..."}</p>
+<p>  ]</p>
+<p>}</p>
+<pre><code class="language-">
+<strong>DeliveryProof</strong> (Courier → Buyer):</code></pre>json
+<p>{</p>
+<p>  "step": "DELIVERED",</p>
+<p>  "timestamp": "2025-10-28T16:00:00Z",</p>
+<p>  "media": [</p>
+<p>    {"cid": "QmLacre2", "description": "Lacre rompido"},</p>
+<p>    {"cid": "QmCaixa2", "description": "Caixa amassada"}</p>
+<p>  ],</p>
+<p>  "product_condition": {</p>
+<p>    "seal": "broken",</p>
+<p>    "damage": "box_crushed"</p>
+<p>  },</p>
+<p>  "observation": "Buyer recusou assinar devido a dano visível",</p>
+<p>  "signers": [</p>
+<p>    {"account": "5Courier", "sig": "0x..."},</p>
+<p>    {"account": "5Buyer", "sig": null}  // Recusa proposital</p>
+<p>  ]</p>
+<p>}</p>
+<pre><code class="language-">
+<p><strong>Fluxo</strong>:</p>
+<p>1. Buyer não assina DeliveryProof na hora (recusa)</p>
+<p>2. Courier submete attestation com observação de recusa</p>
+<p>3. Sistema abre Dispute automática (co-assinatura faltante + dano alegado)</p>
+<p>4. Jurors recebem ambas as provas</p>
+<p><strong>Análise do Júri</strong>:</p>
+<li><strong>HandoffProof</strong> mostra:</li>
+<p>  - ✅ Lacre #12345 intacto</p>
+<p>  - ✅ Caixa perfeita</p>
+<p>  - ✅ Ambos assinaram (Seller e Courier concordam com estado)</p>
+<li><strong>DeliveryProof</strong> mostra:</li>
+<p>  - ❌ Lacre rompido</p>
+<p>  - ❌ Caixa amassada</p>
+<p>  - 📸 Fotos timestamped provam mudança de estado</p>
+<p><strong>Conclusão</strong>:</p>
+<li>Dano ocorreu <strong>entre HANDOFF e DELIVERY</strong></li>
+<li>Responsabilidade: <strong>Courier</strong> (único custódia no período)</li>
+<strong>Ruling</strong>:</code></pre>rust
+<p>Ruling::PartialRefund {</p>
+<p>    buyer_refund: 100 BZR (valor total),</p>
+<p>    seller_payment: 100 BZR (não teve culpa),</p>
+<p>    courier_slash: 50 BZR (50% do stake de 100 BZR),</p>
+<p>    source: Courier stake + seguro/pool</p>
+<p>}</p>
+<pre><code class="language-">
+<p><strong>Execução</strong>:</p>
+<li>Buyer recebe 100 BZR de volta</li>
+<li>Seller recebe 100 BZR do escrow</li>
+<li>Courier perde 50 BZR do stake (slashing)</li>
+<li>Courier recebe 50 BZR de volta + reputação -100 pontos</li>
+<li>Se o pool de seguro existir, cobre a diferença; senão, Courier arca sozinho</li>
+<p>---</p>
+<h3 id="123-caso-c-afiliado-spammer">12.3 Caso C: "Afiliado Spammer"</h3>
+<p><strong>Situação</strong>:</p>
+<li>Spammer cria 30 contas falsas</li>
+<li>Tenta criar cadeia artificial de compartilhamentos para inflar comissão</li>
+<strong>Tentativa</strong>:</code></pre>
+<p>Seller → Fake1 → Fake2 → ... → Fake30 → Buyer</p>
+<pre><code class="language-">
+<strong>Campanha Configurada</strong>:</code></pre>rust
+<p>Campaign {</p>
+<p>    rate: 5%,</p>
+<p>    max_hops: 5,</p>
+<p>    decay: 0.5,  // 50% por nível</p>
+<p>    min_score: 100,</p>
+<p>    min_stake: 10 BZR</p>
+<p>}</p>
+<pre><code class="language-">
+<strong>Order Criado</strong>:</code></pre>rust
+<p>Order::create_order_with_affiliate(</p>
+<p>    affiliate_path = MerkleProof {</p>
+<p>        campaign_id: 123,</p>
+<p>        path: [Fake1, Fake2, ..., Fake30],  // 30 hops</p>
+<p>        proof: [...],</p>
+<p>        root: 0xSpamRoot</p>
+<p>    }</p>
+<p>)</p>
+<pre><code class="language-">
+<p><strong>Validação On-Chain</strong>:</p>
+</code></pre>rust
+<p>// 1. Verifica Merkle proof</p>
+<p>verify_merkle_proof(path, proof, root) ✅ (spammer publicou root)</p>
+<p>// 2. Verifica hops</p>
+<p>path.len() = 30 > max_hops = 5 ❌</p>
+<p>// FALHA: "Exceeded max hops"</p>
+<p>// 3. Mesmo que passasse hops, verifica reputação</p>
+<p>for fake in path {</p>
+<p>    AffiliateScores::get(fake) = 0 < min_score = 100 ❌</p>
+<p>}</p>
+<p>// FALHA: "Affiliate below min reputation"</p>
+<p>// 4. Verifica stakes</p>
+<p>for fake in path {</p>
+<p>    AffiliateStakes::get(fake) = 0 < min_stake = 10 BZR ❌</p>
+<p>}</p>
+<p>// FALHA: "Affiliate below min stake"</p>
+<pre><code class="language-">
+<p><strong>Resultado</strong>:</p>
+<li>Order é criado, mas </code>affiliate_path<code> é rejeitado</li>
+<li>Comissões vão para NULL ou são queimadas</li>
+<li>Spammer não recebe nada</li>
+<li>Se tentou stake com fundos roubados, pode acionar investigação</li>
+<p><strong>Proteção Adicional (Fase 2)</strong>:</p>
+<li>Detecção de padrões (mesmas contas sempre trabalhando juntas)</li>
+<li>Stake slashado se comprovado spam</li>
+<li>Ban de IPs/dispositivos associados</li>
+<p>---</p>
+<h2 id="13-hardening-do-modulo-de-disputas">13. Hardening do Módulo de Disputas</h2>
+<h3 id="131-o-vetor-mais-sensivel">13.1 O Vetor Mais Sensível</h3>
+<p><strong>Crítica comum</strong>: "Se o júri pode ser subornado ou toma decisões inconsistentes, o PoC falha."</p>
+<p><strong>Resposta</strong>: O módulo de Disputas é a <strong>última linha de defesa</strong>, acionada apenas quando o PoCEngine não consegue decidir automaticamente (~5-10% dos pedidos). Por isso, tem múltiplas camadas de proteção.</p>
+<p>---</p>
+<h3 id="132-mitigacoes-anti-suborno">13.2 Mitigações Anti-Suborno</h3>
+<h4 id="a-selecao-aleatoria-verificavel-vrf">A) Seleção Aleatória Verificável (VRF)</h4>
+<p><strong>Problema</strong>: Se atacante sabe quem serão os jurors, pode tentar corromper.</p>
+<strong>Solução</strong>:</code></pre>rust
+<p>// Usa VRF (Verifiable Random Function) - imprevisível e verificável</p>
+<p>let random_seed = pallet_babe::RandomnessFromOneEpochAgo::<T>::random(&order_id);</p>
+<p>let pool = JurorPool::get();  // todos os stakers elegíveis</p>
+<p>let selected = select_random_subset(pool, 7, random_seed);</p>
+<pre><code class="language-">
+<p><strong>Propriedades</strong>:</p>
+<li>Ninguém pode prever quem será selecionado antes da seleção</li>
+<li>Após seleção, todos podem verificar que foi aleatória (VRF proof)</li>
+<p>---</p>
+<h4 id="b-commit-reveal-voto-secreto">B) Commit-Reveal + Voto Secreto</h4>
+<p><strong>Problema</strong>: Se jurors votam publicamente, podem ser pressionados a mudar voto.</p>
+<strong>Solução</strong>:</code></pre>rust
+<p>// Fase 1: Commit (juror envia hash do voto)</p>
+<p>fn commit_vote(origin, order_id: OrderId, vote_hash: H256) {</p>
+<p>    let juror = ensure_signed(origin)?;</p>
+<p>    VoteCommits::insert((order_id, juror), VoteCommit {</p>
+<p>        hash: vote_hash,</p>
+<p>        timestamp: now()</p>
+<p>    });</p>
+<p>}</p>
+<p>// Fase 2: Reveal (após todos commitarem, revela voto)</p>
+<p>fn reveal_vote(origin, order_id: OrderId, vote: Vote, salt: Vec<u8>) {</p>
+<p>    let juror = ensure_signed(origin)?;</p>
+<p>    let commit = VoteCommits::get((order_id, juror))?;</p>
+<p>    // Verifica que hash corresponde</p>
+<p>    ensure!(</p>
+<p>        blake2_256(&(vote, salt)) == commit.hash,</p>
+<p>        "Invalid reveal"</p>
+<p>    );</p>
+<p>    Votes::insert((order_id, juror), vote);</p>
+<p>}</p>
+<pre><code class="language-">
+<p><strong>Propriedades</strong>:</p>
+<li>Durante commit, ninguém sabe o voto de ninguém</li>
+<li>Impossível mudar voto depois do commit (hash travou)</li>
+<li>Revelação prova que o voto é o mesmo que foi commitado</li>
+<p>---</p>
+<h4 id="c-payout-diferido-com-meta-dispute">C) Payout Diferido com Meta-Dispute</h4>
+<p><strong>Problema</strong>: Mesmo com commit-reveal, suborno pode acontecer antes do commit.</p>
+<strong>Solução</strong>:</code></pre>rust
+<p>// Após ruling, recompensas de jurors ficam time-locked</p>
+<p>fn finalize_dispute(order_id: OrderId) {</p>
+<p>    let ruling = calculate_ruling(order_id)?;</p>
+<p>    apply_ruling(order_id, ruling);</p>
+<p>    // Recompensas travadas por 7 dias</p>
+<p>    for juror in Disputes::get(order_id).jurors {</p>
+<p>        JurorPayouts::insert(juror, Payout {</p>
+<p>            amount: calculate_reward(juror, ruling),</p>
+<p>            unlock_at: now() + 7 * DAYS</p>
+<p>        });</p>
+<p>    }</p>
+<p>    // Janela para Meta-Dispute</p>
+<p>    MetaDisputeWindow::insert(order_id, now() + 7 * DAYS);</p>
+<p>}</p>
+<p>// Qualquer parte pode abrir Meta-Dispute se apresentar prova de colusão</p>
+<p>fn open_meta_dispute(</p>
+<p>    origin,</p>
+<p>    order_id: OrderId,</p>
+<p>    evidence_of_collusion: Vec<u8>  // ex.: mensagens de chat vazadas</p>
+<p>) {</p>
+<p>    ensure!(now() < MetaDisputeWindow::get(order_id), "Window closed");</p>
+<p>    // Nova rodada com jurors diferentes</p>
+<p>    // Se procedente: slashing dos jurors originais + ban</p>
+<p>}</p>
+<pre><code class="language-">
+<p>---</p>
+<h4 id="d-multi-rodadas-com-custo-crescente-escada-de-apelacao">D) Multi-Rodadas com Custo Crescente (Escada de Apelação)</h4>
+<p><strong>Problema</strong>: Parte perdedora pode tentar subornar júri de apelação.</p>
+<strong>Solução</strong>:</code></pre>rust
+<p>struct DisputeLevel {</p>
+<p>    level: u8,           // 1, 2, 3</p>
+<p>    juror_count: u32,    // 7, 21, 63</p>
+<p>    stake_required: Balance,  // 10 BZR, 50 BZR, 200 BZR</p>
+<p>}</p>
+<p>// Primeira rodada: 7 jurors</p>
+<p>// Apelação nível 1: 21 jurors (3x mais) + stake 5x maior</p>
+<p>// Apelação nível 2: 63 jurors (9x mais) + stake 20x maior</p>
+<p>// Custo de subornar cresce geometricamente</p>
+<p>// Atacante precisaria corromper maioria de 63 jurors com 200 BZR cada</p>
+<p>// = 126.000 BZR de risco para reverter decisão</p>
+<pre><code class="language-">
+<p>---</p>
+<h4 id="e-amostragem-estratificada">E) Amostragem Estratificada</h4>
+<p><strong>Problema</strong>: Jurors de mesma região/grupo podem ter viés ou coordenar.</p>
+<strong>Solução</strong>:</code></pre>rust
+<p>// Seleciona jurors de diferentes shards geográficos/demográficos</p>
+<p>fn select_stratified_jurors(pool: Vec<AccountId>, count: u32) -> Vec<AccountId> {</p>
+<p>    let shards = stratify_by_geo_and_reputation(pool);</p>
+<p>    let per_shard = count / shards.len();</p>
+<p>    let mut selected = Vec::new();</p>
+<p>    for shard in shards {</p>
+<p>        selected.extend(</p>
+<p>            select_random_subset(shard, per_shard, random_seed())</p>
+<p>        );</p>
+<p>    }</p>
+<p>    selected</p>
+<p>}</p>
+<pre><code class="language-">
+<p>---</p>
+<h3 id="133-qualidade-das-evidencias">13.3 Qualidade das Evidências</h3>
+<h4 id="a-padroes-de-captura-obrigatorios">A) Padrões de Captura Obrigatórios</h4>
+<p><strong>App força</strong>:</p>
+<li>Watermark com order_id, timestamp, signatário</li>
+<li>QR code efêmero para validação cruzada</li>
+<li>Device attestation (SafetyNet/Play Integrity)</li>
+</code></pre>json
+<p>{</p>
+<p>  "media_cid": "QmPhoto",</p>
+<p>  "watermark": {</p>
+<p>    "order_id": "0xABC",</p>
+<p>    "timestamp": "2025-10-28T14:00:00Z",</p>
+<p>    "captured_by": "5Courier...",</p>
+<p>    "qr_nonce": "xyz123"</p>
+<p>  },</p>
+<p>  "device_attestation": {</p>
+<p>    "platform": "Android",</p>
+<p>    "integrity_token": "eyJhbGc...",</p>
+<p>    "verdict": "MEETS_DEVICE_INTEGRITY"</p>
+<p>  }</p>
+<p>}</p>
+<pre><code class="language-">
+<p>---</p>
+<h4 id="b-provas-de-localizacao-robustas">B) Provas de Localização Robustas</h4>
+<strong>Multi-sensor fusion</strong>:</code></pre>rust
+<p>struct LocationProof {</p>
+<p>    gps: Coordinates,</p>
+<p>    wifi_bssids: Vec<String>,      // roteadores detectados</p>
+<p>    cell_tower_ids: Vec<u32>,      // torres de celular</p>
+<p>    bluetooth_beacons: Vec<String>, // beacons BLE</p>
+<p>    accuracy_meters: f64,</p>
+<p>    timestamp: u64</p>
+<p>}</p>
+<p>// Validação cruzada: todos os sensores devem concordar com mesma região</p>
+<p>fn validate_location(proof: LocationProof, expected_region: Region) -> bool {</p>
+<p>    gps_matches(proof.gps, expected_region)</p>
+<p>    && wifi_matches(proof.wifi_bssids, expected_region)</p>
+<p>    && cell_matches(proof.cell_tower_ids, expected_region)</p>
+<p>}</p>
+<pre><code class="language-">
+<strong>Fase 3: ZK-PoD</strong></code></pre>
+<p>Courier prova:</p>
+<p>  "Eu estava em um raio de 500m do endereço X no horário Y"</p>
+<p>  SEM revelar coordenadas exatas</p>
+<p>Via Zero-Knowledge Proof verificável on-chain</p>
+<pre><code class="language-">
+<p>---</p>
+<h4 id="c-bundles-probatorios-versionados">C) Bundles Probatórios Versionados</h4>
+<strong>Schema de evidência</strong>:</code></pre>json
+<p>{</p>
+<p>  "version": "1.2.0",</p>
+<p>  "required_fields": [</p>
+<p>    "handoff_photo_with_seal",</p>
+<p>    "delivery_photo_with_recipient",</p>
+<p>    "geo_proof",</p>
+<p>    "timestamps"</p>
+<p>  ],</p>
+<p>  "optional_fields": [</p>
+<p>    "video_sequence",</p>
+<p>    "witness_signature"</p>
+<p>  ],</p>
+<p>  "fraud_indicators": [</p>
+<p>    "timestamp_manipulation",</p>
+<p>    "geo_spoofing",</p>
+<p>    "photoshop_detection"</p>
+<p>  ]</p>
+<p>}</p>
+<pre><code class="language-">
+<strong>Jurors recebem checklist</strong>:</code></pre>
+<p>✅ Foto do lacre presente?</p>
+<p>✅ Timestamp coerente com handoff anterior?</p>
+<p>✅ Geo dentro da tolerância?</p>
+<p>⚠️ Foto mostra sinais de edição?</p>
+<pre><code class="language-">
+<p>---</p>
+<h4 id="d-pre-scoring-automatico">D) Pre-Scoring Automático</h4>
+<p><strong>Fase 3: IA Assistiva</strong></p>
+</code></pre>rust
+<p>struct PreScore {</p>
+<p>    overall: u8,  // 0-100</p>
+<p>    confidence: f64,</p>
+<p>    breakdown: {</p>
+<p>        timestamp_validity: u8,</p>
+<p>        geo_consistency: u8,</p>
+<p>        media_authenticity: u8,</p>
+<p>        signature_validity: u8</p>
+<p>    },</p>
+<p>    red_flags: Vec<String>,  // ex.: ["GPS jump detected", "Seal number mismatch"]</p>
+<p>    explanation: String  // "Delivery proof is strong: all sensors agree, media unedited"</p>
+<p>}</p>
+<p>// Jurors veem o pre-score, mas mantêm decisão final</p>
+<pre><code class="language-">
+<p><strong>Treinamento da IA</strong>:</p>
+<li>Dataset público de disputas resolvidas</li>
+<li>Labels: rulings finais + justificativas</li>
+<li>Modelo: Explicabilidade obrigatória (LIME/SHAP)</li>
+<p>---</p>
+<h4 id="e-auditoria-publica">E) Auditoria Pública</h4>
+<strong>Todo ruling grava</strong>:</code></pre>rust
+<p>struct RulingRecord {</p>
+<p>    order_id: OrderId,</p>
+<p>    ruling: Ruling,</p>
+<p>    jurors: Vec<AccountId>,  // anonimizados por hash, mas rastreáveis por DAO</p>
+<p>    evidence_hashes: Vec<H256>,</p>
+<p>    votes: Vec<(VoteHash, Vote)>,  // commit/reveal preservados</p>
+<p>    pre_score: PreScore,</p>
+<p>    timestamp: BlockNumber</p>
+<p>}</p>
+<p>// Qualquer um pode auditar:</p>
+<p>// - Coerência de rulings similares</p>
+<p>// - Taxa de acerto de jurors individuais</p>
+<p>// - Desvios do pre-score (jurors ignoraram IA?)</p>
+<pre><code class="language-">
+<p>---</p>
+<h3 id="134-parametros-de-seguranca">13.4 Parâmetros de Segurança</h3>
+<p><strong>Configuração Recomendada (Fase 2)</strong>:</p>
+</code></pre>rust
+<p>struct DisputeConfig {</p>
+<p>    // Stakes</p>
+<p>    stake_juror_min: Balance = 100 BZR,</p>
+<p>    stake_juror_percent_of_order: f64 = 0.1,  // 10% do valor do pedido</p>
+<p>    // Slashing</p>
+<p>    slashing_wrong_vote: f64 = 0.3,  // 30% do stake</p>
+<p>    slashing_no_show: f64 = 0.5,     // 50% do stake</p>
+<p>    slashing_collusion: f64 = 1.0,   // 100% do stake + ban</p>
+<p>    // Quóruns</p>
+<p>    jurors_first_level: u32 = 7,</p>
+<p>    jurors_appeal_level1: u32 = 21,</p>
+<p>    jurors_appeal_level2: u32 = 63,</p>
+<p>    supermajority_threshold: f64 = 0.66,  // 2/3</p>
+<p>    // Timeouts</p>
+<p>    commit_window: BlockNumber = 24 * HOURS,</p>
+<p>    reveal_window: BlockNumber = 24 * HOURS,</p>
+<p>    payout_lock: BlockNumber = 7 * DAYS,</p>
+<p>    meta_dispute_window: BlockNumber = 7 * DAYS,</p>
+<p>    // Apelações</p>
+<p>    max_appeals: u8 = 2,</p>
+<p>    appeal_stake_multiplier: f64 = 5.0,  // 5x o stake do nível anterior</p>
+<p>}</p>
+<pre><code class="language-">
+<p>---</p>
+<h3 id="135-conclusao-disputas-como-ultima-linha">13.5 Conclusão: Disputas como Última Linha</h3>
+<p><strong>Defesa em Profundidade</strong>:</p>
+</code></pre>
+<p>Camada 1: Quórum PoC (95% dos casos)</p>
+<p>    ↓ falha</p>
+<p>Camada 2: Timeouts + evidência automática</p>
+<p>    ↓ falha</p>
+<p>Camada 3: Dispute com 7 jurors + VRF + commit-reveal</p>
+<p>    ↓ apelação</p>
+<p>Camada 4: 21 jurors + custo 5x maior</p>
+<p>    ↓ apelação final</p>
+<p>Camada 5: 63 jurors + IA assistiva + DAO oversight</p>
+</code>``
+<p><strong>Custo de Ataque</strong>:</p>
+<li>Subornar maioria de 7 jurors: ~500 BZR (arriscado)</li>
+<li>Subornar maioria de 21 jurors: ~2.500 BZR + risco de meta-dispute</li>
+<li>Subornar maioria de 63 jurors: ~12.000 BZR + alta probabilidade de detecção + ban permanente</li>
+<p><strong>Para a maioria dos pedidos (< 500 BZR)</strong>: custo de ataque > valor do pedido → economicamente irracional.</p>
+<p>---</p>
+<h2 id="proximos-documentos">Próximos Documentos</h2>
+<li><strong><a href="./03-dores-mercado.html">03-dores-mercado.html</a></strong>: Análise das dores do mercado tradicional e como Bazari resolve</li>
+<li><strong><a href="./04-modulos-ecossistema.html">04-modulos-ecossistema.html</a></strong>: Descrição completa de cada módulo do ecossistema</li>
+<li><strong><a href="./05-arquitetura.html">05-arquitetura.html</a></strong>: Arquitetura técnica detalhada e pallets Substrate</li>
+<li><strong><a href="./06-roadmap.html">06-roadmap.html</a></strong>: Roadmap de 3 fases e evolução futura (ZK-PoD, BLS, IA)</li></ul>
+<p>---</p>
+<p><strong>Bazari Proof of Commerce</strong> — Confiança substituída por matemática, trabalho verificado por criptografia.</p>
+
+      <!-- Navigation -->
+      <div class="doc-navigation">
+        <a href="01-visao-geral.html" class="prev">← Anterior</a>
+        <a href="03-dores-mercado.html" class="next">Próximo →</a>
+      </div>
+    </main>
+  </div>
+
+  <script src="../assets/script.v2.js"></script>
+</body>
+</html>

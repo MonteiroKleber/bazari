@@ -7,6 +7,9 @@
 export { useVotingData } from './useVotingData';
 export type { UseVotingDataOptions, UseVotingDataReturn } from './useVotingData';
 
+export { useGovernanceEvents } from './useGovernanceEvents';
+export type { UseGovernanceEventsOptions, UseGovernanceEventsReturn } from './useGovernanceEvents';
+
 // To be implemented in next prompts:
 // export { useGovernanceNotifications } from './useGovernanceNotifications';
 // export { useProposalFilters } from './useProposalFilters';

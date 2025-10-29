@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Bazari Ecosystem Modules - Bazari Documentation">
+  <title>Bazari Ecosystem Modules | Bazari Docs</title>
+  <link rel="stylesheet" href="../assets/style.v2.css">
+  <link rel="stylesheet" href="../assets/prism.v2.css">
+</head>
+<body>
+  <div class="doc-container">
+    <!-- Header -->
+    <header class="doc-header">
+      <h1><span class="logo">🏪</span> Bazari Docs</h1>
+      <div class="doc-controls">
+        <nav class="lang-switcher">
+          <button data-lang="pt">🇧🇷 PT</button>
+          <button data-lang="en" class="active">🇺🇸 EN</button>
+          </nav>
+        <button class="theme-toggle">🌙</button>
+      </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside class="doc-sidebar">
+      <h2 id="documentation">📚 Documentation</h2>
+      <nav class="doc-nav">
+        <ul>
+          <li><a href="index.html">🏠 Home</a></li>
+          <li><a href="01-overview-context.html" >01. Overview and Context</a></li>
+          <li><a href="02-proof-of-commerce.html" >02. Proof of Commerce - Technical Specification</a></li>
+          <li><a href="03-market-pain-points.html" >03. Market Pain Points and Bazari Solutions</a></li>
+          <li><a href="04-ecosystem-modules.html" class="active">04. Bazari Ecosystem Modules</a></li>
+          <li><a href="05-architecture.html" >05. Architecture and Technical Implementation</a></li>
+          <li><a href="06-roadmap.html" >06. Roadmap and Future Evolution</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="doc-main">
+      <h2 id="04-bazari-ecosystem-modules">04. Bazari Ecosystem Modules</h2>
+<p>---</p>
+<h2 id="table-of-contents">Table of Contents</h2>
+<p>1. <a href="#1-architecture-overview">Architecture Overview</a></p>
+<p>2. <a href="#2-marketplace">Marketplace</a></p>
+<p>3. <a href="#3-bazchat">BazChat</a></p>
+<p>4. <a href="#4-wallet">Wallet</a></p>
+<p>5. <a href="#5-my-stores">My Stores</a></p>
+<p>6. <a href="#6-my-marketplace">My Marketplace</a></p>
+<p>7. <a href="#7-become-a-courier">Become a Courier</a></p>
+<p>8. <a href="#8-p2p-peer-to-peer-exchange">P2P (Peer-to-Peer Exchange)</a></p>
+<p>9. <a href="#9-dao-governance">DAO (Governance)</a></p>
+<p>10. <a href="#10-social-feed">Social Feed</a></p>
+<p>11. <a href="#11-social-profile">Social Profile</a></p>
+<p>12. <a href="#12-interconnection-diagram">Interconnection Diagram</a></p>
+<p>---</p>
+<h2 id="1-architecture-overview">1. Architecture Overview</h2>
+<h3 id="11-design-philosophy">1.1 Design Philosophy</h3>
+<p>The Bazari ecosystem is not a single application, but a <strong>set of interconnected modules</strong> that form a cohesive experience. Each module:</p>
+<ul><li>✅ Is <strong>autonomous</strong> (can function independently)</li>
+<li>✅ Is <strong>composable</strong> (integrates naturally with other modules)</li>
+<li>✅ <strong>Queries the same on-chain state</strong> (BazariChain)</li>
+<li>✅ Can have <strong>multiple implementations</strong> (different frontends)</li>
+<pre><code class="language-">┌─────────────────────────────────────────────────┐
+<p>│             APPLICATION LAYER                   │</p>
+<p>│  (Frontend Modules - Web/Mobile/Desktop)        │</p>
+<p>├─────────────────────────────────────────────────┤</p>
+<p>│                                                 │</p>
+<p>│  Marketplace │ BazChat │ Wallet │ P2P │ DAO    │</p>
+<p>│     │            │         │       │       │    │</p>
+<p>│     └────────────┴─────────┴───────┴───────┘    │</p>
+<p>│                       │                          │</p>
+<p>├───────────────────────┼──────────────────────────┤</p>
+<p>│               DATA LAYER                         │</p>
+<p>│              BazariChain (Substrate)             │</p>
+<p>│  ┌──────────────────────────────────────────┐   │</p>
+<p>│  │ Pallets: Order, Escrow, Attestation,     │   │</p>
+<p>│  │ Fulfillment, Affiliate, Reputation, DAO  │   │</p>
+<p>│  └──────────────────────────────────────────┘   │</p>
+<p>├─────────────────────────────────────────────────┤</p>
+<p>│          INFRASTRUCTURE LAYER                   │</p>
+<p>│  IPFS (media) │ libp2p (p2p) │ Storage (db)    │</p>
+└─────────────────────────────────────────────────┘</code></pre>
+<p>---</p>
+<h2 id="2-marketplace">2. Marketplace</h2>
+<h3 id="21-description">2.1 Description</h3>
+<p>The <strong>Marketplace</strong> is the main module where users <strong>discover, buy and sell products</strong>. It's the entry point for most users.</p>
+<p><strong>Features</strong>:</p>
+<li>Browse by categories (Electronics, Fashion, Home, Food, Services)</li>
+<li>Search (text, filters, sorting)</li>
+<li>Product page (photos, description, reviews, seller's PoC Score)</li>
+<li>Shopping cart</li>
+<li>Checkout (Order creation + Escrow deposit)</li>
+<li>Order tracking (timeline with on-chain proofs)</li>
+<p>---</p>
+<h3 id="22-connection-with-proof-of-commerce">2.2 Connection with Proof of Commerce</h3>
+<pre><code class="language-">User searches "Nike Shoes"
+<p>    ↓</p>
+<p>Marketplace queries on-chain:</p>
+<p>  - Listed products (pallet-product)</p>
+<p>  - SellerScore for each merchant (pallet-reputation)</p>
+<p>  - Ranking algorithm (open source)</p>
+<p>    ↓</p>
+<p>Display sorted results</p>
+<p>    ↓</p>
+<p>User clicks "Buy"</p>
+<p>    ↓</p>
+<p>Marketplace calls Wallet:</p>
+<p>  - Creates Order on-chain (pallet-order::create_order)</p>
+<p>  - Deposits escrow (pallet-escrow::deposit)</p>
+<p>    ↓</p>
+<p>Order ID created (e.g.: 0xABC123)</p>
+<p>    ↓</p>
+User is redirected to tracking timeline</code></pre>
+<p><strong>Innovation vs. Traditional Marketplaces</strong>:</p>
+<p>| Feature | Traditional Marketplace | Bazari Marketplace |</p>
+<p>|---------|-------------------------|--------------------|</p>
+<p>| Search | Secret algorithm | Open source auditable code |</p>
+<p>| Ranking | Ad auction-based | Based on PoC reputation + quality |</p>
+<p>| Payment | Fiat (card) via gateway | Crypto (BZR) via on-chain escrow |</p>
+<p>| Tracking | Opaque internal system | Immutable on-chain proofs (attestations) |</p>
+<p>| Dispute | Centralized support | Decentralized jury |</p>
+<p>---</p>
+<h3 id="23-ux-flow-example">2.3 UX Flow Example</h3>
+<p><strong>Scenario</strong>: Maria wants to buy a dress.</p>
+<p>1. <strong>Discovery</strong></p>
+   <pre><code class="language-">   Maria opens Marketplace → category "Women's Fashion"
+<p>   Filters: Price $50-150, Size M, Color Green</p>
+<p>   Sort: "Best reputation"</p>
+   ``<code>
+<p>2. <strong>Product Analysis</strong></p>
+   </code>`<code>
+<p>   Product: Green Dress - $89</p>
+<p>   Seller: @ModaAutoral (SellerScore: 850/1000)</p>
+<p>   Reviews: 4.8/5 (127 sales)</p>
+<p>   Location: São Paulo - SP</p>
+<p>   Shipping: $12 (1-day delivery by Courier Score 920)</p>
+   </code>`<code>
+<p>3. <strong>Purchase</strong></p>
+   </code>`<code>
+<p>   Maria clicks "Buy Now"</p>
+<p>   Wallet opens modal:</p>
+<p>     Total: 89 + 12 = 101 BZR</p>
+<p>     Balance: 250 BZR ✅</p>
+<p>     [Confirm Purchase]</p>
+   </code>`<code>
+<p>4. <strong>Proof of Commerce Initiates</strong></p>
+   </code>`<code>
+<p>   Order #0xABC created</p>
+<p>   Escrow locked: 101 BZR</p>
+<p>   Seller notified via BazChat</p>
+<p>   Timeline displayed:</p>
+<p>     ✅ Order created (now)</p>
+<p>     ⏳ Awaiting seller acceptance</p>
+   </code>`<code>
+<p>---</p>
+<h3 id="24-integration-with-other-modules">2.4 Integration with Other Modules</h3>
+<p>| Module | Integration |</p>
+<p>|--------|-----------|</p>
+<p>| <strong>Wallet</strong> | Marketplace calls Wallet for on-chain transactions |</p>
+<p>| <strong>BazChat</strong> | "Talk to seller" button opens chat |</p>
+<p>| <strong>My Stores</strong> | Seller manages products via dashboard |</p>
+<p>| <strong>Become a Courier</strong> | Couriers see available orders in Marketplace |</p>
+<p>| <strong>Social Feed</strong> | Products can be shared on Feed |</p>
+<p>| <strong>DAO</strong> | Users can propose changes to ranking algorithm |</p>
+<p>---</p>
+<h2 id="3-bazchat">3. BazChat</h2>
+<h3 id="31-description">3.1 Description</h3>
+<p><strong>BazChat</strong> is the <strong>P2P messaging</strong> module built on libp2p. It serves multiple functions:</p>
+<p>1. <strong>Chat</strong> between Buyer/Seller/Courier</p>
+<p>2. <strong>Co-signing of proofs</strong> (Handoff, Delivery)</p>
+<p>3. <strong>Negotiation</strong> (offer/counteroffer)</p>
+<p>4. <strong>Community support</strong> (group chat for learning)</p>
+<p><strong>Technical Characteristics</strong>:</p>
+<li>Protocol: libp2p/gossipsub</li>
+<li>Encryption: E2EE (end-to-end encryption) with wallet keys</li>
+<li>Storage: Messages in local storage (don't go to blockchain)</li>
+<li>Media: Photos/videos via IPFS</li>
+<p>---</p>
+<h3 id="32-connection-with-proof-of-commerce">3.2 Connection with Proof of Commerce</h3>
+<p><strong>Primary Use: Co-Signing Proofs</strong></p>
+</code></pre>
+<p>┌──────────────────────────────────────────────────┐</p>
+<p>│        HANDOFF: Seller delivers to Courier       │</p>
+<p>├──────────────────────────────────────────────────┤</p>
+<p>│                                                  │</p>
+<p>│  BazChat opens special screen:                   │</p>
+<p>│    [Camera]  Take photo of sealed package        │</p>
+<p>│    [Geo]     Location captured: Store XYZ        │</p>
+<p>│    [Weight]  1.2 kg (optional, if scale available)│</p>
+<p>│    [QR Code] Ephemeral code for validation       │</p>
+<p>│                                                  │</p>
+<p>│  Seller sees preview:                            │</p>
+<p>│    [Sign Handoff] ← Clicks here                  │</p>
+<p>│                                                  │</p>
+<p>│  Courier sees preview:                           │</p>
+<p>│    [Sign Handoff] ← Clicks here                  │</p>
+<p>│                                                  │</p>
+<p>│  When BOTH sign:                                 │</p>
+<p>│    → HandoffProof JSON is generated              │</p>
+<p>│    → Hash is anchored on-chain (pallet-attestation)│</p>
+<p>│    → Media uploads to IPFS                       │</p>
+<p>│    → Order changes to IN_TRANSIT                 │</p>
+<p>│                                                  │</p>
+<p>└──────────────────────────────────────────────────┘</p>
+<pre><code class="language-">
+<p><strong>Same process for DeliveryProof</strong> (Courier + Buyer).</p>
+<p>---</p>
+<h3 id="33-social-features">3.3 Social Features</h3>
+<strong>1-on-1 Chat</strong>:</code></pre>
+<p>Buyer: Hi, do you have the dress in blue?</p>
+<p>Seller: Hello! Yes, I have blue in size M and L. Which do you prefer?</p>
+<p>Buyer: M, please. Can you ship tomorrow?</p>
+<p>Seller: I can! I'll update the order to blue and confirm in 10 min.</p>
+<pre><code class="language-">
+<strong>Group Chat</strong> (e.g.: "Artisan Sellers MG"):</code></pre>
+<p>User1: Anyone know how to set up affiliate campaigns?</p>
+<p>User2: Yes! Go to My Stores → Campaigns → Create New</p>
+<p>User3: Sharing tutorial: ipfs://QmTutorial...</p>
+<pre><code class="language-">
+<strong>Smart Notifications</strong>:</code></pre>
+<p>🔔 @ModaAutoral accepted your order #0xABC</p>
+<p>🔔 Courier @Motoboy123 was selected</p>
+<p>🔔 📦 Handoff confirmed! Your order is on the way</p>
+<p>🔔 Courier is 2km from you (geo update via libp2p)</p>
+<p>🔔 📬 Order delivered! Confirm receipt in BazChat</p>
+<pre><code class="language-">
+<p>---</p>
+<h3 id="34-privacy-and-security">3.4 Privacy and Security</h3>
+<strong>E2E Encryption</strong>:</code></pre>rust
+<p>// Message sent by Seller to Buyer</p>
+<p>let shared_secret = ecdh(seller_privkey, buyer_pubkey);</p>
+<p>let encrypted_msg = aes_gcm_encrypt(message, shared_secret);</p>
+<p>// Published via gossipsub</p>
+<p>topic: /bazari/order/0xABC</p>
+<p>payload: encrypted_msg</p>
+<p>// Only Buyer can decrypt</p>
+<p>let decrypted = aes_gcm_decrypt(encrypted_msg, shared_secret);</p>
+<pre><code class="language-">
+<p><strong>No Central Server</strong>:</p>
+<li>No server "reads" your messages</li>
+<li>Not even Bazari developers have access</li>
+<li>Message logs stay only on participants' devices</li>
+<p><strong>Integration with PoC</strong>:</p>
+<li>Co-signed proofs have <strong>on-chain timestamp</strong> (immutable)</li>
+<li>Regular messages <strong>don't go to blockchain</strong> (privacy)</li>
+<li>Sensitive media can be stored in private IPFS (only those with CID can access)</li>
+<p>---</p>
+<h3 id="35-integration-with-other-modules">3.5 Integration with Other Modules</h3>
+<p>| Module | Integration |</p>
+<p>|--------|-----------|</p>
+<p>| <strong>Marketplace</strong> | "Talk to seller" button on any product |</p>
+<p>| <strong>Wallet</strong> | BazChat uses Wallet identity (account_id) |</p>
+<p>| <strong>My Stores</strong> | Seller responds to multiple buyer inquiries |</p>
+<p>| <strong>Become a Courier</strong> | Courier coordinates pickup/delivery via chat |</p>
+<p>| <strong>Social Profile</strong> | Messages can reference Feed posts |</p>
+<p>---</p>
+<h2 id="4-wallet">4. Wallet</h2>
+<h3 id="41-description">4.1 Description</h3>
+<p><strong>Wallet</strong> is the <strong>crypto asset management</strong> module. It's the bridge between the user and the blockchain.</p>
+<p><strong>Features</strong>:</p>
+<li>Create/Import account (12/24-word mnemonic)</li>
+<li>View balance (BZR, other tokens)</li>
+<li>Send/Receive (on-chain transfers)</li>
+<li>Sign transactions (order creation, attestations, DAO votes)</li>
+<li>History (all account transactions)</li>
+<li>Hardware wallet integration (Ledger, Trezor - Phase 2)</li>
+<p>---</p>
+<h3 id="42-connection-with-proof-of-commerce">4.2 Connection with Proof of Commerce</h3>
+<p><strong>Wallet is the Control Point for All On-Chain Activity</strong>:</p>
+</code></pre>rust
+<p>// Examples of transactions Wallet signs:</p>
+<p>// 1. Create Order (Buyer)</p>
+<p>pallet_order::create_order(</p>
+<p>    origin: signed(buyer_account),</p>
+<p>    product_id,</p>
+<p>    escrow_amount: 100 BZR</p>
+<p>)</p>
+<p>// 2. Deposit Stake (Courier)</p>
+<p>pallet_fulfillment::deposit_stake(</p>
+<p>    origin: signed(courier_account),</p>
+<p>    order_id,</p>
+<p>    stake: 20 BZR</p>
+<p>)</p>
+<p>// 3. Submit Attestation (Seller + Courier)</p>
+<p>pallet_attestation::submit_attestation(</p>
+<p>    origin: signed(seller_account),  // can be any of the signers</p>
+<p>    order_id,</p>
+<p>    step: HANDOFF,</p>
+<p>    payload_hash,</p>
+<p>    signatures: [</p>
+<p>        (seller_account, seller_sig),</p>
+<p>        (courier_account, courier_sig)</p>
+<p>    ]</p>
+<p>)</p>
+<p>// 4. Vote on DAO Proposal</p>
+<p>pallet_dao::vote(</p>
+<p>    origin: signed(token_holder),</p>
+<p>    proposal_id,</p>
+<p>    vote: Aye | Nay,</p>
+<p>    voting_power: amount_of_BZR_staked</p>
+<p>)</p>
+<pre><code class="language-">
+<p>---</p>
+<h3 id="43-ux-interface">4.3 UX Interface</h3>
+<strong>Main Screen</strong>:</code></pre>
+<p>┌────────────────────────────────────────┐</p>
+<p>│            Bazari Wallet               │</p>
+<p>├────────────────────────────────────────┤</p>
+<p>│                                        │</p>
+<p>│  Account: 5FHneW... [Copy] [QR]       │</p>
+<p>│                                        │</p>
+<p>│  💰 Total Balance                      │</p>
+<p>│      1,247.50 BZR                      │</p>
+<p>│      ≈ $6,237.50 (P2P rate)            │</p>
+<p>│                                        │</p>
+<p>│  ┌──────────────────────────────────┐ │</p>
+<p>│  │ [Send] [Receive] [History]       │ │</p>
+<p>│  └──────────────────────────────────┘ │</p>
+<p>│                                        │</p>
+<p>│  🔒 Locked Funds                       │</p>
+<p>│      Escrows: 150 BZR (3 orders)       │</p>
+<p>│      Stakes: 60 BZR (as courier)       │</p>
+<p>│                                        │</p>
+<p>│  📊 Reputations                        │</p>
+<p>│      Seller Score:  850/1000           │</p>
+<p>│      Courier Score: 920/1000           │</p>
+<p>│      Buyer Score:   750/1000           │</p>
+<p>│                                        │</p>
+<p>└────────────────────────────────────────┘</p>
+<pre><code class="language-">
+<strong>Transaction Flow</strong>:</code></pre>
+<p>User clicks [Send]</p>
+<p>    ↓</p>
+<p>Modal opens:</p>
+<p>  To: 5Recipient... (or scan QR)</p>
+<p>  Amount: 50 BZR</p>
+<p>  Fee: 0.01 BZR (gas fee)</p>
+<p>  [Confirm]</p>
+<p>    ↓</p>
+<p>Wallet generates transaction:</p>
+<p>  balances::transfer(dest, 50 BZR)</p>
+<p>    ↓</p>
+<p>User sees preview:</p>
+<p>  From: 5FHneW...</p>
+<p>  To: 5Dest...</p>
+<p>  Amount: 50 BZR</p>
+<p>  Fee: 0.01 BZR</p>
+<p>  ─────────────</p>
+<p>  Total: 50.01 BZR</p>
+<p>  [Sign with Password/Biometrics]</p>
+<p>    ↓</p>
+<p>Transaction broadcast to network</p>
+<p>    ↓</p>
+<p>Confirmation in ~12s (2 blocks)</p>
+<p>    ↓</p>
+<p>Notification: ✅ Sent! TxHash: 0xTx123...</p>
+<pre><code class="language-">
+<p>---</p>
+<h3 id="44-security">4.4 Security</h3>
+<p><strong>Custody</strong>:</p>
+<li>✅ <strong>Non-custodial</strong>: User controls private keys</li>
+<li>❌ Bazari <strong>never</strong> has access to keys</li>
+<li>✅ Mnemonic can recover account in any compatible wallet (Polkadot.js, Talisman, SubWallet)</li>
+<strong>Protections</strong>:</code></pre>
+<p>Private key encrypted with strong password</p>
+<p>    ↓</p>
+<p>Stored in Keychain (iOS) / Keystore (Android) / Encrypted storage (Web)</p>
+<p>    ↓</p>
+<p>Signing requires authentication:</p>
+<p>  • Password (default)</p>
+<p>  • Biometrics (Face ID, Touch ID) - optional</p>
+<p>  • Hardware wallet (Ledger via USB/Bluetooth) - Phase 2</p>
+<pre><code class="language-">
+<strong>Multi-Sig</strong> (Phase 2, for businesses):</code></pre>rust
+<p>// Multi-sig account requires 2 of 3 signatures</p>
+<p>let multisig_account = create_multisig([alice, bob, charlie], threshold: 2);</p>
+<p>// Large value transaction (e.g.: 10,000 BZR)</p>
+<p>pallet_multisig::as_multi(</p>
+<p>    signatories: [alice, bob, charlie],</p>
+<p>    threshold: 2,</p>
+<p>    call: balances::transfer(dest, 10_000 BZR)</p>
+<p>);</p>
+<p>// Alice and Bob sign → transaction executes</p>
+<p>// If only Alice signs → stays pending</p>
+<pre><code class="language-">
+<p>---</p>
+<h3 id="45-integration-with-other-modules">4.5 Integration with Other Modules</h3>
+<p>| Module | Integration |</p>
+<p>|--------|-----------|</p>
+<p>| <strong>All</strong> | Wallet is used by <strong>all modules</strong> to sign transactions |</p>
+<p>| <strong>Marketplace</strong> | Checkout uses Wallet for escrow |</p>
+<p>| <strong>BazChat</strong> | Proof co-signatures via Wallet |</p>
+<p>| <strong>P2P</strong> | Wallet manages BZR ↔ Fiat buy/sell orders |</p>
+<p>| <strong>DAO</strong> | Wallet locks BZR for voting power |</p>
+<p>---</p>
+<h2 id="5-my-stores">5. My Stores</h2>
+<h3 id="51-description">5.1 Description</h3>
+<p><strong>My Stores</strong> is the <strong>seller management</strong> module. It's the control panel for those selling on Bazari.</p>
+<p><strong>Features</strong>:</p>
+<li>List products (title, description, photos, price, stock)</li>
+<li>Manage orders (accept, cancel, view timeline)</li>
+<li>Affiliate campaigns (create, configure commissions)</li>
+<li>Analytics (sales, revenue, best-selling products)</li>
+<li>Reputation (view SellerScore, review history)</li>
+<li>Settings (return policy, shipping time)</li>
+<p>---</p>
+<h3 id="52-connection-with-proof-of-commerce">5.2 Connection with Proof of Commerce</h3>
+<p><strong>Product Lifecycle</strong>:</p>
+</code></pre>
+<p>Seller creates product:</p>
+<p>  Title: "Handmade T-shirt - Tie Dye"</p>
+<p>  Description: "100% cotton t-shirt, hand-dyed..."</p>
+<p>  Photos: [img1.jpg, img2.jpg]</p>
+<p>  Price: 45 BZR</p>
+<p>  Stock: 10 units</p>
+<p>  Category: Fashion > T-shirts</p>
+<p>    ↓</p>
+<p>My Stores calls:</p>
+<p>  pallet_product::create_product(</p>
+<p>      seller_account,</p>
+<p>      metadata_cid: "QmProduct123" (JSON on IPFS),</p>
+<p>      price: 45 BZR,</p>
+<p>      stock: 10</p>
+<p>  )</p>
+<p>    ↓</p>
+<p>On-chain Product ID: #0xProd456</p>
+<p>    ↓</p>
+<p>Appears in Marketplace for everyone</p>
+<pre><code class="language-">
+<p><strong>Order Management</strong>:</p>
+</code></pre>
+<p>Seller sees dashboard:</p>
+<p>┌────────────────────────────────────────┐</p>
+<p>│         Pending Orders                 │</p>
+<p>├────────────────────────────────────────┤</p>
+<p>│                                        │</p>
+<p>│  Order #0xABC - $89                    │</p>
+<p>│    Product: Green Dress                │</p>
+<p>│    Buyer: @Maria (BuyerScore 750)      │</p>
+<p>│    [Accept] [Decline]                  │</p>
+<p>│                                        │</p>
+<p>│  Order #0xDEF - $120                   │</p>
+<p>│    Product: Artisan Bag                │</p>
+<p>│    Buyer: @João (BuyerScore 890)       │</p>
+<p>│    [Accept] [Decline]                  │</p>
+<p>│                                        │</p>
+<p>└────────────────────────────────────────┘</p>
+<p>Seller clicks [Accept] on #0xABC</p>
+<p>    ↓</p>
+<p>My Stores calls:</p>
+<p>  pallet_order::accept_order(seller_account, order_id)</p>
+<p>    ↓</p>
+<p>Order changes to ACCEPTED</p>
+<p>    ↓</p>
+<p>Notification sent:</p>
+<p>  • To Buyer: "Your order was accepted!"</p>
+<p>  • To nearby Couriers: "New order available in São Paulo"</p>
+<pre><code class="language-">
+<p>---</p>
+<h3 id="53-affiliate-campaigns">5.3 Affiliate Campaigns</h3>
+<p><strong>Campaign Creation</strong>:</p>
+</code></pre>
+<p>Seller wants to incentivize sharing</p>
+<p>    ↓</p>
+<p>My Stores > Campaigns > [New Campaign]</p>
+<p>    ↓</p>
+<p>Form:</p>
+<p>  Product(s): Green Dress, Blue Dress</p>
+<p>  Total commission rate: 5%</p>
+<p>  Level decay: 50% (level 2 receives half of level 1)</p>
+<p>  Max. hops: 5</p>
+<p>  Affiliate minimum stake: 10 BZR</p>
+<p>  Duration: 30 days</p>
+<p>    ↓</p>
+<p>My Stores calls:</p>
+<p>  pallet_affiliate::create_campaign(</p>
+<p>      seller_account,</p>
+<p>      products: [0xProd456, 0xProd789],</p>
+<p>      rate: 500,  // 5% in basis points</p>
+<p>      max_hops: 5,</p>
+<p>      decay: 50,</p>
+<p>      min_stake: 10 BZR,</p>
+<p>      duration: 30 * DAYS</p>
+<p>  )</p>
+<p>    ↓</p>
+<p>Campaign ID: #0xCampaign123</p>
+<p>DAG root published on-chain</p>
+<p>    ↓</p>
+<p>Seller can share link:</p>
+<p>  bazari.app/product/0xProd456?campaign=0xCampaign123</p>
+<pre><code class="language-">
+<strong>When Someone Shares</strong>:</code></pre>
+<p>Affiliate1 gets link and shares on Instagram</p>
+<p>    ↓</p>
+<p>Affiliate2 sees post, opens link, gets their affiliate link</p>
+<p>    ↓</p>
+<p>Affiliate2 shares on WhatsApp</p>
+<p>    ↓</p>
+<p>Buyer clicks Affiliate2's link and purchases</p>
+<p>    ↓</p>
+<p>Order created with AffiliatePath: [Affiliate1, Affiliate2]</p>
+<p>    ↓</p>
+<p>On finalization, automatic split:</p>
+<p>  Seller: 42.75 BZR (45 - 5%)</p>
+<p>  Affiliate1 (level 1): 1.50 BZR (3.33% of total)</p>
+<p>  Affiliate2 (level 2): 0.75 BZR (1.67% of total)</p>
+<pre><code class="language-">
+<p>---</p>
+<h3 id="54-analytics">5.4 Analytics</h3>
+<p><strong>Seller Dashboard</strong>:</p>
+</code></pre>
+<p>┌────────────────────────────────────────┐</p>
+<p>│            Analytics                   │</p>
+<p>├────────────────────────────────────────┤</p>
+<p>│                                        │</p>
+<p>│  📊 Last 30 days                       │</p>
+<p>│                                        │</p>
+<p>│  Sales:   47 orders                    │</p>
+<p>│  Revenue:  4,230 BZR (+18% vs. previous month)│</p>
+<p>│  Average ticket: 90 BZR                │</p>
+<p>│  Conversion rate: 12% (visitors → purchases)│</p>
+<p>│                                        │</p>
+<p>│  🏆 Best-selling products              │</p>
+<p>│    1. Green Dress (18 sales)           │</p>
+<p>│    2. Artisan Bag (12 sales)           │</p>
+<p>│    3. Tie Dye T-shirt (9 sales)        │</p>
+<p>│                                        │</p>
+<p>│  ⭐ Reputation                          │</p>
+<p>│    SellerScore: 850/1000 (↑ 20 pts)   │</p>
+<p>│    Reviews: 4.8/5 (127 reviews)        │</p>
+<p>│    Dispute rate: 0.8% (low)            │</p>
+<p>│                                        │</p>
+<p>│  🌐 Affiliates                          │</p>
+<p>│    Affiliate conversions: 23 (48%)     │</p>
+<p>│    Top affiliate: @Influencer (12 sales)│</p>
+<p>│                                        │</p>
+<p>└────────────────────────────────────────┘</p>
+<pre><code class="language-">
+<p>---</p>
+<h3 id="55-integration-with-other-modules">5.5 Integration with Other Modules</h3>
+<p>| Module | Integration |</p>
+<p>|--------|-----------|</p>
+<p>| <strong>Marketplace</strong> | Products created in My Stores appear in Marketplace |</p>
+<p>| <strong>BazChat</strong> | Seller responds to inquiries via integrated chat |</p>
+<p>| <strong>Wallet</strong> | Sales revenue goes directly to Wallet |</p>
+<p>| <strong>Social Feed</strong> | Seller can post about new products |</p>
+<p>| <strong>DAO</strong> | Seller can propose changes (e.g.: reduce fee) |</p>
+<p>---</p>
+<h2 id="6-my-marketplace">6. My Marketplace</h2>
+<h3 id="61-description">6.1 Description</h3>
+<p><strong>My Marketplace</strong> is the module that allows <strong>sellers to create their own customized storefront</strong>.</p>
+<p><strong>Difference from My Stores</strong>:</p>
+<li><strong>My Stores</strong>: Backend/control panel (management)</li>
+<li><strong>My Marketplace</strong>: Frontend/showcase (for customers)</li>
+<p><strong>Features</strong>:</p>
+<li>Custom design (logo, colors, banner)</li>
+<li>Own domain (e.g.: modaautoral.bazari.app or modaautoral.com)</li>
+<li>Filtered catalog (only this seller's products)</li>
+<li>"About" page (brand story, values)</li>
+<li>Social media integration</li>
+<p>---</p>
+<h3 id="62-connection-with-proof-of-commerce">6.2 Connection with Proof of Commerce</h3>
+<p><strong>My Marketplace consumes the same on-chain data as the global Marketplace</strong>:</p>
+</code></pre>
+<p>modaautoral.bazari.app</p>
+<p>    ↓</p>
+<p>Custom frontend (Next.js/React)</p>
+<p>    ↓</p>
+<p>Queries BazariChain:</p>
+<p>  pallet_product::get_products_by_seller(seller_account)</p>
+<p>    ↓</p>
+<p>Returns list of this seller's products</p>
+<p>    ↓</p>
+<p>Renders with personalized design</p>
+<pre><code class="language-">
+<p><strong>Advantage</strong>:</p>
+<li>✅ Seller has <strong>full control</strong> over appearance</li>
+<li>✅ <strong>On-chain reputation</strong> remains valid (SellerScore visible)</li>
+<li>✅ Checkout uses <strong>same PoC protocol</strong> (backend unchanged)</li>
+<p>---</p>
+<h3 id="63-customization-example">6.3 Customization Example</h3>
+<p><strong>Seller: "Artesanato Mineiro"</strong></p>
+</code></pre>
+<p>┌────────────────────────────────────────┐</p>
+<p>│   🏔️ Artesanato Mineiro (Logo)        │</p>
+<p>│   "Tradition from the Mountains"       │</p>
+<p>├────────────────────────────────────────┤</p>
+<p>│                                        │</p>
+<p>│  [Banner: Photo of Minas Gerais]      │</p>
+<p>│                                        │</p>
+<p>│  🏺 Our Products                       │</p>
+<p>│    ┌────┬────┬────┬────┐              │</p>
+<p>│    │Vase│Pot │Bowl│Jar │              │</p>
+<p>│    │$45 │$30 │$25 │$60 │              │</p>
+<p>│    └────┴────┴────┴────┘              │</p>
+<p>│                                        │</p>
+<p>│  📖 About Us                           │</p>
+<p>│    "We are a cooperative of 20..."     │</p>
+<p>│                                        │</p>
+<p>│  ⭐ SellerScore: 920/1000              │</p>
+<p>│    4.9/5 - 342 sales                   │</p>
+<p>│                                        │</p>
+<p>│  📱 Social Media                       │</p>
+<p>│    Instagram | Facebook | WhatsApp     │</p>
+<p>│                                        │</p>
+<p>└────────────────────────────────────────┘</p>
+<pre><code class="language-">
+<strong>Own Domain</strong>:</code></pre>
+<p>Seller configures DNS:</p>
+<p>  artesanatomineiro.com → CNAME modaautoral.bazari.app</p>
+<p>Result:</p>
+<p>  Customers access artesanatomineiro.com</p>
+<p>  But checkout uses BazariChain</p>
+<p>  Seller maintains own SEO and branding</p>
+<pre><code class="language-">
+<p>---</p>
+<h3 id="64-ready-made-templates">6.4 Ready-Made Templates</h3>
+<p><strong>To Facilitate Adoption</strong>:</p>
+<p>| Template | Description | Ideal For |</p>
+<p>|----------|-----------|------------|</p>
+<p>| <strong>Minimalist</strong> | Clean, photo-focused | Photography, Art |</p>
+<p>| <strong>Vintage</strong> | Earth tones, classic typography | Crafts, Antiques |</p>
+<p>| <strong>Tech</strong> | Dark mode, geometry | Electronics, Gadgets |</p>
+<p>| <strong>Organic</strong> | Green, nature | Organic foods, Natural cosmetics |</p>
+<p>| <strong>Fashion</strong> | Photo grid, hover effects | Fashion, Accessories |</p>
+<p>---</p>
+<h3 id="65-integration-with-other-modules">6.5 Integration with Other Modules</h3>
+<p>| Module | Integration |</p>
+<p>|--------|-----------|</p>
+<p>| <strong>My Stores</strong> | My Marketplace is the "showcase" of what's managed in My Stores |</p>
+<p>| <strong>Marketplace</strong> | Products appear in both (global and own storefront) |</p>
+<p>| <strong>Social Feed</strong> | Feed posts can link to My Marketplace |</p>
+<p>| <strong>BazChat</strong> | Chat embedded in storefront |</p>
+<p>---</p>
+<h2 id="7-become-a-courier">7. Become a Courier</h2>
+<h3 id="71-description">7.1 Description</h3>
+<p><strong>Become a Courier</strong> is the module for those who want to <strong>offer delivery services</strong> and participate in PoC as a Courier.</p>
+<p><strong>Features</strong>:</p>
+<li>Register as courier (profile, vehicle, availability)</li>
+<li>View available orders (geographic matching)</li>
+<li>Apply for deliveries (price and timeframe bid)</li>
+<li>Route tracking (optimization)</li>
+<li>Earnings (delivery history and earnings)</li>
+<li>CourierScore (reputation)</li>
+<p>---</p>
+<h3 id="72-connection-with-proof-of-commerce">7.2 Connection with Proof of Commerce</h3>
+<p><strong>Complete Courier Flow</strong>:</p>
+</code></pre>
+<p>João registers as courier:</p>
+<p>  Name: @Motoboy_JP</p>
+<p>  Vehicle: Motorcycle</p>
+<p>  Region: East Zone SP</p>
+<p>  Availability: 8am-6pm (Mon-Fri)</p>
+<p>  Initial stake deposited: 50 BZR</p>
+<p>    ↓</p>
+<p>Become a Courier calls:</p>
+<p>  pallet_fulfillment::register_courier(</p>
+<p>      account: joao_account,</p>
+<p>      profile_cid: "QmCourierProfile",</p>
+<p>      initial_stake: 50 BZR</p>
+<p>  )</p>
+<p>    ↓</p>
+<p>Initial CourierScore: 500/1000 (default for new)</p>
+<p>    ↓</p>
+<p>João becomes "available" in courier pool</p>
+<pre><code class="language-">
+<p><strong>Order Matching</strong>:</p>
+</code></pre>
+<p>Order #0xABC created (Product in SP - East Zone)</p>
+<p>    ↓</p>
+<p>System sends push notification to couriers:</p>
+<p>  • Within 10 km radius of store</p>
+<p>  • With CourierScore >= 400</p>
+<p>  • Available at the time</p>
+<p>    ↓</p>
+<p>João receives notification:</p>
+<p>  🚚 New Order Available</p>
+<p>  Pickup: ModaAutoral Store (3 km from you)</p>
+<p>  Deliver: Neighborhood X (5 km from store)</p>
+<p>  Suggested shipping: $12</p>
+<p>  Deadline: Until 6pm today</p>
+<p>  [View Details] [Apply]</p>
+<p>    ↓</p>
+<p>João clicks [Apply]</p>
+<p>    ↓</p>
+<p>Form:</p>
+<p>  My shipping offer: $10 (can offer less to compete)</p>
+<p>  Deadline: I'll deliver by 5pm</p>
+<p>  [Confirm]</p>
+<p>    ↓</p>
+<p>Become a Courier calls:</p>
+<p>  pallet_fulfillment::apply_as_courier(</p>
+<p>      joao_account,</p>
+<p>      order_id: 0xABC,</p>
+<p>      bid: 10 BZR,</p>
+<p>      delivery_time: 5pm</p>
+<p>  )</p>
+<p>    ↓</p>
+<p>Seller sees applications:</p>
+<p>  • @Motoboy_JP: $10, by 5pm (CourierScore 820)</p>
+<p>  • @Bike_Delivery: $8, by 7pm (CourierScore 650)</p>
+<p>    ↓</p>
+<p>Seller chooses @Motoboy_JP (better reputation and deadline)</p>
+<p>    ↓</p>
+<p>João is notified:</p>
+<p>  ✅ You were selected!</p>
+<p>  Stake of 20 BZR will be locked (20% of 100 BZR order value)</p>
+<p>  [Accept] [Decline]</p>
+<p>    ↓</p>
+<p>João accepts:</p>
+<p>  pallet_fulfillment::deposit_stake(joao_account, 0xABC, 20 BZR)</p>
+<p>    ↓</p>
+<p>Order changes to COURIER_ASSIGNED</p>
+<pre><code class="language-">
+<p><strong>Handoff and Delivery</strong>:</p>
+</code></pre>
+<p>João arrives at store</p>
+<p>    ↓</p>
+<p>BazChat opens Handoff screen</p>
+<p>    ↓</p>
+<p>João and Seller take photo of package, both sign</p>
+<p>    ↓</p>
+<p>HandoffProof anchored on-chain</p>
+<p>    ↓</p>
+<p>João starts delivery (optimized route shown in app)</p>
+<p>    ↓</p>
+<p>João arrives at Buyer's address</p>
+<p>    ↓</p>
+<p>BazChat opens Delivery screen</p>
+<p>    ↓</p>
+<p>João and Buyer take photo, digital signature, both sign</p>
+<p>    ↓</p>
+<p>DeliveryProof anchored on-chain</p>
+<p>    ↓</p>
+<p>Order automatically finalizes:</p>
+<p>  • João receives 10 BZR (shipping) + 20 BZR (stake returned)</p>
+<p>  • CourierScore +15 points</p>
+<p>  • Notification: "Delivery completed successfully! 💰 30 BZR received"</p>
+<pre><code class="language-">
+<p>---</p>
+<h3 id="73-earnings-dashboard">7.3 Earnings Dashboard</h3>
+</code></pre>
+<p>┌────────────────────────────────────────┐</p>
+<p>│       My Earnings (João)               │</p>
+<p>├────────────────────────────────────────┤</p>
+<p>│                                        │</p>
+<p>│  💰 Today                              │</p>
+<p>│     8 deliveries - 92 BZR earned       │</p>
+<p>│                                        │</p>
+<p>│  📊 This Week                          │</p>
+<p>│     47 deliveries - 520 BZR            │</p>
+<p>│     Average: 11 BZR/delivery           │</p>
+<p>│                                        │</p>
+<p>│  🏆 CourierScore: 920/1000             │</p>
+<p>│     ↑ +35 points this month            │</p>
+<p>│     Success rate: 98%                  │</p>
+<p>│     Reviews: 4.9/5 (156 deliveries)    │</p>
+<p>│                                        │</p>
+<p>│  📍 Most Profitable Routes             │</p>
+<p>│     1. Downtown → East Zone ($15)      │</p>
+<p>│     2. Mall → Neighborhood Y ($12)     │</p>
+<p>│                                        │</p>
+<p>│  🎯 Monthly Goal                       │</p>
+<p>│     200 deliveries (23 remaining)      │</p>
+<p>│     Bonus if achieved: +50 BZR         │</p>
+<p>│                                        │</p>
+<p>└────────────────────────────────────────┘</p>
+<pre><code class="language-">
+<p>---</p>
+<h3 id="74-gamification">7.4 Gamification</h3>
+<p><strong>Courier Ranks</strong>:</p>
+<p>| CourierScore | Rank | Benefits |</p>
+<p>|--------------|------|------------|</p>
+<p>| 0-200 | Novice | High stake, limited orders |</p>
+<p>| 200-500 | Bronze | Medium stake, access to more orders |</p>
+<p>| 500-750 | Silver | Reduced stake, priority in matching |</p>
+<p>| 750-900 | Gold | Low stake, per-delivery bonus, featured |</p>
+<p>| 900-1000 | Diamond | Minimum stake, premium routes, 2x bonus |</p>
+<p><strong>Achievements</strong>:</p>
+<li>🏅 "First Delivery" (+10 points)</li>
+<li>🚀 "100 Deliveries" (+50 points + badge)</li>
+<li>⚡ "Lightning Delivery" (< 1h) (+20 points)</li>
+<li>🌟 "No Disputes (100 deliveries)" (+100 points)</li>
+<p>---</p>
+<h3 id="75-integration-with-other-modules">7.5 Integration with Other Modules</h3>
+<p>| Module | Integration |</p>
+<p>|--------|-----------|</p>
+<p>| <strong>Marketplace</strong> | Couriers see available orders in Marketplace |</p>
+<p>| <strong>BazChat</strong> | Pickup/delivery coordination via chat |</p>
+<p>| <strong>Wallet</strong> | Earnings go directly to Wallet |</p>
+<p>| <strong>Social Feed</strong> | Courier can share achievements |</p>
+<p>| <strong>DAO</strong> | Courier can vote on proposals (e.g.: change shipping fee) |</p>
+<p>---</p>
+<h2 id="8-p2p-peer-to-peer-exchange">8. P2P (Peer-to-Peer Exchange)</h2>
+<h3 id="81-description">8.1 Description</h3>
+<p><strong>P2P Exchange</strong> is the module for <strong>buying and selling BZR for fiat currency</strong> (Real, Dollar, etc.) without centralized intermediaries.</p>
+<p><strong>Features</strong>:</p>
+<li>Create buy/sell orders (P2P order book)</li>
+<li>Automatic matching (best offers)</li>
+<li>Automatic escrow (BZR locked until fiat payment confirmation)</li>
+<li>Payment methods (PIX, Wire, PayPal, etc.)</li>
+<li>Trader reputation (P2PScore)</li>
+<li>Dispute resolution (jury, if necessary)</li>
+<p>---</p>
+<h3 id="82-connection-with-proof-of-commerce">8.2 Connection with Proof of Commerce</h3>
+<p><strong>P2P uses the same Escrow and Attestations logic as PoC</strong>:</p>
+</code></pre>
+<p>Alice wants to sell 100 BZR for $500 (rate: 5 USD/BZR)</p>
+<p>    ↓</p>
+<p>Alice creates order:</p>
+<p>  pallet_p2p::create_sell_order(</p>
+<p>      alice_account,</p>
+<p>      amount: 100 BZR,</p>
+<p>      fiat_currency: USD,</p>
+<p>      rate: 5,</p>
+<p>      payment_methods: [Wire, PayPal],</p>
+<p>      escrow: 100 BZR  // locked</p>
+<p>  )</p>
+<p>    ↓</p>
+<p>Bob wants to buy BZR and sees Alice's order</p>
+<p>    ↓</p>
+<p>Bob accepts:</p>
+<p>  pallet_p2p::accept_order(bob_account, order_id)</p>
+<p>    ↓</p>
+<p>System shows instructions:</p>
+<p>  Bob, transfer $500 via Wire to:</p>
+<p>  Alice's account: alice@bank.com</p>
+<p>  Order: #0xP2P123</p>
+<p>    ↓</p>
+<p>Bob makes transfer and clicks [I Confirmed Payment]</p>
+<p>    ↓</p>
+<p>Alice receives notification:</p>
+<p>  "Bob claims to have sent $500. Confirm receipt."</p>
+<p>    ↓</p>
+<p>Alice checks bank account, sees $500 arriving</p>
+<p>    ↓</p>
+<p>Alice clicks [I Confirm Receipt]</p>
+<p>    ↓</p>
+<p>System releases escrow:</p>
+<p>  • Bob receives 100 BZR</p>
+<p>  • Alice receives stake back + reputation +5</p>
+<p>  • Event: P2PTradeCompleted</p>
+<pre><code class="language-">
+<strong>If There's a Dispute</strong>:</code></pre>
+<p>Alice doesn't confirm receipt (even having received $500)</p>
+<p>    ↓</p>
+<p>Bob waits 24h (timeout)</p>
+<p>    ↓</p>
+<p>Bob opens dispute:</p>
+<p>  pallet_p2p::open_dispute(bob_account, order_id, evidence: "receipt.pdf")</p>
+<p>    ↓</p>
+<p>Jury analyzes:</p>
+<p>  • Receipt shows transfer to Alice's account</p>
+<p>  • Timestamp correct</p>
+<p>  • Amount correct ($500)</p>
+<p>    ↓</p>
+<p>Ruling: Release to Bob</p>
+<p>    ↓</p>
+<p>Alice loses reputation (-50 pts) + possible slashing</p>
+<pre><code class="language-">
+<p>---</p>
+<h3 id="83-p2p-order-book">8.3 P2P Order Book</h3>
+<p><strong>BZR Purchase Screen</strong>:</p>
+</code></pre>
+<p>┌────────────────────────────────────────┐</p>
+<p>│         Buy BZR (P2P)                  │</p>
+<p>├────────────────────────────────────────┤</p>
+<p>│                                        │</p>
+<p>│  I want to buy: [____] BZR             │</p>
+<p>│  Paying in: [▼ USD (Dollar)]          │</p>
+<p>│                                        │</p>
+<p>│  📊 Best Offers                        │</p>
+<p>│  ┌──────────────────────────────────┐ │</p>
+<p>│  │ Seller        │Rate│Limit │Score│ │</p>
+<p>│  ├──────────────────────────────────┤ │</p>
+<p>│  │ @Alice        │5.0 │100BZR│890  │ │</p>
+<p>│  │ Methods: Wire, PayPal            │ │</p>
+<p>│  │ [Buy]                            │ │</p>
+<p>│  ├──────────────────────────────────┤ │</p>
+<p>│  │ @Carlos       │5.1 │500BZR│920  │ │</p>
+<p>│  │ Methods: Wire                    │ │</p>
+<p>│  │ [Buy]                            │ │</p>
+<p>│  ├──────────────────────────────────┤ │</p>
+<p>│  │ @Dana         │5.2 │50BZR │750  │ │</p>
+<p>│  │ Methods: Wire, PayPal            │ │</p>
+<p>│  │ [Buy]                            │ │</p>
+<p>│  └──────────────────────────────────┘ │</p>
+<p>│                                        │</p>
+<p>│  Or create your own order:             │</p>
+<p>│  [Create Buy Order]                    │</p>
+<p>│                                        │</p>
+<p>└────────────────────────────────────────┘</p>
+<pre><code class="language-">
+<p>---</p>
+<h3 id="84-p2p-reputation">8.4 P2P Reputation</h3>
+<p><strong>P2PScore</strong> is separate from SellerScore/CourierScore, but uses same logic:</p>
+</code></pre>rust
+<p>struct P2PScore {</p>
+<p>    trades_completed: u32,      // +10 per trade</p>
+<p>    avg_confirmation_time: u64, // faster = more points</p>
+<p>    disputes_opened_against: u32, // -50 per lost dispute</p>
+<p>    volume_traded: Balance,     // +1 point per 1000 BZR traded</p>
+<p>}</p>
+<pre><code class="language-">
+<p><strong>High Score Benefits</strong>:</p>
+<li>Higher limits (new traders have 100 BZR/day limit)</li>
+<li>Lower fees (DAO can give discount to high-volume traders)</li>
+<li>Featured in order book</li>
+<p>---</p>
+<h3 id="85-integration-with-other-modules">8.5 Integration with Other Modules</h3>
+<p>| Module | Integration |</p>
+<p>|--------|-----------|</p>
+<p>| <strong>Wallet</strong> | BZR purchased via P2P goes directly to Wallet |</p>
+<p>| <strong>Marketplace</strong> | User buys BZR via P2P and uses in Marketplace |</p>
+<p>| <strong>BazChat</strong> | Chat to coordinate fiat payment |</p>
+<p>| <strong>DAO</strong> | DAO defines parameters (P2P fees, timeouts) |</p>
+<p>---</p>
+<h2 id="9-dao-governance">9. DAO (Governance)</h2>
+<h3 id="91-description">9.1 Description</h3>
+<p><strong>DAO</strong> (Decentralized Autonomous Organization) is the <strong>community governance</strong> module. BZR token holders decide the protocol's future.</p>
+<p><strong>Features</strong>:</p>
+<li>Propose changes (parameters, features, treasury)</li>
+<li>Vote on proposals (weight proportional to stake)</li>
+<li>View active/historical proposals</li>
+<li>Delegate votes (liquid democracy - Phase 2)</li>
+<li>Execute approved proposals (automatic via runtime)</li>
+<p>---</p>
+<h3 id="92-connection-with-proof-of-commerce">9.2 Connection with Proof of Commerce</h3>
+<p><strong>DAO DOES NOT decide individual orders</strong> (that would be centralization). DAO decides <strong>general rules</strong>:</p>
+<p><strong>Proposal Examples</strong>:</p>
+<p>| Proposal | Description | On-Chain Parameter |</p>
+<p>|----------|-----------|-------------------|</p>
+| "Reduce DAO fee from 2% to 1.5%" | Lower cost for sellers | </code>FeeConfig::dao_fee_percent<code> |
+| "Increase delivery timeout from 7 to 10 days" | More flexibility for long deliveries | </code>OrderConfig::delivery_timeout<code> |
+| "Add new category: NFTs" | Expand marketplace | </code>pallet_product::categories<code> |
+| "Allocate 10,000 BZR from Treasury for marketing" | Protocol growth | </code>Treasury::spend()<code> |
+| "Runtime upgrade (add ZK-PoD)" | New functionality | </code>System::set_code()<code> |
+<p>---</p>
+<h3 id="93-proposal-flow">9.3 Proposal Flow</h3>
+</code></pre>
+<p>User has idea: "Let's reduce fee to attract more sellers"</p>
+<p>    ↓</p>
+<p>Creates proposal:</p>
+<p>  pallet_dao::propose(</p>
+<p>      proposer: user_account,</p>
+<p>      title: "Reduce DAO fee to 1.5%",</p>
+<p>      description: "Argumentation...",</p>
+<p>      proposed_change: SetFeeConfig { dao_fee_percent: 150 },  // 1.5% in basis points</p>
+<p>      deposit: 100 BZR  // stake to prevent spam</p>
+<p>  )</p>
+<p>    ↓</p>
+<p>Proposal enters discussion period (7 days):</p>
+<p>  • Community debates in Forum (off-chain)</p>
+<p>  • Proposer can edit</p>
+<p>    ↓</p>
+<p>After 7 days, voting starts (duration: 14 days):</p>
+<p>  pallet_dao::vote(</p>
+<p>      voter: alice_account,</p>
+<p>      proposal_id,</p>
+<p>      vote: Aye,</p>
+<p>      voting_power: 500 BZR  // Alice has 500 BZR staked</p>
+<p>  )</p>
+<p>    ↓</p>
+<p>All token holders with stake vote (Aye/Nay)</p>
+<p>    ↓</p>
+<p>End of voting:</p>
+<p>  Total Aye: 15,000 BZR</p>
+<p>  Total Nay: 3,000 BZR</p>
+<p>  Quorum: 10% of supply (reached)</p>
+<p>  Supermajority: 2/3 (15k / 18k = 83% > 66% ✅)</p>
+<p>    ↓</p>
+<p>Proposal APPROVED</p>
+<p>    ↓</p>
+<p>Automatic execution (after 48h timelock):</p>
+<p>  FeeConfig::dao_fee_percent = 150</p>
+<p>    ↓</p>
+<p>Notification to all:</p>
+<p>  "✅ Proposal #42 executed! DAO fee is now 1.5%"</p>
+<pre><code class="language-">
+<p>---</p>
+<h3 id="94-proposal-types">9.4 Proposal Types</h3>
+<p>| Type | Quorum | Supermajority | Timelock | Examples |</p>
+<p>|------|--------|--------------|----------|----------|</p>
+<p>| <strong>Parametric</strong> | 10% | 2/3 | 48h | Fees, timeouts, stakes |</p>
+<p>| <strong>Treasury</strong> | 15% | 2/3 | 7 days | Treasury spending |</p>
+<p>| <strong>Upgrade</strong> | 20% | 3/4 | 14 days | Runtime change (code) |</p>
+<p>| <strong>Emergency</strong> | 5% | 3/4 | 0h | Pause protocol (catastrophe only) |</p>
+<p>---</p>
+<h3 id="95-delegation-liquid-democracy-phase-2">9.5 Delegation (Liquid Democracy - Phase 2)</h3>
+<p><strong>Problem</strong>: Not all token holders have time/knowledge to vote.</p>
+<strong>Solution</strong>:</code></pre>rust
+<p>// Alice delegates her votes to Bob (economics expert)</p>
+<p>pallet_dao::delegate(</p>
+<p>    alice_account,</p>
+<p>    delegate_to: bob_account,</p>
+<p>    scope: Economics  // only economic proposals</p>
+<p>);</p>
+<p>// When there's an economic proposal:</p>
+<p>// Bob's vote counts as 500 (Bob's stake) + 300 (delegated by Alice)</p>
+<p>// Alice can remove delegation anytime</p>
+<p>// Alice can vote directly (overrides delegation)</p>
+<pre><code class="language-">
+<p>---</p>
+<h3 id="96-dao-interface">9.6 DAO Interface</h3>
+<p><strong>Proposals Screen</strong>:</p>
+</code></pre>
+<p>┌────────────────────────────────────────┐</p>
+<p>│         Bazari DAO Governance          │</p>
+<p>├────────────────────────────────────────┤</p>
+<p>│                                        │</p>
+<p>│  🗳️ Active Proposals                   │</p>
+<p>│                                        │</p>
+<p>│  #42: Reduce DAO fee to 1.5%           │</p>
+<p>│    Status: 🟢 Voting (8 days left)     │</p>
+<p>│    Aye: 15,000 BZR (83%)               │</p>
+<p>│    Nay: 3,000 BZR (17%)                │</p>
+<p>│    [Vote Yes] [Vote No] [Details]      │</p>
+<p>│                                        │</p>
+<p>│  #43: Add NFTs category                │</p>
+<p>│    Status: 🟡 Discussion (3 days left) │</p>
+<p>│    [View Discussion] [Comment]         │</p>
+<p>│                                        │</p>
+<p>│  ──────────────────────────────────    │</p>
+<p>│                                        │</p>
+<p>│  ✅ Recently Approved Proposals        │</p>
+<p>│    #40: Increase delivery timeout      │</p>
+<p>│    #38: Marketing budget 10k BZR       │</p>
+<p>│                                        │</p>
+<p>│  ❌ Rejected Proposals                 │</p>
+<p>│    #41: Remove affiliate fee           │</p>
+<p>│                                        │</p>
+<p>│  [Create New Proposal]                 │</p>
+<p>│                                        │</p>
+<p>└────────────────────────────────────────┘</p>
+<pre><code class="language-">
+<p>---</p>
+<h3 id="97-integration-with-other-modules">9.7 Integration with Other Modules</h3>
+<p>| Module | Integration |</p>
+<p>|--------|-----------|</p>
+<p>| <strong>All</strong> | DAO defines parameters affecting all modules |</p>
+<p>| <strong>Wallet</strong> | Voting requires BZR stake (locked during voting) |</p>
+<p>| <strong>Social Feed</strong> | Proposals can be shared/discussed on Feed |</p>
+<p>| <strong>BazChat</strong> | Discussion chat per proposal |</p>
+<p>---</p>
+<h2 id="10-social-feed">10. Social Feed</h2>
+<h3 id="101-description">10.1 Description</h3>
+<p><strong>Social Feed</strong> is the <strong>decentralized social network</strong> module integrated into the Bazari ecosystem. Inspiration: Twitter/Instagram, but with identity tied to on-chain reputation.</p>
+<p><strong>Features</strong>:</p>
+<li>Post updates (text, photos, videos)</li>
+<li>Share products (links to Marketplace)</li>
+<li>Like/comment/repost</li>
+<li>Follow sellers/couriers/affiliates</li>
+<li>Algorithmic + chronological feed</li>
+<li>Hashtags (#crafts, #sustainableFashion)</li>
+<p>---</p>
+<h3 id="102-connection-with-proof-of-commerce">10.2 Connection with Proof of Commerce</h3>
+<p><strong>Social Feed is the Organic Discovery Layer</strong>:</p>
+</code></pre>
+<p>Seller @ModaAutoral posts:</p>
+<p>  "🎉 New product! Sustainable dress made with recycled fabric.</p>
+<p>   Buy here: bazari.app/product/0xVest123</p>
+<p>   #SustainableFashion #Bazari"</p>
+<p>    ↓</p>
+<p>Post includes:</p>
+<p>  • Photo of dress</p>
+<p>  • Link to product (deeplink to Marketplace)</p>
+<p>  • SellerScore visible (850/1000) - trust badge</p>
+<p>    ↓</p>
+<p>Followers see in feed:</p>
+<p>  • @Maria likes and shares</p>
+<p>  • @João comments: "Beautiful! What's the delivery time?"</p>
+<p>  • @Influencer reposted (has 50k followers)</p>
+<p>    ↓</p>
+<p>Link clicks go to Marketplace with @Influencer's affiliate_id</p>
+<p>    ↓</p>
+<p>If someone buys, @Influencer receives commission automatically</p>
+<pre><code class="language-">
+<strong>Reputation Badges</strong>:</code></pre>
+<p>@ModaAutoral ⭐ Gold Seller (SellerScore 850)</p>
+<p>@Motoboy_JP 🚚 Diamond Courier (CourierScore 920)</p>
+<p>@Influencer 🔗 Top Affiliate (AffiliateScore 780)</p>
+<pre><code class="language-">
+<p>---</p>
+<h3 id="103-feed-algorithm">10.3 Feed Algorithm</h3>
+<p><strong>Transparent and Customizable</strong>:</p>
+</code></pre>rust
+<p>// User can choose:</p>
+<p>enum FeedAlgorithm {</p>
+<p>    Chronological,   // Most recent first</p>
+<p>    Reputation,      // Posts from high-reputation accounts</p>
+<p>    Engagement,      // Most likes/comments</p>
+<p>    Personalized,    // Based on who you follow + interests</p>
+<p>}</p>
+<p>// Score for each post:</p>
+<p>fn calculate_post_score(post: &Post, viewer: &AccountId) -> f64 {</p>
+<p>    let author_rep = get_total_score(post.author) as f64 / 1000.0;</p>
+<p>    let engagement = (post.likes + post.comments <em> 2 + post.reposts </em> 3) as f64;</p>
+<p>    let recency = 1.0 / (1.0 + (now() - post.created_at) as f64 / HOUR);</p>
+<p>    let follows_author = viewer.follows(post.author) as u8 as f64;</p>
+<p>    author_rep * 0.3</p>
+<p>        + engagement.ln() * 0.3</p>
+<p>        + recency * 0.2</p>
+<p>        + follows_author * 0.2</p>
+<p>}</p>
+<pre><code class="language-">
+<p>---</p>
+<h3 id="104-community-moderation">10.4 Community Moderation</h3>
+<p><strong>No Central Censorship, But With Spam Control</strong>:</p>
+</code></pre>
+<p>Post with spam/scam can be reported:</p>
+<p>  10+ reports from accounts with score > 500</p>
+<p>      ↓</p>
+<p>  Post enters community review (similar to jury)</p>
+<p>      ↓</p>
+<p>  5 random moderators (VRF) analyze</p>
+<p>      ↓</p>
+<p>  If 3/5 agree it's spam:</p>
+<p>      Post is "downranked" (not deleted, but invisible in main feed)</p>
+<p>      Author loses -20 reputation points</p>
+<pre><code class="language-">
+<p>---</p>
+<h3 id="105-native-monetization">10.5 Native Monetization</h3>
+<p><strong>Content Creators Can Earn BZR</strong>:</p>
+<strong>A) Embedded Affiliation</strong>:</code></pre>
+<p>Every product link in Social Feed automatically becomes affiliate link</p>
+<p>    ↓</p>
+<p>If someone buys via your link:</p>
+<p>  You receive commission (set by seller)</p>
+<pre><code class="language-">
+<strong>B) Tips (Tipping)</strong>:</code></pre>
+<p>User liked the post:</p>
+<p>  [❤️ Like]  [💬 Comment]  [💰 Tip]</p>
+<p>      ↓</p>
+<p>  Modal: Send how many BZR? [____]</p>
+<p>      ↓</p>
+<p>  Direct transfer to author's wallet</p>
+<pre><code class="language-">
+<strong>C) Sponsored Posts (Optional)</strong>:</code></pre>
+<p>Seller can "boost" post:</p>
+<p>  Pays 10 BZR to increase reach</p>
+<p>      ↓</p>
+<p>  DAO receives 10% fee</p>
+<p>  90% goes to "Creators Fund" pool (distributed to top creators)</p>
+<pre><code class="language-">
+<p>---</p>
+<h3 id="106-integration-with-other-modules">10.6 Integration with Other Modules</h3>
+<p>| Module | Integration |</p>
+<p>|--------|-----------|</p>
+<p>| <strong>Marketplace</strong> | Posts can link products directly |</p>
+<p>| <strong>My Stores</strong> | Seller automatically posts new products |</p>
+<p>| <strong>Become a Courier</strong> | Courier posts achievements ("100 deliveries! 🏆") |</p>
+<p>| <strong>DAO</strong> | DAO proposals can be discussed on Feed |</p>
+<p>| <strong>Social Profile</strong> | Posts appear on author's profile |</p>
+<p>---</p>
+<h2 id="11-social-profile">11. Social Profile</h2>
+<h3 id="111-description">11.1 Description</h3>
+<p><strong>Social Profile</strong> is the public page for each user, aggregating <strong>on-chain reputation + social activity</strong>.</p>
+<p><strong>Features</strong>:</p>
+<li>View reputations (SellerScore, CourierScore, BuyerScore)</li>
+<li>Activity history (sales, deliveries, purchases) - anonymized or public (user's choice)</li>
+<li>Social Feed posts</li>
+<li>Products for sale (if seller)</li>
+<li>Reviews received</li>
+<li>Badges/Achievements</li>
+<p>---</p>
+<h3 id="112-connection-with-proof-of-commerce">11.2 Connection with Proof of Commerce</h3>
+<p><strong>Profile is the "On-Chain Identity Card"</strong>:</p>
+</code></pre>
+<p>Profile: @ModaAutoral (5SellerABC...)</p>
+<p>┌────────────────────────────────────────┐</p>
+<p>│         @ModaAutoral                   │</p>
+<p>│  "Sustainable and artisan fashion"     │</p>
+<p>├────────────────────────────────────────┤</p>
+<p>│                                        │</p>
+<p>│  📊 Reputations                        │</p>
+<p>│    ⭐ Seller Score: 850/1000 (Gold)    │</p>
+<p>│    🏆 342 completed sales              │</p>
+<p>│    ⚡ Member since: Jan/2025           │</p>
+<p>│                                        │</p>
+<p>│  🎖️ Badges                             │</p>
+<p>│    ✅ Verified by Cooperative X        │</p>
+<p>│    🌱 Carbon Neutral (eco deliveries)  │</p>
+<p>│    💎 Top 1% Sellers                   │</p>
+<p>│                                        │</p>
+<p>│  ⭐ Reviews (4.9/5)                    │</p>
+<p>│    "Excellent product, fast delivery!" │</p>
+<p>│    "Impeccable service"                │</p>
+<p>│    [View all]                          │</p>
+<p>│                                        │</p>
+<p>│  🏪 Products for Sale (8)              │</p>
+<p>│    [View Store]                        │</p>
+<p>│                                        │</p>
+<p>│  📰 Recent Posts                       │</p>
+<p>│    [View all on Feed]                  │</p>
+<p>│                                        │</p>
+<p>│  📈 Public Statistics                  │</p>
+<p>│    Average sale value: 87 BZR          │</p>
+<p>│    Response rate: 95%                  │</p>
+<p>│    Average shipping time: 1.2 days     │</p>
+<p>│                                        │</p>
+<p>└────────────────────────────────────────┘</p>
+<pre><code class="language-">
+<p>---</p>
+<h3 id="113-configurable-privacy">11.3 Configurable Privacy</h3>
+<p><strong>User Controls What is Public</strong>:</p>
+</code></pre>rust
+<p>struct PrivacySettings {</p>
+<p>    show_total_sales: bool,        // Show total sales volume?</p>
+<p>    show_buyer_history: bool,      // Show purchase history? (default: private)</p>
+<p>    show_location_region: bool,    // Show region (not address)?</p>
+<p>    show_social_links: bool,       // Instagram, Twitter, etc.?</p>
+<p>    allow_direct_messages: enum {  // Who can send DM?</p>
+<p>        Everyone,</p>
+<p>        FollowersOnly,</p>
+<p>        RepScoreAbove(u32),        // Only accounts with score > X</p>
+<p>        None,</p>
+<p>    }</p>
+<p>}</p>
+<pre><code class="language-">
+<p>---</p>
+<h3 id="114-identity-verification-optional">11.4 Identity Verification (Optional)</h3>
+<p><strong>DID/VC (Decentralized Identifiers / Verifiable Credentials)</strong>:</p>
+</code></pre>
+<p>Seller can have verifications:</p>
+<p>  ✅ National ID verified by Authority X (VC issued)</p>
+<p>  ✅ Physical address confirmed (courier visited)</p>
+<p>  ✅ Cooperative member (badge issued by coop)</p>
+<p>Buyer sees:</p>
+<p>  @ModaAutoral ✅ (3 verifications)</p>
+<p>      ↓</p>
+<p>  Clicks to see details:</p>
+<p>    • National ID verified by Brasil.ID (DID)</p>
+<p>    • Address in São Paulo confirmed</p>
+<p>    • Member of Artesanato MG Cooperative</p>
+<pre><code class="language-">
+<p><strong>Benefits</strong>:</p>
+<li>Increases trust (more sales)</li>
+<li>Allows access to premium features (e.g.: higher limits)</li>
+<li>But remains optional (preserves privacy for those wanting anonymity)</li>
+<p>---</p>
+<h3 id="115-integration-with-other-modules">11.5 Integration with Other Modules</h3>
+<p>| Module | Integration |</p>
+<p>|--------|-----------|</p>
+<p>| <strong>Marketplace</strong> | Seller profile is linked on product page |</p>
+<p>| <strong>Social Feed</strong> | User's posts appear on profile |</p>
+<p>| <strong>BazChat</strong> | "Send Message" button opens chat |</p>
+<p>| <strong>My Stores</strong> | Seller's products listed on profile |</p>
+<p>| <strong>Become a Courier</strong> | CourierScore and delivery statistics visible |</p>
+<p>| <strong>DAO</strong> | Voting history and created proposals |</p>
+<p>---</p>
+<h2 id="12-interconnection-diagram">12. Interconnection Diagram</h2>
+<h3 id="121-complete-ecosystem-map">12.1 Complete Ecosystem Map</h3>
+</code></pre>
+<p>┌─────────────────────────────────────────────────────────────────┐</p>
+<p>│                     BAZARI ECOSYSTEM                            │</p>
+<p>├─────────────────────────────────────────────────────────────────┤</p>
+<p>│                                                                 │</p>
+<p>│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐     │</p>
+<p>│  │ MARKETPLACE  │◄───┤   BAZCHAT    │───►│    WALLET    │     │</p>
+<p>│  │              │    │              │    │              │     │</p>
+<p>│  │ • Search     │    │ • P2P Chat   │    │ • Balances   │     │</p>
+<p>│  │ • Products   │    │ • Co-sign    │    │ • Transactions│    │</p>
+<p>│  │ • Checkout   │    │ • Notifs     │    │ • Stakes     │     │</p>
+<p>│  └──────┬───────┘    └──────┬───────┘    └──────┬───────┘     │</p>
+<p>│         │                   │                   │              │</p>
+<p>│         │                   │                   │              │</p>
+<p>│         ▼                   ▼                   ▼              │</p>
+<p>│  ┌─────────────────────────────────────────────────┐          │</p>
+<p>│  │          BAZARICHAIN (Substrate)                │          │</p>
+<p>│  │  ┌───────────────────────────────────────────┐ │          │</p>
+<p>│  │  │ Pallets: Order, Escrow, Attestation,     │ │          │</p>
+<p>│  │  │ Fulfillment, Reputation, DAO, P2P        │ │          │</p>
+<p>│  │  └───────────────────────────────────────────┘ │          │</p>
+<p>│  └─────────────────────────────────────────────────┘          │</p>
+<p>│         │                   │                   │              │</p>
+<p>│         ▼                   ▼                   ▼              │</p>
+<p>│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐     │</p>
+<p>│  │  MY STORES   │    │MY MARKETPLACE│    │BECOME COURIER│     │</p>
+<p>│  │              │    │              │    │              │     │</p>
+<p>│  │ • Products   │───►│ • Storefront │    │ • Matching   │     │</p>
+<p>│  │ • Orders     │    │ • Custom DNS │    │ • Earnings   │     │</p>
+<p>│  │ • Analytics  │    │ • Branding   │    │ • Score      │     │</p>
+<p>│  └──────────────┘    └──────────────┘    └──────────────┘     │</p>
+<p>│         │                                        │              │</p>
+<p>│         │                                        │              │</p>
+<p>│         ▼                                        ▼              │</p>
+<p>│  ┌──────────────┐                        ┌──────────────┐     │</p>
+<p>│  │ SOCIAL FEED  │◄──────────────────────►│SOCIAL PROFILE│     │</p>
+<p>│  │              │                        │              │     │</p>
+<p>│  │ • Posts      │                        │ • Reputation │     │</p>
+<p>│  │ • Hashtags   │                        │ • Badges     │     │</p>
+<p>│  │ • Affiliation│                        │ • History    │     │</p>
+<p>│  └──────┬───────┘                        └──────┬───────┘     │</p>
+<p>│         │                                        │              │</p>
+<p>│         └────────────┬───────────────────────────┘              │</p>
+<p>│                      ▼                                          │</p>
+<p>│               ┌──────────────┐                                 │</p>
+<p>│               │      DAO     │                                 │</p>
+<p>│               │              │                                 │</p>
+<p>│               │ • Proposals  │                                 │</p>
+<p>│               │ • Voting     │                                 │</p>
+<p>│               │ • Execution  │                                 │</p>
+<p>│               └──────────────┘                                 │</p>
+<p>│                      ▲                                          │</p>
+<p>│                      │                                          │</p>
+<p>│               ┌──────────────┐                                 │</p>
+<p>│               │     P2P      │                                 │</p>
+<p>│               │              │                                 │</p>
+<p>│               │ • BZR↔Fiat   │                                 │</p>
+<p>│               │ • Order Book │                                 │</p>
+<p>│               │ • Escrow     │                                 │</p>
+<p>│               └──────────────┘                                 │</p>
+<p>│                                                                 │</p>
+<p>└─────────────────────────────────────────────────────────────────┘</p>
+<p>UNDERLYING INFRASTRUCTURE:</p>
+<p>├─ IPFS (media storage)</p>
+<p>├─ libp2p (P2P messaging)</p>
+<p>├─ Substrate (blockchain framework)</p>
+<p>└─ PostgreSQL/MongoDB (off-chain indexing for fast search)</p>
+<pre><code class="language-">
+<p>---</p>
+<h3 id="122-complete-value-flow">12.2 Complete Value Flow</h3>
+</code></pre>
+<p>USER BUYS BZR (P2P)</p>
+<p>    ↓</p>
+<p>SEARCHES PRODUCT (Marketplace)</p>
+<p>    ↓</p>
+<p>PURCHASES (Wallet creates Order + Escrow)</p>
+<p>    ↓</p>
+<p>SELLER ACCEPTS (My Stores)</p>
+<p>    ↓</p>
+<p>COURIER TAKES (Become a Courier)</p>
+<p>    ↓</p>
+<p>HANDOFF (BazChat: Seller + Courier)</p>
+<p>    ↓</p>
+<p>DELIVERY (BazChat: Courier + Buyer)</p>
+<p>    ↓</p>
+<p>FINALIZE (PoCEngine: Automatic split)</p>
+<p>    ↓</p>
+<p>REVIEW (Social Profile: Buyer reviews)</p>
+<p>    ↓</p>
+<p>SHARING (Social Feed: Buyer posts product photo)</p>
+<p>    ↓</p>
+<p>VIRALIZATION (Affiliates share)</p>
+<p>    ↓</p>
+<p>GOVERNANCE (DAO: Community adjusts fees)</p>
+<p>    ↓</p>
+<p>CYCLE RESTARTS WITH MORE USERS</p>
+</code>``
+<p>---</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>The Bazari ecosystem is <strong>modular, interconnected and community-governed</strong>. Each module:</p>
+<li>✅ Serves a clear purpose</li>
+<li>✅ Integrates naturally with others</li>
+<li>✅ Queries the same on-chain state (BazariChain)</li>
+<li>✅ Can evolve independently (via DAO)</li>
+<p><strong>Next steps</strong>: Understand the detailed technical architecture and implementation roadmap.</p>
+<p>---</p>
+<h2 id="next-documents">Next Documents</h2>
+<li><strong><a href="./05-architecture.html">05-architecture.html</a></strong>: Complete technical architecture, Substrate pallets, schemas</li>
+<li><strong><a href="./06-roadmap.html">06-roadmap.html</a></strong>: 3-phase roadmap and future evolution (ZK-PoD, BLS, AI)</li></ul>
+<p>---</p>
+<p><strong>Bazari</strong> — An ecosystem where each module strengthens the others, creating an unstoppable network effect.</p>
+
+      <!-- Navigation -->
+      <div class="doc-navigation">
+        <a href="03-market-pain-points.html" class="prev">← Previous</a>
+        <a href="05-architecture.html" class="next">Next →</a>
+      </div>
+    </main>
+  </div>
+
+  <script src="../assets/script.v2.js"></script>
+</body>
+</html>

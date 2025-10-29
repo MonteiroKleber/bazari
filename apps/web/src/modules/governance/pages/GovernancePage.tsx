@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { governanceApi } from '../api';
 import type { GovernanceStats } from '../types';
-import { GovernanceStatsWidget, QuickActions } from '../components/dashboard';
+import { GovernanceStatsWidget, QuickActions, EventTimeline } from '../components/dashboard';
+import { useGovernanceEvents } from '../hooks';
 import {
   Vote,
   Coins,
@@ -17,6 +18,12 @@ export function GovernancePage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<GovernanceStats | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // FASE 8: Fetch recent governance events
+  const { events, loading: eventsLoading } = useGovernanceEvents({
+    limit: 10,
+    refreshInterval: 60000, // Refresh every minute
+  });
 
   const loadStats = useCallback(async () => {
     setLoading(true);
@@ -183,6 +190,29 @@ export function GovernancePage() {
             <p className="text-sm text-muted-foreground">
               Gerencie contas multi-assinatura e aprovações coletivas.
             </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* FASE 8: Recent Activity Timeline */}
+      <div className="mt-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Atividade Recente</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {eventsLoading && events.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">Carregando eventos...</p>
+              </div>
+            ) : (
+              <EventTimeline
+                events={events}
+                maxEvents={10}
+                showProposalLinks={true}
+              />
+            )}
           </CardContent>
         </Card>
       </div>

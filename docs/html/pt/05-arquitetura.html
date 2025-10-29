@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Arquitetura e Implementação Técnica - Bazari Documentation">
+  <title>Arquitetura e Implementação Técnica | Bazari Docs</title>
+  <link rel="stylesheet" href="../assets/style.v2.css">
+  <link rel="stylesheet" href="../assets/prism.v2.css">
+</head>
+<body>
+  <div class="doc-container">
+    <!-- Header -->
+    <header class="doc-header">
+      <h1><span class="logo">🏪</span> Bazari Docs</h1>
+      <div class="doc-controls">
+        <nav class="lang-switcher">
+          <button data-lang="pt" class='active'>🇧🇷 PT</button>
+          <button data-lang="en" >🇺🇸 EN</button>
+          </nav>
+        <button class="theme-toggle">🌙</button>
+      </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside class="doc-sidebar">
+      <h2 id="documentacao">📚 Documentação</h2>
+      <nav class="doc-nav">
+        <ul>
+          <li><a href="index.html">🏠 Início</a></li>
+          <li><a href="01-visao-geral.html" >01. Visão Geral e Contexto</a></li>
+          <li><a href="02-proof-of-commerce.html" >02. Proof of Commerce - Especificação Técnica</a></li>
+          <li><a href="03-dores-mercado.html" >03. Dores do Mercado e Soluções Bazari</a></li>
+          <li><a href="04-modulos-ecossistema.html" >04. Módulos do Ecossistema Bazari</a></li>
+          <li><a href="05-arquitetura.html" class="active">05. Arquitetura e Implementação Técnica</a></li>
+          <li><a href="06-roadmap.html" >06. Roadmap e Evolução Futura</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="doc-main">
+      <h2 id="indice">Índice</h2>
+<p>1. <a href="#1-stack-tecnologico">Stack Tecnológico</a></p>
+<p>2. <a href="#2-arquitetura-em-camadas">Arquitetura em Camadas</a></p>
+<p>3. <a href="#3-pallets-substrate-detalhados">Pallets Substrate Detalhados</a></p>
+<p>4. <a href="#4-schemas-e-estruturas-de-dados">Schemas e Estruturas de Dados</a></p>
+<p>5. <a href="#5-fluxos-de-dados">Fluxos de Dados</a></p>
+<p>6. <a href="#6-infraestrutura-e-deploy">Infraestrutura e Deploy</a></p>
+<p>7. <a href="#7-seguranca-e-auditoria">Segurança e Auditoria</a></p>
+<p>---</p>
+<h2 id="1-stack-tecnologico">1. Stack Tecnológico</h2>
+<h3 id="11-blockchain-layer">1.1 Blockchain Layer</h3>
+<p>| Componente | Tecnologia | Justificativa |</p>
+<p>|------------|-----------|---------------|</p>
+<p>| <strong>Blockchain Framework</strong> | Substrate (Rust) | Modularidade, performance, interoperabilidade Polkadot |</p>
+<p>| <strong>Consensus</strong> | GRANDPA + BABE | Finalidade rápida (~12s), segurança provada |</p>
+<p>| <strong>Smart Contracts</strong> | Native Pallets (não ink!) | Melhor performance e integração |</p>
+<p>| <strong>Storage</strong> | RocksDB | Otimizado para key-value, usado pelo Substrate |</p>
+<h3 id="12-application-layer">1.2 Application Layer</h3>
+<p>| Componente | Tecnologia | Justificativa |</p>
+<p>|------------|-----------|---------------|</p>
+<p>| <strong>Frontend Web</strong> | Next.js + React + TypeScript | SSR, performance, type safety |</p>
+<p>| <strong>Mobile</strong> | React Native + Expo | Code sharing, rapid prototyping |</p>
+<p>| <strong>Desktop</strong> | Tauri (Rust + Web) | Leve, seguro, cross-platform |</p>
+<p>| <strong>State Management</strong> | Zustand / Jotai | Simples, performático, TypeScript-first |</p>
+<p>| <strong>Blockchain Client</strong> | Polkadot.js API | Padrão do ecossistema Substrate |</p>
+<h3 id="13-infrastructure-layer">1.3 Infrastructure Layer</h3>
+<p>| Componente | Tecnologia | Justificativa |</p>
+<p>|------------|-----------|---------------|</p>
+<p>| <strong>P2P Messaging</strong> | libp2p + gossipsub | Padrão Polkadot, battle-tested |</p>
+<p>| <strong>File Storage</strong> | IPFS + Filecoin | Descentralizado, immutable, incentivado |</p>
+<p>| <strong>Indexing</strong> | SubQuery / The Graph | Query rápida de dados on-chain |</p>
+<p>| <strong>Database Off-Chain</strong> | PostgreSQL + Redis | Caching, analytics, busca full-text |</p>
+<p>| <strong>API Gateway</strong> | GraphQL (Apollo) | Flexible queries, cache inteligente |</p>
+<p>---</p>
+<h2 id="2-arquitetura-em-camadas">2. Arquitetura em Camadas</h2>
+<pre><code class="language-">┌─────────────────────────────────────────────────────────────────┐
+<p>│                     LAYER 1: USER INTERFACE                     │</p>
+<p>├─────────────────────────────────────────────────────────────────┤</p>
+<p>│  Web App (Next.js)  │  Mobile (RN)  │  Desktop (Tauri)         │</p>
+<p>│  • Marketplace UI   │  • BazChat    │  • Full Node            │</p>
+<p>│  • DAO Dashboard    │  • Wallet     │  • Dev Tools            │</p>
+<p>└───────────────────────────┬─────────────────────────────────────┘</p>
+<p>                            │</p>
+<p>┌───────────────────────────▼─────────────────────────────────────┐</p>
+<p>│                  LAYER 2: APPLICATION SERVICES                  │</p>
+<p>├─────────────────────────────────────────────────────────────────┤</p>
+<p>│  ┌────────────┐  ┌────────────┐  ┌────────────┐               │</p>
+<p>│  │  GraphQL   │  │  SubQuery  │  │   IPFS     │               │</p>
+<p>│  │   API      │  │  Indexer   │  │  Gateway   │               │</p>
+<p>│  └─────┬──────┘  └─────┬──────┘  └─────┬──────┘               │</p>
+<p>│        │                │                │                      │</p>
+<p>│  ┌─────▼────────────────▼────────────────▼──────┐              │</p>
+<p>│  │         PostgreSQL + Redis Cache             │              │</p>
+<p>│  └──────────────────────┬───────────────────────┘              │</p>
+<p>└─────────────────────────┼─────────────────────────────────────┘</p>
+<p>                          │</p>
+<p>┌─────────────────────────▼─────────────────────────────────────┐</p>
+<p>│                  LAYER 3: BLOCKCHAIN RUNTIME                   │</p>
+<p>├─────────────────────────────────────────────────────────────────┤</p>
+<p>│                    BazariChain (Substrate)                      │</p>
+<p>│  ┌───────────────────────────────────────────────────────────┐ │</p>
+<p>│  │  Pallets:                                                 │ │</p>
+<p>│  │  • pallet-order       • pallet-escrow                     │ │</p>
+<p>│  │  • pallet-attestation • pallet-fulfillment                │ │</p>
+<p>│  │  • pallet-affiliate   • pallet-reputation                 │ │</p>
+<p>│  │  • pallet-dispute     • pallet-dao                        │ │</p>
+<p>│  │  • pallet-p2p         • pallet-fee                        │ │</p>
+<p>│  └───────────────────────────────────────────────────────────┘ │</p>
+<p>│                                                                 │</p>
+<p>│  Runtime APIs: RPC, WebSocket, Offchain Workers                │</p>
+<p>└───────────────────────────┬─────────────────────────────────────┘</p>
+<p>                            │</p>
+<p>┌───────────────────────────▼─────────────────────────────────────┐</p>
+<p>│                LAYER 4: CONSENSUS & NETWORKING                  │</p>
+<p>├─────────────────────────────────────────────────────────────────┤</p>
+<p>│  GRANDPA (finality) + BABE (block production)                   │</p>
+<p>│  libp2p (peer discovery, gossip, sync)                          │</p>
+<p>│  RocksDB (persistent storage)                                   │</p>
+└─────────────────────────────────────────────────────────────────┘</code></pre>
+<p>---</p>
+<h2 id="3-pallets-substrate-detalhados">3. Pallets Substrate Detalhados</h2>
+<h3 id="31-pallet-order">3.1 pallet-order</h3>
+<p><strong>Responsabilidade</strong>: Ciclo de vida completo do pedido.</p>
+<pre><code class="language-rust">// Storage
+<p>#[pallet::storage]</p>
+<p>pub type Orders<T: Config> = StorageMap<</p>
+<p>    _,</p>
+<p>    Blake2_128Concat,</p>
+<p>    OrderId,</p>
+<p>    OrderData<T::AccountId, T::BlockNumber, BalanceOf<T>>,</p>
+<p>>;</p>
+<p>#[pallet::storage]</p>
+<p>pub type OrderHistory<T: Config> = StorageMap<</p>
+<p>    _,</p>
+<p>    Blake2_128Concat,</p>
+<p>    OrderId,</p>
+<p>    BoundedVec<StateTransition<T::BlockNumber>, T::MaxHistoryEntries>,</p>
+<p>>;</p>
+<p>// Estruturas</p>
+<p>pub struct OrderData<AccountId, BlockNumber, Balance> {</p>
+<p>    pub buyer: AccountId,</p>
+<p>    pub seller: AccountId,</p>
+<p>    pub courier: Option<AccountId>,</p>
+<p>    pub product_id: ProductId,</p>
+<p>    pub quantity: u32,</p>
+<p>    pub price: Balance,</p>
+<p>    pub escrow_amount: Balance,</p>
+<p>    pub status: OrderStatus,</p>
+<p>    pub created_at: BlockNumber,</p>
+<p>    pub updated_at: BlockNumber,</p>
+<p>    pub affiliate_path: Option<AffiliatePath>,</p>
+<p>}</p>
+<p>pub enum OrderStatus {</p>
+<p>    Created,</p>
+<p>    Accepted,</p>
+<p>    CourierAssigned,</p>
+<p>    HandoffCompleted,</p>
+<p>    InTransit,</p>
+<p>    Delivered,</p>
+<p>    Finalized,</p>
+<p>    Disputed,</p>
+<p>    Cancelled,</p>
+<p>}</p>
+<p>// Extrinsics principais</p>
+<p>#[pallet::call]</p>
+<p>impl<T: Config> Pallet<T> {</p>
+<p>    #[pallet::weight(10_000)]</p>
+<p>    pub fn create_order(</p>
+<p>        origin: OriginFor<T>,</p>
+<p>        seller: T::AccountId,</p>
+<p>        product_id: ProductId,</p>
+<p>        quantity: u32,</p>
+<p>        escrow_amount: BalanceOf<T>,</p>
+<p>        affiliate_path: Option<AffiliatePath>,</p>
+<p>    ) -> DispatchResult {</p>
+<p>        let buyer = ensure_signed(origin)?;</p>
+<p>        // Valida produto existe</p>
+<p>        ensure!(</p>
+<p>            pallet_product::Products::<T>::contains_key(product_id),</p>
+<p>            Error::<T>::ProductNotFound</p>
+<p>        );</p>
+<p>        // Cria order</p>
+<p>        let order_id = Self::next_order_id();</p>
+<p>        let order = OrderData {</p>
+<p>            buyer: buyer.clone(),</p>
+<p>            seller: seller.clone(),</p>
+<p>            courier: None,</p>
+<p>            product_id,</p>
+<p>            quantity,</p>
+<p>            price: escrow_amount,</p>
+<p>            escrow_amount,</p>
+<p>            status: OrderStatus::Created,</p>
+<p>            created_at: <frame_system::Pallet<T>>::block_number(),</p>
+<p>            updated_at: <frame_system::Pallet<T>>::block_number(),</p>
+<p>            affiliate_path,</p>
+<p>        };</p>
+<p>        Orders::<T>::insert(order_id, order);</p>
+<p>        // Deposita escrow</p>
+<p>        pallet_escrow::Pallet::<T>::deposit(buyer.clone(), order_id, escrow_amount)?;</p>
+<p>        // Evento</p>
+<p>        Self::deposit_event(Event::OrderCreated {</p>
+<p>            order_id,</p>
+<p>            buyer,</p>
+<p>            seller,</p>
+<p>            amount: escrow_amount,</p>
+<p>        });</p>
+<p>        Ok(())</p>
+<p>    }</p>
+<p>    #[pallet::weight(5_000)]</p>
+<p>    pub fn accept_order(</p>
+<p>        origin: OriginFor<T>,</p>
+<p>        order_id: OrderId,</p>
+<p>    ) -> DispatchResult {</p>
+<p>        let seller = ensure_signed(origin)?;</p>
+<p>        Orders::<T>::try_mutate(order_id, |maybe_order| {</p>
+<p>            let order = maybe_order.as_mut().ok_or(Error::<T>::OrderNotFound)?;</p>
+<p>            ensure!(order.seller == seller, Error::<T>::NotSeller);</p>
+<p>            ensure!(order.status == OrderStatus::Created, Error::<T>::InvalidStatus);</p>
+<p>            order.status = OrderStatus::Accepted;</p>
+<p>            order.updated_at = <frame_system::Pallet<T>>::block_number();</p>
+<p>            Self::deposit_event(Event::OrderAccepted { order_id, seller });</p>
+<p>            Ok(())</p>
+<p>        })</p>
+<p>    }</p>
+<p>    #[pallet::weight(20_000)]</p>
+<p>    pub fn finalize(</p>
+<p>        origin: OriginFor<T>,</p>
+<p>        order_id: OrderId,</p>
+<p>    ) -> DispatchResult {</p>
+<p>        ensure_signed(origin)?; // Pode ser chamado por qualquer um (permissionless)</p>
+<p>        let order = Orders::<T>::get(order_id).ok_or(Error::<T>::OrderNotFound)?;</p>
+<p>        ensure!(order.status == OrderStatus::Delivered, Error::<T>::InvalidStatus);</p>
+<p>        // Valida quórum PoC</p>
+<p>        pallet_attestation::Pallet::<T>::validate_quorum(order_id)?;</p>
+<p>        // Split escrow</p>
+<p>        pallet_escrow::Pallet::<T>::split(</p>
+<p>            order_id,</p>
+<p>            &order.seller,</p>
+<p>            &order.courier.unwrap(),</p>
+<p>            order.affiliate_path.as_ref(),</p>
+<p>        )?;</p>
+<p>        // Atualiza reputações</p>
+<p>        pallet_reputation::Pallet::<T>::increment_seller_score(&order.seller, 10)?;</p>
+<p>        pallet_reputation::Pallet::<T>::increment_courier_score(&order.courier.unwrap(), 10)?;</p>
+<p>        // Atualiza status</p>
+<p>        Orders::<T>::mutate(order_id, |maybe_order| {</p>
+<p>            if let Some(order) = maybe_order {</p>
+<p>                order.status = OrderStatus::Finalized;</p>
+<p>                order.updated_at = <frame_system::Pallet<T>>::block_number();</p>
+<p>            }</p>
+<p>        });</p>
+<p>        Self::deposit_event(Event::OrderFinalized { order_id });</p>
+<p>        Ok(())</p>
+<p>    }</p>
+}</code></pre>
+<p>---</p>
+<h3 id="32-pallet-escrow">3.2 pallet-escrow</h3>
+<p><strong>Responsabilidade</strong>: Gerenciar fundos bloqueados até finalização.</p>
+<pre><code class="language-rust">#[pallet::storage]
+<p>pub type Locks<T: Config> = StorageMap<</p>
+<p>    _,</p>
+<p>    Blake2_128Concat,</p>
+<p>    OrderId,</p>
+<p>    BalanceOf<T>,</p>
+<p>>;</p>
+<p>#[pallet::storage]</p>
+<p>pub type Releases<T: Config> = StorageMap<</p>
+<p>    _,</p>
+<p>    Blake2_128Concat,</p>
+<p>    OrderId,</p>
+<p>    BoundedVec<(T::AccountId, BalanceOf<T>), T::MaxSplits>,</p>
+<p>>;</p>
+<p>#[pallet::call]</p>
+<p>impl<T: Config> Pallet<T> {</p>
+<p>    pub fn deposit(</p>
+<p>        depositor: T::AccountId,</p>
+<p>        order_id: OrderId,</p>
+<p>        amount: BalanceOf<T>,</p>
+<p>    ) -> DispatchResult {</p>
+<p>        // Transfere de depositor para conta do pallet (reserve)</p>
+<p>        <pallet_balances::Pallet<T> as ReservableCurrency<_>>::reserve(</p>
+<p>            &depositor,</p>
+<p>            amount,</p>
+<p>        )?;</p>
+<p>        Locks::<T>::insert(order_id, amount);</p>
+<p>        Self::deposit_event(Event::EscrowDeposited { order_id, depositor, amount });</p>
+<p>        Ok(())</p>
+<p>    }</p>
+<p>    pub fn split(</p>
+<p>        order_id: OrderId,</p>
+<p>        seller: &T::AccountId,</p>
+<p>        courier: &T::AccountId,</p>
+<p>        affiliate_path: Option<&AffiliatePath>,</p>
+<p>    ) -> DispatchResult {</p>
+<p>        let escrow_amount = Locks::<T>::get(order_id).ok_or(Error::<T>::NoEscrow)?;</p>
+<p>        let mut releases = BoundedVec::new();</p>
+<p>        let mut remaining = escrow_amount;</p>
+<p>        // Calcula fees</p>
+<p>        let fee_config = pallet_fee::Pallet::<T>::config();</p>
+<p>        let dao_fee = escrow_amount * fee_config.dao_fee_percent / 10000;</p>
+<p>        let treasury_fee = escrow_amount * fee_config.treasury_percent / 10000;</p>
+<p>        // Calcula comissões de afiliados</p>
+<p>        let affiliate_total = if let Some(path) = affiliate_path {</p>
+<p>            pallet_affiliate::Pallet::<T>::calculate_splits(order_id, path)?</p>
+<p>        } else {</p>
+<p>            0u32.into()</p>
+<p>        };</p>
+<p>        remaining = remaining</p>
+<p>            .saturating_sub(dao_fee)</p>
+<p>            .saturating_sub(treasury_fee)</p>
+<p>            .saturating_sub(affiliate_total);</p>
+<p>        // Split principal (após descontar tudo)</p>
+<p>        let order = pallet_order::Orders::<T>::get(order_id).unwrap();</p>
+<p>        let frete = order.frete_amount; // assumindo que existe</p>
+<p>        let seller_amount = remaining.saturating_sub(frete);</p>
+<p>        releases.try_push((seller.clone(), seller_amount)).ok();</p>
+<p>        releases.try_push((courier.clone(), frete)).ok();</p>
+<p>        Releases::<T>::insert(order_id, releases.clone());</p>
+<p>        // Executa transferências</p>
+<p>        for (recipient, amount) in releases.iter() {</p>
+<p>            <pallet_balances::Pallet<T> as ReservableCurrency<_>>::unreserve(</p>
+<p>                recipient,</p>
+<p>                *amount,</p>
+<p>            );</p>
+<p>        }</p>
+<p>        // Remove lock</p>
+<p>        Locks::<T>::remove(order_id);</p>
+<p>        Self::deposit_event(Event::EscrowSplit { order_id });</p>
+<p>        Ok(())</p>
+<p>    }</p>
+}</code></pre>
+<p>---</p>
+<h3 id="33-pallet-attestation">3.3 pallet-attestation</h3>
+<p><strong>Responsabilidade</strong>: Ancora provas (hashes) e valida signatários.</p>
+<pre><code class="language-rust">#[pallet::storage]
+<p>pub type Attestations<T: Config> = StorageDoubleMap<</p>
+<p>    _,</p>
+<p>    Blake2_128Concat, OrderId,</p>
+<p>    Blake2_128Concat, OrderStep,</p>
+<p>    AttestationData<T::AccountId, T::BlockNumber>,</p>
+<p>>;</p>
+<p>pub struct AttestationData<AccountId, BlockNumber> {</p>
+<p>    pub payload_hash: H256,</p>
+<p>    pub signers: Vec<(AccountId, Signature)>,</p>
+<p>    pub timestamp: BlockNumber,</p>
+<p>    pub metadata: BoundedVec<u8, ConstU32<256>>,</p>
+<p>}</p>
+<p>#[pallet::call]</p>
+<p>impl<T: Config> Pallet<T> {</p>
+<p>    #[pallet::weight(15_000)]</p>
+<p>    pub fn submit_attestation(</p>
+<p>        origin: OriginFor<T>,</p>
+<p>        order_id: OrderId,</p>
+<p>        step: OrderStep,</p>
+<p>        payload_hash: H256,</p>
+<p>        signatures: Vec<(T::AccountId, Signature)>,</p>
+<p>        metadata: Option<Vec<u8>>,</p>
+<p>    ) -> DispatchResult {</p>
+<p>        let submitter = ensure_signed(origin)?;</p>
+<p>        // Valida que submitter é um dos signers</p>
+<p>        ensure!(</p>
+<p>            signatures.iter().any(|(acc, _)| acc == &submitter),</p>
+<p>            Error::<T>::NotASigner</p>
+<p>        );</p>
+<p>        // Valida assinaturas</p>
+<p>        for (account, sig) in &signatures {</p>
+<p>            Self::verify_signature(account, &payload_hash, sig)?;</p>
+<p>        }</p>
+<p>        // Valida signers corretos para o step</p>
+<p>        Self::validate_signers_for_step(order_id, &step, &signatures)?;</p>
+<p>        // Ancora</p>
+<p>        let attestation = AttestationData {</p>
+<p>            payload_hash,</p>
+<p>            signers: signatures,</p>
+<p>            timestamp: <frame_system::Pallet<T>>::block_number(),</p>
+<p>            metadata: metadata.unwrap_or_default().try_into().unwrap_or_default(),</p>
+<p>        };</p>
+<p>        Attestations::<T>::insert(order_id, step, attestation);</p>
+<p>        // Atualiza status do pedido</p>
+<p>        Self::update_order_status(order_id, step)?;</p>
+<p>        Self::deposit_event(Event::AttestationSubmitted { order_id, step, payload_hash });</p>
+<p>        Ok(())</p>
+<p>    }</p>
+<p>    pub fn validate_quorum(order_id: OrderId) -> DispatchResult {</p>
+<p>        // Valida que existem attestations necessárias</p>
+<p>        ensure!(</p>
+<p>            Attestations::<T>::contains_key(order_id, OrderStep::HandoffSellerToCourier),</p>
+<p>            Error::<T>::MissingHandoffProof</p>
+<p>        );</p>
+<p>        ensure!(</p>
+<p>            Attestations::<T>::contains_key(order_id, OrderStep::DeliveredCourierToBuyer),</p>
+<p>            Error::<T>::MissingDeliveryProof</p>
+<p>        );</p>
+<p>        // Valida signers corretos</p>
+<p>        let handoff = Attestations::<T>::get(order_id, OrderStep::HandoffSellerToCourier).unwrap();</p>
+<p>        let delivery = Attestations::<T>::get(order_id, OrderStep::DeliveredCourierToBuyer).unwrap();</p>
+<p>        let order = pallet_order::Orders::<T>::get(order_id).unwrap();</p>
+<p>        // Handoff deve ter Seller + Courier</p>
+<p>        ensure!(</p>
+<p>            handoff.signers.iter().any(|(acc, _)| acc == &order.seller),</p>
+<p>            Error::<T>::SellerNotSignedHandoff</p>
+<p>        );</p>
+<p>        ensure!(</p>
+<p>            handoff.signers.iter().any(|(acc, _)| acc == &order.courier.unwrap()),</p>
+<p>            Error::<T>::CourierNotSignedHandoff</p>
+<p>        );</p>
+<p>        // Delivery deve ter Courier + Buyer</p>
+<p>        ensure!(</p>
+<p>            delivery.signers.iter().any(|(acc, _)| acc == &order.courier.unwrap()),</p>
+<p>            Error::<T>::CourierNotSignedDelivery</p>
+<p>        );</p>
+<p>        ensure!(</p>
+<p>            delivery.signers.iter().any(|(acc, _)| acc == &order.buyer),</p>
+<p>            Error::<T>::BuyerNotSignedDelivery</p>
+<p>        );</p>
+<p>        Ok(())</p>
+<p>    }</p>
+}</code></pre>
+<p>---</p>
+<h2 id="4-schemas-e-estruturas-de-dados">4. Schemas e Estruturas de Dados</h2>
+<h3 id="41-json-do-handoffproof-off-chain">4.1 JSON do HandoffProof (Off-Chain)</h3>
+<pre><code class="language-json">{
+<p>  "version": "1.0.0",</p>
+<p>  "order_id": "0x1a2b3c4d5e6f7890abcdef1234567890",</p>
+<p>  "step": "HANDOFF_SELLER_TO_COURIER",</p>
+<p>  "timestamp": "2025-10-28T10:15:00.000Z",</p>
+<p>  "geo": {</p>
+<p>    "lat": -23.550520,</p>
+<p>    "lon": -46.633308,</p>
+<p>    "accuracy_meters": 5,</p>
+<p>    "provider": "gps"</p>
+<p>  },</p>
+<p>  "media": [</p>
+<p>    {</p>
+<p>      "type": "photo",</p>
+<p>      "cid": "QmHandoffPhoto123...",</p>
+<p>      "description": "Pacote lacrado com número de série visível",</p>
+<p>      "hash": "blake2b:0xabc..."</p>
+<p>    }</p>
+<p>  ],</p>
+<p>  "product_condition": {</p>
+<p>    "seal": "intact",</p>
+<p>    "seal_number": "SEAL-12345",</p>
+<p>    "weight_kg": 1.2,</p>
+<p>    "dimensions_cm": [30, 20, 10],</p>
+<p>    "notes": "Caixa em perfeito estado"</p>
+<p>  },</p>
+<p>  "device_attestation": {</p>
+<p>    "platform": "iOS",</p>
+<p>    "app_version": "1.2.3",</p>
+<p>    "integrity_token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9..."</p>
+<p>  },</p>
+<p>  "signers": [</p>
+<p>    {</p>
+<p>      "role": "Seller",</p>
+<p>      "account_id": "5SellerABC123...",</p>
+<p>      "signature": "0xabcdef1234567890...",</p>
+<p>      "signature_method": "sr25519",</p>
+<p>      "signed_at": "2025-10-28T10:15:05.000Z"</p>
+<p>    },</p>
+<p>    {</p>
+<p>      "role": "Courier",</p>
+<p>      "account_id": "5CourierDEF456...",</p>
+<p>      "signature": "0x1234567890abcdef...",</p>
+<p>      "signature_method": "sr25519",</p>
+<p>      "signed_at": "2025-10-28T10:15:08.000Z"</p>
+<p>    }</p>
+<p>  ],</p>
+<p>  "nonce": "random_nonce_xyz789",</p>
+<p>  "schema_hash": "0x..."</p>
+}</code></pre>
+<p><strong>Hash Ancorado On-Chain</strong>:</p>
+<pre><code class="language-rust">let payload_hash = blake2_256(&json_bytes);
+// Resultado: 0xabc123def456... (32 bytes)</code></pre>
+<p>---</p>
+<h3 id="42-merkle-proof-de-afiliados">4.2 Merkle Proof de Afiliados</h3>
+<pre><code class="language-json">{
+<p>  "campaign_id": "0xCampaign123",</p>
+<p>  "path": [</p>
+<p>    {</p>
+<p>      "account_id": "5Affiliate1...",</p>
+<p>      "level": 1,</p>
+<p>      "commission_rate": 0.025</p>
+<p>    },</p>
+<p>    {</p>
+<p>      "account_id": "5Affiliate2...",</p>
+<p>      "level": 2,</p>
+<p>      "commission_rate": 0.0125</p>
+<p>    }</p>
+<p>  ],</p>
+<p>  "merkle_proof": {</p>
+<p>    "root": "0xRootHash...",</p>
+<p>    "siblings": [</p>
+<p>      "0xSibling1Hash...",</p>
+<p>      "0xSibling2Hash..."</p>
+<p>    ],</p>
+<p>    "path_indices": [0, 1]</p>
+<p>  }</p>
+}</code></pre>
+<p><strong>Validação On-Chain</strong>:</p>
+<pre><code class="language-rust">fn verify_merkle_proof(
+<p>    leaf: H256,</p>
+<p>    root: H256,</p>
+<p>    siblings: &[H256],</p>
+<p>    path_indices: &[u8],</p>
+<p>) -> bool {</p>
+<p>    let mut computed_hash = leaf;</p>
+<p>    for (sibling, &index) in siblings.iter().zip(path_indices) {</p>
+<p>        computed_hash = if index == 0 {</p>
+<p>            blake2_256(&[computed_hash.as_bytes(), sibling.as_bytes()].concat())</p>
+<p>        } else {</p>
+<p>            blake2_256(&[sibling.as_bytes(), computed_hash.as_bytes()].concat())</p>
+<p>        };</p>
+<p>    }</p>
+<p>    computed_hash == root</p>
+}</code></pre>
+<p>---</p>
+<h2 id="5-fluxos-de-dados">5. Fluxos de Dados</h2>
+<h3 id="51-criacao-de-order-sequencia-completa">5.1 Criação de Order (Sequência Completa)</h3>
+<pre><code class="language-mermaid">sequenceDiagram
+<p>    participant User as Buyer (Frontend)</p>
+<p>    participant Wallet</p>
+<p>    participant API as GraphQL API</p>
+<p>    participant Chain as BazariChain</p>
+<p>    participant IPFS</p>
+<p>    participant Indexer as SubQuery</p>
+<p>    User->>Wallet: create_order()</p>
+<p>    Wallet->>Wallet: Assina transação</p>
+<p>    Wallet->>Chain: submit extrinsic</p>
+<p>    Chain->>Chain: Valida + executa</p>
+<p>    Chain->>Chain: Deposita escrow</p>
+<p>    Chain->>Chain: Emite evento OrderCreated</p>
+<p>    Chain-->>Wallet: TxHash + confirmação</p>
+<p>    Wallet-->>User: "Pedido criado!"</p>
+<p>    Chain->>Indexer: Evento via WebSocket</p>
+<p>    Indexer->>Indexer: Processa + salva PostgreSQL</p>
+<p>    User->>API: Query pedido (GraphQL)</p>
+<p>    API->>Indexer: Busca dados</p>
+<p>    Indexer-->>API: Retorna JSON</p>
+    API-->>User: Exibe timeline</code></pre>
+<p>---</p>
+<h3 id="52-co-assinatura-de-deliveryproof">5.2 Co-Assinatura de DeliveryProof</h3>
+<pre><code class="language-mermaid">sequenceDiagram
+<p>    participant Courier</p>
+<p>    participant Buyer</p>
+<p>    participant BazChat as BazChat (P2P)</p>
+<p>    participant IPFS</p>
+<p>    participant Chain as BazariChain</p>
+<p>    Courier->>BazChat: Chega no endereço</p>
+<p>    BazChat->>BazChat: Abre tela "Delivery"</p>
+<p>    Courier->>BazChat: Tira foto + localização</p>
+<p>    BazChat->>Buyer: Push notification</p>
+<p>    Buyer->>BazChat: Abre tela</p>
+<p>    Buyer->>BazChat: Confere pacote + assina digitalmente</p>
+<p>    BazChat->>BazChat: Gera JSON (payload)</p>
+<p>    BazChat->>BazChat: Ambos assinam localmente</p>
+<p>    BazChat->>IPFS: Upload mídia</p>
+<p>    IPFS-->>BazChat: CID retornado</p>
+<p>    BazChat->>BazChat: Adiciona CID ao JSON</p>
+<p>    BazChat->>BazChat: Calcula payload_hash</p>
+<p>    Courier->>Chain: submit_attestation(DELIVERED, hash, sigs)</p>
+<p>    Chain->>Chain: Valida assinaturas</p>
+<p>    Chain->>Chain: Ancora hash</p>
+<p>    Chain->>Chain: Atualiza Order status</p>
+<p>    Chain-->>Courier: Confirmação</p>
+<p>    Chain-->>Buyer: Confirmação</p>
+<p>    BazChat->>Courier: "Entrega confirmada!"</p>
+    BazChat->>Buyer: "Pedido recebido!"</code></pre>
+<p>---</p>
+<h2 id="6-infraestrutura-e-deploy">6. Infraestrutura e Deploy</h2>
+<h3 id="61-arquitetura-de-deploy-producao">6.1 Arquitetura de Deploy (Produção)</h3>
+<pre><code class="language-">┌──────────────────────────────────────────────────────────────┐
+<p>│                        FRONTEND                              │</p>
+<p>├──────────────────────────────────────────────────────────────┤</p>
+<p>│  Vercel (Web)  │  App Store/Play Store (Mobile)             │</p>
+<p>│  • Next.js SSR │  • React Native bundle                      │</p>
+<p>│  • Edge CDN    │  • OTA updates (Expo)                       │</p>
+<p>└────────────┬─────────────────────────────────────────────────┘</p>
+<p>             │</p>
+<p>             ▼</p>
+<p>┌──────────────────────────────────────────────────────────────┐</p>
+<p>│                        API LAYER                             │</p>
+<p>├──────────────────────────────────────────────────────────────┤</p>
+<p>│  AWS/GCP - Kubernetes Cluster                                │</p>
+<p>│  ┌────────────┐  ┌────────────┐  ┌────────────┐             │</p>
+<p>│  │  GraphQL   │  │  SubQuery  │  │  IPFS      │             │</p>
+<p>│  │  Gateway   │  │  Indexer   │  │  Gateway   │             │</p>
+<p>│  │  (Apollo)  │  │  (Node.js) │  │  (Kubo)    │             │</p>
+<p>│  └────────────┘  └────────────┘  └────────────┘             │</p>
+<p>│         │              │                │                    │</p>
+<p>│  ┌──────▼──────────────▼────────────────▼──────┐            │</p>
+<p>│  │         PostgreSQL (RDS) + Redis             │            │</p>
+<p>│  └──────────────────────────────────────────────┘            │</p>
+<p>└────────────┬─────────────────────────────────────────────────┘</p>
+<p>             │</p>
+<p>             ▼</p>
+<p>┌──────────────────────────────────────────────────────────────┐</p>
+<p>│                    BLOCKCHAIN NODES                          │</p>
+<p>├──────────────────────────────────────────────────────────────┤</p>
+<p>│  Validator Nodes (3+ geograficamente distribuídos)           │</p>
+<p>│  • AWS us-east-1                                             │</p>
+<p>│  • GCP europe-west1                                          │</p>
+<p>│  • Azure asia-southeast1                                     │</p>
+<p>│                                                              │</p>
+<p>│  Full Nodes (Archive) - 2+ para consulta histórica          │</p>
+<p>│  RPC Nodes (Load-balanced) - 5+ para API pública            │</p>
+└──────────────────────────────────────────────────────────────┘</code></pre>
+<p>---</p>
+<h3 id="62-devops-e-cicd">6.2 DevOps e CI/CD</h3>
+<pre><code class="language-yaml"><h1>.github/workflows/deploy-chain.yml</h1>
+<p>name: Deploy BazariChain</p>
+<p>on:</p>
+<p>  push:</p>
+<p>    branches: [main]</p>
+<p>    paths: ['bazari-chain/**']</p>
+<p>jobs:</p>
+<p>  build-and-deploy:</p>
+<p>    runs-on: ubuntu-latest</p>
+<p>    steps:</p>
+<p>      - uses: actions/checkout@v3</p>
+<p>      - name: Build runtime WASM</p>
+<p>        run: |</p>
+<p>          cd bazari-chain</p>
+<p>          cargo build --release</p>
+<p>      - name: Run tests</p>
+<p>        run: cargo test --all</p>
+<p>      - name: Build Docker image</p>
+<p>        run: |</p>
+<p>          docker build -t bazari-chain:${{ github.sha }} .</p>
+<p>          docker tag bazari-chain:${{ github.sha }} bazari-chain:latest</p>
+<p>      - name: Push to registry</p>
+<p>        run: |</p>
+<p>          docker push ghcr.io/bazari/chain:${{ github.sha }}</p>
+<p>      - name: Deploy to testnet</p>
+<p>        run: |</p>
+<p>          kubectl set image deployment/bazari-validator \\</p>
+<p>            bazari-chain=ghcr.io/bazari/chain:${{ github.sha }}</p>
+<p>      - name: Health check</p>
+<p>        run: |</p>
+<p>          curl -X POST https://testnet-rpc.bazari.network \\</p>
+<p>            -H "Content-Type: application/json" \\</p>
+            -d '{"jsonrpc":"2.0","method":"system_health","params":[],"id":1}'</code></pre>
+<p>---</p>
+<h2 id="7-seguranca-e-auditoria">7. Segurança e Auditoria</h2>
+<h3 id="71-vetores-de-ataque-e-mitigacoes">7.1 Vetores de Ataque e Mitigações</h3>
+<p>| Vetor | Risco | Mitigação |</p>
+<p>|-------|-------|-----------|</p>
+<p>| <strong>Reentrância</strong> | Alto | Checks-Effects-Interactions pattern; Status flags |</p>
+<p>| <strong>Overflow/Underflow</strong> | Médio | Rust safe math (saturating ops); Testes extensivos |</p>
+<p>| <strong>Assinaturas forjadas</strong> | Alto | Verificação criptográfica (sr25519/ed25519); Nonces |</p>
+<p>| <strong>Replay attacks</strong> | Médio | Nonces únicos; Timestamps; Order IDs |</p>
+<p>| <strong>Front-running</strong> | Médio | Commit-reveal para disputas; Timelock antes de execução |</p>
+<p>| <strong>Sybil (spam contas)</strong> | Alto | Stake mínimo; Reputação; Rate limiting |</p>
+<p>| <strong>51% attack</strong> | Baixo | Múltiplos validators; Slashing alto; Custo > ganho |</p>
+<p>| <strong>DDoS RPC</strong> | Médio | Rate limiting; Load balancer; Cloudflare |</p>
+<p>---</p>
+<h3 id="72-checklist-de-auditoria">7.2 Checklist de Auditoria</h3>
+<p><strong>Antes do Mainnet</strong>:</p>
+<ul><li>[ ] Auditoria formal de smart contracts (Trail of Bits / OpenZeppelin)</li>
+<li>[ ] Fuzzing de pallets (cargo-fuzz)</li>
+<li>[ ] Testes de carga (1000+ tps simulados)</li>
+<li>[ ] Penetration testing (white-hat hackers)</li>
+<li>[ ] Code review por Substrate experts</li>
+<li>[ ] Bug bounty program (HackerOne)</li>
+<li>[ ] Testnet público por 6+ meses</li>
+<li>[ ] Revisão de criptografia (assinaturas, hashes)</li>
+<li>[ ] Análise de economia de tokens (simulations)</li>
+<li>[ ] Disaster recovery plan testado</li>
+<p>---</p>
+<h2 id="conclusao">Conclusão</h2>
+<p>A arquitetura Bazari é <strong>modular, escalável e segura por design</strong>. Cada camada tem responsabilidades claras, e a comunicação entre elas é padronizada.</p>
+<p><strong>Próximo passo</strong>: Entender o roadmap de implementação em 3 fases e as evoluções futuras (ZK-PoD, BLS, IA).</p>
+<p>---</p>
+<h2 id="proximo-documento">Próximo Documento</h2>
+<li><strong><a href="./06-roadmap.html">06-roadmap.html</a></strong>: Roadmap completo de 3 fases e visão de longo prazo</li></ul>
+<p>---</p>
+<p><strong>Bazari</strong> — Arquitetura técnica sólida para o futuro do comércio descentralizado.</p>
+
+      <!-- Navigation -->
+      <div class="doc-navigation">
+        <a href="04-modulos-ecossistema.html" class="prev">← Anterior</a>
+        <a href="06-roadmap.html" class="next">Próximo →</a>
+      </div>
+    </main>
+  </div>
+
+  <script src="../assets/script.v2.js"></script>
+</body>
+</html>

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Overview and Context - Bazari Documentation">
+  <title>Overview and Context | Bazari Docs</title>
+  <link rel="stylesheet" href="../assets/style.v2.css">
+  <link rel="stylesheet" href="../assets/prism.v2.css">
+</head>
+<body>
+  <div class="doc-container">
+    <!-- Header -->
+    <header class="doc-header">
+      <h1><span class="logo">🏪</span> Bazari Docs</h1>
+      <div class="doc-controls">
+        <nav class="lang-switcher">
+          <button data-lang="pt">🇧🇷 PT</button>
+          <button data-lang="en" class='active'>🇺🇸 EN</button>
+          </nav>
+        <button class="theme-toggle">🌙</button>
+      </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside class="doc-sidebar">
+      <h2 id="documentation">📚 Documentation</h2>
+      <nav class="doc-nav">
+        <ul>
+          <li><a href="index.html">🏠 Home</a></li>
+          <li><a href="01-overview-context.html" class="active">01. Overview and Context</a></li>
+          <li><a href="02-proof-of-commerce.html">02. Proof of Commerce - Technical Specification</a></li>
+          <li><a href="03-market-pain-points.html">03. Market Pain Points and Bazari Solutions</a></li>
+          <li><a href="04-ecosystem-modules.html">04. Bazari Ecosystem Modules</a></li>
+          <li><a href="05-architecture.html">05. Architecture and Technical Implementation</a></li>
+          <li><a href="06-roadmap.html">06. Roadmap and Future Evolution</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="doc-main">
+      <h2 id="table-of-contents">Table of Contents</h2>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#the-fundamental-problem-value-emission">The Fundamental Problem: Value Emission</a></li>
+<li><a href="#critical-analysis-of-existing-models">Critical Analysis of Existing Models</a></li>
+<li><a href="#the-third-phase-of-crypto">The Third Phase of Crypto</a></li>
+<p>---</p>
+<h2 id="introduction">Introduction</h2>
+<p>The history of money is the history of how humanity coordinates value and trust. From shells and precious metals to digits in databases, each evolution has tried to solve the same central problem: <strong>how to create and distribute value fairly, verifiably, and sustainably?</strong></p>
+<p>Bazari represents the next phase of this evolution — not replacing money, but creating a <strong>real commerce settlement protocol</strong> where value is issued mathematically from verifiable work, not from central authorities or speculative energy consumption.</p>
+<p>This document establishes the historical and technical context that makes <strong>Proof of Commerce (PoC)</strong> not just innovative, but necessary.</p>
+<p>---</p>
+<h2 id="the-fundamental-problem-value-emission">The Fundamental Problem: Value Emission</h2>
+<h3 id="the-central-question">The Central Question</h3>
+<p>Every monetary system faces three critical questions:</p>
+<li><strong>Who</strong> has the right to create new value?</li>
+<li><strong>How</strong> is this value created (what is the proof of work/legitimacy)?</li>
+<li><strong>For whom</strong> does the value initially flow (fair distribution)?</li>
+<p>All current models — fiat, Bitcoin, Ethereum, stablecoins — fail in at least one of these dimensions when applied to real-world commerce.</p>
+<p>---</p>
+<h2 id="critical-analysis-of-existing-models">Critical Analysis of Existing Models</h2>
+<h3 id="11-fiat-centralized-emission-and-controlled-inflation">1.1 Fiat: Centralized Emission and Controlled Inflation</h3>
+<h4 id="how-it-works">How It Works</h4>
+<ul><li><strong>Issuer</strong>: Central banks (Federal Reserve, ECB, Central Bank of Brazil)</li>
+<li><strong>Mechanism</strong>: Discretionary monetary policy (printing, interest rates)</li>
+<li><strong>Proof of Legitimacy</strong>: State authority and institutional trust</li>
+<h4 id="structural-problems">Structural Problems</h4>
+<p><strong>a) Value Creation Without Real Work Backing</strong></p>
+<pre><code class="language-">Central Bank → Prints $1 trillion
+<p>        ↓</p>
+<p>Goes to private banking system (not to producers)</p>
+<p>        ↓</p>
+Inflation erodes purchasing power of workers</code></pre>
+<p><strong>Real Example (Brazil, 2020-2023)</strong>:</p>
+<li>M1 (monetary base) grew 40%</li>
+<li>Accumulated inflation: 25%+</li>
+<li>Real minimum wage: stagnant</li>
+<li><strong>Result</strong>: Silent wealth transfer from workers to asset holders</li>
+<p><strong>b) Extractive Intermediaries</strong></p>
+<p>In commerce, fiat requires:</p>
+<li>Banks (2-5% fees per transaction)</li>
+<li>Payment processors (Visa/Mastercard, another 1-3%)</li>
+<li>Settlement time: 30-90 days for the merchant</li>
+<li>Unilateral chargeback risk (consumer can reverse after 6 months)</li>
+<p><strong>c) Financial Exclusion</strong></p>
+<li>1.4 billion people without bank accounts (World Bank data)</li>
+<li>KYC/AML requirements make legitimate informal commerce impossible</li>
+<li>Account maintenance costs exclude the poor</li>
+<p><strong>d) Control and Censorship</strong></p>
+<li>Governments can freeze accounts arbitrarily</li>
+<li>Payment systems can block merchants (e.g., Patreon, OnlyFans, legal cannabis)</li>
+<li>Zero privacy (all flow is tracked)</li>
+<p>---</p>
+<h3 id="12-bitcoin-decentralized-emission-but-unviable-for-commerce">1.2 Bitcoin: Decentralized Emission, But Unviable for Commerce</h3>
+<h4 id="how-it-works">How It Works</h4>
+<li><strong>Issuer</strong>: Miners (Proof of Work)</li>
+<li><strong>Mechanism</strong>: SHA-256 computation; new block every ~10 min; halving every 4 years</li>
+<li><strong>Proof of Legitimacy</strong>: Energy expenditure (attack cost > reward)</li>
+<h4 id="achievements">Achievements</h4>
+<li>✅ Real decentralization (no single point of control)</li>
+<li>✅ Predictable monetary policy (21 million BTC fixed)</li>
+<li>✅ Censorship resistance</li>
+<h4 id="problems-for-real-world-commerce">Problems for Real-World Commerce</h4>
+<p><strong>a) Insufficient Throughput</strong></p>
+<li>7 transactions/second (vs. Visa: 65,000 tps)</li>
+<li>Average fee: $1-50 depending on congestion</li>
+<li>Confirmation: 10-60 minutes</li>
+<p><strong>Impossible Scenario</strong>:</p>
+<pre><code class="language-">Bakery accepts Bitcoin for $2 bread
+<p>        ↓</p>
+<p>Network fee: $25</p>
+<p>        ↓</p>
+<p>Customer waits 40 min for confirmation</p>
+<p>        ↓</p>
+Bitcoin price fluctuates 3% while waiting</code></pre>
+<p><strong>b) Irrational Energy Consumption</strong></p>
+<li>Bitcoin network: ~150 TWh/year (equivalent to all of Argentina)</li>
+<li>Environmental cost per transaction: ~1,200 kWh</li>
+<li><strong>For what?</strong> Just to prove computational expenditure, not to create real economic value</li>
+<p><strong>c) Mining Power Concentration</strong></p>
+<li>Top 4 pools control >50% of hashrate</li>
+<li>Industrial mining farms (economies of scale) exclude individuals</li>
+<li>Initial distribution: early adopters + speculators, not workers</li>
+<p><strong>d) Speculative Volatility</strong></p>
+<li>10-30% fluctuations in weeks prevent use as medium of exchange</li>
+<li>Commerce requires stability; Bitcoin is store of value (at best)</li>
+<p>---</p>
+<h3 id="13-ethereum-smart-contracts-but-still-speculative">1.3 Ethereum: Smart Contracts, But Still Speculative</h3>
+<h4 id="how-it-works">How It Works</h4>
+<li><strong>Issuer</strong>: Validators (Proof of Stake post-Merge)</li>
+<li><strong>Mechanism</strong>: 32 ETH stake; block validation; fee burning (EIP-1559)</li>
+<li><strong>Proof of Legitimacy</strong>: Economic stake (attack cost = stake loss)</li>
+<h4 id="achievements">Achievements</h4>
+<li>✅ Programmability (smart contracts, DeFi, NFTs)</li>
+<li>✅ 99.95% reduction in energy consumption (vs. PoW)</li>
+<li>✅ Infrastructure for DApps</li>
+<h4 id="problems-for-popular-commerce">Problems for Popular Commerce</h4>
+<p><strong>a) Prohibitive Gas Fees</strong></p>
+<li>Simple transaction: $1-50 (historical peaks: >$200)</li>
+<li>Smart contract interaction: 3-10x the transfer cost</li>
+<li><strong>Unviable for microtransactions</strong> (e.g., $4 shipping)</li>
+<p><strong>b) UX Complexity</strong></p>
+<li>User needs to understand: wallets, gas, slippage, frontrunning</li>
+<li>Irreversible error (wrong address = total loss)</li>
+<li>Non-technical onboarding is a cultural barrier</li>
+<p><strong>c) Emission Still Disconnected from Real Commerce</strong></p>
+<li>Validators earn rewards for validating blocks, not for facilitating economic exchanges</li>
+<li>Value flow: speculators ↔ speculators (DeFi = decentralized casino)</li>
+<li>Real economy (baker, courier, seamstress) doesn't participate in emission</li>
+<p><strong>d) Hidden Centralization</strong></p>
+<li>Infura/Alchemy host >70% of RPC nodes (single points of failure)</li>
+<li>Lido controls >30% of ETH stake (cartel risk)</li>
+<li>Most users use MetaMask (phishing honeypot)</li>
+<p>---</p>
+<h3 id="14-stablecoins-fiat-mirror-same-vices">1.4 Stablecoins: Fiat Mirror, Same Vices</h3>
+<h4 id="how-it-works">How It Works</h4>
+<li><strong>Issuer</strong>: Private companies (Circle/USDC, Tether/USDT) or algorithms (DAI, FRAX)</li>
+<li><strong>Mechanism</strong>: 1:1 backing in USD (or asset baskets) held in bank accounts</li>
+<li><strong>Proof of Legitimacy</strong>: Audit (theoretically) + redemption</li>
+<h4 id="fundamental-problems">Fundamental Problems</h4>
+<p><strong>a) Don't Solve the Fiat Problem</strong></p>
+<pre><code class="language-">USDC = tokenized USD
+<p>        ↓</p>
+<p>Same dollar inflation (USD loses 3-7%/year)</p>
+<p>        ↓</p>
+<p>Same bank dependency (Circle has accounts at Silvergate, SVB — both failed/nearly failed)</p>
+<p>        ↓</p>
+Same censorship (Circle blocked Tornado Cash addresses)</code></pre>
+<p><strong>b) Counterparty Risk</strong></p>
+<li>Tether: never fully audited; allegations of fractional reserves</li>
+<li>USDC: arbitrary freezing; depends on commercial banks</li>
+<li>Algorithmic (UST): catastrophic collapse ($40 billion loss in 2022)</li>
+<p><strong>c) Don't Generate Value</strong></p>
+<li>Stablecoins only <strong>transport</strong> existing value; they don't create economy</li>
+<li>Commissions go to issuers (Tether profits billions from reserve interest)</li>
+<li>Merchants continue paying on/off-ramp fees (crypto ↔ fiat)</li>
+<p>---</p>
+<h3 id="15-bazaris-answer-proof-of-commerce-poc">1.5 Bazari's Answer: Proof of Commerce (PoC)</h3>
+<h4 id="why-do-all-previous-models-fail-in-commerce">Why Do All Previous Models Fail in Commerce?</h4>
+<p>Because they try to fit <strong>generic consensus systems</strong> into a specific problem: <strong>coordinating real-world exchanges between untrusted parties</strong>.</p>
+<p><strong>What's missing?</strong></p>
+<li><strong>REAL proof of work</strong>: Not computational hash, but verifiable physical delivery</li>
+<li><strong>INSTANT settlement</strong>: Not 30 days (fiat) nor 10 min (Bitcoin), but immediate after confirmation</li>
+<li><strong>ZERO trust cost</strong>: Not trusting bank, miner or validator, but cryptographic attestations from the parties themselves</li>
+<li><strong>FAIR distribution</strong>: Value flows directly to those who work (merchant, courier), not to intermediaries</li>
+<p>---</p>
+<h2 id="the-third-phase-of-crypto">The Third Phase of Crypto</h2>
+<h3 id="phase-1-digital-money-2009-2015">Phase 1: Digital Money (2009-2015)</h3>
+<li><strong>Bitcoin</strong>: Proof that we can have money without a central bank</li>
+<li><strong>Problem solved</strong>: Double spending without central authority</li>
+<li><strong>Limitation</strong>: Doesn't scale for real economy</li>
+<h3 id="phase-2-decentralized-applications-2015-2023">Phase 2: Decentralized Applications (2015-2023)</h3>
+<li><strong>Ethereum/DeFi/NFTs</strong>: Proof that we can have contracts without lawyers</li>
+<li><strong>Problem solved</strong>: Automation of financial rules</li>
+<li><strong>Limitation</strong>: Stuck in digital world (Oracle Problem)</li>
+<h3 id="phase-3-real-world-coordination-2024">Phase 3: Real-World Coordination (2024+)</h3>
+<li><strong>Bazari PoC</strong>: Proof that we can have commerce without extractive intermediaries</li>
+<li><strong>Problem solved</strong>: Verifiable settlement of physical exchanges</li>
+<li><strong>Key innovation</strong>: Real work (delivering a package) IS the consensus proof</li>
+<p>---</p>
+<h2 id="proof-of-commerce-in-one-sentence">Proof of Commerce in One Sentence</h2>
+<blockquote><p><strong>"In PoC, value emission (payment settlement) is a mathematical act conditioned on cryptographic proofs of real work — co-signatures of pickup, delivery and receipt — eliminating intermediaries and connecting blockchain protocol to physical reality."</strong></p></blockquote>
+<p>---</p>
+<h2 id="next-documents">Next Documents</h2>
+<li><strong><a href="./02-proof-of-commerce.html">02-proof-of-commerce.html</a></strong>: Complete technical detail of PoC protocol</li>
+<li><strong><a href="./03-market-pain-points.html">03-market-pain-points.html</a></strong>: Analysis of centralized marketplace pain points and how Bazari solves them</li>
+<li><strong><a href="./04-ecosystem-modules.html">04-ecosystem-modules.html</a></strong>: Description of each Bazari ecosystem module</li>
+<li><strong><a href="./05-architecture.html">05-architecture.html</a></strong>: Technical architecture and Substrate pallets</li>
+<li><strong><a href="./06-roadmap.html">06-roadmap.html</a></strong>: Implementation phases and future evolution</li></ul>
+<p>---</p>
+<p><strong>Bazari</strong> — Transforming work into value, mathematically.</p>
+
+      <!-- Navigation -->
+      <div class="doc-navigation">
+        
+        <a href="02-proof-of-commerce.html" class="next">Next →</a>
+      </div>
+    </main>
+  </div>
+
+  <script src="../assets/script.v2.js"></script>
+</body>
+</html>

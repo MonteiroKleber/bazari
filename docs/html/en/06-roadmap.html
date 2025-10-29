@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Roadmap and Future Evolution - Bazari Documentation">
+  <title>Roadmap and Future Evolution | Bazari Docs</title>
+  <link rel="stylesheet" href="../assets/style.v2.css">
+  <link rel="stylesheet" href="../assets/prism.v2.css">
+</head>
+<body>
+  <div class="doc-container">
+    <!-- Header -->
+    <header class="doc-header">
+      <h1><span class="logo">🏪</span> Bazari Docs</h1>
+      <div class="doc-controls">
+        <nav class="lang-switcher">
+          <button data-lang="pt">🇧🇷 PT</button>
+          <button data-lang="en" class="active">🇺🇸 EN</button>
+          </nav>
+        <button class="theme-toggle">🌙</button>
+      </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside class="doc-sidebar">
+      <h2 id="documentation">📚 Documentation</h2>
+      <nav class="doc-nav">
+        <ul>
+          <li><a href="index.html">🏠 Home</a></li>
+          <li><a href="01-overview-context.html" >01. Overview and Context</a></li>
+          <li><a href="02-proof-of-commerce.html" >02. Proof of Commerce - Technical Specification</a></li>
+          <li><a href="03-market-pain-points.html" >03. Market Pain Points and Bazari Solutions</a></li>
+          <li><a href="04-ecosystem-modules.html" >04. Bazari Ecosystem Modules</a></li>
+          <li><a href="05-architecture.html" >05. Architecture and Technical Implementation</a></li>
+          <li><a href="06-roadmap.html" class="active">06. Roadmap and Future Evolution</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="doc-main">
+      <h2 id="06-roadmap-and-future-evolution">06. Roadmap and Future Evolution</h2>
+<p>---</p>
+<h2 id="table-of-contents">Table of Contents</h2>
+<p>1. <a href="#1-phase-overview">Phase Overview</a></p>
+<p>2. <a href="#2-phase-1-mvp-poc">Phase 1: MVP PoC</a></p>
+<p>3. <a href="#3-phase-2-crypto-evolution">Phase 2: Crypto-Evolution</a></p>
+<p>4. <a href="#4-phase-3-privacy-and-scale">Phase 3: Privacy and Scale</a></p>
+<p>5. <a href="#5-beyond-phase-3">Beyond Phase 3</a></p>
+<p>6. <a href="#6-success-metrics">Success Metrics</a></p>
+<p>7. <a href="#7-risks-and-mitigations">Risks and Mitigations</a></p>
+<p>---</p>
+<h2 id="1-phase-overview">1. Phase Overview</h2>
+<h3 id="11-timeline">1.1 Timeline</h3>
+<pre><code class="language-">2025 Q1-Q2 ────────► PHASE 1: MVP PoC
+<p>                     • Functional end-to-end PoC</p>
+<p>                     • Public testnet</p>
+<p>                     • 1,000 early adopters</p>
+<p>2025 Q3-Q4 ────────► PHASE 2: Crypto-Evolution</p>
+<p>                     • Aggregated BLS, VRF, DID/VC</p>
+<p>                     • Beta mainnet</p>
+<p>                     • 50,000 users</p>
+<p>2026 Q1-Q4 ────────► PHASE 3: Privacy & Scale</p>
+<p>                     • ZK-PoD, sharding, AI-assisted</p>
+<p>                     • Mainnet v1.0</p>
+<p>                     • 1,000,000+ users</p>
+<p>2027+ ─────────────► Global Expansion</p>
+<p>                     • Multi-chain, cross-border</p>
+<p>                     • IoT/supply chain integration</p>
+                     • Commerce protocol standard</code></pre>
+<p>---</p>
+<h2 id="2-phase-1-mvp-poc">2. Phase 1: MVP PoC</h2>
+<h3 id="21-objective">2.1 Objective</h3>
+<p><strong>Prove that Proof of Commerce works</strong>: Execute the complete happy path (order creation → delivery → settlement) with basic security and proof anchoring.</p>
+<h3 id="22-technical-deliverables">2.2 Technical Deliverables</h3>
+<h4 id="221-blockchain-bazarichain">2.2.1 Blockchain (BazariChain)</h4>
+<p>| Component | Description | Target Status |</p>
+<p>|-----------|-------------|---------------|</p>
+<p>| <strong>Core Pallets</strong> | order, escrow, attestation, fulfillment, affiliate, fee | ✅ Complete |</p>
+<p>| <strong>PoC Quorum</strong> | ORDER_CREATED, HANDOFF (Seller+Courier), DELIVERED (Courier+Buyer) | ✅ Complete |</p>
+<p>| <strong>Escrow & Split</strong> | BZR payment, automatic distribution | ✅ Complete |</p>
+<p>| <strong>Initial Reputation</strong> | SellerScore, CourierScore, BuyerScore (simple increment) | ✅ Complete |</p>
+<p>| <strong>Basic Dispute</strong> | Manual opening, simple jury (no VRF yet) | ⏳ 70% |</p>
+<h4 id="222-frontend-ux">2.2.2 Frontend & UX</h4>
+<p>| Module | Features | Target Status |</p>
+<p>|--------|----------|---------------|</p>
+<p>| <strong>Marketplace</strong> | Search, product, checkout, tracking | ✅ Complete |</p>
+<p>| <strong>BazChat</strong> | 1-on-1 chat, proof co-signing (2 clicks) | ✅ Complete |</p>
+<p>| <strong>Wallet</strong> | Create account, view balance, send/receive BZR | ✅ Complete |</p>
+<p>| <strong>My Stores</strong> | List products, accept orders | ✅ Complete |</p>
+<p>| <strong>Become Courier</strong> | Registration, view orders, apply | ✅ Complete |</p>
+<h4 id="223-infrastructure">2.2.3 Infrastructure</h4>
+<p>| Service | Technology | Target Status |</p>
+<p>|---------|------------|---------------|</p>
+<p>| <strong>Testnet</strong> | 3 validator nodes + public RPC | ✅ Running |</p>
+<p>| <strong>IPFS</strong> | Public gateway for media | ✅ Running |</p>
+<p>| <strong>Indexer</strong> | SubQuery for fast queries | ✅ Running |</p>
+<p>| <strong>API</strong> | GraphQL (Apollo) | ✅ Running |</p>
+<p>---</p>
+<h3 id="23-milestone-first-real-transaction">2.3 Milestone: First Real Transaction</h3>
+<p><strong>Goal</strong>: 10 complete orders (creation → delivery → split) on testnet with real users.</p>
+<p><strong>Success Criteria</strong>:</p>
+<ul><li>✅ 10 Orders finalized without failure</li>
+<li>✅ Average completion time < 24h (from creation to split)</li>
+<li>✅ 100% correct splits (seller, courier, affiliate, DAO)</li>
+<li>✅ Proofs (Handoff/Delivery) anchored and verifiable</li>
+<li>✅ Zero critical bugs (exploits, lost funds)</li>
+<p><strong>Target Date</strong>: March 2025</p>
+<p>---</p>
+<h3 id="24-public-testnet-launch">2.4 Public Testnet Launch</h3>
+<p><strong>Deliverables</strong>:</p>
+<li>Frontend accessible at: testnet.bazari.network</li>
+<li>Faucet: Users can get free BZR for testing</li>
+<li>Explorer: View blocks, transactions, on-chain orders</li>
+<li>Documentation: Usage guides for sellers/couriers/buyers</li>
+<li>Support: Discord/Telegram channel for questions</li>
+<p><strong>User Target</strong>: 1,000 early adopters testing</p>
+<p><strong>Target Date</strong>: April 2025</p>
+<p>---</p>
+<h3 id="25-feedback-iteration">2.5 Feedback & Iteration</h3>
+<p><strong>Q2 2025</strong>: Intensive feedback collection.</p>
+<p><strong>Metrics to Monitor</strong>:</p>
+<li>Order completion rate (target: >90%)</li>
+<li>Dispute rate (target: <5%)</li>
+<li>Average delivery time (target: <3 days)</li>
+<li>NPS (Net Promoter Score) for sellers and buyers (target: >50)</li>
+<p><strong>Expected Adjustments</strong>:</p>
+<li>UX: Simplify co-signing if friction exists</li>
+<li>Fees: Adjust % if users complain</li>
+<li>Timeouts: Increase if deliveries take longer than expected</li>
+<li>Bugs: Fix all edge cases discovered</li>
+<p>---</p>
+<h2 id="3-phase-2-crypto-evolution">3. Phase 2: Crypto-Evolution</h2>
+<h3 id="31-objective">3.1 Objective</h3>
+<p><strong>Elevate security, efficiency and reliability</strong> of the protocol with advanced cryptographic techniques and identity verification.</p>
+<h3 id="32-technical-deliverables">3.2 Technical Deliverables</h3>
+<h4 id="321-bls-aggregated-signatures">3.2.1 BLS Aggregated Signatures</h4>
+<p><strong>Problem</strong>: Multiple signatures per step increase tx cost and latency.</p>
+<p><strong>Solution</strong>:</p>
+<pre><code class="language-rust">// Before (Phase 1):
+<p>Attestation {</p>
+<p>    signers: [</p>
+<p>        (seller, sig_seller),   // 64 bytes</p>
+<p>        (courier, sig_courier), // 64 bytes</p>
+<p>    ]</p>
+<p>    // Total: 128 bytes of signatures</p>
+<p>}</p>
+<p>// After (Phase 2):</p>
+<p>Attestation {</p>
+<p>    signers: [seller, courier],</p>
+<p>    aggregated_signature: bls_aggregate([sig_seller, sig_courier]),  // 48 bytes</p>
+<p>}</p>
+// Total: 48 bytes (62% reduction)</code></pre>
+<p><strong>Benefits</strong>:</p>
+<li>Reduced tx cost (fewer bytes on-chain)</li>
+<li>Faster validation (one verification vs. multiple)</li>
+<li>Scalability (important for Phase 3 with sharding)</li>
+<p><strong>Timeline</strong>: Q3 2025</p>
+<p>---</p>
+<h4 id="322-vrf-for-juror-selection">3.2.2 VRF for Juror Selection</h4>
+<p><strong>Problem</strong>: Predictable juror selection = bribery risk.</p>
+<p><strong>Solution</strong>:</p>
+<pre><code class="language-rust">// VRF (Verifiable Random Function) - unpredictable but verifiable
+<p>fn select_jurors(dispute_id: DisputeId, pool: Vec<AccountId>) -> Vec<AccountId> {</p>
+<p>    let seed = pallet_babe::RandomnessFromOneEpochAgo::<T>::random(&dispute_id);</p>
+<p>    let mut selected = Vec::new();</p>
+<p>    for i in 0..7 {</p>
+<p>        let index = u64::from_le_bytes(seed[i<em>8..(i+1)</em>8].try_into().unwrap()) % pool.len() as u64;</p>
+<p>        selected.push(pool[index as usize].clone());</p>
+<p>    }</p>
+<p>    selected</p>
+<p>}</p>
+// VRF Proof published on-chain → anyone can verify randomness</code></pre>
+<p><strong>Benefits</strong>:</p>
+<li>Impossible to predict jurors before selection</li>
+<li>Impossible to manipulate selection (VRF is deterministic given seed)</li>
+<li>Total transparency (verifiable proof)</li>
+<p><strong>Timeline</strong>: Q3 2025</p>
+<p>---</p>
+<h4 id="323-commit-reveal-for-votes">3.2.3 Commit-Reveal for Votes</h4>
+<p><strong>Problem</strong>: Public votes allow coordination/pressure among jurors.</p>
+<p><strong>Solution</strong>:</p>
+<pre><code class="language-rust">// Phase 1: Commit (juror sends hash)
+<p>fn commit_vote(juror: AccountId, dispute_id: DisputeId, vote_hash: H256) {</p>
+<p>    VoteCommits::insert((dispute_id, juror), VoteCommit {</p>
+<p>        hash: vote_hash,</p>
+<p>        committed_at: now(),</p>
+<p>    });</p>
+<p>}</p>
+<p>// Phase 2: Reveal (after commit deadline)</p>
+<p>fn reveal_vote(juror: AccountId, dispute_id: DisputeId, vote: Vote, salt: Vec<u8>) {</p>
+<p>    let commit = VoteCommits::get((dispute_id, juror)).unwrap();</p>
+<p>    ensure!(blake2_256(&(vote, salt)) == commit.hash, "Invalid reveal");</p>
+<p>    Votes::insert((dispute_id, juror), vote);</p>
+}</code></pre>
+<p><strong>Benefits</strong>:</p>
+<li>No one knows anyone's vote during commit phase</li>
+<li>Impossible to change vote after commit (hash locks it)</li>
+<li>Reduces collusion and vote buying</li>
+<p><strong>Timeline</strong>: Q3 2025</p>
+<p>---</p>
+<h4 id="324-didvc-decentralized-identifiers-verifiable-credentials">3.2.4 DID/VC (Decentralized Identifiers / Verifiable Credentials)</h4>
+<p><strong>Problem</strong>: How to differentiate legitimate sellers from scammers without centralized KYC?</p>
+<p><strong>Solution</strong>:</p>
+<pre><code class="language-rust">// Seller can have multiple verifiable credentials
+<p>struct VerifiableCredential {</p>
+<p>    issuer: DID,           // Ex.: did:bazari:cooperativaArtesanal</p>
+<p>    subject: AccountId,    // Seller account</p>
+<p>    claim_type: ClaimType, // Ex.: "MemberOfCooperative", "CPFVerified"</p>
+<p>    proof: Signature,      // Issuer signature</p>
+<p>    issued_at: Timestamp,</p>
+<p>    expires_at: Option<Timestamp>,</p>
+<p>}</p>
+<p>enum ClaimType {</p>
+<p>    MemberOfCooperative(CoopId),</p>
+<p>    CPFVerified,</p>
+<p>    AddressVerified,</p>
+<p>    EcoFriendly,           // Carbon neutral</p>
+<p>    FairTrade,</p>
+}</code></pre>
+<p><strong>Benefits</strong>:</p>
+<li>Sellers verified by communities earn badges</li>
+<li>Buyer sees: "@ModaAutoral ✅ (3 verifications)"</li>
+<li>No centralized KYC (each community issues VCs)</li>
+<li>Seller controls which VCs to expose</li>
+<p><strong>Timeline</strong>: Q4 2025</p>
+<p>---</p>
+<h4 id="325-advanced-reputation-with-decay">3.2.5 Advanced Reputation with Decay</h4>
+<p><strong>Problem</strong>: Phase 1 reputation is cumulative (never naturally decreases).</p>
+<p><strong>Solution</strong>:</p>
+<pre><code class="language-rust">// Score decays with inactivity
+<p>fn calculate_score_with_decay(account: AccountId, role: Role) -> u32 {</p>
+<p>    let base_score = Scores::get((account, role)).unwrap_or(500);</p>
+<p>    let last_activity = LastActivity::get((account, role)).unwrap_or(0);</p>
+<p>    let blocks_inactive = now() - last_activity;</p>
+<p>    let decay_per_month = 10; // -10 points/month of inactivity</p>
+<p>    let months_inactive = blocks_inactive / (30 * DAYS);</p>
+<p>    let decay_total = decay_per_month * months_inactive;</p>
+<p>    base_score.saturating_sub(decay_total)</p>
+}</code></pre>
+<p><strong>Benefits</strong>:</p>
+<li>Incentivizes continuous activity</li>
+<li>Abandoned/hacked accounts automatically lose score</li>
+<li>Score reflects recent reliability (not just history)</li>
+<p><strong>Timeline</strong>: Q4 2025</p>
+<p>---</p>
+<h3 id="33-mainnet-beta">3.3 Mainnet Beta</h3>
+<p><strong>Q4 2025</strong>: Launch of Mainnet Beta with all Phase 2 features.</p>
+<p><strong>Difference from Testnet</strong>:</p>
+<li>BZR has real value (listed on DEXs)</li>
+<li>Stakes and slashing are real ($ at risk)</li>
+<li>Professional validators (not just testnet volunteers)</li>
+<p><strong>User Target</strong>: 50,000 active</p>
+<p><strong>Initial Economy</strong>:</p>
+<li>Initial supply: 100,000,000 BZR</li>
+<li>Distribution:</li>
+<p>  - 40% Community (airdrops, incentives)</p>
+<p>  - 30% DAO Treasury</p>
+<p>  - 20% Team/Early Contributors (4-year vesting)</p>
+<p>  - 10% Investors (2-year vesting)</p>
+<p>---</p>
+<h2 id="4-phase-3-privacy-and-scale">4. Phase 3: Privacy and Scale</h2>
+<h3 id="41-objective">4.1 Objective</h3>
+<p><strong>Maximize privacy, scale to millions of users and reduce human dependency</strong> in disputes with AI assistance.</p>
+<h3 id="42-technical-deliverables">4.2 Technical Deliverables</h3>
+<h4 id="421-zk-pod-zero-knowledge-proof-of-delivery">4.2.1 ZK-PoD (Zero-Knowledge Proof of Delivery)</h4>
+<p><strong>Problem</strong>: DeliveryProof exposes buyer's exact location (privacy).</p>
+<p><strong>Solution</strong>:</p>
+<pre><code class="language-rust">// Courier generates ZK proof:
+<p>// "I was inside polygon P (neighborhood/region) at timestamp T"</p>
+<p>// WITHOUT revealing exact coordinates (lat, lon)</p>
+<p>struct ZKPoD {</p>
+<p>    region_commitment: H256,   // Hash of authorized polygon</p>
+<p>    timestamp: Timestamp,</p>
+<p>    proof: ZKProof,            // Groth16/PLONK proof</p>
+<p>}</p>
+<p>// On-chain verifier:</p>
+<p>fn verify_zkpod(zkpod: &ZKPoD, order: &Order) -> bool {</p>
+<p>    // Verifies proof is valid</p>
+<p>    verify_zk_proof(&zkpod.proof, &public_inputs) &&</p>
+<p>    // Verifies commitment corresponds to order region</p>
+<p>    zkpod.region_commitment == order.delivery_region_commitment</p>
+}</code></pre>
+<p><strong>Implementation</strong>:</p>
+<li>Circuit: Circom/ZoKrates</li>
+<li>Proving system: Groth16 (small proofs, 128-256 bytes)</li>
+<li>On-chain verifier: Native Substrate pallet</li>
+<p><strong>Benefits</strong>:</p>
+<li>Buyer doesn't reveal exact address on-chain</li>
+<li>Courier proves delivery in correct region</li>
+<li>Strong privacy maintains verifiability</li>
+<p><strong>Timeline</strong>: Q2 2026</p>
+<p>---</p>
+<h4 id="422-sharded-queues-scale">4.2.2 Sharded Queues (Scale)</h4>
+<p><strong>Problem</strong>: With 1M+ users, global courier matching becomes slow.</p>
+<p><strong>Solution</strong>:</p>
+<pre><code class="language-rust">// Divide network into geographic shards
+<p>enum Shard {</p>
+<p>    BrazilSoutheast,  // SP, RJ, MG, ES</p>
+<p>    BrazilSouth,      // RS, SC, PR</p>
+<p>    BrazilNortheast,  // BA, PE, CE, ...</p>
+<p>    // ...</p>
+<p>}</p>
+<p>// Order created in SP:</p>
+<p>fn create_order(...) {</p>
+<p>    let shard = determine_shard(seller_location);</p>
+<p>    ShardedOrders::insert(shard, order_id, order);</p>
+<p>    // Notifies only couriers in relevant shard</p>
+<p>    notify_couriers_in_shard(shard, order_id);</p>
+}</code></pre>
+<p><strong>Benefits</strong>:</p>
+<li>Reduces latency (courier only sees regional orders)</li>
+<li>Horizontal scaling (each shard can have own indexer)</li>
+<li>Maintains decentralization (shards communicate via XCM/Polkadot)</li>
+<p><strong>Timeline</strong>: Q3 2026</p>
+<p>---</p>
+<h4 id="423-ai-assisted-disputes">4.2.3 AI-Assisted Disputes</h4>
+<p><strong>Problem</strong>: Complex disputes take time (human jury needs to analyze much evidence).</p>
+<p><strong>Solution</strong>:</p>
+<pre><code class="language-rust">// AI pre-analyzes evidence and generates scorecard
+<p>struct AIAssessment {</p>
+<p>    overall_score: u8,        // 0-100 (confidence in valid delivery)</p>
+<p>    confidence: f64,          // 0.0-1.0</p>
+<p>    breakdown: {</p>
+<p>        timestamp_validity: u8,</p>
+<p>        geo_consistency: u8,</p>
+<p>        media_authenticity: u8,</p>
+<p>        signature_validity: u8,</p>
+<p>    },</p>
+<p>    red_flags: Vec<String>,   // Ex.: ["GPS jump detected", "Photo edited"]</p>
+<p>    explanation: String,      // "Delivery proof is strong because..."</p>
+<p>}</p>
+<p>// Jurors receive assessment as starting point</p>
+// BUT final decision remains human</code></pre>
+<p><strong>AI Training</strong>:</p>
+<li>Dataset: Disputes resolved on Mainnet (10,000+)</li>
+<li>Features: Proof hashes, metadata (timestamps, geo), rulings</li>
+<li>Model: Ensemble (XGBoost + Neural Network)</li>
+<li>Explainability: SHAP values for each decision</li>
+<p><strong>Benefits</strong>:</p>
+<li>Reduces dispute time from 7 days to 2-3 days</li>
+<li>Increases consistency (humans have bias, AI is objective)</li>
+<li>Jurors focus on ambiguous cases (AI filters obvious ones)</li>
+<p><strong>Timeline</strong>: Q4 2026</p>
+<p>---</p>
+<h4 id="424-payment-channels-micropayments">4.2.4 Payment Channels (Micropayments)</h4>
+<p><strong>Problem</strong>: Courier making 50 deliveries/day pays 50 tx fees.</p>
+<p><strong>Solution</strong>:</p>
+<pre><code class="language-rust">// Off-chain payment channel between Marketplace and Courier
+<p>struct PaymentChannel {</p>
+<p>    marketplace: AccountId,</p>
+<p>    courier: AccountId,</p>
+<p>    balance: Balance,         // Deposited on-chain</p>
+<p>    nonce: u64,</p>
+<p>    settled_amount: Balance,  // Amount already withdrawn</p>
+<p>}</p>
+<p>// Each delivery:</p>
+<p>// 1. Marketplace signs off-chain receipt: "Courier deserves +15 BZR (nonce: 42)"</p>
+<p>// 2. Courier stores receipt (doesn't submit on-chain yet)</p>
+<p>// 3. End of day, Courier submits final receipt on-chain</p>
+//    → Withdraws 750 BZR (50 deliveries × 15 BZR) in single tx</code></pre>
+<p><strong>Benefits</strong>:</p>
+<li>Reduces tx cost 50x</li>
+<li>Instant settlement (signed receipts are like cash)</li>
+<li>Scalability (blockchain doesn't see 50 txs, just 1)</li>
+<p><strong>Timeline</strong>: Q4 2026</p>
+<p>---</p>
+<h3 id="43-mainnet-v10">4.3 Mainnet v1.0</h3>
+<p><strong>Q4 2026</strong>: Official launch of Mainnet v1.0 with all features from 3 phases.</p>
+<p><strong>User Target</strong>: 1,000,000 active</p>
+<p><strong>GMV Target</strong>: R$ 1 billion/year in transactions</p>
+<p><strong>Final Audit</strong>:</p>
+<li>Trail of Bits (smart contracts)</li>
+<li>Kudelski Security (infrastructure)</li>
+<li>Bug bounty: $500k in prizes</li>
+<p>---</p>
+<h2 id="5-beyond-phase-3">5. Beyond Phase 3</h2>
+<h3 id="51-multi-chain-interoperability">5.1 Multi-Chain (Interoperability)</h3>
+<p><strong>Vision</strong>: Bazari is not locked to one blockchain.</p>
+<p><strong>Implementation</strong>:</p>
+<li><strong>Polkadot Parachain</strong>: BazariChain becomes parachain (shared security)</li>
+<li><strong>Bridges</strong>: ETH, BNB, Solana via bridges (Wormhole, Axelar)</li>
+<li><strong>IBC (Inter-Blockchain Communication)</strong>: Integration with Cosmos</li>
+<p><strong>Benefit</strong>: Users can pay with ETH/USDC/SOL, protocol automatically converts to BZR.</p>
+<p><strong>Timeline</strong>: 2027</p>
+<p>---</p>
+<h3 id="52-cross-border-commerce">5.2 Cross-Border Commerce</h3>
+<p><strong>Vision</strong>: Buy from any country without currency/customs friction.</p>
+<p><strong>Implementation</strong>:</p>
+<li><strong>Multi-currency stablecoins</strong>: USDC, EURC, BRLA (tokenized Real)</li>
+<li><strong>Exchange oracles</strong>: Chainlink for conversion rates</li>
+<li><strong>Compliance</strong>: Integration with customs systems (automated declaration)</li>
+<p><strong>Example</strong>:</p>
+<pre><code class="language-">Buyer in Germany purchases Brazilian handicraft
+<p>    ↓</p>
+<p>Pays in EURC (Euro stablecoin)</p>
+<p>    ↓</p>
+<p>Protocol automatically converts to BZR</p>
+<p>    ↓</p>
+<p>Seller receives BRZ (tokenized Real) via P2P</p>
+<p>    ↓</p>
+<p>International delivery via local courier (Brazil) + local courier (Germany)</p>
+<p>    ↓</p>
+<p>Handoff 1: Seller (BR) → Brazil Courier</p>
+<p>Handoff 2: Brazil Courier → International Hub</p>
+<p>Handoff 3: Hub → Germany Courier</p>
+Delivery: Germany Courier → Buyer</code></pre>
+<p><strong>Timeline</strong>: 2028</p>
+<p>---</p>
+<h3 id="53-iot-supply-chain">5.3 IoT & Supply Chain</h3>
+<p><strong>Vision</strong>: Integrate IoT devices for automatic proofs.</p>
+<p><strong>Examples</strong>:</p>
+<p><strong>A) Smart Locks</strong>:</p>
+<pre><code class="language-">Package arrives at smart locker
+<p>    ↓</p>
+<p>Locker automatically generates cryptographic signature</p>
+<p>    ↓</p>
+<p>Buyer opens locker with app QR code</p>
+<p>    ↓</p>
+DeliveryProof generated without human intervention</code></pre>
+<p><strong>B) RFID/NFC Tags</strong>:</p>
+<pre><code class="language-">Product has NFC tag
+<p>    ↓</p>
+<p>Each scan (Seller → Courier → Buyer) generates attestation</p>
+<p>    ↓</p>
+Complete and immutable product timeline</code></pre>
+<p><strong>C) Temperature Sensors (Food)</strong>:</p>
+<pre><code class="language-">Perishable product has temperature sensor
+<p>    ↓</p>
+<p>Sensor sends data to IPFS every hour</p>
+<p>    ↓</p>
+<p>If temperature leaves range (2-8°C), automatic alert</p>
+<p>    ↓</p>
+Automatic dispute if product arrives spoiled</code></pre>
+<p><strong>Timeline</strong>: 2029+</p>
+<p>---</p>
+<h3 id="54-protocol-as-industry-standard">5.4 Protocol as Industry Standard</h3>
+<p><strong>Vision</strong>: Bazari PoC becomes <strong>ISO/open standard</strong> for commerce settlement.</p>
+<p><strong>Potential Adoption</strong>:</p>
+<li>Courier cooperatives adopt PoC as internal protocol</li>
+<li>Governments use PoC for public procurement (transparency)</li>
+<li>Traditional marketplaces (MercadoLivre?) integrate PoC as option</li>
+<p><strong>Analogy</strong>: HTTP for web, PoC for commerce.</p>
+<p><strong>Timeline</strong>: 2030+</p>
+<p>---</p>
+<h2 id="6-success-metrics">6. Success Metrics</h2>
+<h3 id="61-kpis-by-phase">6.1 KPIs by Phase</h3>
+<p>| Metric | Phase 1 (Q2 2025) | Phase 2 (Q4 2025) | Phase 3 (Q4 2026) |</p>
+<p>|--------|-------------------|-------------------|-------------------|</p>
+<p>| <strong>Active Users</strong> | 1,000 | 50,000 | 1,000,000 |</p>
+<p>| <strong>Monthly GMV</strong> | R$ 50k | R$ 5M | R$ 100M |</p>
+<p>| <strong>Orders/Day</strong> | 10 | 500 | 10,000 |</p>
+<p>| <strong>Completion Rate</strong> | >85% | >90% | >95% |</p>
+<p>| <strong>Dispute Rate</strong> | <10% | <5% | <2% |</p>
+<p>| <strong>Seller NPS</strong> | >40 | >60 | >70 |</p>
+<p>| <strong>Buyer NPS</strong> | >50 | >70 | >80 |</p>
+<p>| <strong>Network Uptime</strong> | >95% | >99% | >99.9% |</p>
+<p>---</p>
+<h3 id="62-north-star-metric">6.2 North Star Metric</h3>
+<p><strong>GMV (Gross Merchandise Value)</strong>: Total transaction volume on the protocol.</p>
+<p><strong>2030 Target</strong>: R$ 10 billion/year</p>
+<li>Equivalent to 6% of Brazilian e-commerce (projected for 2030)</li>
+<li>Or 1 million users spending R$ 10,000/year</li>
+<p>---</p>
+<h2 id="7-risks-and-mitigations">7. Risks and Mitigations</h2>
+<h3 id="71-technical-risks">7.1 Technical Risks</h3>
+<p>| Risk | Probability | Impact | Mitigation |</p>
+<p>|------|-------------|--------|------------|</p>
+<p>| <strong>Critical bug (exploits)</strong> | Medium | Catastrophic | Extensive audit, bug bounty, long testnet |</p>
+<p>| <strong>Scalability (can't handle 1M users)</strong> | Low | High | Sharding, payment channels, load testnet |</p>
+<p>| <strong>Complex UX (users don't understand crypto)</strong> | High | Medium | Abstract wallet, guided onboarding, 24/7 support |</p>
+<p>| <strong>Tx latency (>1min to confirm)</strong> | Low | Medium | Substrate is fast (6s), optimize RPC |</p>
+<p>---</p>
+<h3 id="72-adoption-risks">7.2 Adoption Risks</h3>
+<p>| Risk | Probability | Impact | Mitigation |</p>
+<p>|------|-------------|--------|------------|</p>
+<p>| <strong>Sellers don't migrate (MercadoLivre lock-in)</strong> | High | High | Incentives (BZR cashback), education, success case |</p>
+<p>| <strong>Buyers don't trust crypto</strong> | High | High | Stablecoins, refund guarantee, marketing |</p>
+<p>| <strong>Couriers prefer iFood/Rappi</strong> | Medium | Medium | Show real gain (+36%), flexibility |</p>
+<p>| <strong>Regulation (government bans crypto)</strong> | Low | Catastrophic | Lobby, compliance, regulated stablecoins |</p>
+<p>---</p>
+<h3 id="73-economic-risks">7.3 Economic Risks</h3>
+<p>| Risk | Probability | Impact | Mitigation |</p>
+<p>|------|-------------|--------|------------|</p>
+<p>| <strong>BZR loses value (market crash)</strong> | Medium | High | Stablecoins as option, robust P2P |</p>
+<p>| <strong>Gas fees rise (Substrate charges high)</strong> | Low | Medium | Optimize pallets, subsidize gas for newbies |</p>
+<p>| <strong>Insufficient juror pool</strong> | Medium | Medium | Strong incentives (10% of slashed stake goes to jury) |</p>
+<p>---</p>
+<h3 id="74-contingency-plan">7.4 Contingency Plan</h3>
+<p><strong>If catastrophic exploit occurs</strong>:</p>
+<p>1. Pause network (emergency stop via DAO)</p>
+<p>2. Forensic investigation (48h)</p>
+<p>3. Chain fork (if necessary)</p>
+<p>4. Victim compensation (DAO treasury)</p>
+<p>5. Post-mortem audit</p>
+<p>6. Runtime upgrade with fix</p>
+<p><strong>If adoption is slow (<10% of target)</strong>:</p>
+<p>1. Pivot to specific niche (e.g., handicrafts, organic food)</p>
+<p>2. Temporary subsidies (zero fee for 6 months)</p>
+<p>3. Aggressive marketing (influencers, events)</p>
+<p>4. Strategic partnerships (cooperatives, NGOs)</p>
+<p>---</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>The Bazari roadmap is <strong>ambitious but executable</strong>. Each phase builds on the previous one, and goals are measurable.</p>
+<p><strong>Phase 1</strong>: Prove the concept (Q2 2025)</p>
+<p><strong>Phase 2</strong>: Strengthen security (Q4 2025)</p>
+<p><strong>Phase 3</strong>: Scale with privacy (Q4 2026)</p>
+<p><strong>Beyond</strong>: Dominate global commerce (2027-2030)</p>
+<p><strong>Long-Term Vision</strong>: In 2030, when someone asks "how do you sell online?", the natural answer will be: <strong>"I use Bazari, of course. It's decentralized, fees are minimal, and I control my reputation."</strong></p>
+<p>---</p>
+<h2 id="related-documents">Related Documents</h2>
+<li><strong><a href="./01-overview-context.html">01-overview-context.html</a></strong>: Historical context and problems Bazari solves</li>
+<li><strong><a href="./02-proof-of-commerce.html">02-proof-of-commerce.html</a></strong>: Complete technical specification of PoC</li>
+<li><strong><a href="./03-market-pain-points.html">03-market-pain-points.html</a></strong>: Analysis of pain points and solutions</li>
+<li><strong><a href="./04-ecosystem-modules.html">04-ecosystem-modules.html</a></strong>: Description of each module</li>
+<li><strong><a href="./05-architecture.html">05-architecture.html</a></strong>: Technical architecture and pallets</li></ul>
+<p>---</p>
+<p><strong>Bazari</strong> — The future of commerce is decentralized, verifiable and fair.</p>
+<p><strong>Let's build it together.</strong></p>
+
+      <!-- Navigation -->
+      <div class="doc-navigation">
+        <a href="05-architecture.html" class="prev">← Previous</a>
+        
+      </div>
+    </main>
+  </div>
+
+  <script src="../assets/script.v2.js"></script>
+</body>
+</html>
