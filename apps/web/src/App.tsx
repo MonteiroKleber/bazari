@@ -96,6 +96,17 @@ import { DeliveryPartnersPage } from './pages/delivery/DeliveryPartnersPage';
 import { StoreSearchPage } from './pages/delivery/StoreSearchPage';
 import { ComponentsTestPage } from './pages/delivery/ComponentsTestPage';
 
+// Governance pages
+import {
+  GovernancePage,
+  ProposalsListPage,
+  ProposalDetailPage,
+  TreasuryPage,
+  CouncilPage,
+  MultisigPage,
+  CreateProposalPage,
+} from './modules/governance';
+
 function LandingPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -415,6 +426,15 @@ function App() {
                       <Route path="delivery/stores" element={<StoreSearchPage />} />
                       <Route path="store/delivery-partners" element={<DeliveryPartnersPage />} />
                       <Route path="delivery/test-components" element={<ComponentsTestPage />} />
+
+                      {/* Governance routes */}
+                      <Route path="governance" element={<GovernancePage />} />
+                      <Route path="governance/proposals" element={<ProposalsListPage />} />
+                      <Route path="governance/proposals/new" element={<CreateProposalPage />} />
+                      <Route path="governance/proposals/:type/:id" element={<ProposalDetailPage />} />
+                      <Route path="governance/treasury" element={<TreasuryPage />} />
+                      <Route path="governance/council" element={<CouncilPage />} />
+                      <Route path="governance/multisig" element={<MultisigPage />} />
 
                       {/* Futuras rotas internas */}
                       {/* <Route path="dashboard" element={<Dashboard />} /> */}
