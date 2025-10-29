@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Coins, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
-import { formatBalance } from '@/lib/utils';
+import { formatBalance } from '@/modules/wallet/utils/format';
 
 interface TreasuryStatsProps {
   balance: string;

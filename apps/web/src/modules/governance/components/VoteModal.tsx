@@ -16,10 +16,10 @@ import { ConvictionSelector } from './ConvictionSelector';
 import type { GovernanceProposal, Conviction } from '../types';
 import { Vote, ThumbsUp, ThumbsDown, AlertCircle, Loader2 } from 'lucide-react';
 import { useKeyring } from '@/modules/auth/useKeyring';
+import { useVaultAccounts } from '@/modules/wallet/hooks/useVaultAccounts';
 import { PinService } from '@/modules/wallet/pin/PinService';
 import { decryptMnemonic } from '@/modules/auth/crypto.utils';
-import { useAuth } from '@/modules/auth/AuthContext';
-import { formatBalance } from '@/lib/utils';
+import { formatBalance } from '@/modules/wallet/utils/format';
 
 interface VoteModalProps {
   open: boolean;
@@ -31,7 +31,7 @@ interface VoteModalProps {
 type VoteDirection = 'AYE' | 'NAY';
 
 export function VoteModal({ open, onOpenChange, proposal, onSuccess }: VoteModalProps) {
-  const { account } = useAuth();
+  const { active: account } = useVaultAccounts();
   const { signMessage } = useKeyring();
 
   const [voteDirection, setVoteDirection] = useState<VoteDirection>('AYE');

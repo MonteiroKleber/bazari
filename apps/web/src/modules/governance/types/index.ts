@@ -182,15 +182,27 @@ export interface GovernanceEvent {
  */
 export type NotificationPriority = 'low' | 'medium' | 'high' | 'critical';
 
+export type GovernanceNotificationType =
+  | 'PROPOSAL'
+  | 'VOTE'
+  | 'APPROVAL'
+  | 'REJECTION'
+  | 'EXECUTION'
+  | 'COUNCIL'
+  | 'TREASURY'
+  | 'MULTISIG';
+
 export interface GovernanceNotification {
   id: string;
-  type: GovernanceEventType;
+  type: GovernanceNotificationType;
   title: string;
   message: string;
-  priority: NotificationPriority;
+  priority?: NotificationPriority;
   read: boolean;
   timestamp: string;
   actionUrl?: string;
+  proposalId?: number;
+  link?: string;
   metadata?: Record<string, any>;
 }
 

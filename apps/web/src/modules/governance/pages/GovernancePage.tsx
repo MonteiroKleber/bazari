@@ -1,10 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { governanceApi } from '../api';
 import type { GovernanceStats } from '../types';
 import { GovernanceStatsWidget, QuickActions, EventTimeline } from '../components/dashboard';
-import { useGovernanceEvents } from '../hooks';
+import { NotificationBell, NotificationPanel } from '../components/notifications';
+import { useGovernanceEvents, useGovernanceNotifications } from '../hooks';
 import {
   Vote,
   Coins,
@@ -18,11 +20,26 @@ export function GovernancePage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<GovernanceStats | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notificationPanelOpen, setNotificationPanelOpen] = useState(false);
 
   // FASE 8: Fetch recent governance events
   const { events, loading: eventsLoading } = useGovernanceEvents({
     limit: 10,
     refreshInterval: 60000, // Refresh every minute
+  });
+
+  // FASE 8 - PROMPT 6: Governance notifications
+  const {
+    notifications,
+    unreadCount,
+    status,
+    markAsRead,
+    markAllAsRead,
+    remove,
+    clearAll,
+  } = useGovernanceNotifications({
+    showToasts: true,
+    autoReconnect: true,
   });
 
   const loadStats = useCallback(async () => {
@@ -82,13 +99,34 @@ export function GovernancePage() {
 
   return (
     <div className="container mx-auto px-4 py-8 mobile-safe-bottom">
-      {/* Header */}
+      {/* Header with Notification Bell */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Governança</h1>
+        <div className="flex items-start justify-between gap-4 mb-2">
+          <h1 className="text-3xl font-bold">Governança</h1>
+          <NotificationBell
+            count={unreadCount}
+            status={status}
+            onClick={() => setNotificationPanelOpen(true)}
+            showPulse={true}
+          />
+        </div>
         <p className="text-muted-foreground">
           Participe das decisões da rede Bazari através de propostas, votações e tesouro comunitário.
         </p>
       </div>
+
+      {/* FASE 8 - PROMPT 6: Notification Panel */}
+      <NotificationPanel
+        notifications={notifications}
+        unreadCount={unreadCount}
+        onMarkAsRead={markAsRead}
+        onMarkAllAsRead={markAllAsRead}
+        onRemove={remove}
+        onClearAll={clearAll}
+        onClose={() => setNotificationPanelOpen(false)}
+        isOpen={notificationPanelOpen}
+        variant="dropdown"
+      />
 
       {/* FASE 8: Enhanced Stats Widgets */}
       {stats && (

@@ -14,8 +14,8 @@ import {
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArrowLeft, AlertCircle, Loader2, Send } from 'lucide-react';
-import { useAuth } from '@/modules/auth/AuthContext';
 import { useKeyring } from '@/modules/auth/useKeyring';
+import { useVaultAccounts } from '@/modules/wallet/hooks/useVaultAccounts';
 import { PinService } from '@/modules/wallet/pin/PinService';
 import { decryptMnemonic } from '@/modules/auth/crypto.utils';
 import type { ProposalType } from '../types';
@@ -32,7 +32,7 @@ type FormData = {
 export function CreateProposalPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { account } = useAuth();
+  const { active: account } = useVaultAccounts();
   const { signMessage } = useKeyring();
 
   const typeParam = searchParams.get('type')?.toUpperCase() as ProposalType | null;

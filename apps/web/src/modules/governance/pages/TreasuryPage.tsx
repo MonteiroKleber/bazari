@@ -15,7 +15,7 @@ import {
   Clock,
   XCircle,
 } from 'lucide-react';
-import { formatAddress, formatBalance } from '@/lib/utils';
+import { shortenAddress as formatAddress, formatBalance } from '@/modules/wallet/utils/format';
 
 export function TreasuryPage() {
   const navigate = useNavigate();

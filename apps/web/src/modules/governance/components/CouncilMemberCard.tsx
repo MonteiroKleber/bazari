@@ -2,7 +2,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { User, ExternalLink, Shield } from 'lucide-react';
-import { formatAddress } from '@/lib/utils';
+import { shortenAddress as formatAddress } from '@/modules/wallet/utils/format';
 
 interface CouncilMemberCardProps {
   address: string;

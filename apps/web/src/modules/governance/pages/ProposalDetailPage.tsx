@@ -21,7 +21,7 @@ import {
 import { VoteModal } from '../components/VoteModal';
 import { VotingChart } from '../components/dashboard';
 import { useVotingData } from '../hooks';
-import { formatAddress, formatBalance } from '@/lib/utils';
+import { shortenAddress as formatAddress, formatBalance } from '@/modules/wallet/utils/format';
 
 export function ProposalDetailPage() {
   const { type, id } = useParams<{ type: string; id: string }>();

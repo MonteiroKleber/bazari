@@ -5,11 +5,11 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CheckCircle, Clock, User, AlertCircle, Loader2 } from 'lucide-react';
-import { formatAddress } from '@/lib/utils';
+import { shortenAddress as formatAddress } from '@/modules/wallet/utils/format';
 import { useKeyring } from '@/modules/auth/useKeyring';
+import { useVaultAccounts } from '@/modules/wallet/hooks/useVaultAccounts';
 import { PinService } from '@/modules/wallet/pin/PinService';
 import { decryptMnemonic } from '@/modules/auth/crypto.utils';
-import { useAuth } from '@/modules/auth/AuthContext';
 
 interface MultisigApprovalFlowProps {
   multisigAddress: string;
@@ -28,7 +28,7 @@ export function MultisigApprovalFlow({
   callData,
   onApprove,
 }: MultisigApprovalFlowProps) {
-  const { account } = useAuth();
+  const { active: account } = useVaultAccounts();
   const { signMessage } = useKeyring();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

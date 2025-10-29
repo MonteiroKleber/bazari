@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { MultisigApprovalFlow } from '../components/MultisigApprovalFlow';
 import { governanceApi } from '../api';
 import { Search, Users, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
-import { formatAddress } from '@/lib/utils';
+import { shortenAddress as formatAddress } from '@/modules/wallet/utils/format';
 
 export function MultisigPage() {
   const [searchParams, setSearchParams] = useSearchParams();
