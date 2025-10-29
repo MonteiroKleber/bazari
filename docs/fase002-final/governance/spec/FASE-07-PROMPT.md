@@ -771,10 +771,39 @@
    <Route path="/app/governance/proposals/new" element={<CreateProposalPage />} />
    ```
 
-7. **Integração com PIN**:
-   - VoteModal usa PinService para assinar vote
-   - CreateProposalPage usa PinService para assinar propose
-   - MultisigApprovalFlow usa PinService para asMulti
+7. **Integração com PIN + useKeyring** (Arquitetura Bazari - SEM Polkadot.js Extension):
+   ```typescript
+   // Fluxo de assinatura em 4 etapas:
+   // 1. PinService.getPin() - Solicita e valida PIN do usuário
+   // 2. decryptMnemonic() - Descriptografa mnemonic com PIN
+   // 3. useKeyring.signMessage() - Assina transação com mnemonic
+   // 4. Limpa mnemonic da memória
+
+   // Exemplo em VoteModal:
+   const pin = await PinService.getPin({
+     title: 'Confirmar Voto',
+     transaction: { type: 'vote', value: amount },
+     validate: async (candidate) => {
+       try {
+         await decryptMnemonic(account.cipher, account.iv, account.salt, candidate);
+         return null; // ✅ PIN válido
+       } catch {
+         return 'PIN inválido'; // ❌ Tenta novamente
+       }
+     }
+   });
+
+   const mnemonic = await decryptMnemonic(account.cipher, account.iv, account.salt, pin);
+   const { signMessage } = useKeyring();
+   const signature = await signMessage(mnemonic, txData);
+   // Limpar mnemonic da memória
+   ```
+
+   - VoteModal: PinService → decryptMnemonic → useKeyring.signMessage → democracy.vote()
+   - CreateProposalPage: PinService → decryptMnemonic → useKeyring.signMessage → democracy.propose()
+   - MultisigApprovalFlow: PinService → decryptMnemonic → useKeyring.signMessage → multisig.asMulti()
+
+   **IMPORTANTE**: NÃO usar Polkadot.js Extension. Bazari tem sistema próprio de chaves (custodial com PIN).
 
 **Validação**:
 - [ ] 7 páginas renderizam sem erros
