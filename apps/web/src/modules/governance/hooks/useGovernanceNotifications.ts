@@ -137,8 +137,17 @@ export interface UseGovernanceNotificationsReturn {
  * );
  * ```
  */
+// Get WebSocket URL from environment
+const getDefaultWsUrl = (): string => {
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  // Convert http/https to ws/wss
+  const wsProtocol = apiUrl.startsWith('https') ? 'wss' : 'ws';
+  const wsHost = apiUrl.replace(/^https?:\/\//, '');
+  return `${wsProtocol}://${wsHost}/governance/events`;
+};
+
 export function useGovernanceNotifications({
-  wsUrl = 'ws://localhost:3000/governance/events',
+  wsUrl = getDefaultWsUrl(),
   autoConnect = true,
   showToasts = true,
   playSound = false,
