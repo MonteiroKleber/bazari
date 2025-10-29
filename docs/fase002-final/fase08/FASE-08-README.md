@@ -338,27 +338,48 @@ A FASE 8 está dividida em **10 prompts sequenciais**:
 
 A FASE 8 segue o design system já estabelecido no projeto:
 
-### Cores (Governance Específico)
+### Sistema de Temas
 
-**Dark Mode**:
-```css
---governance-bg-primary: #0a0a0f
---governance-bg-secondary: #13131a
---governance-border: #2a2a35
---governance-text: #e0e0e8
+O Bazari possui **6 temas completos** implementados:
+- **bazari** (vinho) - tema padrão
+- **night** (escuro)
+- **sandstone** (claro/papel)
+- **emerald** (verde)
+- **royal** (roxo/azul)
+- **cyber** (neon)
 
---proposal-active: #3b82f6
---proposal-passed: #10b981
---proposal-rejected: #ef4444
---proposal-pending: #f59e0b
+Cada tema define todas as variáveis CSS necessárias em [apps/web/src/styles/index.css](../../apps/web/src/styles/index.css):
+```
+--background, --foreground, --card, --card-foreground
+--primary, --primary-foreground, --secondary, --accent
+--muted, --border, --input, --ring
 ```
 
-**Light Mode**:
+### Cores Específicas de Governança
+
+A FASE 8 adiciona cores de status que funcionam em **todos os 6 temas**:
+
 ```css
---governance-bg-primary: #ffffff
---governance-bg-secondary: #f9fafb
---governance-border: #e5e7eb
---governance-text: #111827
+/* Cores de status de propostas (HSL format) */
+:root {
+  --proposal-active: 217 91% 60%;      /* blue-500 */
+  --proposal-passed: 142 71% 45%;      /* green-500 */
+  --proposal-rejected: 0 84% 60%;      /* red-500 */
+  --proposal-pending: 38 92% 50%;      /* amber-500 */
+
+  --chart-aye: 142 71% 45%;            /* green */
+  --chart-nay: 0 84% 60%;              /* red */
+  --chart-abstain: 215 20% 50%;        /* gray */
+}
+```
+
+**Uso das variáveis de tema**:
+```tsx
+<Card className="bg-card text-card-foreground border-border">
+  <Badge className="bg-primary text-primary-foreground">
+    Active
+  </Badge>
+</Card>
 ```
 
 ### Tipografia

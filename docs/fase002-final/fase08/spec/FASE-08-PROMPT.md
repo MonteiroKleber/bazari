@@ -1100,45 +1100,54 @@ const { filters, setFilters, searchQuery, setSearchQuery, filteredProposals } =
 
 ---
 
-## PROMPT 8 (8h): Melhorias de Tema e Animações
+## PROMPT 8 (8h): Integração com Sistema de Temas e Animações
 
-**Objetivo**: Polir visual com animações e otimização de temas.
+**Objetivo**: Polir visual com animações e garantir compatibilidade com os 6 temas existentes.
 
-**Contexto**: Garantir experiência visual consistente em dark/light mode.
+**Contexto**: O projeto Bazari possui **6 temas completos** (bazari, night, sandstone, emerald, royal, cyber), não apenas dark/light mode. Todos os componentes de governança devem funcionar perfeitamente em todos os 6 temas.
 
 **Tarefas**:
 
-1. **Criar CSS customizado para governança**:
+1. **Criar CSS customizado para governança (compatível com todos os temas)**:
 ```css
 /* src/modules/governance/styles.css */
 
-/* Dark Mode - Governance específico */
-:root[data-theme="dark"] {
-  --governance-bg-primary: #0a0a0f;
-  --governance-bg-secondary: #13131a;
-  --governance-border: #2a2a35;
-  --governance-text: #e0e0e8;
+/*
+  IMPORTANTE: NÃO criar variáveis para dark/light
+  O projeto usa 6 temas: bazari, night, sandstone, emerald, royal, cyber
+  Definidos em: apps/web/src/styles/index.css
+*/
 
-  /* Status colors */
-  --proposal-active: #3b82f6;
-  --proposal-passed: #10b981;
-  --proposal-rejected: #ef4444;
-  --proposal-pending: #f59e0b;
-
-  /* Chart colors */
-  --chart-aye: #10b981;
-  --chart-nay: #ef4444;
-  --chart-abstain: #6b7280;
+/* Usar variáveis de tema existentes */
+.governance-card {
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  border: 1px solid hsl(var(--border));
 }
 
-/* Light Mode */
-:root[data-theme="light"] {
-  --governance-bg-primary: #ffffff;
-  --governance-bg-secondary: #f9fafb;
-  --governance-border: #e5e7eb;
-  --governance-text: #111827;
+.governance-section {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
 
-  /* Mesmas status colors */
+/* Cores de status específicas de governança (funcionam em todos os temas) */
+:root {
+  /* Proposal status - HSL format */
+  --proposal-active: 217 91% 60%;      /* blue-500 */
+  --proposal-passed: 142 71% 45%;      /* green-500 */
+  --proposal-rejected: 0 84% 60%;      /* red-500 */
+  --proposal-pending: 38 92% 50%;      /* amber-500 */
+
+  /* Chart colors */
+  --chart-aye: 142 71% 45%;            /* green-500 */
+  --chart-nay: 0 84% 60%;              /* red-500 */
+  --chart-abstain: 215 20% 50%;        /* gray-500 */
+}
+
+/* Override opcional para tema cyber (neon) */
+[data-theme="cyber"] {
+  --proposal-active: 189 94% 43%;      /* cyan neon */
+  --proposal-passed: 142 100% 50%;     /* green neon */
 }
 
 /* Animações */
@@ -1148,10 +1157,10 @@ const { filters, setFilters, searchQuery, setSearchQuery, filteredProposals } =
 
 .proposal-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px hsl(var(--border) / 0.3);
 }
 
-/* Skeleton loaders */
+/* Skeleton loaders - usa variáveis de tema */
 @keyframes skeleton-loading {
   0% { background-position: -200px 0; }
   100% { background-position: calc(200px + 100%) 0; }
@@ -1161,9 +1170,9 @@ const { filters, setFilters, searchQuery, setSearchQuery, filteredProposals } =
   animation: skeleton-loading 1.5s ease-in-out infinite;
   background: linear-gradient(
     90deg,
-    var(--governance-bg-secondary) 0px,
-    var(--governance-border) 40px,
-    var(--governance-bg-secondary) 80px
+    hsl(var(--muted)) 0px,
+    hsl(var(--border)) 40px,
+    hsl(var(--muted)) 80px
   );
   background-size: 200px 100%;
 }
@@ -1266,9 +1275,10 @@ export function ProposalCard({ proposal }: Props) {
 ```
 
 **Validação**:
-- [ ] Dark/light mode sem bugs visuais
+- [ ] Todos os 6 temas funcionam sem bugs visuais (bazari, night, sandstone, emerald, royal, cyber)
+- [ ] Cores de status de propostas visíveis em todos os temas
 - [ ] Animações suaves (60fps)
-- [ ] Skeleton loaders aparecem no carregamento
+- [ ] Skeleton loaders aparecem no carregamento e respeitam cores do tema ativo
 - [ ] Mobile responsive
 
 **Duração**: 8h

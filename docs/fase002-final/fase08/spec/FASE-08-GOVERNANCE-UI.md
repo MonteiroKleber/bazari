@@ -351,37 +351,55 @@ interface FilterConfig {
 // - Busca por ID de proposta
 ```
 
-### 3.5 Melhorias de Tema
+### 3.5 Integração com Sistema de Temas
 
-#### 3.5.1 Cores Otimizadas
+#### 3.5.1 Uso das Variáveis de Tema Existentes
+
+O projeto Bazari possui **6 temas completos** já implementados (bazari, night, sandstone, emerald, royal, cyber). A FASE 8 deve **reutilizar as variáveis existentes** e adicionar apenas cores específicas de governança que funcionem em todos os temas:
 
 ```css
-/* Dark Mode - Governance específico */
-:root[data-theme="dark"] {
-  --governance-bg-primary: #0a0a0f;
-  --governance-bg-secondary: #13131a;
-  --governance-border: #2a2a35;
-  --governance-text: #e0e0e8;
-
-  /* Status colors */
-  --proposal-active: #3b82f6;
-  --proposal-passed: #10b981;
-  --proposal-rejected: #ef4444;
-
-  /* Chart colors */
-  --chart-aye: #10b981;
-  --chart-nay: #ef4444;
-  --chart-abstain: #6b7280;
+/* Usar variáveis de tema existentes (definidas em apps/web/src/styles/index.css) */
+.governance-card {
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  border: 1px solid hsl(var(--border));
 }
 
-/* Light Mode */
-:root[data-theme="light"] {
-  --governance-bg-primary: #ffffff;
-  --governance-bg-secondary: #f9fafb;
-  --governance-border: #e5e7eb;
-  --governance-text: #111827;
+.governance-button-primary {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
 
-  /* Mesmo esquema de cores de status */
+.governance-input {
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--input));
+  color: hsl(var(--foreground));
+}
+
+/* Cores de status específicas de governança (compatíveis com todos os 6 temas) */
+:root {
+  /* Proposal status - HSL format para consistência */
+  --proposal-active: 217 91% 60%;      /* blue-500 */
+  --proposal-passed: 142 71% 45%;      /* green-500 */
+  --proposal-rejected: 0 84% 60%;      /* red-500 */
+  --proposal-pending: 38 92% 50%;      /* amber-500 */
+
+  /* Chart colors (votação) */
+  --chart-aye: 142 71% 45%;            /* green-500 */
+  --chart-nay: 0 84% 60%;              /* red-500 */
+  --chart-abstain: 215 20% 50%;        /* gray-500 */
+
+  /* Treasury colors */
+  --treasury-balance: 142 71% 45%;     /* green */
+  --treasury-spent: 217 91% 60%;       /* blue */
+  --treasury-burn: 0 84% 60%;          /* red */
+}
+
+/* Overrides opcionais para tema "cyber" (neon) */
+[data-theme="cyber"] {
+  --proposal-active: 189 94% 43%;      /* cyan neon */
+  --proposal-passed: 142 100% 50%;     /* green neon */
+  --chart-aye: 142 100% 50%;
 }
 ```
 
