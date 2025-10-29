@@ -1194,5 +1194,228 @@
         "disputeResolved": "Dispute resolved. Cancellation unavailable."
       }
     }
+  },
+  "governance": {
+    "dashboard": {
+      "title": "Governance",
+      "subtitle": "Manage network funding proposals",
+      "activeProposals": "Active proposals",
+      "treasuryBalance": "Treasury Balance",
+      "councilMembers": "Council Members",
+      "techMembers": "Technical Committee",
+      "viewProposals": "View Proposals",
+      "viewTreasury": "View Treasury",
+      "viewCouncil": "View Council",
+      "viewMultisig": "Multisig"
+    },
+    "proposals": {
+      "title": "Proposals",
+      "viewAll": "View all proposals",
+      "create": "Create Proposal",
+      "filter": "Filter",
+      "search": "Search proposals...",
+      "empty": "No proposals found",
+      "emptyDescription": "There are no proposals matching your filters",
+      "types": {
+        "all": "All types",
+        "democracy": "Democracy",
+        "treasury": "Treasury",
+        "council": "Council",
+        "technical": "Technical Committee"
+      },
+      "status": {
+        "all": "All statuses",
+        "proposed": "Proposed",
+        "tabled": "Tabled",
+        "started": "Active Voting",
+        "passed": "Passed",
+        "notPassed": "Rejected",
+        "executed": "Executed",
+        "cancelled": "Cancelled"
+      },
+      "detail": {
+        "title": "Proposal Details",
+        "description": "Description",
+        "information": "Information",
+        "id": "ID",
+        "proposer": "Proposer",
+        "beneficiary": "Beneficiary",
+        "value": "Value",
+        "deposit": "Deposit",
+        "createdAt": "Created at",
+        "votingPeriod": "Voting Period",
+        "preimageHash": "Preimage Hash",
+        "externalLinks": "External Links",
+        "viewExplorer": "View on Explorer",
+        "polkassembly": "Polkassembly",
+        "votingResults": "Voting Results",
+        "aye": "Aye (Yes)",
+        "nay": "Nay (No)",
+        "turnout": "Turnout",
+        "vote": "Vote",
+        "voteNow": "Vote Now",
+        "votingActiveDescription": "This proposal is in active voting. You can vote in favor (Aye) or against (Nay).",
+        "backToProposals": "Back to Proposals"
+      },
+      "create": {
+        "title": "Create New Proposal",
+        "subtitle": "Fill in the fields below to submit a new proposal",
+        "details": "Proposal Details",
+        "type": "Proposal Type",
+        "typeDescription": {
+          "democracy": "Proposal for public community voting",
+          "treasury": "Request for treasury funds",
+          "council": "Proposal for council voting",
+          "technical": "Technical proposal for specialized committee"
+        },
+        "titleLabel": "Title",
+        "titlePlaceholder": "Ex: Network protocol upgrade",
+        "titleHelp": "A clear and concise title for your proposal",
+        "description": "Description",
+        "descriptionPlaceholder": "Describe your proposal in detail...",
+        "descriptionHelp": "characters",
+        "beneficiary": "Beneficiary",
+        "beneficiaryPlaceholder": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+        "beneficiaryHelp": "Address that will receive the funds",
+        "value": "Value (BZR)",
+        "valuePlaceholder": "0.00",
+        "valueHelp": "Amount of tokens requested",
+        "preimageHash": "Preimage Hash (Optional)",
+        "preimageHashPlaceholder": "0x...",
+        "preimageHashHelp": "Preimage hash if you already submitted one",
+        "depositInfo": "Required Deposit",
+        "depositInfoDescription": "Creating a proposal requires a deposit that will be returned if the proposal is accepted. The deposit amount varies according to the proposal type.",
+        "cancel": "Cancel",
+        "submit": "Create Proposal",
+        "submitting": "Creating...",
+        "errors": {
+          "notConnected": "You need to be connected to create a proposal",
+          "titleRequired": "Title is required",
+          "descriptionRequired": "Description is required",
+          "beneficiaryRequired": "Beneficiary is required for treasury proposals",
+          "valueRequired": "Value must be greater than zero"
+        }
+      },
+      "vote": {
+        "title": "Vote on Proposal",
+        "direction": "Vote Direction",
+        "aye": "Aye (Yes)",
+        "ayeDescription": "Vote in favor",
+        "nay": "Nay (No)",
+        "nayDescription": "Vote against",
+        "amount": "Amount (BZR)",
+        "amountPlaceholder": "0.00",
+        "amountHelp": "Amount of tokens you want to use for voting",
+        "conviction": "Conviction",
+        "convictionHelp": "Conviction determines how much your vote is worth and how long your tokens will be locked. Higher conviction = more vote weight, but longer lock period.",
+        "convictionLevels": {
+          "none": "None (0x)",
+          "locked1x": "Locked1x (1x)",
+          "locked2x": "Locked2x (2x)",
+          "locked3x": "Locked3x (3x)",
+          "locked4x": "Locked4x (4x)",
+          "locked5x": "Locked5x (5x)",
+          "locked6x": "Locked6x (6x)"
+        },
+        "convictionDescriptions": {
+          "none": "Your vote counts 0.1x, but you can withdraw your tokens immediately after voting.",
+          "locked1x": "Your vote counts 1x and your tokens will be locked for 1 voting period.",
+          "locked2x": "Your vote counts 2x and your tokens will be locked for 2 voting periods.",
+          "locked3x": "Your vote counts 3x and your tokens will be locked for 4 voting periods.",
+          "locked4x": "Your vote counts 4x and your tokens will be locked for 8 voting periods.",
+          "locked5x": "Your vote counts 5x and your tokens will be locked for 16 voting periods.",
+          "locked6x": "Your vote counts 6x and your tokens will be locked for 32 voting periods."
+        },
+        "effectivePower": "Effective voting power:",
+        "cancel": "Cancel",
+        "confirm": "Confirm Vote",
+        "processing": "Processing...",
+        "errors": {
+          "notConnected": "You need to be connected to vote",
+          "invalidAmount": "Enter a valid amount"
+        }
+      }
+    },
+    "treasury": {
+      "title": "Treasury",
+      "subtitle": "Manage network funding proposals",
+      "stats": {
+        "totalBalance": "Total Balance",
+        "availableFunds": "Available funds",
+        "proposals": "Proposals",
+        "approved": "approved",
+        "spendPeriod": "Spend Period",
+        "blocksRemaining": "blocks remaining",
+        "nextBurn": "Next Burn",
+        "ifUnused": "if unused"
+      },
+      "approvedProposals": "Approved Proposals",
+      "pendingProposals": "Pending Proposals",
+      "empty": "No pending proposals",
+      "emptyDescription": "There are no proposals awaiting approval at the moment",
+      "createProposal": "Create New Proposal",
+      "refresh": "Refresh",
+      "newProposal": "New Proposal"
+    },
+    "council": {
+      "title": "Council & Technical Committee",
+      "subtitle": "Elected members and their ongoing proposals",
+      "council": "Council",
+      "technical": "Technical",
+      "members": "Council Members",
+      "techMembers": "Technical Committee Members",
+      "proposals": "Council Proposals",
+      "techProposals": "Technical Committee Proposals",
+      "noMembers": "No members found",
+      "noMembersDescription": {
+        "council": "The council does not have elected members yet",
+        "technical": "The technical committee does not have members yet"
+      },
+      "noProposals": "No active proposals",
+      "noProposalsDescription": {
+        "council": "There are no council proposals at the moment",
+        "technical": "There are no technical committee proposals at the moment"
+      },
+      "viewExplorer": "View on Explorer",
+      "backing": "Backing"
+    },
+    "multisig": {
+      "title": "Multisig",
+      "subtitle": "Manage multi-signature accounts and collective approvals",
+      "search": "Search Multisig Account",
+      "searchPlaceholder": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+      "searchHelp": "Enter a multisig account address to view its signatories and pending transactions",
+      "accountInfo": "Account Information",
+      "address": "Address",
+      "signatories": "Signatories",
+      "threshold": "Threshold",
+      "pendingTransactions": "Pending Transactions",
+      "noPending": "No pending transactions",
+      "noPendingDescription": "This multisig account has no transactions awaiting approval",
+      "empty": "Search for a multisig account",
+      "emptyDescription": "Enter a multisig account address above to start",
+      "approvals": "Approvals",
+      "approvalsCount": "of",
+      "executable": "Executable",
+      "awaitingApprovals": "Awaiting Approvals",
+      "approve": "Approve Transaction",
+      "approved": "Approved",
+      "pending": "Pending",
+      "you": "You",
+      "executionNote": "This transaction has reached the threshold and can be executed by any signatory.",
+      "refresh": "Refresh"
+    },
+    "common": {
+      "loading": "Loading...",
+      "error": "Error",
+      "tryAgain": "Try Again",
+      "backToProposals": "Back to Proposals",
+      "viewDetails": "View details",
+      "clickDetails": "Click to view details",
+      "proposalNotFound": "Proposal not found",
+      "invalidType": "Invalid proposal type",
+      "failedToLoad": "Failed to load",
+      "refresh": "Refresh"
+    }
   }
 }

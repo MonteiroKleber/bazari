@@ -1194,5 +1194,228 @@
         "disputeResolved": "Disputa resuelta. Cancelación no disponible."
       }
     }
+  },
+  "governance": {
+    "dashboard": {
+      "title": "Gobernanza",
+      "subtitle": "Gestionar propuestas de financiación de red",
+      "activeProposals": "Propuestas activas",
+      "treasuryBalance": "Saldo del Tesoro",
+      "councilMembers": "Miembros del Consejo",
+      "techMembers": "Comité Técnico",
+      "viewProposals": "Ver Propuestas",
+      "viewTreasury": "Ver Tesoro",
+      "viewCouncil": "Ver Consejo",
+      "viewMultisig": "Multifirma"
+    },
+    "proposals": {
+      "title": "Propuestas",
+      "viewAll": "Ver todas las propuestas",
+      "create": "Crear Propuesta",
+      "filter": "Filtrar",
+      "search": "Buscar propuestas...",
+      "empty": "No se encontraron propuestas",
+      "emptyDescription": "No hay propuestas que coincidan con sus filtros",
+      "types": {
+        "all": "Todos los tipos",
+        "democracy": "Democracia",
+        "treasury": "Tesoro",
+        "council": "Consejo",
+        "technical": "Comité Técnico"
+      },
+      "status": {
+        "all": "Todos los estados",
+        "proposed": "Propuesta",
+        "tabled": "Tabuleada",
+        "started": "Votación Activa",
+        "passed": "Aprobada",
+        "notPassed": "Rechazada",
+        "executed": "Ejecutada",
+        "cancelled": "Cancelada"
+      },
+      "detail": {
+        "title": "Detalles de la Propuesta",
+        "description": "Descripción",
+        "information": "Información",
+        "id": "ID",
+        "proposer": "Proponente",
+        "beneficiary": "Beneficiario",
+        "value": "Valor",
+        "deposit": "Depósito",
+        "createdAt": "Creado el",
+        "votingPeriod": "Período de Votación",
+        "preimageHash": "Hash de Preimagen",
+        "externalLinks": "Enlaces Externos",
+        "viewExplorer": "Ver en el Explorador",
+        "polkassembly": "Polkassembly",
+        "votingResults": "Resultados de Votación",
+        "aye": "Sí (A favor)",
+        "nay": "No (En contra)",
+        "turnout": "Participación",
+        "vote": "Votar",
+        "voteNow": "Votar Ahora",
+        "votingActiveDescription": "Esta propuesta está en votación activa. Puede votar a favor (Sí) o en contra (No).",
+        "backToProposals": "Volver a Propuestas"
+      },
+      "create": {
+        "title": "Crear Nueva Propuesta",
+        "subtitle": "Complete los campos a continuación para enviar una nueva propuesta",
+        "details": "Detalles de la Propuesta",
+        "type": "Tipo de Propuesta",
+        "typeDescription": {
+          "democracy": "Propuesta para votación pública de la comunidad",
+          "treasury": "Solicitud de fondos del tesoro",
+          "council": "Propuesta para votación del consejo",
+          "technical": "Propuesta técnica para comité especializado"
+        },
+        "titleLabel": "Título",
+        "titlePlaceholder": "Ej: Actualización del protocolo de red",
+        "titleHelp": "Un título claro y conciso para su propuesta",
+        "description": "Descripción",
+        "descriptionPlaceholder": "Describa su propuesta en detalle...",
+        "descriptionHelp": "caracteres",
+        "beneficiary": "Beneficiario",
+        "beneficiaryPlaceholder": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+        "beneficiaryHelp": "Dirección que recibirá los fondos",
+        "value": "Valor (BZR)",
+        "valuePlaceholder": "0.00",
+        "valueHelp": "Cantidad de tokens solicitados",
+        "preimageHash": "Hash de Preimagen (Opcional)",
+        "preimageHashPlaceholder": "0x...",
+        "preimageHashHelp": "Hash de preimagen si ya envió uno",
+        "depositInfo": "Depósito Requerido",
+        "depositInfoDescription": "Crear una propuesta requiere un depósito que será devuelto si la propuesta es aceptada. El monto del depósito varía según el tipo de propuesta.",
+        "cancel": "Cancelar",
+        "submit": "Crear Propuesta",
+        "submitting": "Creando...",
+        "errors": {
+          "notConnected": "Necesita estar conectado para crear una propuesta",
+          "titleRequired": "El título es obligatorio",
+          "descriptionRequired": "La descripción es obligatoria",
+          "beneficiaryRequired": "El beneficiario es obligatorio para propuestas del tesoro",
+          "valueRequired": "El valor debe ser mayor que cero"
+        }
+      },
+      "vote": {
+        "title": "Votar en Propuesta",
+        "direction": "Dirección del Voto",
+        "aye": "Sí (A favor)",
+        "ayeDescription": "Votar a favor",
+        "nay": "No (En contra)",
+        "nayDescription": "Votar en contra",
+        "amount": "Cantidad (BZR)",
+        "amountPlaceholder": "0.00",
+        "amountHelp": "Cantidad de tokens que desea usar para votar",
+        "conviction": "Convicción",
+        "convictionHelp": "La convicción determina cuánto vale su voto y por cuánto tiempo sus tokens estarán bloqueados. Mayor convicción = más peso de voto, pero período de bloqueo más largo.",
+        "convictionLevels": {
+          "none": "Ninguna (0x)",
+          "locked1x": "Bloqueado1x (1x)",
+          "locked2x": "Bloqueado2x (2x)",
+          "locked3x": "Bloqueado3x (3x)",
+          "locked4x": "Bloqueado4x (4x)",
+          "locked5x": "Bloqueado5x (5x)",
+          "locked6x": "Bloqueado6x (6x)"
+        },
+        "convictionDescriptions": {
+          "none": "Su voto cuenta 0.1x, pero puede retirar sus tokens inmediatamente después de votar.",
+          "locked1x": "Su voto cuenta 1x y sus tokens estarán bloqueados por 1 período de votación.",
+          "locked2x": "Su voto cuenta 2x y sus tokens estarán bloqueados por 2 períodos de votación.",
+          "locked3x": "Su voto cuenta 3x y sus tokens estarán bloqueados por 4 períodos de votación.",
+          "locked4x": "Su voto cuenta 4x y sus tokens estarán bloqueados por 8 períodos de votación.",
+          "locked5x": "Su voto cuenta 5x y sus tokens estarán bloqueados por 16 períodos de votación.",
+          "locked6x": "Su voto cuenta 6x y sus tokens estarán bloqueados por 32 períodos de votación."
+        },
+        "effectivePower": "Poder de voto efectivo:",
+        "cancel": "Cancelar",
+        "confirm": "Confirmar Voto",
+        "processing": "Procesando...",
+        "errors": {
+          "notConnected": "Necesita estar conectado para votar",
+          "invalidAmount": "Ingrese una cantidad válida"
+        }
+      }
+    },
+    "treasury": {
+      "title": "Tesoro",
+      "subtitle": "Gestionar propuestas de financiación de red",
+      "stats": {
+        "totalBalance": "Saldo Total",
+        "availableFunds": "Fondos disponibles",
+        "proposals": "Propuestas",
+        "approved": "aprobadas",
+        "spendPeriod": "Período de Gasto",
+        "blocksRemaining": "bloques restantes",
+        "nextBurn": "Próxima Quema",
+        "ifUnused": "si no se utiliza"
+      },
+      "approvedProposals": "Propuestas Aprobadas",
+      "pendingProposals": "Propuestas Pendientes",
+      "empty": "No hay propuestas pendientes",
+      "emptyDescription": "No hay propuestas esperando aprobación en este momento",
+      "createProposal": "Crear Nueva Propuesta",
+      "refresh": "Actualizar",
+      "newProposal": "Nueva Propuesta"
+    },
+    "council": {
+      "title": "Consejo y Comité Técnico",
+      "subtitle": "Miembros electos y sus propuestas en curso",
+      "council": "Consejo",
+      "technical": "Técnico",
+      "members": "Miembros del Consejo",
+      "techMembers": "Miembros del Comité Técnico",
+      "proposals": "Propuestas del Consejo",
+      "techProposals": "Propuestas del Comité Técnico",
+      "noMembers": "No se encontraron miembros",
+      "noMembersDescription": {
+        "council": "El consejo aún no tiene miembros electos",
+        "technical": "El comité técnico aún no tiene miembros"
+      },
+      "noProposals": "No hay propuestas activas",
+      "noProposalsDescription": {
+        "council": "No hay propuestas del consejo en este momento",
+        "technical": "No hay propuestas del comité técnico en este momento"
+      },
+      "viewExplorer": "Ver en el Explorador",
+      "backing": "Respaldo"
+    },
+    "multisig": {
+      "title": "Multifirma",
+      "subtitle": "Gestionar cuentas de múltiples firmas y aprobaciones colectivas",
+      "search": "Buscar Cuenta Multifirma",
+      "searchPlaceholder": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+      "searchHelp": "Ingrese una dirección de cuenta multifirma para ver sus firmantes y transacciones pendientes",
+      "accountInfo": "Información de la Cuenta",
+      "address": "Dirección",
+      "signatories": "Firmantes",
+      "threshold": "Umbral",
+      "pendingTransactions": "Transacciones Pendientes",
+      "noPending": "No hay transacciones pendientes",
+      "noPendingDescription": "Esta cuenta multifirma no tiene transacciones esperando aprobación",
+      "empty": "Buscar una cuenta multifirma",
+      "emptyDescription": "Ingrese una dirección de cuenta multifirma arriba para comenzar",
+      "approvals": "Aprobaciones",
+      "approvalsCount": "de",
+      "executable": "Ejecutable",
+      "awaitingApprovals": "Esperando Aprobaciones",
+      "approve": "Aprobar Transacción",
+      "approved": "Aprobado",
+      "pending": "Pendiente",
+      "you": "Usted",
+      "executionNote": "Esta transacción ha alcanzado el umbral y puede ser ejecutada por cualquier firmante.",
+      "refresh": "Actualizar"
+    },
+    "common": {
+      "loading": "Cargando...",
+      "error": "Error",
+      "tryAgain": "Intentar de Nuevo",
+      "backToProposals": "Volver a Propuestas",
+      "viewDetails": "Ver detalles",
+      "clickDetails": "Haga clic para ver detalles",
+      "proposalNotFound": "Propuesta no encontrada",
+      "invalidType": "Tipo de propuesta inválido",
+      "failedToLoad": "Error al cargar",
+      "refresh": "Actualizar"
+    }
   }
 }
