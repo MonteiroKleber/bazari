@@ -4,8 +4,14 @@
  * Enhanced multi-signature workflow components
  */
 
-// Export components here as they are created
+export { WorkflowStepper } from './WorkflowStepper';
+export type { WorkflowStepperProps } from './WorkflowStepper';
+
+export { ApprovalProgressChart } from './ApprovalProgressChart';
+export type { ApprovalProgressChartProps } from './ApprovalProgressChart';
+
+export { TransactionHistory } from './TransactionHistory';
+export type { TransactionHistoryProps } from './TransactionHistory';
+
+// To be created if needed:
 // export { MultisigDashboard } from './MultisigDashboard';
-// export { WorkflowStepper } from './WorkflowStepper';
-// export { ApprovalProgressChart } from './ApprovalProgressChart';
-// export { TransactionHistory } from './TransactionHistory';
