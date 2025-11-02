@@ -1,0 +1,111 @@
+{
+  "module": {
+    "id": "vesting",
+    "name": "Token Vesting",
+    "category": "defi-social",
+    "version": "1.0.0",
+    "status": "production",
+    "description": "Implementar sistema de vesting on-chain transparente para fundadores, time, parceiros e marketing, com liberação gradual de tokens BZR ao longo do tempo conforme cronograma pré-definido no genesis."
+  },
+  "vision": {
+    "statement": "Implementar sistema de vesting on-chain transparente para fundadores, time, parceiros e marketing, com liberação gradual de tokens BZR ao longo do tempo conforme cronograma pré-definido no genesis.",
+    "principles": [
+      "On-Chain Native - Substrate Vesting pallet",
+      "Immutable Schedule - Definido no genesis, não alterável",
+      "Automatic Release - Tokens desbloqueados automaticamente por bloco",
+      "Fair Distribution - Diferentes cronogramas para cada categoria"
+    ]
+  },
+  "entities": [
+    {
+      "name": "VestingInfo",
+      "storage": "On-Chain (Vesting Pallet)",
+      "fields": [
+        {
+          "name": "locked",
+          "type": "Balance",
+          "description": "Total tokens locked"
+        },
+        {
+          "name": "perBlock",
+          "type": "Balance",
+          "description": "Tokens released per block"
+        },
+        {
+          "name": "startingBlock",
+          "type": "BlockNumber",
+          "description": "Block when vesting starts (after cliff)"
+        }
+      ]
+    },
+    {
+      "name": "VestingSchedule",
+      "storage": "On-Chain (Runtime State)",
+      "fields": [
+        {
+          "name": "account",
+          "type": "AccountId"
+        },
+        {
+          "name": "schedules",
+          "type": "Vec<VestingInfo>"
+        },
+        {
+          "name": "totalLocked",
+          "type": "Balance"
+        },
+        {
+          "name": "totalVested",
+          "type": "Balance"
+        },
+        {
+          "name": "totalUnvested",
+          "type": "Balance"
+        }
+      ]
+    }
+  ],
+  "valueObjects": [],
+  "apis": [
+    {
+      "method": "GET",
+      "path": "/api/vesting/:account",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/vesting/stats",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/vesting/category/:category",
+      "auth": true,
+      "description": "```http"
+    }
+  ],
+  "useCases": [
+    {
+      "id": "UC-01",
+      "name": "Core Use Case",
+      "actors": [
+        "User",
+        "System"
+      ],
+      "flow": "User performs action → System processes → Returns result"
+    }
+  ],
+  "dependencies": {
+    "internal": [],
+    "external": []
+  },
+  "security": {
+    "authentication": "JWT-based via auth module",
+    "authorization": "Role-based and ownership-based access control"
+  },
+  "metrics": {
+    "key_metrics": []
+  }
+}

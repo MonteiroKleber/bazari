@@ -1,0 +1,20 @@
+{
+  "entities": [
+    {
+      "name": "ChatMission",
+      "table": "ChatMission",
+      "note": "Documented in chat module - missions integrated with BazChat"
+    },
+    {
+      "name": "ChatMissionCompletion",
+      "table": "ChatMissionCompletion",
+      "note": "Progress tracking for missions"
+    },
+    {
+      "name": "ChatTrustBadge",
+      "table": "ChatTrustBadge",
+      "note": "Documented in chat module - trust badges from successful trades"
+    }
+  ],
+  "note": "Gamification is integrated across modules (chat, profile, reputation). No standalone tables - uses existing entities with game mechanics."
+}

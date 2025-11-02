@@ -1,0 +1,134 @@
+%% Marketplace Module - Use Cases Diagram
+graph TB
+    subgraph Actors
+        Buyer((Buyer))
+        Seller((Seller))
+        Admin((Admin))
+        System((System))
+    end
+
+    subgraph "Browse & Discovery"
+        UC01[UC-01: Browse Marketplace]
+        UC02[UC-02: Search Products]
+        UC03[UC-03: Filter by Category]
+        UC04[UC-04: Filter by Price Range]
+        UC05[UC-05: Filter by Attributes]
+        UC06[UC-06: View Trending Products]
+    end
+
+    subgraph "Product Details"
+        UC07[UC-07: View Product Detail]
+        UC08[UC-08: View Product Media]
+        UC09[UC-09: View Seller Info]
+        UC10[UC-10: View Product Attributes]
+    end
+
+    subgraph "Seller Operations"
+        UC11[UC-11: Create Product Listing]
+        UC12[UC-12: Update Product]
+        UC13[UC-13: Delete Product]
+        UC14[UC-14: Manage Product Media]
+        UC15[UC-15: View Own Products]
+    end
+
+    subgraph "Store Management"
+        UC16[UC-16: View Seller Store Catalog]
+        UC17[UC-17: View Store Statistics]
+        UC18[UC-18: Setup Seller Profile]
+    end
+
+    subgraph "Category System"
+        UC19[UC-19: Browse Categories]
+        UC20[UC-20: View Category Hierarchy]
+        UC21[UC-21: Create Category]
+        UC22[UC-22: Define CategorySpec]
+        UC23[UC-23: Validate Product Attributes]
+    end
+
+    subgraph "Search & Indexing"
+        UC24[UC-24: Full-Text Search]
+        UC25[UC-25: Index Product in OpenSearch]
+        UC26[UC-26: Reindex Product]
+        UC27[UC-27: Generate Search Facets]
+    end
+
+    subgraph "Service Offerings"
+        UC28[UC-28: List Service Offering]
+        UC29[UC-29: Browse Services]
+        UC30[UC-30: Request Service Quote]
+    end
+
+    %% Buyer interactions
+    Buyer -->|browses| UC01
+    Buyer -->|searches| UC02
+    Buyer -->|filters| UC03
+    Buyer -->|filters| UC04
+    Buyer -->|filters| UC05
+    Buyer -->|views| UC06
+    Buyer -->|views| UC07
+    Buyer -->|views| UC08
+    Buyer -->|views| UC09
+    Buyer -->|views| UC10
+    Buyer -->|views| UC16
+    Buyer -->|views| UC17
+    Buyer -->|browses| UC19
+    Buyer -->|views| UC20
+    Buyer -->|uses| UC24
+    Buyer -->|browses| UC29
+    Buyer -->|requests| UC30
+
+    %% Seller interactions
+    Seller -->|creates| UC11
+    Seller -->|updates| UC12
+    Seller -->|deletes| UC13
+    Seller -->|manages| UC14
+    Seller -->|views| UC15
+    Seller -->|manages| UC18
+    Seller -->|creates| UC28
+
+    %% Admin interactions
+    Admin -->|creates| UC21
+    Admin -->|defines| UC22
+    Admin -->|monitors| UC27
+
+    %% System interactions
+    System -->|validates| UC23
+    System -->|indexes| UC25
+    System -->|reindexes| UC26
+    System -->|generates| UC27
+
+    %% Dependencies
+    UC02 -.->|uses| UC24
+    UC02 -.->|generates| UC27
+    UC03 -.->|uses| UC20
+    UC05 -.->|uses| UC22
+    UC07 -.->|shows| UC08
+    UC07 -.->|shows| UC09
+    UC07 -.->|shows| UC10
+    UC11 -.->|requires| UC18
+    UC11 -.->|uses| UC22
+    UC11 -.->|triggers| UC23
+    UC11 -.->|triggers| UC25
+    UC12 -.->|triggers| UC26
+    UC13 -.->|removes| UC25
+    UC16 -.->|lists| UC01
+    UC16 -.->|shows| UC17
+    UC22 -.->|enables| UC23
+    UC24 -.->|uses| UC25
+
+    %% Styling
+    classDef browseCase fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    classDef detailCase fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef sellerCase fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef storeCase fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    classDef categoryCase fill:#fff9c4,stroke:#f9a825,stroke-width:2px
+    classDef searchCase fill:#ffebee,stroke:#d32f2f,stroke-width:2px
+    classDef serviceCase fill:#e0f2f1,stroke:#00796b,stroke-width:2px
+
+    class UC01,UC02,UC03,UC04,UC05,UC06 browseCase
+    class UC07,UC08,UC09,UC10 detailCase
+    class UC11,UC12,UC13,UC14,UC15 sellerCase
+    class UC16,UC17,UC18 storeCase
+    class UC19,UC20,UC21,UC22,UC23 categoryCase
+    class UC24,UC25,UC26,UC27 searchCase
+    class UC28,UC29,UC30 serviceCase

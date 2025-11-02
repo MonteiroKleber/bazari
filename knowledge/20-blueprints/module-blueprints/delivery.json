@@ -1,0 +1,568 @@
+{
+  "module": {
+    "id": "delivery",
+    "name": "Delivery & Logistics",
+    "category": "commerce",
+    "version": "1.0.0",
+    "status": "production",
+    "description": "Criar marketplace P2P de entregas descentralizado, onde lojas e usuários conectam-se diretamente com entregadores autônomos, com taxas transparentes, rastreamento on-chain e redes privadas de parceiro"
+  },
+  "vision": {
+    "statement": "Criar marketplace P2P de entregas descentralizado, onde lojas e usuários conectam-se diretamente com entregadores autônomos, com taxas transparentes, rastreamento on-chain e redes privadas de parceiros.",
+    "principles": [
+      "Gig Economy - Entregadores autônomos (não empregados)",
+      "Transparency - Taxas calculadas via fórmula pública (base + distance + weight + type)",
+      "Trust Network - Lojas podem criar rede privada de entregadores de confiança",
+      "On-Chain Reputation - Entregas concluídas geram eventos on-chain",
+      "Geo-Aware - Coordenadas ou CEP para cálculo de distância",
+      "Capacity Matching - Entregador deve suportar peso/volume/tipo do pacote",
+      "envelope - Documentos, cartas (+0 BZR)",
+      "small_box - Caixas pequenas (+1 BZR)",
+      "medium_box - Caixas médias (+2 BZR)",
+      "large_box - Caixas grandes (+4 BZR)",
+      "fragile - Itens frágeis (+3 BZR)",
+      "perishable - Perecíveis (+2.5 BZR)",
+      "custom - Customizado (+2 BZR)",
+      "bike - Max: 5 kg, 0.05 m³",
+      "motorcycle - Max: 20 kg, 0.2 m³",
+      "car - Max: 100 kg, 0.5 m³",
+      "van - Max: 300 kg, 2.0 m³",
+      "truck - Max: 1000 kg, 10.0 m³"
+    ]
+  },
+  "entities": [
+    {
+      "name": "DeliveryRequest",
+      "table": "DeliveryRequest",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String (UUID)",
+          "constraints": [
+            "PRIMARY KEY"
+          ]
+        },
+        {
+          "name": "sourceType",
+          "type": "String",
+          "description": "'order' | 'direct'"
+        },
+        {
+          "name": "orderId",
+          "type": "String (UUID)?",
+          "description": "FK -> Order.id",
+          "constraints": [
+            "UNIQUE"
+          ]
+        },
+        {
+          "name": "pickupAddress",
+          "type": "Json",
+          "description": "{street, number, city, state, zipCode, country, lat?, lng?, contactName?, contactPhone?}"
+        },
+        {
+          "name": "deliveryAddress",
+          "type": "Json",
+          "description": "{street, number, city, state, zipCode, country, lat?, lng?, contactName?, contactPhone?}"
+        },
+        {
+          "name": "senderId",
+          "type": "String",
+          "description": "storeId (SellerProfile.id) ou profileId"
+        },
+        {
+          "name": "senderType",
+          "type": "String",
+          "description": "'store' | 'profile'"
+        },
+        {
+          "name": "recipientId",
+          "type": "String",
+          "description": "profileId do destinatário"
+        },
+        {
+          "name": "packageType",
+          "type": "String",
+          "description": "envelope | small_box | medium_box | large_box | fragile | perishable | custom"
+        },
+        {
+          "name": "weight",
+          "type": "Float?",
+          "description": "Peso em kg"
+        },
+        {
+          "name": "dimensions",
+          "type": "Json?",
+          "description": "{length, width, height} em cm"
+        },
+        {
+          "name": "estimatedValue",
+          "type": "Decimal(20,8)?",
+          "description": "Valor estimado da mercadoria (para seguro)"
+        },
+        {
+          "name": "notes",
+          "type": "String?",
+          "description": "Observações do remetente"
+        },
+        {
+          "name": "requiresSignature",
+          "type": "Boolean",
+          "constraints": [
+            "DEFAULT true"
+          ]
+        },
+        {
+          "name": "deliveryFeeBzr",
+          "type": "Decimal(20,8)",
+          "description": "Taxa de entrega calculada"
+        },
+        {
+          "name": "distance",
+          "type": "Float?",
+          "description": "Distância calculada em km"
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "description": "pending | assigned | accepted | picked_up | in_transit | delivered | completed | cancelled | failed",
+          "constraints": [
+            "DEFAULT pending",
+            "INDEX"
+          ]
+        },
+        {
+          "name": "deliveryPersonId",
+          "type": "String?",
+          "description": "FK -> Profile.id do entregador",
+          "constraints": [
+            "INDEX"
+          ]
+        },
+        {
+          "name": "preferredDeliverers",
+          "type": "String[]",
+          "description": "profileIds em ordem de prioridade",
+          "constraints": [
+            "GIN INDEX"
+          ]
+        },
+        {
+          "name": "isPrivateNetwork",
+          "type": "Boolean",
+          "description": "true = apenas rede vinculada pode ver",
+          "constraints": [
+            "DEFAULT false"
+          ]
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "constraints": [
+            "DEFAULT now()"
+          ]
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "constraints": [
+            "AUTO UPDATE"
+          ]
+        },
+        {
+          "name": "expiresAt",
+          "type": "DateTime?",
+          "description": "Expiração do request se não aceito"
+        },
+        {
+          "name": "acceptedAt",
+          "type": "DateTime?"
+        },
+        {
+          "name": "pickedUpAt",
+          "type": "DateTime?"
+        },
+        {
+          "name": "inTransitAt",
+          "type": "DateTime?"
+        },
+        {
+          "name": "deliveredAt",
+          "type": "DateTime?"
+        },
+        {
+          "name": "completedAt",
+          "type": "DateTime?"
+        },
+        {
+          "name": "cancelledAt",
+          "type": "DateTime?"
+        }
+      ],
+      "relations": [
+        {
+          "name": "order",
+          "type": "1:1",
+          "target": "Order"
+        },
+        {
+          "name": "deliveryPerson",
+          "type": "N:1",
+          "target": "Profile"
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "orderId"
+          ],
+          "type": "BTree",
+          "unique": true
+        },
+        {
+          "fields": [
+            "status"
+          ],
+          "type": "BTree"
+        },
+        {
+          "fields": [
+            "deliveryPersonId"
+          ],
+          "type": "BTree"
+        },
+        {
+          "fields": [
+            "senderId"
+          ],
+          "type": "BTree"
+        },
+        {
+          "fields": [
+            "recipientId"
+          ],
+          "type": "BTree"
+        },
+        {
+          "fields": [
+            "preferredDeliverers"
+          ],
+          "type": "GIN"
+        },
+        {
+          "fields": [
+            "createdAt"
+          ],
+          "type": "BTree"
+        }
+      ]
+    },
+    {
+      "name": "DeliveryProfile",
+      "table": "DeliveryProfile",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String (UUID)",
+          "constraints": [
+            "PRIMARY KEY"
+          ]
+        },
+        {
+          "name": "profileId",
+          "type": "String",
+          "description": "FK -> Profile.id",
+          "constraints": [
+            "UNIQUE"
+          ]
+        },
+        {
+          "name": "fullName",
+          "type": "String",
+          "description": "Nome completo do entregador"
+        },
+        {
+          "name": "documentType",
+          "type": "String",
+          "description": "'cpf' | 'cnpj' | 'passport'"
+        },
+        {
+          "name": "documentNumber",
+          "type": "String",
+          "description": "CPF, CNPJ ou passaporte",
+          "constraints": [
+            "UNIQUE"
+          ]
+        },
+        {
+          "name": "phoneNumber",
+          "type": "String"
+        },
+        {
+          "name": "emergencyContact",
+          "type": "Json?",
+          "description": "{name, phone, relationship}"
+        },
+        {
+          "name": "vehicleType",
+          "type": "String",
+          "description": "bike | motorcycle | car | van | truck"
+        },
+        {
+          "name": "vehiclePlate",
+          "type": "String?"
+        },
+        {
+          "name": "vehicleModel",
+          "type": "String?"
+        },
+        {
+          "name": "vehicleYear",
+          "type": "Int?"
+        },
+        {
+          "name": "vehicleColor",
+          "type": "String?"
+        },
+        {
+          "name": "maxWeight",
+          "type": "Float",
+          "description": "Capacidade máxima em kg"
+        },
+        {
+          "name": "maxVolume",
+          "type": "Float",
+          "description": "Capacidade máxima em m³"
+        },
+        {
+          "name": "canCarryFragile",
+          "type": "Boolean",
+          "constraints": [
+            "DEFAULT false"
+          ]
+        },
+        {
+          "name": "canCarryPerishable",
+          "type": "Boolean",
+          "constraints": [
+            "DEFAULT false"
+          ]
+        },
+        {
+          "name": "hasInsulatedBag",
+          "type": "Boolean",
+          "description": "Bag térmica",
+          "constraints": [
+            "DEFAULT false"
+          ]
+        },
+        {
+          "name": "isAvailable",
+          "type": "Boolean",
+          "description": "Disponível para aceitar entregas",
+          "constraints": [
+            "DEFAULT false",
+            "INDEX"
+          ]
+        },
+        {
+          "name": "isOnline",
+          "type": "Boolean",
+          "description": "Conectado no momento",
+          "constraints": [
+            "DEFAULT false"
+          ]
+        },
+        {
+          "name": "currentLat",
+          "type": "Float?",
+          "description": "Latitude atual"
+        },
+        {
+          "name": "currentLng",
+          "type": "Float?",
+          "description": "Longitude atual"
+        },
+        {
+          "name": "ratingAvg",
+          "type": "Float",
+          "constraints": [
+            "DEFAULT 0"
+          ]
+        },
+        {
+          "name": "ratingCount",
+          "type": "Int",
+          "constraints": [
+            "DEFAULT 0"
+          ]
+        },
+        {
+          "name": "totalDeliveries",
+          "type": "Int",
+          "constraints": [
+            "DEFAULT 0"
+          ]
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "constraints": [
+            "DEFAULT now()"
+          ]
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "constraints": [
+            "AUTO UPDATE"
+          ]
+        }
+      ],
+      "relations": [
+        {
+          "name": "profile",
+          "type": "1:1",
+          "target": "Profile"
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "profileId"
+          ],
+          "type": "BTree",
+          "unique": true
+        },
+        {
+          "fields": [
+            "documentNumber"
+          ],
+          "type": "BTree",
+          "unique": true
+        },
+        {
+          "fields": [
+            "isAvailable"
+          ],
+          "type": "BTree"
+        },
+        {
+          "fields": [
+            "vehicleType"
+          ],
+          "type": "BTree"
+        }
+      ]
+    }
+  ],
+  "valueObjects": [],
+  "apis": [
+    {
+      "method": "POST",
+      "path": "/api/delivery/calculate-fee",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/delivery/request",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/delivery/available",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/delivery/:id/accept",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/delivery/:id/pickup",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/delivery/:id/transit",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/delivery/:id/complete",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/delivery/:id/cancel",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/delivery/profile",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/delivery/profile/availability",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/delivery/profile/location",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/delivery/profile",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/delivery/partners",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/delivery/history",
+      "auth": true,
+      "description": "```http"
+    }
+  ],
+  "useCases": [
+    {
+      "id": "UC-01",
+      "name": "Core Use Case",
+      "actors": [
+        "User",
+        "System"
+      ],
+      "flow": "User performs action → System processes → Returns result"
+    }
+  ],
+  "dependencies": {
+    "internal": [],
+    "external": []
+  },
+  "security": {
+    "authentication": "JWT-based via auth module",
+    "authorization": "Role-based and ownership-based access control"
+  },
+  "metrics": {
+    "key_metrics": []
+  }
+}

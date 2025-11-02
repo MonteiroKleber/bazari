@@ -1,0 +1,152 @@
+%% Orders Module - Order & Escrow Flow Sequence Diagram
+sequenceDiagram
+    actor Buyer
+    actor Seller
+    participant Client
+    participant API
+    participant DB
+    participant Blockchain
+    participant Delivery
+
+    %% Phase 1: Create Order
+    rect rgb(200, 230, 255)
+        Note over Buyer,DB: Phase 1: Create Order
+        Buyer->>Client: Add items to cart
+        Buyer->>Client: Click "Checkout"
+        Buyer->>Client: Fill shipping address
+        Client->>API: POST /api/orders<br/>{items, shippingAddress, shippingOptionId}
+        API->>API: Validate items exist and available
+        API->>API: Calculate subtotal + shipping
+        API->>DB: Create Order (status: CREATED)
+        API->>DB: Create OrderItem entries
+        DB-->>API: Order created
+        API-->>Client: {orderId, totalBzr}
+        Client-->>Buyer: Order created, proceed to payment
+    end
+
+    %% Phase 2: Payment Intent
+    rect rgb(255, 240, 200)
+        Note over Buyer,Blockchain: Phase 2: Generate Payment Intent
+        Client->>API: POST /api/orders/:id/payment-intent
+        API->>API: Generate escrow address
+        API->>DB: Create PaymentIntent<br/>(status: PENDING, escrowAddress)
+        DB-->>API: PaymentIntent created
+        API-->>Client: {escrowAddress, amountBzr}
+        Client-->>Buyer: Display escrow address<br/>(QR code + copy button)
+    end
+
+    %% Phase 3: Escrow Deposit
+    rect rgb(200, 255, 200)
+        Note over Buyer,Blockchain: Phase 3: Buyer Deposits Funds to Escrow
+        Buyer->>Blockchain: Send totalBzr to escrowAddress<br/>(via wallet)
+        Blockchain-->>Buyer: Transaction confirmed
+        Note over Buyer: Copy txHashIn
+
+        Buyer->>Client: Submit txHash
+        Client->>API: POST /api/orders/:id/escrow<br/>{txHashIn}
+        API->>Blockchain: Verify transaction<br/>(amount, recipient, sender)
+
+        alt Transaction invalid
+            API-->>Client: 400 Invalid transaction
+            Client-->>Buyer: Error: Payment verification failed
+        else Transaction valid
+            API->>DB: Update PaymentIntent<br/>(status: FUNDS_IN, txHashIn)
+            API->>DB: Update Order (status: ESCROWED)
+            API->>DB: Create EscrowLog (kind: DEPOSIT)
+            DB-->>API: Updated
+            API-->>Client: {status: ESCROWED}
+            Client-->>Buyer: Payment confirmed!
+            Note over Seller: Notification: New order with payment
+        end
+    end
+
+    %% Phase 4: Create Delivery Request
+    rect rgb(255, 230, 255)
+        Note over Seller,Delivery: Phase 4: Auto-Create Delivery Request
+        API->>API: Check if shippingAddress exists
+        API->>Delivery: POST /api/delivery/requests<br/>{orderId, pickup, destination, items}
+        Delivery->>Delivery: Calculate dimensions<br/>from order items
+        Delivery->>Delivery: Estimate delivery fee
+        Delivery-->>API: {deliveryRequestId}
+        API->>DB: Link Order ↔ DeliveryRequest
+        Note over Seller: Can now arrange shipping
+    end
+
+    %% Phase 5: Ship Order
+    rect rgb(240, 240, 240)
+        Note over Seller,DB: Phase 5: Seller Ships Order
+        Seller->>Client: View order details
+        Seller->>Client: Mark as "Shipped"
+        Seller->>Client: Enter tracking number
+        Client->>API: POST /api/orders/:id/ship<br/>{trackingNumber}
+        API->>DB: Update Order (status: SHIPPED)
+        API->>DB: Update DeliveryRequest status
+        DB-->>API: Updated
+        API-->>Client: {status: SHIPPED}
+        Client-->>Seller: Order marked as shipped
+        Note over Buyer: Notification: Order shipped
+    end
+
+    %% Phase 6: Confirm Delivery & Release
+    rect rgb(200, 255, 255)
+        Note over Buyer,Blockchain: Phase 6: Buyer Confirms & Release Escrow
+        Buyer->>Client: Track delivery
+        Note over Buyer: Package delivered
+        Buyer->>Client: Click "Confirm Delivery"
+        Client->>API: POST /api/orders/:id/confirm-delivery
+        API->>DB: Create EscrowLog (kind: RELEASE_REQUEST)
+
+        API->>API: Calculate fees<br/>(netToSeller = total - fee)
+        API->>Blockchain: Release escrow transaction<br/>(netAmount to seller, fee to marketplace)
+        Blockchain-->>API: {txHashRelease}
+
+        API->>DB: Update PaymentIntent<br/>(status: RELEASED, txHashRelease)
+        API->>DB: Update Order (status: RELEASED)
+        API->>DB: Create EscrowLog (kind: RELEASE)
+        API->>Blockchain: Emit reputation event<br/>(update seller reputation on-chain)
+        DB-->>API: Order completed
+        API-->>Client: {status: RELEASED}
+        Client-->>Buyer: Order completed!
+        Note over Seller: Funds released to wallet
+    end
+
+    %% Alternative Flow: Refund
+    rect rgb(255, 200, 200)
+        Note over Buyer,Blockchain: Alternative: Refund Flow
+        alt Issue with order
+            Buyer->>Client: Request refund
+            Client->>API: POST /api/orders/:id/request-refund<br/>{reason}
+            API->>DB: Create EscrowLog (kind: REFUND_REQUEST)
+            Note over Seller: Notification: Refund requested
+
+            Seller->>Client: Approve refund
+            Client->>API: POST /api/orders/:id/refund
+            API->>Blockchain: Refund transaction<br/>(full amount to buyer)
+            Blockchain-->>API: {txHashRefund}
+
+            API->>DB: Update PaymentIntent<br/>(status: REFUNDED, txHashRefund)
+            API->>DB: Update Order (status: REFUNDED)
+            API->>DB: Create EscrowLog (kind: REFUND)
+            DB-->>API: Refunded
+            API-->>Client: {status: REFUNDED}
+            Client-->>Buyer: Refund processed
+            Note over Buyer: Funds returned to wallet
+        end
+    end
+
+    %% Alternative Flow: Timeout
+    rect rgb(255, 230, 200)
+        Note over API,DB: Alternative: Order Timeout
+        alt No payment after 24h
+            API->>DB: Update Order (status: TIMEOUT)
+            API->>DB: Update PaymentIntent (status: TIMEOUT)
+            Note over Buyer,Seller: Both parties notified
+        end
+
+        alt No confirmation after shipping + 7 days
+            API->>API: Auto-release escrow (timeout)
+            API->>Blockchain: Release to seller
+            API->>DB: Update Order (status: RELEASED)
+            Note over Seller: Funds auto-released
+        end
+    end

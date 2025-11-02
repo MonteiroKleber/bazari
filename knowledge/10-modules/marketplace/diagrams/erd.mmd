@@ -1,0 +1,116 @@
+%% Marketplace Module - Entity Relationship Diagram
+erDiagram
+    User ||--o{ Product : "sells"
+    User ||--o{ ServiceOffering : "offers"
+    SellerProfile ||--o{ Product : "owns"
+    SellerProfile ||--o{ ServiceOffering : "owns"
+
+    Category ||--o{ Product : "categorizes"
+    Category ||--o{ ServiceOffering : "categorizes"
+    Category ||--o| Category : "parent"
+    Category ||--o{ CategorySpec : "defines"
+
+    Product ||--o{ ProductMedia : "has"
+    ServiceOffering ||--o{ ServiceMedia : "has"
+
+    Product }o--|| CategorySpec : "validates_with"
+    ServiceOffering }o--|| CategorySpec : "validates_with"
+
+    User {
+        string id PK "UUID"
+        string address UK "Substrate SS58"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    SellerProfile {
+        string id PK "UUID"
+        string userId FK "References User.id"
+        string storeName "Store display name"
+        string storeSlug UK "URL slug"
+        boolean verified "Verified seller"
+        decimal ratingAvg "1-5 stars"
+        int ratingCount "Total reviews"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    Product {
+        string id PK "UUID"
+        string daoId "DAO ID"
+        string title "Product name (indexed)"
+        text description "Markdown description"
+        decimal priceBzr "Price in BZR (12 decimals)"
+        string categoryId FK "References Category.id"
+        array categoryPath "Path slugs [L1, L2, L3, L4]"
+        json attributes "Dynamic attributes (CategorySpec)"
+        string attributesSpecVersion "Spec version used"
+        string sellerUserId FK "References User.id"
+        string sellerStoreId FK "References SellerProfile.id"
+        bigint onChainStoreId "On-chain store ID"
+        enum status "DRAFT | PUBLISHED | ARCHIVED"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    ServiceOffering {
+        string id PK "UUID"
+        string daoId "DAO ID"
+        string title "Service name"
+        text description "Markdown description"
+        decimal basePriceBzr "Base price (nullable for quotes)"
+        string categoryId FK "References Category.id"
+        array categoryPath "Path slugs"
+        json attributes "Dynamic attributes"
+        string attributesSpecVersion "Spec version"
+        string sellerStoreId FK "References SellerProfile.id"
+        bigint onChainStoreId "On-chain store ID"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    Category {
+        string id PK "products-L1-L2-L3 | services-L1-L2"
+        string slug UK "URL-friendly slug"
+        string parentId FK "References Category.id"
+        string kind "product | service"
+        int level "1-4 (hierarchy depth)"
+        string namePt "Portuguese name"
+        string nameEn "English name"
+        string nameEs "Spanish name"
+        array pathSlugs "Full path [L1, L2, L3]"
+        array pathNamesPt "Full path names (PT)"
+        array pathNamesEn "Full path names (EN)"
+        array pathNamesEs "Full path names (ES)"
+        boolean active "Is active"
+        int sort "Display order"
+    }
+
+    CategorySpec {
+        string id PK "CUID"
+        string categoryId FK "References Category.id"
+        string version "Semantic version (1.0.0)"
+        string inheritsFrom "Parent spec ID"
+        json jsonSchema "JSON Schema for attributes"
+        json uiSchema "UI rendering hints"
+        array indexHints "Fields to index"
+        datetime createdAt
+    }
+
+    ProductMedia {
+        string id PK "UUID"
+        string productId FK "References Product.id"
+        string url "IPFS or CDN URL"
+        string type "image | video"
+        int sort "Display order"
+        datetime createdAt
+    }
+
+    ServiceMedia {
+        string id PK "UUID"
+        string serviceOfferingId FK "References ServiceOffering.id"
+        string url "IPFS or CDN URL"
+        string type "image | video"
+        int sort "Display order"
+        datetime createdAt
+    }

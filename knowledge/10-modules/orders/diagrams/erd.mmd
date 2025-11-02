@@ -1,0 +1,96 @@
+%% Orders Module - Entity Relationship Diagram
+erDiagram
+    User ||--o{ Order : "buyer"
+    User ||--o{ Order : "seller"
+    SellerProfile ||--o{ Order : "store"
+
+    Order ||--o{ OrderItem : "contains"
+    Order ||--o{ PaymentIntent : "has"
+    Order ||--o{ EscrowLog : "logs"
+    Order ||--o| DeliveryRequest : "may_have"
+
+    Product ||--o{ OrderItem : "referenced_by"
+    ServiceOffering ||--o{ OrderItem : "referenced_by"
+
+    User {
+        string id PK "UUID"
+        string address UK "Substrate SS58"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    SellerProfile {
+        string id PK "UUID"
+        string userId FK "References User.id"
+        string storeName "Store name"
+        string storeSlug UK "URL slug"
+        datetime createdAt
+    }
+
+    Order {
+        string id PK "UUID"
+        string buyerAddr "Buyer SS58 address"
+        string sellerAddr "Seller SS58 address"
+        string sellerId "Seller DAO ID"
+        string sellerStoreId FK "References SellerProfile.id"
+        decimal subtotalBzr "Subtotal in planck"
+        decimal shippingBzr "Shipping in planck"
+        decimal totalBzr "Total in planck"
+        enum status "CREATED | PENDING | ESCROWED | SHIPPED | RELEASED | REFUNDED | CANCELLED | TIMEOUT"
+        json shippingAddress "Delivery address"
+        string shippingOptionId "Shipping option ID"
+        text notes "Order notes"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    OrderItem {
+        string id PK "CUID"
+        string orderId FK "References Order.id"
+        string listingId "Product or Service ID"
+        string kind "product | service"
+        int qty "Quantity"
+        decimal unitPriceBzrSnapshot "Unit price snapshot in planck"
+        string titleSnapshot "Title snapshot"
+        decimal lineTotalBzr "Line total in planck"
+        datetime createdAt
+    }
+
+    PaymentIntent {
+        string id PK "CUID"
+        string orderId FK "References Order.id"
+        decimal amountBzr "Amount in planck"
+        string escrowAddress "Generated escrow address"
+        enum status "PENDING | FUNDS_IN | RELEASED | REFUNDED | TIMEOUT | CANCELLED"
+        string txHashIn "Deposit transaction hash"
+        string txHashRelease "Release transaction hash"
+        string txHashRefund "Refund transaction hash"
+        datetime createdAt
+    }
+
+    EscrowLog {
+        string id PK "CUID"
+        string orderId FK "References Order.id"
+        string kind "RELEASE_REQUEST | REFUND_REQUEST | DEPOSIT | RELEASE | REFUND"
+        json payloadJson "Event data"
+        datetime createdAt
+    }
+
+    Product {
+        string id PK "UUID"
+        string title "Product name"
+        decimal priceBzr "Price in BZR"
+    }
+
+    ServiceOffering {
+        string id PK "UUID"
+        string title "Service name"
+        decimal basePriceBzr "Base price"
+    }
+
+    DeliveryRequest {
+        string id PK "UUID"
+        string orderId FK UK "References Order.id"
+        string trackingNumber "Tracking number"
+        enum status "Delivery status"
+    }

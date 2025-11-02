@@ -1,0 +1,168 @@
+%% P2P Exchange Module - P2P Trading Flow Sequence Diagram
+sequenceDiagram
+    actor Maker
+    actor Taker
+    participant Client
+    participant API
+    participant DB
+    participant Blockchain
+    participant BazChat
+
+    %% Phase 1: Create Offer
+    rect rgb(200, 230, 255)
+        Note over Maker,DB: Phase 1: Maker Creates P2P Offer
+        Maker->>Client: Navigate to /app/p2p/create-offer
+        Maker->>Client: Fill form<br/>(asset, side, price, min/max BRL)
+        Client->>API: POST /api/p2p/offers<br/>{assetType, side, priceBRLPerUnit, minBRL, maxBRL}
+        API->>DB: Create P2POffer (status: ACTIVE)
+        DB-->>API: Offer created
+        API-->>Client: {offerId}
+        Client-->>Maker: Offer published
+    end
+
+    %% Phase 2: Browse and Accept Offer
+    rect rgb(255, 240, 200)
+        Note over Taker,DB: Phase 2: Taker Browses and Accepts Offer
+        Taker->>Client: Navigate to /app/p2p
+        Client->>API: GET /api/p2p/offers?side=SELL_BZR
+        API->>DB: Query P2POffer + owner reputation
+        DB-->>API: Offers list with stats
+        API-->>Client: {items: [offers]}
+        Client-->>Taker: Display offers with reputation
+
+        Taker->>Client: Click "Accept" on offer
+        Taker->>Client: Enter amount in BRL
+        Client->>API: POST /api/p2p/orders<br/>{offerId, amountBRL}
+        API->>DB: Create P2POrder (status: DRAFT)
+        API->>DB: Create P2PMessage (autoReply)
+        DB-->>API: Order created
+        API-->>Client: {orderId}
+        Client-->>Taker: Navigate to order page
+        Note over Maker: Notification: New order
+    end
+
+    %% Phase 3: Escrow Deposit
+    rect rgb(200, 255, 200)
+        Note over Maker,Blockchain: Phase 3: Maker Deposits Crypto to Escrow
+        Maker->>Client: View order (status: DRAFT)
+        Client->>Client: Display escrow address
+        Maker->>Blockchain: Send amountAsset to escrow<br/>(via wallet)
+        Blockchain-->>Maker: Transaction confirmed
+        Note over Maker: Copy escrowTxHash
+
+        Maker->>Client: Enter escrowTxHash
+        Client->>API: POST /api/p2p/orders/:id/escrow<br/>{escrowTxHash}
+        API->>Blockchain: Verify transaction<br/>(amount, recipient)
+
+        alt Transaction invalid
+            API-->>Client: 400 Invalid escrow
+            Client-->>Maker: Error: Invalid transaction
+        else Transaction valid
+            API->>DB: Update order<br/>(status: AWAITING_FIAT_PAYMENT, escrowAt)
+            API->>DB: Create P2PMessage (escrow_detected)
+            DB-->>API: Order updated
+            API-->>Client: {status: AWAITING_FIAT_PAYMENT}
+            Client-->>Maker: Escrow confirmed
+            Note over Taker: Notification: Escrow deposited
+        end
+    end
+
+    %% Phase 4: Fiat Payment
+    rect rgb(255, 230, 255)
+        Note over Taker,BazChat: Phase 4: Taker Sends PIX Payment
+        Taker->>Client: View order (status: AWAITING_FIAT_PAYMENT)
+        Client->>Client: Display PIX key
+
+        Taker->>Taker: Open bank app<br/>Send PIX to Maker
+        Note over Taker: Take screenshot
+
+        Taker->>Client: Declare payment sent
+        Client->>API: POST /api/p2p/orders/:id/declare-payment
+        API->>DB: Update payerDeclaredAt
+        DB-->>API: Updated
+        API-->>Client: Success
+
+        Taker->>Client: Upload proof screenshot
+        Client->>API: POST /api/p2p/orders/:id/proof<br/>(multipart/form-data)
+        API->>API: Store file to CDN
+        API->>DB: Update order<br/>(status: AWAITING_CONFIRMATION, proofUrls)
+        API->>DB: Create P2PMessage (proof_upload)
+        DB-->>API: Order updated
+        API-->>Client: {proofUrl, status: AWAITING_CONFIRMATION}
+        Client-->>Taker: Proof uploaded
+        Note over Maker: Notification: Payment proof uploaded
+    end
+
+    %% Phase 5: Confirmation and Release
+    rect rgb(240, 240, 240)
+        Note over Maker,Blockchain: Phase 5: Maker Confirms and Releases Escrow
+        Maker->>Client: View order (status: AWAITING_CONFIRMATION)
+        Client->>API: GET /api/p2p/orders/:id/messages
+        API->>DB: Query P2PMessage
+        DB-->>API: Messages with proofs
+        API-->>Client: {messages}
+        Client-->>Maker: Display chat + proof
+
+        Maker->>Maker: Check bank account<br/>Verify PIX received
+        Maker->>Client: Click "Confirm & Release"
+        Client->>Blockchain: Sign release transaction
+        Blockchain-->>Client: {releasedTxHash}
+
+        Client->>API: POST /api/p2p/orders/:id/release<br/>{releasedTxHash}
+        API->>Blockchain: Verify release transaction
+        Blockchain-->>API: Transaction confirmed
+        API->>DB: Update order<br/>(status: RELEASED, releasedAt)
+        API->>DB: Update reputation stats
+        DB-->>API: Order completed
+        API-->>Client: {status: RELEASED}
+        Client-->>Maker: Trade completed!
+        Note over Taker: Notification: Escrow released
+        Note over Maker,Taker: Both can now leave reviews
+    end
+
+    %% Phase 6: Reviews
+    rect rgb(200, 255, 255)
+        Note over Maker,DB: Phase 6: Leave Reviews
+        Taker->>Client: Click "Leave Review"
+        Taker->>Client: Rate Maker (1-5 stars) + comment
+        Client->>API: POST /api/p2p/reviews<br/>{orderId, stars, comment}
+        API->>DB: Create P2PReview
+        API->>DB: Update Maker reputation
+        DB-->>API: Review created
+        API-->>Client: Success
+        Client-->>Taker: Review submitted
+
+        Note over Maker: Reciprocal review
+        Maker->>Client: Rate Taker
+        Client->>API: POST /api/p2p/reviews<br/>{orderId, stars, comment}
+        API->>DB: Create P2PReview
+        API->>DB: Update Taker reputation
+        DB-->>API: Review created
+        API-->>Client: Success
+        Client-->>Maker: Review submitted
+    end
+
+    %% Alternative Flow: Dispute
+    rect rgb(255, 200, 200)
+        Note over Taker,DB: Alternative: Dispute Flow
+        alt Payment not confirmed after 48h
+            Taker->>Client: Click "Open Dispute"
+            Taker->>Client: Enter reason + evidence
+            Client->>API: POST /api/p2p/disputes<br/>{orderId, reason, evidence}
+            API->>DB: Create P2PDispute (status: OPEN)
+            API->>DB: Update order (status: DISPUTE_OPEN)
+            DB-->>API: Dispute created
+            API-->>Client: {disputeId}
+            Client-->>Taker: Dispute opened
+            Note over Maker: Notification: Dispute opened
+
+            Note over BazChat: DAO reviews evidence
+            BazChat->>API: PUT /api/p2p/disputes/:id/resolve<br/>{resolution: RESOLVED_BUYER}
+            API->>Blockchain: Release escrow to winner
+            API->>DB: Update dispute + order status
+            API->>DB: Penalize loser reputation
+            DB-->>API: Resolved
+            API-->>BazChat: Success
+            Note over Taker,Maker: Parties notified of resolution
+        end
+    end

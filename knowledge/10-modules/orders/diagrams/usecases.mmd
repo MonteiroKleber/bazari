@@ -1,0 +1,115 @@
+%% Orders Module - Use Cases Diagram
+graph TB
+    subgraph Actors
+        Buyer((Buyer))
+        Seller((Seller))
+        System((System))
+    end
+
+    subgraph "Order Management"
+        UC01[UC-01: Create Order]
+        UC02[UC-02: View Order Details]
+        UC03[UC-03: View Order History]
+        UC04[UC-04: Cancel Order]
+        UC05[UC-05: Update Order Notes]
+    end
+
+    subgraph "Payment & Escrow"
+        UC06[UC-06: Generate Payment Intent]
+        UC07[UC-07: Deposit Funds to Escrow]
+        UC08[UC-08: Verify Escrow Transaction]
+        UC09[UC-09: Release Escrow to Seller]
+        UC10[UC-10: Refund to Buyer]
+        UC11[UC-11: Calculate Marketplace Fee]
+    end
+
+    subgraph "Shipping & Delivery"
+        UC12[UC-12: Add Shipping Address]
+        UC13[UC-13: Mark Order as Shipped]
+        UC14[UC-14: Update Tracking Number]
+        UC15[UC-15: Confirm Delivery]
+        UC16[UC-16: Create Delivery Request]
+    end
+
+    subgraph "Status Management"
+        UC17[UC-17: Update Order Status]
+        UC18[UC-18: Handle Order Timeout]
+        UC19[UC-19: Auto-Release After Timeout]
+        UC20[UC-20: Track Order Timeline]
+    end
+
+    subgraph "Logging & Audit"
+        UC21[UC-21: Log Escrow Events]
+        UC22[UC-22: View Escrow Logs]
+        UC23[UC-23: Track Payment Intent History]
+    end
+
+    subgraph "Reputation Integration"
+        UC24[UC-24: Update Seller Reputation]
+        UC25[UC-25: Emit Reputation Event]
+    end
+
+    %% Buyer interactions
+    Buyer -->|creates| UC01
+    Buyer -->|views| UC02
+    Buyer -->|views| UC03
+    Buyer -->|cancels| UC04
+    Buyer -->|adds| UC12
+    Buyer -->|deposits| UC07
+    Buyer -->|confirms| UC15
+    Buyer -->|requests| UC10
+    Buyer -->|views| UC22
+
+    %% Seller interactions
+    Seller -->|views| UC02
+    Seller -->|views| UC03
+    Seller -->|updates| UC05
+    Seller -->|ships| UC13
+    Seller -->|updates| UC14
+    Seller -->|approves| UC10
+
+    %% System interactions
+    System -->|generates| UC06
+    System -->|verifies| UC08
+    System -->|releases| UC09
+    System -->|calculates| UC11
+    System -->|creates| UC16
+    System -->|updates| UC17
+    System -->|handles| UC18
+    System -->|executes| UC19
+    System -->|tracks| UC20
+    System -->|logs| UC21
+    System -->|tracks| UC23
+    System -->|updates| UC24
+    System -->|emits| UC25
+
+    %% Dependencies
+    UC01 -.->|creates| UC06
+    UC06 -.->|enables| UC07
+    UC07 -.->|triggers| UC08
+    UC08 -.->|updates| UC17
+    UC08 -.->|triggers| UC16
+    UC13 -.->|updates| UC17
+    UC15 -.->|triggers| UC09
+    UC09 -.->|uses| UC11
+    UC09 -.->|triggers| UC25
+    UC10 -.->|updates| UC17
+    UC17 -.->|logs| UC21
+    UC18 -.->|may trigger| UC19
+    UC19 -.->|uses| UC09
+    UC09 -.->|triggers| UC24
+
+    %% Styling
+    classDef orderCase fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    classDef paymentCase fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef shippingCase fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    classDef statusCase fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef loggingCase fill:#fff9c4,stroke:#f9a825,stroke-width:2px
+    classDef reputationCase fill:#ffebee,stroke:#d32f2f,stroke-width:2px
+
+    class UC01,UC02,UC03,UC04,UC05 orderCase
+    class UC06,UC07,UC08,UC09,UC10,UC11 paymentCase
+    class UC12,UC13,UC14,UC15,UC16 shippingCase
+    class UC17,UC18,UC19,UC20 statusCase
+    class UC21,UC22,UC23 loggingCase
+    class UC24,UC25 reputationCase

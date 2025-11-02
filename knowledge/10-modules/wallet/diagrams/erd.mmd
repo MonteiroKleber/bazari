@@ -1,0 +1,43 @@
+%% Wallet Module - Entity Relationship Diagram
+%% Note: Wallet data primarily stored client-side (IndexedDB) and on-chain
+
+erDiagram
+    Vault ||--o{ Account : "derives"
+    Account ||--o{ Transaction : "sends/receives"
+    Account ||--o{ Balance : "has"
+
+    Vault {
+        bytes encryptedSeed "AES-256-GCM encrypted mnemonic"
+        bytes iv "Initialization vector (12 bytes)"
+        bytes salt "PBKDF2 salt (16 bytes)"
+        number createdAt "Creation timestamp"
+    }
+
+    Account {
+        string address PK "SS58 address (32 bytes)"
+        bytes publicKey "32-byte public key"
+        string derivationPath "//polkadot//0, //polkadot//1"
+        json meta "Account metadata (name, etc)"
+    }
+
+    Balance {
+        string address FK "References Account.address"
+        string asset "BZR | ZARI | NFT"
+        bigint free "Transferable balance (planck)"
+        bigint reserved "Reserved balance (planck)"
+        bigint frozen "Frozen balance (planck)"
+        bigint total "Total balance"
+    }
+
+    Transaction {
+        string hash PK "Transaction hash (blake2_256)"
+        string from FK "Sender address"
+        string to "Recipient address"
+        bigint amount "Amount in planck"
+        bigint fee "Transaction fee in planck"
+        number nonce "Account nonce"
+        number blockNumber "Block included"
+        number timestamp "Block timestamp"
+        string status "pending | finalized | failed"
+        string extrinsicId "Extrinsic ID (blockNumber-index)"
+    }

@@ -1,0 +1,122 @@
+%% Bazari Platform - Module Dependency Graph
+graph LR
+    subgraph "Core-Transversal Modules"
+        auth["🔐 auth"]
+        profile["👤 profile"]
+        wallet["💳 wallet"]
+        media["🖼️ media"]
+        notifications["🔔 notifications"]
+    end
+
+    subgraph "Commerce Modules"
+        marketplace["🛒 marketplace"]
+        store["🏪 store"]
+        orders["📦 orders"]
+        cart["🛍️ cart"]
+        delivery["🚚 delivery"]
+    end
+
+    subgraph "DeFi-Social Modules"
+        p2p["💱 p2p"]
+        governance["🗳️ governance"]
+        vesting["🔒 vesting"]
+        social["📱 social"]
+        chat["💬 chat"]
+    end
+
+    subgraph "Auxiliary Modules"
+        affiliates["🤝 affiliates"]
+        gamification["🎮 gamification"]
+        moderation["⚖️ moderation"]
+        reputation["⭐ reputation"]
+        analytics["📊 analytics"]
+    end
+
+    %% Core dependencies (all modules depend on these)
+    marketplace --> auth
+    store --> auth
+    orders --> auth
+    cart --> auth
+    delivery --> auth
+    p2p --> auth
+    governance --> auth
+    vesting --> auth
+    social --> auth
+    chat --> auth
+    affiliates --> auth
+    gamification --> auth
+    moderation --> auth
+    reputation --> auth
+    analytics --> auth
+
+    marketplace --> profile
+    store --> profile
+    orders --> profile
+    delivery --> profile
+    p2p --> profile
+    social --> profile
+    chat --> profile
+    affiliates --> profile
+    reputation --> profile
+    analytics --> profile
+
+    marketplace --> wallet
+    store --> wallet
+    orders --> wallet
+    p2p --> wallet
+    vesting --> wallet
+
+    marketplace --> media
+    store --> media
+    social --> media
+    chat --> media
+
+    orders --> notifications
+    delivery --> notifications
+    p2p --> notifications
+    chat --> notifications
+    governance --> notifications
+
+    %% Commerce module dependencies
+    marketplace --> store
+    orders --> marketplace
+    orders --> store
+    cart --> marketplace
+    cart --> store
+    orders --> cart
+    delivery --> orders
+    delivery --> store
+
+    %% DeFi-Social dependencies
+    p2p --> wallet
+    chat --> social
+    chat --> store
+    chat --> orders
+
+    %% Auxiliary dependencies
+    affiliates --> store
+    affiliates --> marketplace
+    affiliates --> orders
+    gamification --> chat
+    gamification --> profile
+    moderation --> chat
+    moderation --> social
+    reputation --> orders
+    reputation --> delivery
+    reputation --> p2p
+    reputation --> social
+    reputation --> governance
+    analytics --> social
+    analytics --> marketplace
+    analytics --> orders
+
+    %% Styling
+    classDef coreModule fill:#e3f2fd,stroke:#1976d2,stroke-width:3px
+    classDef commerceModule fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef defiModule fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef auxModule fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+
+    class auth,profile,wallet,media,notifications coreModule
+    class marketplace,store,orders,cart,delivery commerceModule
+    class p2p,governance,vesting,social,chat defiModule
+    class affiliates,gamification,moderation,reputation,analytics auxModule

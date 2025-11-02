@@ -1,0 +1,118 @@
+%% Bazari Platform - Data Flow Architecture
+graph TB
+    subgraph "Data Sources"
+        UserInput["👤 User Input<br/>(Forms, Actions)"]
+        BlockchainEvents["⛓️ Blockchain Events<br/>(Extrinsics, Blocks)"]
+        ExternalAPIs["🌐 External APIs<br/>(PIX, Email, SMS)"]
+    end
+
+    subgraph "Ingestion Layer"
+        APIEndpoints["🔌 API Endpoints<br/>(REST)"]
+        WebSocketHandlers["🔌 WebSocket Handlers<br/>(Real-time)"]
+        EventListeners["👂 Event Listeners<br/>(Blockchain)"]
+    end
+
+    subgraph "Processing Layer"
+        BusinessLogic["⚙️ Business Logic<br/>(Services)"]
+        Validation["✅ Validation<br/>(Zod schemas)"]
+        Authorization["🔐 Authorization<br/>(Middleware)"]
+    end
+
+    subgraph "Storage Layer"
+        direction LR
+        PostgreSQLWrite[("💾 PostgreSQL<br/>Write")]
+        IPFSWrite[("📦 IPFS<br/>Write")]
+        ChainWrite[("⛓️ Blockchain<br/>Write")]
+    end
+
+    subgraph "Cache Layer"
+        RedisCache[("⚡ Redis Cache<br/>(Hot data)")]
+    end
+
+    subgraph "Query Layer"
+        PostgreSQLRead[("📖 PostgreSQL<br/>Read")]
+        IPFSRead[("📖 IPFS<br/>Read")]
+        ChainRead[("📖 Blockchain<br/>Read")]
+    end
+
+    subgraph "Aggregation Layer"
+        DataAggregation["📊 Data Aggregation<br/>(Analytics)"]
+        SearchIndexing["🔍 Search Indexing<br/>(Full-text)"]
+    end
+
+    subgraph "Output Layer"
+        APIResponses["📤 API Responses<br/>(JSON)"]
+        WebSocketMessages["📤 WebSocket Messages<br/>(Real-time)"]
+        Notifications["🔔 Push Notifications"]
+    end
+
+    subgraph "Background Jobs"
+        ReputationSync["⭐ Reputation Sync<br/>(Every 60s)"]
+        NonceCleanup["🧹 Nonce Cleanup<br/>(Daily)"]
+        IPFSPinning["📌 IPFS Pinning<br/>(Continuous)"]
+    end
+
+    %% Ingestion flow
+    UserInput --> APIEndpoints
+    UserInput --> WebSocketHandlers
+    BlockchainEvents --> EventListeners
+    ExternalAPIs --> APIEndpoints
+
+    %% Processing flow
+    APIEndpoints --> Authorization
+    WebSocketHandlers --> Authorization
+    Authorization --> Validation
+    Validation --> BusinessLogic
+
+    %% Storage flow
+    BusinessLogic --> PostgreSQLWrite
+    BusinessLogic --> IPFSWrite
+    BusinessLogic --> ChainWrite
+    BusinessLogic --> RedisCache
+
+    %% Query flow
+    BusinessLogic --> PostgreSQLRead
+    BusinessLogic --> IPFSRead
+    BusinessLogic --> ChainRead
+    BusinessLogic --> RedisCache
+
+    %% Aggregation flow
+    PostgreSQLRead --> DataAggregation
+    PostgreSQLRead --> SearchIndexing
+
+    %% Output flow
+    BusinessLogic --> APIResponses
+    BusinessLogic --> WebSocketMessages
+    BusinessLogic --> Notifications
+
+    %% Background jobs
+    ReputationSync --> PostgreSQLRead
+    ReputationSync --> ChainRead
+    ReputationSync --> ChainWrite
+    NonceCleanup --> PostgreSQLWrite
+    IPFSPinning --> IPFSRead
+
+    %% Cache invalidation
+    PostgreSQLWrite -.->|invalidate| RedisCache
+    ChainWrite -.->|invalidate| RedisCache
+
+    %% Styling
+    classDef sourceStyle fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef ingestionStyle fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef processingStyle fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef storageStyle fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    classDef cacheStyle fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    classDef queryStyle fill:#fff9c4,stroke:#f9a825,stroke-width:2px
+    classDef aggregationStyle fill:#e0f2f1,stroke:#00796b,stroke-width:2px
+    classDef outputStyle fill:#ede7f6,stroke:#512da8,stroke-width:2px
+    classDef jobStyle fill:#fbe9e7,stroke:#d84315,stroke-width:2px
+
+    class UserInput,BlockchainEvents,ExternalAPIs sourceStyle
+    class APIEndpoints,WebSocketHandlers,EventListeners ingestionStyle
+    class BusinessLogic,Validation,Authorization processingStyle
+    class PostgreSQLWrite,IPFSWrite,ChainWrite storageStyle
+    class RedisCache cacheStyle
+    class PostgreSQLRead,IPFSRead,ChainRead queryStyle
+    class DataAggregation,SearchIndexing aggregationStyle
+    class APIResponses,WebSocketMessages,Notifications outputStyle
+    class ReputationSync,NonceCleanup,IPFSPinning jobStyle

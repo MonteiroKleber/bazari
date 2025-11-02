@@ -1,0 +1,144 @@
+%% Social Module - Social Feed Flow Sequence Diagram
+sequenceDiagram
+    actor User
+    participant Client
+    participant API
+    participant DB
+
+    %% Phase 1: Create Post
+    rect rgb(200, 230, 255)
+        Note over User,DB: Phase 1: Create Post
+        User->>Client: Click "New Post"
+        User->>Client: Write content + add media
+        Client->>API: POST /api/social/posts<br/>{content, kind: 'text', media: [urls]}
+        API->>DB: Create Post<br/>(authorId, content, status: PUBLISHED)
+        DB-->>API: Post created
+        API->>DB: Increment Profile.postsCount
+        DB-->>API: Updated
+        API-->>Client: {postId}
+        Client-->>User: Post published!
+        Note over User: Followers notified in feed
+    end
+
+    %% Phase 2: View Feed
+    rect rgb(255, 240, 200)
+        Note over User,DB: Phase 2: View Social Feed
+        User->>Client: Navigate to /app/feed
+        Client->>API: GET /api/social/feed
+        API->>DB: Query posts from followed profiles<br/>(ORDER BY createdAt DESC)
+        API->>DB: Include author profile, likes count, comments count
+        DB-->>API: Feed posts
+        API-->>Client: {posts: [post1, post2, ...]}
+        Client-->>User: Display chronological feed<br/>(content, author, interactions)
+    end
+
+    %% Phase 3: Like Post
+    rect rgb(200, 255, 200)
+        Note over User,DB: Phase 3: Like Post
+        User->>Client: Click "Like" on post
+        Client->>API: POST /api/social/posts/:id/like
+        API->>DB: Check if already liked
+
+        alt Already liked
+            API->>DB: Delete PostLike (unlike)
+            DB-->>API: Unliked
+            API-->>Client: {liked: false}
+            Client-->>User: Like removed
+        else Not liked
+            API->>DB: Create PostLike<br/>(postId, profileId)
+            API->>DB: Create ProfileReputationEvent<br/>(+1 for post author)
+            DB-->>API: Liked
+            API-->>Client: {liked: true}
+            Client-->>User: Post liked
+            Note over User: Post author notified
+        end
+    end
+
+    %% Phase 4: Add Reaction
+    rect rgb(255, 230, 255)
+        Note over User,DB: Phase 4: React to Post
+        User->>Client: Click reaction button<br/>(love, laugh, wow, sad, angry)
+        Client->>API: POST /api/social/posts/:id/react<br/>{reaction: 'love'}
+        API->>DB: Upsert PostReaction<br/>(replace if exists)
+        DB-->>API: Reaction saved
+        API-->>Client: {reaction: 'love'}
+        Client-->>User: Reaction added
+        Note over User: Reaction count updates
+    end
+
+    %% Phase 5: Comment on Post
+    rect rgb(240, 240, 240)
+        Note over User,DB: Phase 5: Add Comment
+        User->>Client: Click "Comment"
+        User->>Client: Write comment
+        Client->>API: POST /api/social/posts/:id/comments<br/>{content}
+        API->>DB: Create PostComment<br/>(postId, authorId, content)
+        API->>DB: Create ProfileReputationEvent<br/>(+2 for post author)
+        DB-->>API: Comment created
+        API-->>Client: {commentId}
+        Client-->>User: Comment posted
+        Note over User: Post author notified
+    end
+
+    %% Phase 6: Reply to Comment
+    rect rgb(200, 255, 255)
+        Note over User,DB: Phase 6: Reply to Comment (Nested Thread)
+        User->>Client: Click "Reply" on comment
+        User->>Client: Write reply
+        Client->>API: POST /api/social/posts/:id/comments<br/>{content, parentId: commentId}
+        API->>DB: Create PostComment<br/>(postId, authorId, content, parentId)
+        DB-->>API: Reply created
+        API-->>Client: {replyId}
+        Client-->>User: Reply posted
+        Note over User: Comment author notified
+        Note over Client: Display nested thread
+    end
+
+    %% Phase 7: Repost
+    rect rgb(255, 200, 200)
+        Note over User,DB: Phase 7: Repost to Feed
+        User->>Client: Click "Repost"
+        Client->>API: POST /api/social/posts/:id/repost
+        API->>DB: Check if already reposted
+
+        alt Already reposted
+            API-->>Client: 409 Already reposted
+            Client-->>User: You already reposted this
+        else Not reposted
+            API->>DB: Create PostRepost<br/>(postId, profileId)
+            DB-->>API: Reposted
+            API-->>Client: {success: true}
+            Client-->>User: Reposted to your feed
+            Note over User: Post appears in followers' feeds
+        end
+    end
+
+    %% Phase 8: View Post Detail
+    rect rgb(255, 230, 200)
+        Note over User,DB: Phase 8: View Single Post with Comments
+        User->>Client: Click on post
+        Client->>API: GET /api/social/posts/:id
+        API->>DB: Query Post + author
+        API->>DB: Query likes count, reactions breakdown
+        API->>DB: Query comments (threaded, with replies)
+        DB-->>API: Post + interactions
+        API-->>Client: {post, likes, reactions, comments}
+        Client-->>User: Display post detail page<br/>(content, all interactions, comment threads)
+    end
+
+    %% Phase 9: Moderation
+    rect rgb(200, 230, 255)
+        Note over User,DB: Phase 9: Moderate Post
+        User->>Client: Report post
+        Client->>API: POST /api/social/posts/:id/flag
+        API->>DB: Update Post (status: FLAGGED)
+        DB-->>API: Flagged
+        Note over API: Moderators review
+
+        alt Violation confirmed
+            API->>DB: Update Post (status: REMOVED)
+            Note over User: Post hidden from feed
+        else No violation
+            API->>DB: Update Post (status: PUBLISHED)
+        end
+    end

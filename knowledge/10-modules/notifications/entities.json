@@ -1,0 +1,38 @@
+{
+  "entities": [
+    {
+      "name": "Notification",
+      "table": "Notification",
+      "fields": [
+        {"name": "id", "type": "String (CUID)", "constraints": ["PRIMARY KEY"]},
+        {"name": "userId", "type": "String (UUID)", "description": "Recipient user ID", "constraints": ["FK -> User.id", "INDEX"]},
+        {"name": "type", "type": "NotificationType", "description": "FOLLOW | LIKE | COMMENT | MENTION | BADGE | etc", "constraints": ["INDEX"]},
+        {"name": "actorId", "type": "String?", "description": "Profile ID of who triggered", "constraints": ["FK -> Profile.id"]},
+        {"name": "targetId", "type": "String?", "description": "ID of target entity (postId, badgeId, etc)"},
+        {"name": "metadata", "type": "Json?", "description": "Extra data (postTitle, badgeName, etc)"},
+        {"name": "read", "type": "Boolean", "description": "Read status", "constraints": ["DEFAULT false", "INDEX"]},
+        {"name": "createdAt", "type": "DateTime", "constraints": ["DEFAULT now()", "INDEX"]}
+      ],
+      "relations": [
+        {"name": "user", "type": "N:1", "target": "User"},
+        {"name": "actor", "type": "N:1", "target": "Profile", "nullable": true}
+      ],
+      "indexes": [
+        {"fields": ["userId", "read", "createdAt"], "type": "INDEX (composite for queries)"},
+        {"fields": ["createdAt"], "type": "INDEX"}
+      ],
+      "business_rules": [
+        "Notifications são imutáveis (create-only)",
+        "Apenas read flag pode ser atualizado",
+        "Notifications antigas (>30 dias) podem ser deletadas (cleanup job)",
+        "User só vê suas próprias notifications"
+      ]
+    }
+  ],
+  "enums": [
+    {
+      "name": "NotificationType",
+      "values": ["FOLLOW", "LIKE", "REPOST", "COMMENT", "MENTION", "BADGE", "REPUTATION", "ACHIEVEMENT_UNLOCKED", "GROUP_INVITE", "GROUP_JOIN_REQUEST", "ORDER_UPDATE", "MESSAGE"]
+    }
+  ]
+}

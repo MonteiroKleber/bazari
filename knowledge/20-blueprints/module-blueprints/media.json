@@ -1,0 +1,115 @@
+{
+  "module": {
+    "id": "media",
+    "name": "Media Storage & Delivery",
+    "category": "core-transversal",
+    "version": "1.0.0",
+    "status": "production",
+    "description": "Secure, scalable media storage with content deduplication, multi-backend support (LocalFS/S3), and efficient delivery"
+  },
+  "vision": {
+    "statement": "Prover armazenamento seguro, escalável e eficiente de mídia para todos os módulos da plataforma Bazari",
+    "principles": [
+      "Pluggable Storage: LocalFS (dev) or S3 (production) via adapter pattern",
+      "Content Addressing: Hash-based deduplication using SHA-256",
+      "Security: Owner-based access control, signed URLs for private content",
+      "IPFS-Ready: Migration path to decentralized storage"
+    ]
+  },
+  "entities": [
+    {
+      "name": "MediaAsset",
+      "table": "MediaAsset",
+      "type": "entity",
+      "description": "Uploaded media file with metadata and ownership tracking",
+      "fields": [
+        {"name": "id", "type": "String (CUID)", "pk": true},
+        {"name": "url", "type": "String", "description": "File URL (LocalFS or S3)"},
+        {"name": "mime", "type": "String", "description": "MIME type (image/png, video/mp4)"},
+        {"name": "size", "type": "Int", "description": "File size in bytes"},
+        {"name": "contentHash", "type": "String", "indexed": true, "description": "SHA-256 hash for deduplication"},
+        {"name": "ownerType", "type": "String?", "description": "Entity type (Profile, Product, Post)"},
+        {"name": "ownerId", "type": "String?", "description": "Entity ID"},
+        {"name": "createdAt", "type": "DateTime", "default": "now()"},
+        {"name": "updatedAt", "type": "DateTime", "autoUpdate": true}
+      ],
+      "businessRules": [
+        "Content hash prevents duplicates - same file returns existing MediaAsset",
+        "Owner can delete only their own media",
+        "Public URLs for LocalFS, signed URLs for S3",
+        "Orphaned media (no owner) cleaned up after 7 days"
+      ]
+    }
+  ],
+  "valueObjects": [
+    {
+      "name": "SupportedFormats",
+      "images": ["JPG", "PNG", "WebP", "GIF"],
+      "videos": ["MP4", "WebM"],
+      "documents": ["PDF"],
+      "limits": {
+        "images": "10MB",
+        "videos": "100MB",
+        "documents": "20MB"
+      }
+    }
+  ],
+  "apis": [
+    {"method": "POST", "path": "/api/media/upload", "auth": true, "description": "Upload media file (multipart/form-data)"},
+    {"method": "GET", "path": "/api/media/:id/url", "auth": false, "description": "Get media URL (direct or signed)"},
+    {"method": "GET", "path": "/api/media/:id", "auth": false, "description": "Download media file (stream)"},
+    {"method": "DELETE", "path": "/api/media/:id", "auth": true, "description": "Delete media file and record"}
+  ],
+  "useCases": [
+    {
+      "id": "UC-01",
+      "name": "Upload Media",
+      "actors": ["User"],
+      "flow": "Select file → Validate type/size → Upload → Calculate SHA-256 hash → Check if exists (dedup) → If new, store file → Create MediaAsset record → Return ID and URL"
+    },
+    {
+      "id": "UC-02",
+      "name": "Get Media URL",
+      "actors": ["Client"],
+      "flow": "Request media ID → Find MediaAsset → If LocalFS, return direct URL → If S3, generate signed URL (1h expiration) → Return URL"
+    },
+    {
+      "id": "UC-03",
+      "name": "Download Media",
+      "actors": ["User"],
+      "flow": "Click media link → Request file → Server streams file → User downloads/views"
+    },
+    {
+      "id": "UC-04",
+      "name": "Delete Media",
+      "actors": ["Owner"],
+      "flow": "Request delete → Verify ownership → Delete file from storage → Delete MediaAsset record → Return success"
+    }
+  ],
+  "dependencies": {
+    "internal": ["auth"],
+    "external": ["multer", "aws-sdk", "sharp (future)"]
+  },
+  "security": {
+    "authentication": "JWT required for upload and delete",
+    "authorization": "Owner-based access control",
+    "validation": "File type whitelist, size limits, content type verification",
+    "storage": "Signed URLs for S3, secure file paths for LocalFS",
+    "rateLimiting": "50 uploads/hour per user, 1000 downloads/hour per IP"
+  },
+  "metrics": {
+    "key_metrics": [
+      {"name": "Upload Success Rate", "target": ">99%"},
+      {"name": "Avg Upload Time", "target": "<2s for images"},
+      {"name": "Storage Efficiency", "target": ">20% deduplication savings"},
+      {"name": "CDN Cache Hit Rate", "target": ">80% (future)"}
+    ]
+  },
+  "futureEnhancements": [
+    "IPFS integration for decentralized storage",
+    "Image optimization (auto resize/compress)",
+    "CDN integration (Cloudflare/CloudFront)",
+    "Video transcoding with multiple quality levels",
+    "Image variants (thumbnail, medium, large)"
+  ]
+}

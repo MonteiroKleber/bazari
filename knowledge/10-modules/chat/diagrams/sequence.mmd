@@ -1,0 +1,142 @@
+%% Chat Module (BazChat) - E2EE Chat Flow Sequence Diagram
+sequenceDiagram
+    actor UserA
+    actor UserB
+    participant ClientA
+    participant ClientB
+    participant API
+    participant DB
+    participant WebSocket
+
+    %% Phase 1: Key Exchange
+    rect rgb(200, 230, 255)
+        Note over UserA,DB: Phase 1: Generate Encryption Keys
+        UserA->>ClientA: Login with wallet
+        ClientA->>ClientA: Derive Curve25519 keypair<br/>from seed phrase
+        ClientA->>API: POST /api/chat/profile<br/>{chatPubKey}
+        API->>DB: Store chatPubKey in Profile
+        DB-->>API: Saved
+        API-->>ClientA: Profile updated
+
+        Note over UserB: Same process for UserB
+        UserB->>ClientB: Login
+        ClientB->>ClientB: Derive keypair
+        ClientB->>API: POST /api/chat/profile<br/>{chatPubKey}
+        API->>DB: Store chatPubKey
+    end
+
+    %% Phase 2: Start DM Thread
+    rect rgb(255, 240, 200)
+        Note over UserA,DB: Phase 2: Start Direct Message
+        UserA->>ClientA: Click "Message @userB"
+        ClientA->>API: POST /api/chat/threads<br/>{kind: 'dm', participants: [userA, userB]}
+        API->>DB: Find or create ChatThread
+        DB-->>API: {threadId}
+        API-->>ClientA: {thread}
+        ClientA-->>UserA: Open chat window
+    end
+
+    %% Phase 3: Send Encrypted Message
+    rect rgb(200, 255, 200)
+        Note over UserA,WebSocket: Phase 3: Send E2EE Message
+        UserA->>ClientA: Type message "Hello!"
+        ClientA->>API: GET /api/profiles/:userB/pubkey
+        API->>DB: Query Profile.chatPubKey
+        DB-->>API: {chatPubKey: 'userB_public_key'}
+        API-->>ClientA: UserB's public key
+
+        ClientA->>ClientA: Encrypt message<br/>(Curve25519: myPrivate + theirPublic)
+        Note over ClientA: Plaintext never sent
+
+        ClientA->>API: POST /api/chat/messages<br/>{threadId, type: 'text', ciphertext}
+        API->>DB: Create ChatMessage
+        API->>DB: Update ChatThread.lastMessageAt
+        DB-->>API: Message saved
+        API->>WebSocket: Emit 'chat.message' event<br/>to userB
+        API-->>ClientA: {messageId, createdAt}
+        ClientA-->>UserA: Message sent
+    end
+
+    %% Phase 4: Receive and Decrypt
+    rect rgb(255, 230, 255)
+        Note over UserB,ClientB: Phase 4: Receive and Decrypt Message
+        WebSocket->>ClientB: 'chat.message' event<br/>{threadId, messageId, ciphertext}
+        ClientB->>ClientB: Decrypt ciphertext<br/>(Curve25519: myPrivate + theirPublic)
+        ClientB-->>UserB: Display "Hello!"
+
+        UserB->>ClientB: Mark as read
+        ClientB->>API: POST /api/chat/messages/:id/read
+        API->>DB: Update readAt timestamp
+        DB-->>API: Updated
+        API->>WebSocket: Emit 'chat.read' to userA
+        WebSocket->>ClientA: Message read receipt
+    end
+
+    %% Phase 5: In-Chat Checkout Proposal
+    rect rgb(240, 240, 240)
+        Note over UserA,DB: Phase 5: Send Checkout Proposal
+        Note over UserA: UserA is seller
+        UserA->>ClientA: Create proposal<br/>(products + prices)
+        ClientA->>API: POST /api/chat/proposals<br/>{threadId, items, total}
+        API->>DB: Create ChatProposal
+        DB-->>API: {proposalId}
+        API-->>ClientA: Proposal created
+
+        ClientA->>ClientA: Encrypt proposal link
+        ClientA->>API: POST /api/chat/messages<br/>{type: 'proposal', ciphertext, meta: {proposalId}}
+        API->>DB: Create message
+        API->>WebSocket: Emit to userB
+        WebSocket->>ClientB: New proposal message
+
+        ClientB->>ClientB: Decrypt message
+        ClientB-->>UserB: Display checkout proposal<br/>(interactive card)
+    end
+
+    %% Phase 6: Accept Proposal
+    rect rgb(200, 255, 255)
+        Note over UserB,API: Phase 6: Accept Checkout Proposal
+        UserB->>ClientB: Click "Accept Proposal"
+        ClientB->>API: POST /api/chat/proposals/:id/accept
+        API->>DB: Update ChatProposal (status: accepted)
+        API->>API: Create Order from proposal
+        API-->>ClientB: {orderId, paymentIntent}
+        ClientB-->>UserB: Redirect to payment
+        Note over UserB: Continue with order flow
+    end
+
+    %% Phase 7: Group Chat
+    rect rgb(255, 200, 200)
+        Note over UserA,DB: Phase 7: Create Group Chat
+        UserA->>ClientA: Create community group
+        ClientA->>API: POST /api/chat/groups<br/>{name, description, kind: 'community'}
+        API->>DB: Create ChatGroup
+        DB-->>API: {groupId}
+        API-->>ClientA: Group created
+
+        UserA->>ClientA: Invite members
+        ClientA->>API: POST /api/chat/groups/:id/members<br/>{memberIds: [userB, userC]}
+        API->>DB: Update ChatGroup.memberIds
+        API->>WebSocket: Emit to all members
+        WebSocket->>ClientB: Group invitation
+        ClientB-->>UserB: Notification: Added to group
+    end
+
+    %% Phase 8: Report & Moderation
+    rect rgb(255, 230, 200)
+        Note over UserB,DB: Phase 8: Report Message
+        UserB->>ClientB: Report inappropriate message
+        ClientB->>API: POST /api/chat/reports<br/>{contentType: 'message', contentId, reason}
+        API->>DB: Create ChatReport (status: pending)
+        DB-->>API: {reportId}
+        API-->>ClientB: Report submitted
+
+        Note over API: Community moderators review
+        API->>API: Calculate vote threshold
+        alt Approved by moderators
+            API->>DB: Update ChatReport<br/>(status: resolved, resolution: warning)
+            API->>DB: Apply sanction to reported user
+            Note over UserA: User warned/suspended
+        else Rejected
+            API->>DB: Update resolution: dismiss
+        end
+    end

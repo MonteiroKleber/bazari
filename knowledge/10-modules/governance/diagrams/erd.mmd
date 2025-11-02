@@ -1,0 +1,134 @@
+%% Governance Module - Entity Relationship Diagram
+%% Note: All entities stored on-chain in Substrate pallets
+
+erDiagram
+    Account ||--o{ Vote : "casts"
+    Account ||--o{ PublicProposal : "submits"
+    Account ||--o{ TreasuryProposal : "submits"
+    Account ||--o{ Delegation : "delegates/receives"
+    Account ||--o| CouncilMember : "may_be"
+    Account ||--o| TechCommitteeMember : "may_be"
+
+    Referendum ||--o{ Vote : "receives"
+    Referendum }o--|| PublicProposal : "derived_from"
+
+    PublicProposal ||--o{ SecondedBy : "has"
+    PublicProposal }o--|| Account : "proposed_by"
+
+    TreasuryProposal }o--|| Account : "proposed_by"
+    TreasuryProposal }o--|| Account : "beneficiary"
+
+    CouncilProposal ||--o{ CouncilVote : "receives"
+    CouncilProposal }o--|| CouncilMember : "proposed_by"
+
+    TechCommitteeProposal ||--o{ TechCommitteeVote : "receives"
+    TechCommitteeProposal }o--|| TechCommitteeMember : "proposed_by"
+
+    MultisigTransaction ||--o{ MultisigApproval : "has"
+    MultisigTransaction }o--|| Account : "initiated_by"
+
+    Account {
+        AccountId accountId PK "SS58 address"
+        Balance freeBalance "Available tokens"
+        Balance reservedBalance "Locked tokens"
+        Balance lockedBalance "Governance locks"
+    }
+
+    Referendum {
+        u32 referendumIndex PK "Unique ID"
+        H256 proposalHash "Proposal call hash"
+        enum threshold "SimpleMajority | SuperMajorityApprove | SuperMajorityAgainst"
+        BlockNumber end "Voting end block"
+        BlockNumber delay "Enactment delay"
+        Balance ayes "Total aye votes"
+        Balance nays "Total nay votes"
+        Balance turnout "Total participation"
+    }
+
+    PublicProposal {
+        u32 proposalIndex PK "Unique ID"
+        H256 proposalHash "Call hash"
+        AccountId proposer FK "Who proposed"
+        Balance deposit "Bond amount"
+        u32 secondCount "Number of seconds"
+    }
+
+    SecondedBy {
+        u32 proposalIndex FK "References PublicProposal"
+        AccountId supporter FK "References Account"
+        Balance amount "Locked amount"
+    }
+
+    Vote {
+        AccountId voter FK "References Account"
+        u32 referendumIndex FK "References Referendum"
+        bool aye "True=Aye, False=Nay"
+        enum conviction "None | Locked1x-6x"
+        Balance balance "Vote weight"
+        BlockNumber lockUntil "Token lock expiry"
+    }
+
+    Delegation {
+        AccountId delegator FK "References Account"
+        AccountId delegate FK "References Account"
+        enum conviction "Lock conviction"
+        Balance balance "Delegated amount"
+    }
+
+    TreasuryProposal {
+        u32 proposalIndex PK "Unique ID"
+        AccountId proposer FK "References Account"
+        Balance value "Amount requested"
+        AccountId beneficiary FK "Recipient address"
+        Balance bond "5% deposit"
+    }
+
+    CouncilMember {
+        AccountId accountId PK FK "References Account"
+        Balance backing "Votes received in election"
+    }
+
+    CouncilProposal {
+        H256 proposalHash PK "Unique hash"
+        Call proposal "Extrinsic to execute"
+        u32 threshold "Min votes needed"
+        BlockNumber end "Voting deadline"
+    }
+
+    CouncilVote {
+        H256 proposalHash FK "References CouncilProposal"
+        AccountId voter FK "References CouncilMember"
+        bool approve "True=Aye, False=Nay"
+    }
+
+    TechCommitteeMember {
+        AccountId accountId PK FK "References Account"
+    }
+
+    TechCommitteeProposal {
+        H256 proposalHash PK "Unique hash"
+        Call proposal "Emergency action"
+        u32 threshold "Min votes needed"
+        BlockNumber end "Voting deadline"
+    }
+
+    TechCommitteeVote {
+        H256 proposalHash FK "References TechCommitteeProposal"
+        AccountId voter FK "References TechCommitteeMember"
+        bool approve "True=Aye, False=Nay"
+    }
+
+    MultisigTransaction {
+        AccountId account PK "Multisig address"
+        H256 callHash PK "Call hash"
+        Timepoint timepoint "Block height + index"
+        u16 threshold "M in M-of-N"
+        AccountId depositor "Who initiated"
+    }
+
+    MultisigApproval {
+        AccountId account FK "References MultisigTransaction"
+        H256 callHash FK "References MultisigTransaction"
+        AccountId signatory FK "References Account"
+        datetime approvedAt "Approval timestamp"
+    }

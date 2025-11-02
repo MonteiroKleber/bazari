@@ -1,0 +1,159 @@
+%% Chat Module (BazChat) - Entity Relationship Diagram
+erDiagram
+    Profile ||--o{ ChatThread : "participates"
+    Profile ||--o{ ChatMessage : "sends"
+    Profile ||--o{ ChatGroup : "member_of"
+    Profile ||--o| ChatTrustBadge : "has"
+    Profile ||--o{ ChatReport : "reports/reported"
+
+    ChatThread ||--o{ ChatMessage : "contains"
+    ChatThread }o--o| Order : "linked_to"
+    ChatThread }o--o| ChatGroup : "linked_to"
+    ChatThread ||--o{ ChatProposal : "has"
+
+    ChatGroup ||--o{ ChatThread : "has_threads"
+
+    ChatProposal }o--|| ChatThread : "in"
+    ChatProposal }o--|| Order : "generates"
+
+    ChatMission ||--o{ ChatMissionCompletion : "completed_by"
+    ChatMissionCompletion }o--|| Profile : "by"
+
+    ChatReport }o--|| Profile : "reporter"
+    ChatReport }o--|| Profile : "reported"
+    ChatReport ||--o{ ChatReportVote : "has"
+    ChatReportVote }o--|| Profile : "voter"
+
+    Profile {
+        string id PK "UUID"
+        string handle UK "@username"
+        string chatPubKey "Curve25519 public key"
+        datetime createdAt
+    }
+
+    ChatThread {
+        string id PK "UUID"
+        string kind "dm | store | order | group"
+        array participants "ProfileIds (GIN indexed)"
+        string orderId FK "References Order.id"
+        string groupId FK "References ChatGroup.id"
+        bigint lastMessageAt "Unix timestamp"
+        json metadata "Thread metadata"
+        bigint createdAt
+        bigint updatedAt
+    }
+
+    ChatMessage {
+        string id PK "UUID"
+        string threadId FK "References ChatThread.id"
+        string fromProfile FK "References Profile.id"
+        string type "text | audio | image | file | video | proposal | checkout | payment | system"
+        text ciphertext "E2EE encrypted content"
+        string mediaCid "IPFS CID for media"
+        json meta "Message metadata"
+        bigint createdAt "Unix timestamp"
+        bigint deliveredAt "Delivery timestamp"
+        bigint readAt "Read timestamp"
+        string replyTo "Message ID replied to"
+        bigint editedAt "Edit timestamp"
+    }
+
+    ChatGroup {
+        string id PK "UUID"
+        string name "Group name"
+        text description "Group description"
+        string avatarUrl "Group avatar"
+        string kind "community | channel | dao"
+        boolean isPublic "Public group"
+        array adminIds "Admin profile IDs"
+        array memberIds "Member profile IDs"
+        int maxMembers "Max 500 members"
+        json metadata "Group metadata"
+        bigint createdAt
+    }
+
+    ChatProposal {
+        string id PK "UUID"
+        string threadId FK "References ChatThread.id"
+        string sellerId FK "References Profile.id"
+        string buyerId FK "References Profile.id"
+        json items "ProposalItem array"
+        decimal subtotal "Subtotal amount"
+        json shipping "Shipping details"
+        decimal total "Total amount"
+        int commissionPercent "Commission %"
+        boolean isMultiStore "Multi-store proposal"
+        json storeGroups "Store groupings"
+        string status "draft | sent | accepted | expired | paid"
+        bigint expiresAt "Expiration timestamp"
+        bigint createdAt
+        bigint updatedAt
+    }
+
+    ChatMission {
+        string id PK "UUID"
+        string title "Mission title"
+        text description "Mission description"
+        decimal reward "BZR reward"
+        string type "share | review | referral | custom"
+        string kind "onboarding | referral | sales | engagement"
+        int goal "Target quantity"
+        json requirements "Completion requirements"
+        int maxCompletions "Max completions"
+        int completedCount "Times completed"
+        bigint expiresAt "Expiration"
+        string status "active | paused | completed"
+        boolean isActive "Is active"
+        string createdBy FK "Creator profile ID"
+        bigint createdAt
+    }
+
+    ChatMissionCompletion {
+        string id PK "UUID"
+        string missionId FK "References ChatMission.id"
+        string profileId FK "References Profile.id"
+        json proof "Completion proof"
+        bigint completedAt
+    }
+
+    ChatTrustBadge {
+        string id PK "UUID"
+        string profileId FK UK "References Profile.id"
+        string level "bronze | silver | gold | platinum"
+        string nftId "Mock NFT ID"
+        boolean isActive "Badge active"
+        bigint issuedAt "Issue timestamp"
+    }
+
+    ChatReport {
+        string id PK "UUID"
+        string reporterId FK "References Profile.id"
+        string reportedId FK "References Profile.id"
+        string contentType "message | profile | group"
+        string contentId "Content being reported"
+        string reason "Report reason"
+        text description "Detailed description"
+        string status "pending | under_review | resolved"
+        int votes "Total votes"
+        int approveVotes "Approve count"
+        int rejectVotes "Reject count"
+        string resolution "warning | suspend | ban | dismiss"
+        string resolvedBy FK "Moderator profile ID"
+        bigint resolvedAt "Resolution timestamp"
+        text resolutionNotes "Resolution notes"
+        bigint createdAt
+    }
+
+    ChatReportVote {
+        string id PK "UUID"
+        string reportId FK "References ChatReport.id"
+        string voterId FK "References Profile.id"
+        boolean approve "Vote approve/reject"
+        bigint votedAt
+    }
+
+    Order {
+        string id PK "UUID"
+        string buyerAddr "Buyer address"
+        string sellerAddr "Seller address"
+    }

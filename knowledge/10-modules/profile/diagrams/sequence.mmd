@@ -1,0 +1,141 @@
+%% Profile Module - Profile Management Flow Sequence Diagram
+sequenceDiagram
+    actor User
+    participant Client
+    participant API
+    participant DB
+    participant Blockchain
+
+    %% Phase 1: Auto-create Profile
+    rect rgb(200, 230, 255)
+        Note over User,DB: Phase 1: Auto-Create Profile on First Login
+        User->>Client: Login with wallet (first time)
+        Client->>API: POST /auth/verify<br/>{address, signature}
+        API->>DB: Find User by address
+        DB-->>API: User found, no Profile
+
+        API->>API: Generate unique handle<br/>(alice_1234)
+        API->>DB: Create Profile<br/>(handle, userId, defaults)
+        DB-->>API: Profile created
+        API-->>Client: {accessToken, profile}
+        Client-->>User: Welcome! Profile created
+    end
+
+    %% Phase 2: Complete Profile
+    rect rgb(255, 240, 200)
+        Note over User,DB: Phase 2: Complete Profile Information
+        User->>Client: Navigate to /app/profile/edit
+        User->>Client: Fill form<br/>(displayName, bio, avatar, banner)
+        User->>Client: Upload avatar image
+        Client->>API: POST /api/media/upload<br/>(multipart/form-data)
+        API->>API: Upload to IPFS
+        API-->>Client: {avatarUrl: ipfs://...}
+
+        Client->>API: PUT /api/profiles/:id<br/>{displayName, bio, avatarUrl, bannerUrl}
+        API->>DB: Update Profile
+        DB-->>API: Profile updated
+        API-->>Client: {profile}
+        Client-->>User: Profile updated successfully
+    end
+
+    %% Phase 3: Follow User
+    rect rgb(200, 255, 200)
+        Note over User,DB: Phase 3: Follow Another User
+        User->>Client: Browse profiles
+        User->>Client: Click "Follow @bob"
+        Client->>API: POST /api/profiles/:bobId/follow
+        API->>DB: Check if already following
+
+        alt Already following
+            API-->>Client: 409 Already following
+            Client-->>User: You already follow @bob
+        else Not following
+            API->>DB: Create Follow record
+            API->>DB: Increment followerCount (bob)
+            API->>DB: Increment followingCount (user)
+            API->>DB: Create ProfileReputationEvent<br/>(+5 for @bob)
+            DB-->>API: Follow created
+            API-->>Client: {success: true}
+            Client-->>User: Now following @bob
+            Note over User: @bob notified
+        end
+    end
+
+    %% Phase 4: Reputation Update
+    rect rgb(255, 230, 255)
+        Note over User,Blockchain: Phase 4: Reputation Update (Event-Driven)
+        Note over User: User completes order
+        API->>API: Process order completion
+        API->>DB: Create ProfileReputationEvent<br/>(eventCode: ORDER_COMPLETED, delta: +50)
+        API->>DB: Query current reputationScore
+        DB-->>API: {reputationScore: 150}
+
+        API->>API: Calculate new score<br/>(150 + 50 = 200)
+        API->>API: Determine new tier<br/>(200 → Silver)
+        API->>DB: Update Profile<br/>(reputationScore: 200, tier: silver)
+        DB-->>API: Updated
+
+        alt Tier upgraded
+            API->>API: Emit notification<br/>"Congrats! Silver tier"
+            Note over User: Notification shown
+        end
+
+        API->>Blockchain: Emit reputation event on-chain
+        Blockchain-->>API: Event recorded
+    end
+
+    %% Phase 5: Change Handle
+    rect rgb(240, 240, 240)
+        Note over User,Blockchain: Phase 5: Change Handle (Paid Feature)
+        User->>Client: Request handle change
+        User->>Client: Enter new handle "alice_pro"
+        Client->>API: POST /api/profiles/:id/handle<br/>{newHandle: "alice_pro"}
+        API->>DB: Check handle availability
+
+        alt Handle taken
+            API-->>Client: 409 Handle already exists
+            Client-->>User: Handle not available
+        else Handle available
+            API->>API: Validate fee payment (10 BZR)
+            API->>Blockchain: Deduct 10 BZR from wallet
+            Blockchain-->>API: Payment confirmed
+
+            API->>DB: Create HandleHistory record<br/>(oldHandle: alice_1234, newHandle: alice_pro)
+            API->>DB: Update Profile.handle
+            DB-->>API: Handle updated
+            API-->>Client: {success: true, newHandle}
+            Client-->>User: Handle changed to @alice_pro
+        end
+    end
+
+    %% Phase 6: View Public Profile
+    rect rgb(200, 255, 255)
+        Note over User,DB: Phase 6: View Public Profile
+        User->>Client: Visit /profile/@bob
+        Client->>API: GET /api/profiles/@bob
+        API->>DB: Query Profile + stats
+        API->>DB: Query badges (active)
+        API->>DB: Query recent posts
+        API->>DB: Check if following
+        DB-->>API: Profile + relations
+        API-->>Client: {profile, badges, posts, isFollowing}
+        Client-->>User: Display profile page<br/>(stats, bio, badges, posts)
+    end
+
+    %% Phase 7: Search Profiles
+    rect rgb(255, 200, 200)
+        Note over User,DB: Phase 7: Search & Discovery
+        User->>Client: Search "alice"
+        Client->>API: GET /api/profiles/search?q=alice
+        API->>DB: Full-text search<br/>(handle, displayName)
+        DB-->>API: Matching profiles
+        API-->>Client: {results: [profiles]}
+        Client-->>User: Display search results
+
+        User->>Client: View "Trending Profiles"
+        Client->>API: GET /api/profiles/trending
+        API->>DB: Query profiles<br/>(ORDER BY follower growth rate)
+        DB-->>API: Trending profiles
+        API-->>Client: {trending: [profiles]}
+        Client-->>User: Display trending profiles
+    end

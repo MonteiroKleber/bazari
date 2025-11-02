@@ -1,0 +1,86 @@
+%% Profile Module - Entity Relationship Diagram
+erDiagram
+    User ||--o| Profile : "has"
+    Profile ||--o{ Follow : "follower"
+    Profile ||--o{ Follow : "following"
+    Profile ||--o{ ProfileBadge : "has"
+    Profile ||--o{ ProfileReputationEvent : "history"
+    Profile ||--o{ HandleHistory : "changes"
+    Profile ||--o{ Post : "creates"
+
+    User {
+        string id PK "UUID"
+        string address UK "Substrate SS58"
+        datetime createdAt
+    }
+
+    Profile {
+        string id PK "CUID"
+        string userId FK UK "References User.id"
+        string handle UK "@username"
+        string displayName "Display name"
+        text bio "Bio in markdown (500 chars)"
+        string avatarUrl "IPFS URL"
+        string bannerUrl "IPFS URL"
+        json externalLinks "Social links"
+        int followersCount "Follower count"
+        int followingCount "Following count"
+        int postsCount "Post count"
+        bigint onChainProfileId UK "NFT ID on-chain"
+        int reputationScore "0-10000 points"
+        string reputationTier "bronze | silver | gold | platinum | diamond"
+        string metadataCid "IPFS CID"
+        boolean isVerified "Blue checkmark"
+        datetime lastChainSync "Last sync timestamp"
+        string chatPublicKey "Curve25519 pubkey"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    Follow {
+        string id PK "CUID"
+        string followerId FK "References Profile.id"
+        string followingId FK "References Profile.id"
+        datetime createdAt
+    }
+
+    ProfileBadge {
+        string id PK "CUID"
+        string profileId FK "References Profile.id"
+        string code "Badge code (EARLY_ADOPTER, TOP_SELLER)"
+        json label "i18n labels {pt, en, es}"
+        string issuedBy "Issuer (marketplace, dao, system)"
+        datetime issuedAt
+        bigint blockNumber "On-chain block number"
+        datetime revokedAt "Revocation timestamp"
+        text revokeReason "Revocation reason"
+    }
+
+    ProfileReputationEvent {
+        string id PK "CUID"
+        string profileId FK "References Profile.id"
+        string eventCode "ORDER_COMPLETED, DELIVERY_DONE, etc"
+        int delta "Points change (+50, -100)"
+        int newTotal "Score after event"
+        text reason "Event reason"
+        string emittedBy "Emitter module"
+        bigint blockNumber "On-chain block"
+        string extrinsicId "Extrinsic ID"
+        datetime createdAt
+    }
+
+    HandleHistory {
+        string id PK "CUID"
+        string profileId FK "References Profile.id"
+        string oldHandle "Previous handle"
+        string newHandle "New handle"
+        datetime changedAt
+        bigint blockNumber "On-chain block"
+    }
+
+    Post {
+        string id PK "CUID"
+        string profileId FK "References Profile.id"
+        text content "Post content"
+        datetime createdAt
+    }

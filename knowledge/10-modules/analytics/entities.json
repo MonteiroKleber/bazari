@@ -1,0 +1,86 @@
+{
+  "entities": [
+    {
+      "name": "Analytics (Virtual Entity)",
+      "table": "N/A - Computed on-demand",
+      "note": "No dedicated analytics tables. All metrics computed from existing entities.",
+      "computedFrom": ["Post", "PostLike", "PostComment", "Follow", "Profile"]
+    }
+  ],
+  "computedMetrics": [
+    {
+      "name": "UserAnalytics",
+      "endpoint": "GET /users/me/analytics",
+      "structure": {
+        "timeRange": "string ('7d' | '30d' | '90d')",
+        "overview": {
+          "totalPosts": "number",
+          "totalLikes": "number",
+          "totalComments": "number",
+          "totalEngagement": "number",
+          "engagementRate": "number",
+          "totalFollowers": "number",
+          "newFollowers": "number"
+        },
+        "followerGrowth": [
+          {
+            "date": "string (YYYY-MM-DD)",
+            "count": "number (cumulative follower count)"
+          }
+        ],
+        "engagementOverTime": [
+          {
+            "date": "string (YYYY-MM-DD)",
+            "rate": "number (engagement per post)"
+          }
+        ],
+        "bestPostingTimes": [
+          {
+            "hour": "number (0-23)",
+            "posts": "number",
+            "avgEngagement": "number"
+          }
+        ],
+        "topPosts": [
+          {
+            "id": "string",
+            "content": "string (first 100 chars)",
+            "likes": "number",
+            "comments": "number",
+            "engagement": "number",
+            "createdAt": "DateTime"
+          }
+        ]
+      }
+    }
+  ],
+  "calculations": {
+    "engagementRate": "totalEngagement / totalPosts",
+    "cumulativeFollowerGrowth": "Sum of new followers from startDate to each date",
+    "avgEngagementByHour": "(total likes + comments for hour) / posts in hour",
+    "postEngagement": "post.likes.count + post.comments.count"
+  },
+  "futureEntities": [
+    {
+      "name": "AnalyticsEvent",
+      "note": "Dedicated event tracking table for user actions (page views, clicks, etc.)",
+      "fields": [
+        {"name": "id", "type": "String", "constraints": ["@id", "@default(cuid())"]},
+        {"name": "userId", "type": "String?"},
+        {"name": "sessionId", "type": "String"},
+        {"name": "eventType", "type": "String", "description": "page_view | button_click | product_view | checkout_start | etc"},
+        {"name": "eventData", "type": "Json", "description": "Flexible JSON payload"},
+        {"name": "ipAddress", "type": "String?"},
+        {"name": "userAgent", "type": "String?"},
+        {"name": "createdAt", "type": "DateTime", "constraints": ["@default(now())"]}
+      ],
+      "indexes": ["@@index([userId, createdAt])", "@@index([eventType])"]
+    },
+    {
+      "name": "StoreAnalytics",
+      "note": "Computed store metrics (sales, revenue, conversion)",
+      "computedFrom": ["Order", "Product", "SellerProfile"]
+    }
+  ],
+  "note": "Current implementation: analytics computed on-demand from existing entities. Future: Dedicated event tracking + pre-aggregated metrics for performance."
+}

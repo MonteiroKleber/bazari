@@ -1,0 +1,86 @@
+{
+  "module": {
+    "id": "moderation",
+    "name": "Content Moderation",
+    "category": "auxiliary",
+    "version": "1.0.0",
+    "status": "beta",
+    "description": "Sistema de moderação comunitária descentralizado onde usuários reportam conteúdo malicioso, votam em resoluções, e a DAO arbitra disputas complexas."
+  },
+  "vision": {
+    "statement": "Sistema de moderação comunitária descentralizado onde usuários reportam conteúdo malicioso, votam em resoluções, e a DAO arbitra disputas complexas.",
+    "principles": [
+      "Community-Driven - Users police the platform",
+      "Transparent - All reports and votes visible",
+      "Proportional Response - warning → suspend → ban",
+      "Due Process - Evidence review before action",
+      "DAO Escalation - Complex cases go to DAO",
+      "Spam - Unsolicited advertising",
+      "Scam - Fraudulent activity",
+      "Harassment - Abusive behavior",
+      "Illegal Content - Prohibited materials",
+      "Impersonation - Fake profiles"
+    ]
+  },
+  "entities": [
+    {
+      "name": "ChatReport",
+      "table": "ChatReport",
+      "note": "Documented in chat module - report system integrated with BazChat"
+    },
+    {
+      "name": "ChatReportVote",
+      "table": "ChatReportVote",
+      "note": "Community voting on reports"
+    }
+  ],
+  "valueObjects": [],
+  "apis": [
+    {
+      "method": "POST",
+      "path": "/api/chat/reports",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/reports/:id/vote",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/reports",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/chat/reports/:id/resolve",
+      "auth": true,
+      "description": "```http"
+    }
+  ],
+  "useCases": [
+    {
+      "id": "UC-01",
+      "name": "Core Use Case",
+      "actors": [
+        "User",
+        "System"
+      ],
+      "flow": "User performs action → System processes → Returns result"
+    }
+  ],
+  "dependencies": {
+    "internal": [],
+    "external": []
+  },
+  "security": {
+    "authentication": "JWT-based via auth module",
+    "authorization": "Role-based and ownership-based access control"
+  },
+  "metrics": {
+    "key_metrics": []
+  }
+}

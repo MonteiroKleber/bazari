@@ -1,0 +1,117 @@
+%% Bazari Platform - Blockchain Integration Architecture
+graph TB
+    subgraph "Off-Chain (API)"
+        APIServer["🖥️ API Server<br/>(Fastify)"]
+
+        subgraph "Blockchain Services"
+            ProfilesChainService["👤 Profiles Chain Service<br/>getProfile(), createProfile()"]
+            StoresChainService["🏪 Stores Chain Service<br/>getStore(), createStore()"]
+            GovernanceService["🗳️ Governance Service<br/>referendums, votes"]
+            VestingService["🔒 Vesting Service<br/>getVesting(), claim()"]
+            BalancesService["💰 Balances Service<br/>getBalance(), transfer()"]
+        end
+
+        subgraph "Background Workers"
+            ReputationWorker["⭐ Reputation Worker<br/>Sync store reputation<br/>Every 60s"]
+            BlockListener["👂 Block Listener<br/>Listen for events<br/>(Future)"]
+        end
+
+        PostgreSQL[("💾 PostgreSQL<br/>Off-chain data")]
+    end
+
+    subgraph "Communication Layer"
+        PolkadotJS["🔗 @polkadot/api<br/>JavaScript Client<br/>WebSocket connection"]
+        Keyring["🔑 Keyring<br/>@polkadot/keyring<br/>Key management"]
+    end
+
+    subgraph "On-Chain (Substrate)"
+        BazariChain["⛓️ BazariChain<br/>(Substrate Runtime)"]
+
+        subgraph "Custom Pallets"
+            ProfilesPallet["👤 Profiles Pallet<br/>create_profile<br/>update_profile<br/>Storage: ProfileInfo"]
+            StoresPallet["🏪 Stores Pallet<br/>create_store<br/>update_store<br/>bump_reputation<br/>Storage: StoreInfo"]
+        end
+
+        subgraph "Standard Pallets"
+            BalancesPallet["💰 Balances Pallet<br/>transfer<br/>transfer_keep_alive<br/>Storage: Account balances"]
+            DemocracyPallet["🗳️ Democracy Pallet<br/>propose<br/>vote<br/>Storage: Referendums"]
+            TreasuryPallet["💸 Treasury Pallet<br/>propose_spend<br/>Storage: Proposals"]
+            CouncilPallet["👥 Council Pallet<br/>vote<br/>Storage: Members, Votes"]
+            VestingPallet["🔒 Vesting Pallet<br/>vest<br/>vest_other<br/>Storage: Vesting schedules"]
+        end
+
+        subgraph "Runtime Storage"
+            ProfilesStorage[("👤 Profiles Storage<br/>Map: AccountId → ProfileInfo")]
+            StoresStorage[("🏪 Stores Storage<br/>Map: StoreId → StoreInfo")]
+            VestingStorage[("🔒 Vesting Storage<br/>Map: AccountId → VestingInfo")]
+        end
+    end
+
+    %% API to Services
+    APIServer --> ProfilesChainService
+    APIServer --> StoresChainService
+    APIServer --> GovernanceService
+    APIServer --> VestingService
+    APIServer --> BalancesService
+
+    %% Services to Communication Layer
+    ProfilesChainService --> PolkadotJS
+    StoresChainService --> PolkadotJS
+    GovernanceService --> PolkadotJS
+    VestingService --> PolkadotJS
+    BalancesService --> PolkadotJS
+
+    %% Workers to Communication Layer
+    ReputationWorker --> PolkadotJS
+    ReputationWorker --> PostgreSQL
+    BlockListener -.-> PolkadotJS
+    BlockListener -.-> PostgreSQL
+
+    %% Keyring for signing
+    ReputationWorker --> Keyring
+    Keyring --> PolkadotJS
+
+    %% Communication to Blockchain
+    PolkadotJS -->|WebSocket<br/>ws://localhost:9944| BazariChain
+
+    %% Blockchain to Pallets
+    BazariChain --> ProfilesPallet
+    BazariChain --> StoresPallet
+    BazariChain --> BalancesPallet
+    BazariChain --> DemocracyPallet
+    BazariChain --> TreasuryPallet
+    BazariChain --> CouncilPallet
+    BazariChain --> VestingPallet
+
+    %% Pallets to Storage
+    ProfilesPallet --> ProfilesStorage
+    StoresPallet --> StoresStorage
+    VestingPallet --> VestingStorage
+
+    %% Query flow (read)
+    ProfilesStorage -.->|query| ProfilesPallet
+    StoresStorage -.->|query| StoresPallet
+    VestingStorage -.->|query| VestingPallet
+
+    %% Notes on sync
+    ProfilesStorage -.->|sync metadata| PostgreSQL
+    StoresStorage -.->|sync reputation| PostgreSQL
+
+    %% Styling
+    classDef offChainStyle fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef serviceStyle fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
+    classDef workerStyle fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef commsStyle fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    classDef chainStyle fill:#fff9c4,stroke:#f57f17,stroke-width:2px
+    classDef customPalletStyle fill:#fce4ec,stroke:#ad1457,stroke-width:2px
+    classDef standardPalletStyle fill:#ede7f6,stroke:#4527a0,stroke-width:2px
+    classDef storageStyle fill:#fbe9e7,stroke:#bf360c,stroke-width:2px
+
+    class APIServer,PostgreSQL offChainStyle
+    class ProfilesChainService,StoresChainService,GovernanceService,VestingService,BalancesService serviceStyle
+    class ReputationWorker,BlockListener workerStyle
+    class PolkadotJS,Keyring commsStyle
+    class BazariChain chainStyle
+    class ProfilesPallet,StoresPallet customPalletStyle
+    class BalancesPallet,DemocracyPallet,TreasuryPallet,CouncilPallet,VestingPallet standardPalletStyle
+    class ProfilesStorage,StoresStorage,VestingStorage storageStyle

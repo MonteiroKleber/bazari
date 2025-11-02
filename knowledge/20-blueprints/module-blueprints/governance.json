@@ -1,0 +1,335 @@
+{
+  "module": {
+    "id": "governance",
+    "name": "DAO Governance",
+    "category": "defi-social",
+    "version": "1.0.0",
+    "status": "production",
+    "description": "Criar sistema de governança DAO on-chain com democracy, treasury, council e technical committee, permitindo participação direta de holders ZARI em decisões sobre protocolos, tesouraria e evolução da p"
+  },
+  "vision": {
+    "statement": "Criar sistema de governança DAO on-chain com democracy, treasury, council e technical committee, permitindo participação direta de holders ZARI em decisões sobre protocolos, tesouraria e evolução da plataforma.",
+    "principles": [
+      "Transparency - Todas as propostas e votos visíveis on-chain",
+      "Stake-Weighted Voting - 1 ZARI = 1 voto (conviction voting)",
+      "Progressive Decentralization - Transição gradual de controle para comunidade",
+      "Treasury Automation - Spend proposals automáticos via referendos",
+      "Emergency Powers - Technical Committee pode fast-track upgrades críticos"
+    ]
+  },
+  "entities": [
+    {
+      "name": "Referendum",
+      "storage": "On-Chain (Democracy Pallet)",
+      "fields": [
+        {
+          "name": "referendumIndex",
+          "type": "u32",
+          "description": "Unique referendum ID"
+        },
+        {
+          "name": "proposalHash",
+          "type": "H256",
+          "description": "Hash of the proposal call"
+        },
+        {
+          "name": "threshold",
+          "type": "VoteThreshold",
+          "description": "SimpleMajority | SuperMajorityApprove | SuperMajorityAgainst"
+        },
+        {
+          "name": "end",
+          "type": "BlockNumber",
+          "description": "Block when voting ends"
+        },
+        {
+          "name": "delay",
+          "type": "BlockNumber",
+          "description": "Blocks before enactment"
+        },
+        {
+          "name": "tally",
+          "type": "Tally",
+          "description": "{ayes: Balance, nays: Balance, turnout: Balance}"
+        }
+      ]
+    },
+    {
+      "name": "PublicProposal",
+      "storage": "On-Chain (Democracy Pallet)",
+      "fields": [
+        {
+          "name": "proposalIndex",
+          "type": "u32"
+        },
+        {
+          "name": "proposalHash",
+          "type": "H256"
+        },
+        {
+          "name": "proposer",
+          "type": "AccountId",
+          "description": "SS58 address"
+        },
+        {
+          "name": "deposit",
+          "type": "Balance",
+          "description": "Bond amount in planck"
+        },
+        {
+          "name": "seconds",
+          "type": "Vec<AccountId>",
+          "description": "Addresses that seconded"
+        }
+      ]
+    },
+    {
+      "name": "Vote",
+      "storage": "On-Chain (Democracy Pallet)",
+      "fields": [
+        {
+          "name": "voter",
+          "type": "AccountId"
+        },
+        {
+          "name": "referendumIndex",
+          "type": "u32"
+        },
+        {
+          "name": "vote",
+          "type": "AccountVote",
+          "description": "Standard or Split vote"
+        },
+        {
+          "name": "conviction",
+          "type": "Conviction",
+          "description": "None | Locked1x-6x"
+        },
+        {
+          "name": "balance",
+          "type": "Balance",
+          "description": "Amount voted with"
+        }
+      ]
+    },
+    {
+      "name": "TreasuryProposal",
+      "storage": "On-Chain (Treasury Pallet)",
+      "fields": [
+        {
+          "name": "proposalIndex",
+          "type": "u32"
+        },
+        {
+          "name": "proposer",
+          "type": "AccountId"
+        },
+        {
+          "name": "value",
+          "type": "Balance",
+          "description": "Amount requested"
+        },
+        {
+          "name": "beneficiary",
+          "type": "AccountId",
+          "description": "Who receives funds"
+        },
+        {
+          "name": "bond",
+          "type": "Balance",
+          "description": "5% deposit"
+        }
+      ]
+    },
+    {
+      "name": "CouncilMember",
+      "storage": "On-Chain (Council Pallet)",
+      "fields": [
+        {
+          "name": "accountId",
+          "type": "AccountId",
+          "description": "Council member address"
+        },
+        {
+          "name": "backing",
+          "type": "Balance",
+          "description": "Total votes received in election"
+        }
+      ]
+    },
+    {
+      "name": "CouncilProposal",
+      "storage": "On-Chain (Council Pallet)",
+      "fields": [
+        {
+          "name": "proposalHash",
+          "type": "H256"
+        },
+        {
+          "name": "proposal",
+          "type": "Call",
+          "description": "Extrinsic to execute"
+        },
+        {
+          "name": "threshold",
+          "type": "u32",
+          "description": "Minimum votes needed"
+        },
+        {
+          "name": "ayes",
+          "type": "Vec<AccountId>"
+        },
+        {
+          "name": "nays",
+          "type": "Vec<AccountId>"
+        },
+        {
+          "name": "end",
+          "type": "BlockNumber"
+        }
+      ]
+    },
+    {
+      "name": "TechnicalCommitteeMember",
+      "storage": "On-Chain (TechnicalCommittee Pallet)",
+      "fields": [
+        {
+          "name": "accountId",
+          "type": "AccountId",
+          "description": "Tech committee member"
+        }
+      ]
+    },
+    {
+      "name": "Multisig",
+      "storage": "On-Chain (Multisig Pallet)",
+      "fields": [
+        {
+          "name": "account",
+          "type": "AccountId",
+          "description": "Multisig account address"
+        },
+        {
+          "name": "callHash",
+          "type": "H256",
+          "description": "Hash of call to execute"
+        },
+        {
+          "name": "threshold",
+          "type": "u16",
+          "description": "M in M-of-N"
+        },
+        {
+          "name": "signatories",
+          "type": "Vec<AccountId>",
+          "description": "All co-signers"
+        },
+        {
+          "name": "depositor",
+          "type": "AccountId"
+        },
+        {
+          "name": "approvals",
+          "type": "Vec<AccountId>",
+          "description": "Who approved so far"
+        },
+        {
+          "name": "timepoint",
+          "type": "Timepoint",
+          "description": "{height: BlockNumber, index: u32}"
+        }
+      ]
+    }
+  ],
+  "valueObjects": [],
+  "apis": [
+    {
+      "method": "GET",
+      "path": "/api/governance/treasury/proposals",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/governance/treasury/approvals",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/governance/democracy/referendums",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/governance/democracy/proposals",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/governance/democracy/referendums/:id/votes",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/governance/council/members",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/governance/council/proposals",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/governance/tech-committee/members",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/governance/tech-committee/proposals",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/governance/multisig/:address",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/governance/stats",
+      "auth": true,
+      "description": "```http"
+    }
+  ],
+  "useCases": [
+    {
+      "id": "UC-01",
+      "name": "Core Use Case",
+      "actors": [
+        "User",
+        "System"
+      ],
+      "flow": "User performs action → System processes → Returns result"
+    }
+  ],
+  "dependencies": {
+    "internal": [],
+    "external": []
+  },
+  "security": {
+    "authentication": "JWT-based via auth module",
+    "authorization": "Role-based and ownership-based access control"
+  },
+  "metrics": {
+    "key_metrics": []
+  }
+}

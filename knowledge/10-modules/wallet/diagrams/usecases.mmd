@@ -1,0 +1,133 @@
+%% Wallet Module - Use Cases Diagram
+graph TB
+    subgraph Actors
+        User((User))
+        System((System))
+    end
+
+    subgraph "Wallet Creation"
+        UC01[UC-01: Create New Wallet]
+        UC02[UC-02: Generate Mnemonic]
+        UC03[UC-03: Import Existing Wallet]
+        UC04[UC-04: Validate Mnemonic]
+        UC05[UC-05: Set PIN]
+    end
+
+    subgraph "Security"
+        UC06[UC-06: Encrypt Seed]
+        UC07[UC-07: Decrypt Seed]
+        UC08[UC-08: Unlock Wallet]
+        UC09[UC-09: Lock Wallet]
+        UC10[UC-10: Change PIN]
+        UC11[UC-11: Backup Wallet]
+    end
+
+    subgraph "Account Management"
+        UC12[UC-12: Derive Account]
+        UC13[UC-13: Add New Account]
+        UC14[UC-14: Switch Active Account]
+        UC15[UC-15: View All Accounts]
+        UC16[UC-16: Rename Account]
+    end
+
+    subgraph "Balance Operations"
+        UC17[UC-17: Query BZR Balance]
+        UC18[UC-18: Query ZARI Balance]
+        UC19[UC-19: Query All Balances]
+        UC20[UC-20: Format Balance Display]
+    end
+
+    subgraph "Transactions"
+        UC21[UC-21: Send BZR]
+        UC22[UC-22: Send ZARI]
+        UC23[UC-23: Sign Transaction]
+        UC24[UC-24: Estimate Transaction Fee]
+        UC25[UC-25: Submit Transaction]
+        UC26[UC-26: View Transaction History]
+    end
+
+    subgraph "Address Management"
+        UC27[UC-27: Generate Receive Address]
+        UC28[UC-28: Show QR Code]
+        UC29[UC-29: Copy Address to Clipboard]
+        UC30[UC-30: Validate Address Format]
+    end
+
+    %% User interactions
+    User -->|creates| UC01
+    User -->|imports| UC03
+    User -->|sets| UC05
+    User -->|unlocks| UC08
+    User -->|locks| UC09
+    User -->|changes| UC10
+    User -->|backups| UC11
+    User -->|adds| UC13
+    User -->|switches| UC14
+    User -->|views| UC15
+    User -->|renames| UC16
+    User -->|queries| UC17
+    User -->|queries| UC18
+    User -->|queries| UC19
+    User -->|sends| UC21
+    User -->|sends| UC22
+    User -->|views| UC26
+    User -->|generates| UC27
+    User -->|shows| UC28
+    User -->|copies| UC29
+
+    %% System interactions
+    System -->|generates| UC02
+    System -->|validates| UC04
+    System -->|encrypts| UC06
+    System -->|decrypts| UC07
+    System -->|derives| UC12
+    System -->|formats| UC20
+    System -->|signs| UC23
+    System -->|estimates| UC24
+    System -->|submits| UC25
+    System -->|validates| UC30
+
+    %% Dependencies
+    UC01 -.->|uses| UC02
+    UC01 -.->|uses| UC05
+    UC01 -.->|triggers| UC06
+    UC01 -.->|triggers| UC12
+    UC03 -.->|uses| UC04
+    UC03 -.->|uses| UC05
+    UC03 -.->|triggers| UC06
+    UC05 -.->|uses| UC06
+    UC06 -.->|stores| UC11
+    UC08 -.->|uses| UC07
+    UC08 -.->|enables| UC21
+    UC10 -.->|uses| UC07
+    UC10 -.->|uses| UC06
+    UC13 -.->|uses| UC12
+    UC17 -.->|uses| UC20
+    UC18 -.->|uses| UC20
+    UC19 -.->|combines| UC17
+    UC19 -.->|combines| UC18
+    UC21 -.->|uses| UC23
+    UC21 -.->|uses| UC24
+    UC21 -.->|uses| UC25
+    UC22 -.->|uses| UC23
+    UC22 -.->|uses| UC24
+    UC22 -.->|uses| UC25
+    UC23 -.->|requires| UC08
+    UC27 -.->|uses| UC28
+    UC28 -.->|enables| UC29
+    UC30 -.->|validates| UC21
+
+    %% Styling
+    classDef creationCase fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    classDef securityCase fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef accountCase fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    classDef balanceCase fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef transactionCase fill:#fff9c4,stroke:#f9a825,stroke-width:2px
+    classDef addressCase fill:#ffebee,stroke:#d32f2f,stroke-width:2px
+
+    class UC01,UC02,UC03,UC04,UC05 creationCase
+    class UC06,UC07,UC08,UC09,UC10,UC11 securityCase
+    class UC12,UC13,UC14,UC15,UC16 accountCase
+    class UC17,UC18,UC19,UC20 balanceCase
+    class UC21,UC22,UC23,UC24,UC25,UC26 transactionCase
+    class UC27,UC28,UC29,UC30 addressCase

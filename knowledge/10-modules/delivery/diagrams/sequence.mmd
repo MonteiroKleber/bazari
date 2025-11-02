@@ -1,0 +1,125 @@
+%% Delivery Module - Delivery Flow Sequence Diagram
+sequenceDiagram
+    actor Sender
+    actor Deliverer
+    participant Client
+    participant API
+    participant DB
+    participant Blockchain
+
+    %% Phase 1: Auto-Create Delivery Request
+    rect rgb(200, 230, 255)
+        Note over Sender,DB: Phase 1: Auto-Create from Order
+        Sender->>Client: Create Order with shipping
+        Client->>API: POST /api/orders<br/>{items, shippingAddress}
+        API->>API: Calculate package dimensions<br/>from order items
+        API->>API: Calculate delivery fee<br/>(distance, weight, packageType)
+        API->>DB: Create DeliveryRequest<br/>(orderId, addresses, fee, status: pending)
+        DB-->>API: DeliveryRequest created
+        API-->>Client: {orderId, deliveryRequestId, fee}
+        Client-->>Sender: Order created, delivery fee: 19 BZR
+    end
+
+    %% Phase 2: Deliverer Browses Requests
+    rect rgb(255, 240, 200)
+        Note over Deliverer,DB: Phase 2: Browse Available Delivery Requests
+        Deliverer->>Client: Navigate to /app/delivery
+        Client->>API: GET /api/delivery/requests?status=pending
+        API->>DB: Query DeliveryRequest<br/>(status: pending, match deliverer capacity)
+        DB-->>API: Available requests
+        API-->>Client: {requests: [req1, req2, ...]}
+        Client-->>Deliverer: Display delivery opportunities<br/>(fee, distance, package)
+    end
+
+    %% Phase 3: Accept Delivery
+    rect rgb(200, 255, 200)
+        Note over Deliverer,DB: Phase 3: Accept Delivery Request
+        Deliverer->>Client: Click "Accept Delivery"
+        Client->>API: POST /api/delivery/requests/:id/accept
+        API->>DB: Check deliveryPersonId is null
+
+        alt Already accepted
+            API-->>Client: 409 Already assigned
+            Client-->>Deliverer: This delivery is taken
+        else Available
+            API->>DB: Query DeliveryProfile<br/>(verify capacity: weight, volume)
+            alt Insufficient capacity
+                API-->>Client: 400 Vehicle capacity exceeded
+                Client-->>Deliverer: Your vehicle can't carry this
+            else Capacity OK
+                API->>DB: Update DeliveryRequest<br/>(deliveryPersonId, status: accepted)
+                DB-->>API: Updated
+                API-->>Client: {success: true}
+                Client-->>Deliverer: Delivery accepted!
+                Note over Sender: Notification: Deliverer assigned
+            end
+        end
+    end
+
+    %% Phase 4: Pickup
+    rect rgb(255, 230, 255)
+        Note over Deliverer,DB: Phase 4: Pickup Package
+        Deliverer->>Client: Navigate to pickup address
+        Deliverer->>Client: Click "Confirm Pickup"
+        Client->>API: POST /api/delivery/requests/:id/pickup
+        API->>DB: Update DeliveryRequest<br/>(status: picked_up, pickedUpAt)
+        DB-->>API: Updated
+        API-->>Client: {success: true}
+        Client-->>Deliverer: Package picked up
+        Note over Sender: Notification: Package picked up
+    end
+
+    %% Phase 5: In Transit
+    rect rgb(240, 240, 240)
+        Note over Deliverer,DB: Phase 5: Mark In Transit
+        Deliverer->>Client: Click "In Transit"
+        Client->>API: POST /api/delivery/requests/:id/in-transit
+        API->>DB: Update DeliveryRequest<br/>(status: in_transit, inTransitAt)
+        API->>DB: Update current location (lat, lng)
+        DB-->>API: Updated
+        API-->>Client: {success: true}
+        Client-->>Deliverer: Package in transit
+        Note over Sender: Notification: Package on the way
+    end
+
+    %% Phase 6: Deliver
+    rect rgb(200, 255, 255)
+        Note over Deliverer,Blockchain: Phase 6: Complete Delivery
+        Deliverer->>Client: Arrive at destination
+        Deliverer->>Client: Click "Confirm Delivery"
+        Client->>API: POST /api/delivery/requests/:id/deliver
+        API->>DB: Update DeliveryRequest<br/>(status: delivered, deliveredAt)
+        API->>DB: Create ProfileReputationEvent<br/>(+40 for deliverer)
+        API->>Blockchain: Emit delivery event on-chain
+        Blockchain-->>API: Event recorded
+        API->>DB: Update DeliveryProfile<br/>(totalDeliveries++)
+        DB-->>API: Updated
+        API-->>Client: {success: true}
+        Client-->>Deliverer: Delivery completed!
+        Note over Sender: Notification: Package delivered
+    end
+
+    %% Phase 7: Complete Order
+    rect rgb(255, 200, 200)
+        Note over Sender,DB: Phase 7: Confirm Receipt (Sender)
+        Sender->>Client: View order
+        Sender->>Client: Click "Confirm Receipt"
+        Client->>API: POST /api/orders/:id/confirm-delivery
+        API->>DB: Update Order (status: DELIVERED)
+        API->>DB: Update DeliveryRequest (status: completed)
+        DB-->>API: Updated
+        API-->>Client: {success: true}
+        Client-->>Sender: Order confirmed!
+        Note over Deliverer: Payment released to deliverer
+    end
+
+    %% Alternative: Private Network
+    rect rgb(255, 230, 200)
+        Note over Sender,Deliverer: Alternative: Private Delivery Network
+        alt Store has preferredDeliverers
+            API->>DB: Create DeliveryRequest<br/>(preferredDeliverers: [id1, id2], isPrivateNetwork: true)
+            Note over API: Only preferred deliverers see request
+            API->>API: Notify preferred deliverers
+            Note over Deliverer: Preferred deliverer notified first
+        end
+    end

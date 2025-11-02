@@ -1,0 +1,183 @@
+{
+  "entities": [
+    {
+      "name": "Referendum",
+      "storage": "On-Chain (Democracy Pallet)",
+      "fields": [
+        {"name": "referendumIndex", "type": "u32", "description": "Unique referendum ID"},
+        {"name": "proposalHash", "type": "H256", "description": "Hash of the proposal call"},
+        {"name": "threshold", "type": "VoteThreshold", "description": "SimpleMajority | SuperMajorityApprove | SuperMajorityAgainst"},
+        {"name": "end", "type": "BlockNumber", "description": "Block when voting ends"},
+        {"name": "delay", "type": "BlockNumber", "description": "Blocks before enactment"},
+        {"name": "tally", "type": "Tally", "description": "{ayes: Balance, nays: Balance, turnout: Balance}"}
+      ]
+    },
+    {
+      "name": "PublicProposal",
+      "storage": "On-Chain (Democracy Pallet)",
+      "fields": [
+        {"name": "proposalIndex", "type": "u32"},
+        {"name": "proposalHash", "type": "H256"},
+        {"name": "proposer", "type": "AccountId", "description": "SS58 address"},
+        {"name": "deposit", "type": "Balance", "description": "Bond amount in planck"},
+        {"name": "seconds", "type": "Vec<AccountId>", "description": "Addresses that seconded"}
+      ]
+    },
+    {
+      "name": "Vote",
+      "storage": "On-Chain (Democracy Pallet)",
+      "fields": [
+        {"name": "voter", "type": "AccountId"},
+        {"name": "referendumIndex", "type": "u32"},
+        {"name": "vote", "type": "AccountVote", "description": "Standard or Split vote"},
+        {"name": "conviction", "type": "Conviction", "description": "None | Locked1x-6x"},
+        {"name": "balance", "type": "Balance", "description": "Amount voted with"}
+      ]
+    },
+    {
+      "name": "TreasuryProposal",
+      "storage": "On-Chain (Treasury Pallet)",
+      "fields": [
+        {"name": "proposalIndex", "type": "u32"},
+        {"name": "proposer", "type": "AccountId"},
+        {"name": "value", "type": "Balance", "description": "Amount requested"},
+        {"name": "beneficiary", "type": "AccountId", "description": "Who receives funds"},
+        {"name": "bond", "type": "Balance", "description": "5% deposit"}
+      ]
+    },
+    {
+      "name": "CouncilMember",
+      "storage": "On-Chain (Council Pallet)",
+      "fields": [
+        {"name": "accountId", "type": "AccountId", "description": "Council member address"},
+        {"name": "backing", "type": "Balance", "description": "Total votes received in election"}
+      ]
+    },
+    {
+      "name": "CouncilProposal",
+      "storage": "On-Chain (Council Pallet)",
+      "fields": [
+        {"name": "proposalHash", "type": "H256"},
+        {"name": "proposal", "type": "Call", "description": "Extrinsic to execute"},
+        {"name": "threshold", "type": "u32", "description": "Minimum votes needed"},
+        {"name": "ayes", "type": "Vec<AccountId>"},
+        {"name": "nays", "type": "Vec<AccountId>"},
+        {"name": "end", "type": "BlockNumber"}
+      ]
+    },
+    {
+      "name": "TechnicalCommitteeMember",
+      "storage": "On-Chain (TechnicalCommittee Pallet)",
+      "fields": [
+        {"name": "accountId", "type": "AccountId", "description": "Tech committee member"}
+      ]
+    },
+    {
+      "name": "Multisig",
+      "storage": "On-Chain (Multisig Pallet)",
+      "fields": [
+        {"name": "account", "type": "AccountId", "description": "Multisig account address"},
+        {"name": "callHash", "type": "H256", "description": "Hash of call to execute"},
+        {"name": "threshold", "type": "u16", "description": "M in M-of-N"},
+        {"name": "signatories", "type": "Vec<AccountId>", "description": "All co-signers"},
+        {"name": "depositor", "type": "AccountId"},
+        {"name": "approvals", "type": "Vec<AccountId>", "description": "Who approved so far"},
+        {"name": "timepoint", "type": "Timepoint", "description": "{height: BlockNumber, index: u32}"}
+      ]
+    }
+  ],
+  "enums": [
+    {
+      "name": "VoteThreshold",
+      "values": ["SimpleMajority", "SuperMajorityApprove", "SuperMajorityAgainst"]
+    },
+    {
+      "name": "Conviction",
+      "values": ["None", "Locked1x", "Locked2x", "Locked3x", "Locked4x", "Locked5x", "Locked6x"],
+      "multipliers": {
+        "None": 0.1,
+        "Locked1x": 1.0,
+        "Locked2x": 2.0,
+        "Locked3x": 3.0,
+        "Locked4x": 4.0,
+        "Locked5x": 5.0,
+        "Locked6x": 6.0
+      },
+      "lock_periods": {
+        "None": 0,
+        "Locked1x": 7,
+        "Locked2x": 14,
+        "Locked3x": 28,
+        "Locked4x": 56,
+        "Locked5x": 112,
+        "Locked6x": 224
+      }
+    }
+  ],
+  "pallets": [
+    {
+      "name": "Democracy",
+      "description": "Public referendums with conviction voting",
+      "extrinsics": [
+        {"name": "propose", "params": ["proposalHash", "value"], "description": "Submit public proposal"},
+        {"name": "second", "params": ["proposal", "secondsUpperBound"], "description": "Second a proposal"},
+        {"name": "vote", "params": ["refIndex", "vote"], "description": "Vote on referendum"},
+        {"name": "delegate", "params": ["to", "conviction", "balance"], "description": "Delegate voting power"},
+        {"name": "undelegate", "params": [], "description": "Revoke delegation"}
+      ]
+    },
+    {
+      "name": "Treasury",
+      "description": "Fund management and spend proposals",
+      "extrinsics": [
+        {"name": "proposeSpend", "params": ["value", "beneficiary"], "description": "Request treasury funds"},
+        {"name": "rejectProposal", "params": ["proposalId"], "description": "Reject and slash deposit"}
+      ],
+      "constants": {
+        "ProposalBond": "5%",
+        "ProposalBondMinimum": "100 BZR",
+        "SpendPeriod": "24 days",
+        "Burn": "1% per spend period"
+      }
+    },
+    {
+      "name": "Council",
+      "description": "Elected representatives for fast governance",
+      "extrinsics": [
+        {"name": "propose", "params": ["threshold", "proposal"], "description": "Council member proposes"},
+        {"name": "vote", "params": ["proposal", "index", "approve"], "description": "Vote on council proposal"},
+        {"name": "close", "params": ["proposalHash", "index"], "description": "Close proposal after voting"}
+      ],
+      "constants": {
+        "MotionDuration": "7 days",
+        "MaxProposals": 100,
+        "MaxMembers": 13
+      }
+    },
+    {
+      "name": "TechnicalCommittee",
+      "description": "Emergency actions and fast-track",
+      "extrinsics": [
+        {"name": "propose", "params": ["threshold", "proposal"], "description": "Propose emergency action"},
+        {"name": "vote", "params": ["proposal", "index", "approve"], "description": "Vote on tech proposal"}
+      ],
+      "constants": {
+        "MotionDuration": "3 days",
+        "MaxMembers": 5
+      }
+    },
+    {
+      "name": "Multisig",
+      "description": "Multi-signature transactions",
+      "extrinsics": [
+        {"name": "asMulti", "params": ["threshold", "otherSignatories", "maybeTimepoint", "call"], "description": "Approve or execute multisig call"},
+        {"name": "approveAsMulti", "params": ["threshold", "otherSignatories", "maybeTimepoint", "callHash"], "description": "Approve without executing"},
+        {"name": "cancelAsMulti", "params": ["threshold", "otherSignatories", "timepoint", "callHash"], "description": "Cancel pending multisig"}
+      ]
+    }
+  ],
+  "off_chain_storage": {
+    "note": "Governance module primarily uses on-chain storage (Substrate pallets). Backend API provides read-only views of on-chain data. No Prisma models for governance entities.",
+    "caching": "Future: Cache referendum results and voting history in Postgres for faster queries"
+  }
+}

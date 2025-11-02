@@ -1,0 +1,47 @@
+{
+  "entities": [
+    {
+      "name": "SellerProfile",
+      "table": "SellerProfile",
+      "fields": [
+        {"name": "id", "type": "String (CUID)", "constraints": ["PRIMARY KEY"]},
+        {"name": "userId", "type": "String (UUID)", "constraints": ["FK -> User.id", "INDEX"]},
+        {"name": "shopName", "type": "String", "description": "Nome da loja"},
+        {"name": "shopSlug", "type": "String", "description": "URL slug único", "constraints": ["UNIQUE", "INDEX"]},
+        {"name": "about", "type": "String?", "description": "Sobre a loja (markdown)"},
+        {"name": "ratingAvg", "type": "Float", "constraints": ["DEFAULT 0"]},
+        {"name": "ratingCount", "type": "Int", "constraints": ["DEFAULT 0"]},
+        {"name": "policies", "type": "Json?", "description": "Políticas (shipping, returns)"},
+        {"name": "avatarUrl", "type": "String?"},
+        {"name": "bannerUrl", "type": "String?"},
+        {"name": "isDefault", "type": "Boolean", "constraints": ["DEFAULT false"]},
+        {"name": "onChainStoreId", "type": "BigInt?", "description": "Store NFT ID", "constraints": ["INDEX"]},
+        {"name": "ownerAddress", "type": "String?", "description": "SS58 address do owner"},
+        {"name": "operatorAddresses", "type": "String[]", "description": "Operators delegados", "constraints": ["GIN INDEX"]},
+        {"name": "syncStatus", "type": "String?", "description": "pending | synced | error"},
+        {"name": "version", "type": "Int?", "description": "Versão on-chain"},
+        {"name": "metadataCid", "type": "String?", "description": "IPFS CID do store.json"},
+        {"name": "productsCid", "type": "String?", "description": "IPFS CID do products.json"},
+        {"name": "pickupAddress", "type": "Json?", "description": "Endereço para pickup"}
+      ],
+      "relations": [
+        {"name": "user", "type": "N:1", "target": "User"},
+        {"name": "products", "type": "1:N", "target": "Product"}
+      ]
+    },
+    {
+      "name": "StorePublishHistory",
+      "table": "StorePublishHistory",
+      "fields": [
+        {"name": "id", "type": "String (CUID)"},
+        {"name": "sellerProfileId", "type": "String"},
+        {"name": "version", "type": "Int"},
+        {"name": "blockNumber", "type": "BigInt"},
+        {"name": "extrinsicHash", "type": "String?"},
+        {"name": "metadataCid", "type": "String"},
+        {"name": "productsCid", "type": "String"},
+        {"name": "publishedAt", "type": "DateTime"}
+      ]
+    }
+  ]
+}

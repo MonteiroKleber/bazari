@@ -1,0 +1,139 @@
+%% Governance Module - Use Cases Diagram
+graph TB
+    subgraph Actors
+        TokenHolder((Token Holder))
+        Council((Council Member))
+        TechCommittee((Tech Committee))
+        System((System))
+    end
+
+    subgraph "Democracy Use Cases"
+        UC01[UC-01: View Active Referendums]
+        UC02[UC-02: View Referendum Details and Votes]
+        UC03[UC-03: Vote on Referendum]
+        UC04[UC-04: Submit Public Proposal]
+        UC05[UC-05: Second Public Proposal]
+        UC06[UC-06: Delegate Voting Power]
+        UC07[UC-07: Undelegate Voting Power]
+    end
+
+    subgraph "Treasury Use Cases"
+        UC08[UC-08: Submit Treasury Proposal]
+        UC09[UC-09: Council Reviews Treasury Proposal]
+        UC10[UC-10: View Treasury Approvals]
+        UC11[UC-11: View Treasury Balance]
+        UC12[UC-12: Automatic Treasury Spend]
+    end
+
+    subgraph "Council Use Cases"
+        UC13[UC-13: View Council Members]
+        UC14[UC-14: View Council Proposals]
+        UC15[UC-15: Council Member Votes on Proposal]
+        UC16[UC-16: Council Fast-Track Proposal]
+        UC17[UC-17: Cancel Malicious Referendum]
+    end
+
+    subgraph "Technical Committee Use Cases"
+        UC18[UC-18: View Tech Committee Members]
+        UC19[UC-19: View Tech Committee Proposals]
+        UC20[UC-20: Fast-Track Runtime Upgrade]
+        UC21[UC-21: Emergency Protocol Fix]
+    end
+
+    subgraph "Multisig Use Cases"
+        UC22[UC-22: Create Multisig Account]
+        UC23[UC-23: Initiate Multisig Transaction]
+        UC24[UC-24: Approve Multisig Transaction]
+        UC25[UC-25: Cancel Multisig Transaction]
+        UC26[UC-26: View Pending Multisigs]
+    end
+
+    subgraph "Conviction Voting"
+        UC27[UC-27: Calculate Voting Power]
+        UC28[UC-28: Lock Tokens with Conviction]
+        UC29[UC-29: Unlock Tokens After Period]
+    end
+
+    subgraph "Governance Statistics"
+        UC30[UC-30: View Governance Statistics]
+        UC31[UC-31: View Voting History]
+        UC32[UC-32: View Proposal History]
+    end
+
+    %% Token Holder interactions
+    TokenHolder -->|views| UC01
+    TokenHolder -->|views| UC02
+    TokenHolder -->|casts| UC03
+    TokenHolder -->|submits| UC04
+    TokenHolder -->|seconds| UC05
+    TokenHolder -->|delegates| UC06
+    TokenHolder -->|undelegates| UC07
+    TokenHolder -->|submits| UC08
+    TokenHolder -->|views| UC10
+    TokenHolder -->|views| UC11
+    TokenHolder -->|views| UC13
+    TokenHolder -->|views| UC14
+    TokenHolder -->|views| UC30
+    TokenHolder -->|views| UC31
+    TokenHolder -->|participates| UC22
+    TokenHolder -->|views| UC26
+
+    %% Council interactions
+    Council -->|reviews| UC09
+    Council -->|votes| UC15
+    Council -->|proposes| UC16
+    Council -->|cancels| UC17
+    Council -->|views| UC14
+    Council -->|initiates| UC23
+    Council -->|approves| UC24
+    Council -->|cancels| UC25
+
+    %% Tech Committee interactions
+    TechCommittee -->|views| UC19
+    TechCommittee -->|fast-tracks| UC20
+    TechCommittee -->|fixes| UC21
+
+    %% System interactions
+    System -->|calculates| UC27
+    System -->|manages| UC28
+    System -->|releases| UC29
+    System -->|executes| UC12
+    System -->|tracks| UC32
+
+    %% Dependencies
+    UC03 -.->|uses| UC27
+    UC03 -.->|triggers| UC28
+    UC04 -.->|becomes| UC01
+    UC05 -.->|promotes| UC04
+    UC06 -.->|amplifies| UC03
+    UC08 -.->|requires| UC09
+    UC09 -.->|creates| UC10
+    UC10 -.->|triggers| UC12
+    UC15 -.->|may create| UC01
+    UC16 -.->|bypasses| UC01
+    UC17 -.->|cancels| UC01
+    UC20 -.->|bypasses| UC01
+    UC21 -.->|uses| UC20
+    UC23 -.->|requires| UC24
+    UC24 -.->|reaches| UC23
+    UC28 -.->|eventually| UC29
+    UC01 -.->|feeds| UC30
+    UC03 -.->|records| UC31
+    UC04 -.->|records| UC32
+
+    %% Styling
+    classDef democracyCase fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    classDef treasuryCase fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef councilCase fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef techCase fill:#ffebee,stroke:#d32f2f,stroke-width:2px
+    classDef multisigCase fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    classDef convictionCase fill:#fff9c4,stroke:#f9a825,stroke-width:2px
+    classDef statsCase fill:#e0f2f1,stroke:#00796b,stroke-width:2px
+
+    class UC01,UC02,UC03,UC04,UC05,UC06,UC07 democracyCase
+    class UC08,UC09,UC10,UC11,UC12 treasuryCase
+    class UC13,UC14,UC15,UC16,UC17 councilCase
+    class UC18,UC19,UC20,UC21 techCase
+    class UC22,UC23,UC24,UC25,UC26 multisigCase
+    class UC27,UC28,UC29 convictionCase
+    class UC30,UC31,UC32 statsCase

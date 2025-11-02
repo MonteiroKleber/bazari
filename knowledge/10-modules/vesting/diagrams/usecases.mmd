@@ -1,0 +1,101 @@
+%% Vesting Module - Use Cases Diagram
+graph TB
+    subgraph Actors
+        Stakeholder((Stakeholder))
+        Public((Public User))
+        System((System))
+    end
+
+    subgraph "Vesting Configuration"
+        UC01[UC-01: Initialize Vesting in Genesis]
+        UC02[UC-02: Create Founder Schedule]
+        UC03[UC-03: Create Team Schedule]
+        UC04[UC-04: Create Partners Schedule]
+        UC05[UC-05: Create Marketing Schedule]
+    end
+
+    subgraph "Vesting Queries"
+        UC06[UC-06: Query Vesting Schedule]
+        UC07[UC-07: Calculate Vested Amount]
+        UC08[UC-08: Calculate Unvested Amount]
+        UC09[UC-09: View All Schedules]
+        UC10[UC-10: Check Cliff Status]
+    end
+
+    subgraph "Token Claims"
+        UC11[UC-11: Claim Vested Tokens]
+        UC12[UC-12: Claim for Another Account]
+        UC13[UC-13: Verify Claimable Amount]
+    end
+
+    subgraph "Automatic Release"
+        UC14[UC-14: Release Tokens Per Block]
+        UC15[UC-15: Update Free Balance]
+        UC16[UC-16: Track Vesting Progress]
+    end
+
+    subgraph "Transparency"
+        UC17[UC-17: View Public Vesting Dashboard]
+        UC18[UC-18: Display Vesting Timeline]
+        UC19[UC-19: Calculate Vesting Progress]
+        UC20[UC-20: Show Category Allocations]
+    end
+
+    %% Stakeholder interactions
+    Stakeholder -->|queries| UC06
+    Stakeholder -->|claims| UC11
+    Stakeholder -->|claims| UC12
+    Stakeholder -->|views| UC09
+    Stakeholder -->|views| UC18
+
+    %% Public interactions
+    Public -->|views| UC17
+    Public -->|views| UC20
+
+    %% System interactions
+    System -->|initializes| UC01
+    System -->|creates| UC02
+    System -->|creates| UC03
+    System -->|creates| UC04
+    System -->|creates| UC05
+    System -->|calculates| UC07
+    System -->|calculates| UC08
+    System -->|checks| UC10
+    System -->|verifies| UC13
+    System -->|releases| UC14
+    System -->|updates| UC15
+    System -->|tracks| UC16
+    System -->|calculates| UC19
+
+    %% Dependencies
+    UC01 -.->|creates| UC02
+    UC01 -.->|creates| UC03
+    UC01 -.->|creates| UC04
+    UC01 -.->|creates| UC05
+    UC06 -.->|uses| UC07
+    UC06 -.->|uses| UC08
+    UC06 -.->|uses| UC10
+    UC09 -.->|aggregates| UC06
+    UC11 -.->|uses| UC13
+    UC11 -.->|triggers| UC15
+    UC12 -.->|uses| UC13
+    UC12 -.->|triggers| UC15
+    UC14 -.->|triggers| UC15
+    UC14 -.->|updates| UC16
+    UC17 -.->|displays| UC09
+    UC17 -.->|shows| UC18
+    UC18 -.->|uses| UC19
+    UC20 -.->|summarizes| UC09
+
+    %% Styling
+    classDef configCase fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    classDef queryCase fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef claimCase fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    classDef releaseCase fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef transparencyCase fill:#fff9c4,stroke:#f9a825,stroke-width:2px
+
+    class UC01,UC02,UC03,UC04,UC05 configCase
+    class UC06,UC07,UC08,UC09,UC10 queryCase
+    class UC11,UC12,UC13 claimCase
+    class UC14,UC15,UC16 releaseCase
+    class UC17,UC18,UC19,UC20 transparencyCase

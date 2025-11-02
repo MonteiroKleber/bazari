@@ -1,0 +1,29 @@
+%% Vesting Module - Entity Relationship Diagram
+%% Note: All vesting data stored on-chain in Substrate Vesting pallet
+
+erDiagram
+    Account ||--o{ VestingSchedule : "has"
+    VestingSchedule ||--o{ VestingInfo : "contains"
+
+    Account {
+        AccountId accountId PK "SS58 address"
+        Balance free "Transferable balance"
+        Balance reserved "Reserved balance"
+        Balance frozen "Frozen balance (including vesting)"
+    }
+
+    VestingSchedule {
+        AccountId account FK "References Account"
+        int scheduleCount "Number of vesting schedules"
+        Balance totalLocked "Total locked across all schedules"
+        Balance totalVested "Total vested so far"
+        Balance totalUnvested "Total remaining to vest"
+    }
+
+    VestingInfo {
+        Balance locked "Total tokens locked in this schedule"
+        Balance perBlock "Tokens released per block"
+        BlockNumber startingBlock "Block when vesting starts (after cliff)"
+        Balance vested "Tokens vested so far"
+        Balance unvested "Tokens remaining"
+    }

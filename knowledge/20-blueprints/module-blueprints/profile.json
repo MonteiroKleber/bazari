@@ -1,0 +1,294 @@
+{
+  "module": {
+    "id": "profile",
+    "name": "Profile & Identity",
+    "category": "core-transversal",
+    "version": "1.0.0",
+    "status": "production",
+    "description": "Self-sovereign digital identity with reputation system, social networking, badges, and user discovery"
+  },
+  "vision": {
+    "statement": "Prover identidade digital soberana, portável e verificável para todos os usuários da plataforma Bazari, integrando reputação on-chain e social networking",
+    "principles": [
+      "Self-Sovereign Identity: User owns their profile (on-chain NFT), portable across platforms",
+      "Reputation-Based: Tiered reputation system (Bronze→Silver→Gold→Platinum→Diamond) earned through actions",
+      "Privacy-First: Personal data off-chain, public metadata on-chain, GDPR compliant",
+      "Social Graph: Network effects with followers/following and personalized recommendations"
+    ]
+  },
+  "entities": [
+    {
+      "name": "Profile",
+      "table": "Profile",
+      "type": "aggregate_root",
+      "description": "Public user profile with digital identity, reputation, and social network",
+      "fields": [
+        {"name": "id", "type": "String (CUID)", "pk": true, "description": "Unique profile identifier"},
+        {"name": "userId", "type": "String (UUID)", "unique": true, "fk": "User.id", "description": "Owner user ID"},
+        {"name": "handle", "type": "String", "unique": true, "indexed": true, "description": "Unique handle (@alice)"},
+        {"name": "displayName", "type": "String", "description": "Display name (max 50 chars)"},
+        {"name": "bio", "type": "String?", "description": "Bio in markdown (max 500 chars)"},
+        {"name": "avatarUrl", "type": "String?", "description": "Avatar URL (IPFS-hosted)"},
+        {"name": "bannerUrl", "type": "String?", "description": "Banner URL (IPFS-hosted)"},
+        {"name": "externalLinks", "type": "Json?", "description": "External links (Twitter, GitHub, etc.)"},
+        {"name": "followersCount", "type": "Int", "default": 0, "indexed": true, "description": "Follower count"},
+        {"name": "followingCount", "type": "Int", "default": 0, "description": "Following count"},
+        {"name": "postsCount", "type": "Int", "default": 0, "description": "Posts count"},
+        {"name": "onChainProfileId", "type": "BigInt?", "unique": true, "indexed": true, "description": "On-chain NFT profile ID"},
+        {"name": "reputationScore", "type": "Int", "default": 0, "indexed": true, "description": "Reputation score (0-10000)"},
+        {"name": "reputationTier", "type": "String", "default": "bronze", "indexed": true, "description": "Tier (bronze/silver/gold/platinum/diamond)"},
+        {"name": "metadataCid", "type": "String?", "description": "IPFS CID of on-chain metadata"},
+        {"name": "isVerified", "type": "Boolean", "default": false, "description": "Verified profile (blue checkmark)"},
+        {"name": "lastChainSync", "type": "DateTime?", "description": "Last on-chain sync timestamp"},
+        {"name": "chatPublicKey", "type": "String?", "description": "Curve25519 public key for E2EE chat"},
+        {"name": "createdAt", "type": "DateTime", "default": "now()"},
+        {"name": "updatedAt", "type": "DateTime", "autoUpdate": true}
+      ],
+      "relations": [
+        {"name": "user", "type": "1:1", "target": "User"},
+        {"name": "posts", "type": "1:N", "target": "Post"},
+        {"name": "followers", "type": "1:N", "target": "Follow", "foreignKey": "followingId"},
+        {"name": "following", "type": "1:N", "target": "Follow", "foreignKey": "followerId"},
+        {"name": "badges", "type": "1:N", "target": "ProfileBadge"},
+        {"name": "reputationEvents", "type": "1:N", "target": "ProfileReputationEvent"}
+      ],
+      "businessRules": [
+        "Handle must be unique, lowercase, 3-20 chars, alphanumeric + underscore only",
+        "Handle can be changed by paying 10 BZR fee",
+        "DisplayName max 50 characters",
+        "Bio max 500 characters, markdown allowed",
+        "Avatar/banner hosted on IPFS via Media module",
+        "ReputationScore calculated by Reputation Worker",
+        "ReputationTier auto-updated based on score",
+        "Profile created automatically on first login"
+      ]
+    },
+    {
+      "name": "Follow",
+      "table": "Follow",
+      "type": "entity",
+      "description": "Social graph relationship between profiles",
+      "fields": [
+        {"name": "id", "type": "String (CUID)", "pk": true},
+        {"name": "followerId", "type": "String", "fk": "Profile.id", "indexed": true, "description": "Profile who is following"},
+        {"name": "followingId", "type": "String", "fk": "Profile.id", "indexed": true, "description": "Profile being followed"},
+        {"name": "createdAt", "type": "DateTime", "default": "now()"}
+      ],
+      "relations": [
+        {"name": "follower", "type": "N:1", "target": "Profile"},
+        {"name": "following", "type": "N:1", "target": "Profile"}
+      ],
+      "businessRules": [
+        "Cannot follow yourself (follower != following)",
+        "Pair (followerId, followingId) must be unique",
+        "Unfollow deletes the record",
+        "Follow increments followersCount and followingCount via transaction",
+        "Emits reputation event (+5 for followed user)"
+      ]
+    },
+    {
+      "name": "ProfileBadge",
+      "table": "ProfileBadge",
+      "type": "entity",
+      "description": "On-chain badges and achievements linked to profile",
+      "fields": [
+        {"name": "id", "type": "String (CUID)", "pk": true},
+        {"name": "profileId", "type": "String", "fk": "Profile.id", "indexed": true},
+        {"name": "code", "type": "String", "indexed": true, "description": "Badge code (EARLY_ADOPTER, TOP_SELLER)"},
+        {"name": "label", "type": "Json", "description": "I18n labels {pt, en, es}"},
+        {"name": "issuedBy", "type": "String", "description": "Issuer (marketplace, dao, system)"},
+        {"name": "issuedAt", "type": "DateTime", "indexed": true},
+        {"name": "blockNumber", "type": "BigInt", "description": "On-chain block number of issuance"},
+        {"name": "revokedAt", "type": "DateTime?", "description": "Revocation timestamp (null = active)"},
+        {"name": "revokeReason", "type": "String?", "description": "Revocation reason"}
+      ],
+      "relations": [
+        {"name": "profile", "type": "N:1", "target": "Profile"}
+      ],
+      "businessRules": [
+        "Badge code must be unique per profile",
+        "Badges can be revoked (revokedAt filled)",
+        "Active badges: revokedAt IS NULL",
+        "Badges issued on-chain (future): blockNumber filled",
+        "Badges grant +100 reputation when issued"
+      ]
+    },
+    {
+      "name": "ProfileReputationEvent",
+      "table": "ProfileReputationEvent",
+      "type": "entity",
+      "description": "Immutable history of reputation-modifying events",
+      "fields": [
+        {"name": "id", "type": "String (CUID)", "pk": true},
+        {"name": "profileId", "type": "String", "fk": "Profile.id", "indexed": true},
+        {"name": "eventCode", "type": "String", "indexed": true, "description": "Event type (ORDER_COMPLETED, DELIVERY_DONE)"},
+        {"name": "delta", "type": "Int", "description": "Points variation (+50, -100, etc)"},
+        {"name": "newTotal", "type": "Int", "description": "Total score after event"},
+        {"name": "reason", "type": "String?", "description": "Event reason"},
+        {"name": "emittedBy", "type": "String", "description": "Emitting module (marketplace, delivery, social)"},
+        {"name": "blockNumber", "type": "BigInt", "indexed": true, "description": "On-chain block number"},
+        {"name": "extrinsicId", "type": "String?", "description": "On-chain extrinsic ID"},
+        {"name": "createdAt", "type": "DateTime", "default": "now()", "indexed": true}
+      ],
+      "relations": [
+        {"name": "profile", "type": "N:1", "target": "Profile"}
+      ],
+      "businessRules": [
+        "Events are append-only (cannot be edited or deleted)",
+        "Delta can be positive or negative",
+        "newTotal is snapshot of reputationScore after event",
+        "BlockNumber records which on-chain block it occurred",
+        "Used for auditing and reputation replay"
+      ]
+    },
+    {
+      "name": "HandleHistory",
+      "table": "HandleHistory",
+      "type": "entity",
+      "description": "Audit trail of handle changes for fraud prevention",
+      "fields": [
+        {"name": "id", "type": "String (CUID)", "pk": true},
+        {"name": "profileId", "type": "String", "fk": "Profile.id", "indexed": true},
+        {"name": "oldHandle", "type": "String?", "description": "Previous handle (null if first)"},
+        {"name": "newHandle", "type": "String", "indexed": true, "description": "New handle"},
+        {"name": "changedAt", "type": "DateTime", "indexed": true},
+        {"name": "blockNumber", "type": "BigInt", "description": "On-chain block number of change"}
+      ],
+      "relations": [
+        {"name": "profile", "type": "N:1", "target": "Profile"}
+      ],
+      "businessRules": [
+        "Records all handle changes",
+        "Allows tracking identity history",
+        "Prevents fraud (impersonation after handle change)",
+        "Handle change costs 10 BZR",
+        "Previous handle becomes available to others after change"
+      ]
+    }
+  ],
+  "valueObjects": [
+    {
+      "name": "ReputationTier",
+      "type": "enum",
+      "values": ["bronze", "silver", "gold", "platinum", "diamond"],
+      "thresholds": {
+        "bronze": "0-199",
+        "silver": "200-499",
+        "gold": "500-999",
+        "platinum": "1000-2499",
+        "diamond": "2500+"
+      },
+      "benefits": {
+        "bronze": "Basic access",
+        "silver": "Priority support",
+        "gold": "Featured listings",
+        "platinum": "Lower fees, governance vote",
+        "diamond": "VIP benefits, council candidate"
+      }
+    },
+    {
+      "name": "ReputationEventCode",
+      "type": "enum",
+      "events": [
+        {"code": "ORDER_COMPLETED", "delta": 50, "trigger": "Buyer receives and confirms order"},
+        {"code": "ORDER_COMPLETED_SELLER", "delta": 30, "trigger": "Seller ships on time"},
+        {"code": "DELIVERY_DONE", "delta": 40, "trigger": "Deliverer completes delivery"},
+        {"code": "POST_LIKED", "delta": 1, "trigger": "Post receives like"},
+        {"code": "POST_COMMENTED", "delta": 2, "trigger": "Post receives comment"},
+        {"code": "FOLLOW_RECEIVED", "delta": 5, "trigger": "Profile receives new follower"},
+        {"code": "BADGE_ISSUED", "delta": 100, "trigger": "Profile receives official badge"},
+        {"code": "ACHIEVEMENT_UNLOCKED", "delta": 20, "trigger": "User unlocks achievement"},
+        {"code": "QUEST_COMPLETED", "delta": 10, "trigger": "User completes daily quest"},
+        {"code": "REPORT_VALIDATED", "delta": -100, "trigger": "User's content is moderated"},
+        {"code": "ORDER_DISPUTED", "delta": -50, "trigger": "Order goes to dispute"}
+      ]
+    }
+  ],
+  "apis": [
+    {"method": "GET", "path": "/api/profiles/:handle", "auth": false, "description": "Get public profile by handle"},
+    {"method": "PUT", "path": "/api/profiles/me", "auth": true, "description": "Update own profile"},
+    {"method": "POST", "path": "/api/profiles/:handle/follow", "auth": true, "description": "Follow user"},
+    {"method": "DELETE", "path": "/api/profiles/:handle/follow", "auth": true, "description": "Unfollow user"},
+    {"method": "GET", "path": "/api/profiles/:handle/followers", "auth": false, "description": "Get followers list (paginated)"},
+    {"method": "GET", "path": "/api/profiles/:handle/following", "auth": false, "description": "Get following list (paginated)"},
+    {"method": "GET", "path": "/api/profiles/search", "auth": false, "description": "Search profiles by handle or name"},
+    {"method": "GET", "path": "/api/profiles/me/reputation", "auth": true, "description": "Get own reputation history"},
+    {"method": "POST", "path": "/api/profiles/me/handle", "auth": true, "description": "Change handle (paid feature: 10 BZR)"},
+    {"method": "GET", "path": "/api/profiles/trending", "auth": false, "description": "Get trending profiles (last 7 days)"}
+  ],
+  "useCases": [
+    {
+      "id": "UC-01",
+      "name": "Create Profile",
+      "actors": ["System"],
+      "flow": "User logs in first time → System checks no profile exists → Generate unique handle → Create profile with defaults → Return profile"
+    },
+    {
+      "id": "UC-02",
+      "name": "Complete Profile",
+      "actors": ["User"],
+      "flow": "User accesses edit page → Updates displayName, bio, links → Uploads avatar/banner via Media module → Saves changes → Profile updated"
+    },
+    {
+      "id": "UC-03",
+      "name": "View Public Profile",
+      "actors": ["Viewer"],
+      "flow": "Viewer accesses /u/:handle → System fetches profile, badges, seller profile → Checks if viewer is following → Returns complete profile"
+    },
+    {
+      "id": "UC-04",
+      "name": "Follow User",
+      "actors": ["User"],
+      "flow": "User clicks Follow → System validates not already following → Creates Follow record → Increments counters → Emits reputation event (+5) → Sends notification"
+    },
+    {
+      "id": "UC-05",
+      "name": "Unfollow User",
+      "actors": ["User"],
+      "flow": "User clicks Unfollow → System validates is following → Deletes Follow record → Decrements counters → Updates UI"
+    },
+    {
+      "id": "UC-06",
+      "name": "Change Handle",
+      "actors": ["User"],
+      "flow": "User requests handle change → Validates format and availability → Pays 10 BZR fee → Updates handle → Records in HandleHistory → Redirects to new URL"
+    },
+    {
+      "id": "UC-R1",
+      "name": "Award Reputation",
+      "actors": ["Reputation Worker"],
+      "flow": "Event emitted (ORDER_COMPLETED) → Worker calculates delta (+50) → Updates reputationScore → Recalculates tier → Records event → Sends notification if tier upgraded"
+    }
+  ],
+  "dependencies": {
+    "internal": ["auth", "media", "notifications", "analytics"],
+    "external": []
+  },
+  "security": {
+    "authentication": "JWT-based via auth module",
+    "authorization": "Own profile editing only, public read access",
+    "dataProtection": "Personal data off-chain, public metadata on-chain (IPFS)",
+    "privacy": "GDPR compliant, granular privacy controls (future)",
+    "handleSquatting": "Reserved handles list, admin approval for protected handles"
+  },
+  "metrics": {
+    "success_metrics": [
+      {"name": "Profile Completion Rate", "target": ">80%"},
+      {"name": "Avg Followers per User", "target": ">10"},
+      {"name": "Avg Reputation Score", "target": ">200 (Silver)"},
+      {"name": "Handle Change Rate", "target": "<5%"}
+    ],
+    "engagement_metrics": [
+      {"name": "Daily Active Profiles", "target": ">1000"},
+      {"name": "Follow Actions per Day", "target": ">500"},
+      {"name": "Profile Views per Day", "target": ">5000"}
+    ]
+  },
+  "futureEnhancements": [
+    "On-chain profile as NFT with transferable ownership",
+    "Verified badges via KYC integration and domain verification",
+    "Custom profile themes and layouts",
+    "Advanced privacy controls (private profiles, hidden follow lists)",
+    "Multi-identity support (multiple profiles per wallet)"
+  ]
+}

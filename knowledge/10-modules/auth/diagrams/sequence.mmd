@@ -1,0 +1,117 @@
+%% Auth Module - Authentication Flow Sequence Diagram
+sequenceDiagram
+    actor User
+    participant Wallet
+    participant Client
+    participant API
+    participant DB
+    participant Blockchain
+
+    %% Phase 1: Request Nonce
+    rect rgb(200, 230, 255)
+        Note over User,DB: Phase 1: Request Authentication Nonce
+        User->>Client: Click "Connect Wallet"
+        Client->>Wallet: Request Account
+        Wallet->>Client: Return address
+        Client->>API: POST /auth/nonce<br/>{address}
+        API->>DB: Create AuthNonce
+        DB-->>API: Nonce created
+        API-->>Client: {nonce, message}
+        Note over Client: Store nonce temporarily
+    end
+
+    %% Phase 2: Sign Message
+    rect rgb(255, 240, 200)
+        Note over User,Blockchain: Phase 2: Sign SIWS Message
+        Client->>Wallet: Request signature<br/>(SIWS message)
+        Wallet->>User: Prompt for signature
+        User->>Wallet: Approve signature
+        Wallet->>Blockchain: Sign with private key<br/>(sr25519)
+        Blockchain-->>Wallet: Signature
+        Wallet-->>Client: {signature}
+    end
+
+    %% Phase 3: Verify Signature
+    rect rgb(200, 255, 200)
+        Note over Client,DB: Phase 3: Verify & Authenticate
+        Client->>API: POST /auth/verify<br/>{address, signature, nonce}
+        API->>DB: Find AuthNonce
+        DB-->>API: Nonce data
+
+        alt Nonce expired or used
+            API-->>Client: 401 Unauthorized
+            Client-->>User: Error: Nonce expired
+        else Nonce valid
+            API->>API: Verify signature<br/>(polkadot util-crypto)
+
+            alt Signature invalid
+                API->>DB: Mark nonce as used
+                API-->>Client: 401 Unauthorized
+                Client-->>User: Error: Invalid signature
+            else Signature valid
+                API->>DB: Mark nonce as used
+                API->>DB: Find or create User
+                DB-->>API: User created/found
+                API->>API: Generate JWT<br/>(15 min expiry)
+                API->>API: Generate Refresh Token<br/>(30 day expiry)
+                API->>DB: Store RefreshToken hash
+                DB-->>API: Token stored
+                API-->>Client: {accessToken, refreshToken}
+                Note over Client: Store tokens<br/>accessToken: memory<br/>refreshToken: HttpOnly cookie
+                Client-->>User: Authenticated!
+            end
+        end
+    end
+
+    %% Phase 4: Authenticated Request
+    rect rgb(240, 240, 240)
+        Note over User,API: Phase 4: Make Authenticated Request
+        User->>Client: Access protected resource
+        Client->>API: GET /protected<br/>Authorization: Bearer <accessToken>
+        API->>API: Verify JWT signature
+
+        alt JWT expired
+            API-->>Client: 401 Token expired
+            Note over Client,API: Trigger refresh flow
+        else JWT valid
+            API->>DB: Optional: Load user data
+            DB-->>API: User data
+            API-->>Client: 200 OK {data}
+            Client-->>User: Display resource
+        end
+    end
+
+    %% Phase 5: Refresh Token
+    rect rgb(255, 230, 255)
+        Note over Client,DB: Phase 5: Refresh Access Token
+        Client->>API: POST /auth/refresh<br/>Cookie: refreshToken
+        API->>API: Hash refresh token
+        API->>DB: Find RefreshToken by hash
+        DB-->>API: RefreshToken found
+
+        alt Token revoked or expired
+            API-->>Client: 401 Unauthorized
+            Client-->>User: Please login again
+        else Token valid
+            API->>API: Generate new JWT
+            API->>API: Generate new Refresh Token
+            API->>DB: Revoke old RefreshToken
+            API->>DB: Store new RefreshToken hash
+            DB-->>API: Tokens rotated
+            API-->>Client: {accessToken, refreshToken}
+            Note over Client: Update tokens
+        end
+    end
+
+    %% Phase 6: Logout
+    rect rgb(255, 200, 200)
+        Note over User,DB: Phase 6: Logout
+        User->>Client: Click "Logout"
+        Client->>API: POST /auth/logout<br/>Cookie: refreshToken
+        API->>API: Hash refresh token
+        API->>DB: Revoke RefreshToken
+        DB-->>API: Token revoked
+        API-->>Client: 200 OK
+        Client->>Client: Clear access token
+        Client-->>User: Logged out
+    end

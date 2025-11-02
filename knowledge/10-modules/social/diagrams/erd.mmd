@@ -1,0 +1,64 @@
+%% Social Module - Entity Relationship Diagram
+erDiagram
+    Profile ||--o{ Post : "creates"
+    Profile ||--o{ PostLike : "likes"
+    Profile ||--o{ PostReaction : "reacts"
+    Profile ||--o{ PostComment : "comments"
+    Profile ||--o{ PostRepost : "reposts"
+
+    Post ||--o{ PostLike : "has"
+    Post ||--o{ PostReaction : "has"
+    Post ||--o{ PostComment : "has"
+    Post ||--o{ PostRepost : "has"
+
+    PostComment ||--o{ PostComment : "replies"
+
+    Profile {
+        string id PK "CUID"
+        string handle "Username"
+        int postsCount "Total posts"
+        int followersCount "Followers"
+    }
+
+    Post {
+        string id PK "CUID"
+        string authorId FK "References Profile.id"
+        string kind "text | image | link"
+        text content "Post content"
+        json media "Media URLs array"
+        string status "DRAFT | PUBLISHED | HIDDEN | FLAGGED | REMOVED"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    PostLike {
+        string id PK "CUID"
+        string postId FK "References Post.id"
+        string profileId FK "References Profile.id"
+        datetime createdAt
+    }
+
+    PostReaction {
+        string id PK "CUID"
+        string postId FK "References Post.id"
+        string profileId FK "References Profile.id"
+        string reaction "love | laugh | wow | sad | angry"
+        datetime createdAt
+    }
+
+    PostComment {
+        string id PK "CUID"
+        string postId FK "References Post.id"
+        string authorId FK "References Profile.id"
+        text content "Comment content"
+        string parentId FK "References PostComment.id (for replies)"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    PostRepost {
+        string id PK "CUID"
+        string postId FK "References Post.id"
+        string profileId FK "References Profile.id"
+        datetime createdAt
+    }

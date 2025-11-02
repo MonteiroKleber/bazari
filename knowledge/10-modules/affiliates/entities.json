@@ -1,0 +1,108 @@
+{
+  "entities": [
+    {
+      "name": "ChatStoreAffiliate",
+      "table": "ChatStoreAffiliate",
+      "fields": [
+        {"name": "id", "type": "String (UUID)"},
+        {"name": "storeId", "type": "BigInt"},
+        {"name": "promoterId", "type": "String"},
+        {"name": "status", "type": "String", "description": "pending | approved | rejected | suspended"},
+        {"name": "customCommission", "type": "Int?", "description": "Override store policy"},
+        {"name": "monthlySalesCap", "type": "Decimal(20,8)?"},
+        {"name": "notes", "type": "String?"},
+        {"name": "totalSales", "type": "Decimal(20,8)"},
+        {"name": "totalCommission", "type": "Decimal(20,8)"},
+        {"name": "salesCount", "type": "Int"},
+        {"name": "requestedAt", "type": "BigInt"},
+        {"name": "approvedAt", "type": "BigInt?"},
+        {"name": "createdAt", "type": "BigInt"}
+      ]
+    },
+    {
+      "name": "AffiliateMarketplace",
+      "table": "AffiliateMarketplace",
+      "fields": [
+        {"name": "id", "type": "String (UUID)"},
+        {"name": "ownerId", "type": "String"},
+        {"name": "name", "type": "String"},
+        {"name": "slug", "type": "String", "constraints": ["UNIQUE"]},
+        {"name": "description", "type": "String?"},
+        {"name": "logoUrl", "type": "String?"},
+        {"name": "bannerUrl", "type": "String?"},
+        {"name": "theme", "type": "String"},
+        {"name": "primaryColor", "type": "String?"},
+        {"name": "metadataCid", "type": "String?"},
+        {"name": "totalSales", "type": "Int"},
+        {"name": "totalRevenue", "type": "Decimal(20,8)"},
+        {"name": "totalCommission", "type": "Decimal(20,8)"},
+        {"name": "productCount", "type": "Int"},
+        {"name": "isActive", "type": "Boolean"},
+        {"name": "isPublic", "type": "Boolean"}
+      ]
+    },
+    {
+      "name": "AffiliateProduct",
+      "table": "AffiliateProduct",
+      "fields": [
+        {"name": "id", "type": "String (UUID)"},
+        {"name": "marketplaceId", "type": "String"},
+        {"name": "storeId", "type": "BigInt"},
+        {"name": "productId", "type": "String"},
+        {"name": "productName", "type": "String"},
+        {"name": "productPrice", "type": "Decimal(20,8)"},
+        {"name": "commissionPercent", "type": "Int"},
+        {"name": "customDescription", "type": "String?"},
+        {"name": "featured", "type": "Boolean"},
+        {"name": "viewCount", "type": "Int"},
+        {"name": "clickCount", "type": "Int"}
+      ]
+    },
+    {
+      "name": "AffiliateSale",
+      "table": "AffiliateSale",
+      "fields": [
+        {"name": "id", "type": "String (UUID)"},
+        {"name": "marketplaceId", "type": "String?"},
+        {"name": "storeId", "type": "BigInt"},
+        {"name": "buyer", "type": "String"},
+        {"name": "seller", "type": "String"},
+        {"name": "promoter", "type": "String?"},
+        {"name": "amount", "type": "Decimal(20,8)"},
+        {"name": "commissionPercent", "type": "Int"},
+        {"name": "commissionAmount", "type": "Decimal(20,8)"},
+        {"name": "bazariFee", "type": "Decimal(20,8)"},
+        {"name": "sellerAmount", "type": "Decimal(20,8)"},
+        {"name": "status", "type": "String", "description": "pending | split | failed"},
+        {"name": "txHash", "type": "String?"},
+        {"name": "receiptNftCid", "type": "String?"}
+      ]
+    },
+    {
+      "name": "ChatAffiliateInvite",
+      "table": "ChatAffiliateInvite",
+      "fields": [
+        {"name": "id", "type": "String (UUID)"},
+        {"name": "storeId", "type": "BigInt"},
+        {"name": "inviteCode", "type": "String", "constraints": ["UNIQUE"]},
+        {"name": "maxUses", "type": "Int?"},
+        {"name": "usesCount", "type": "Int"},
+        {"name": "expiresAt", "type": "BigInt?"},
+        {"name": "autoApprove", "type": "Boolean"},
+        {"name": "defaultCommission", "type": "Int"}
+      ]
+    },
+    {
+      "name": "StoreCommissionPolicy",
+      "table": "StoreCommissionPolicy",
+      "fields": [
+        {"name": "storeId", "type": "BigInt", "constraints": ["PRIMARY KEY"]},
+        {"name": "mode", "type": "String", "description": "open | followers | affiliates"},
+        {"name": "percent", "type": "Int", "constraints": ["DEFAULT 5"]},
+        {"name": "minReputation", "type": "Int?"},
+        {"name": "dailyCommissionCap", "type": "Decimal(20,8)?"},
+        {"name": "allowMultiStore", "type": "Boolean"}
+      ]
+    }
+  ]
+}

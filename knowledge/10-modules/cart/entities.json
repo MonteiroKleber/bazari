@@ -1,0 +1,62 @@
+{
+  "entities": [
+    {
+      "name": "CartItem",
+      "storage": "localStorage (Zustand persist)",
+      "fields": [
+        {"name": "listingId", "type": "string", "description": "UUID do produto/serviço"},
+        {"name": "qty", "type": "number", "description": "Quantidade", "constraints": ["MIN 1"]},
+        {"name": "priceBzrSnapshot", "type": "string", "description": "Preço em planck no momento da adição (protege contra mudanças)"},
+        {"name": "titleSnapshot", "type": "string", "description": "Título no momento da adição"},
+        {"name": "sellerId", "type": "string", "description": "DAO ID do vendedor"},
+        {"name": "kind", "type": "'product' | 'service'", "description": "Tipo de listing"},
+        {"name": "addedAt", "type": "number", "description": "Unix timestamp de adição"}
+      ]
+    },
+    {
+      "name": "CartState",
+      "storage": "Zustand Store",
+      "fields": [
+        {"name": "items", "type": "CartItem[]", "description": "Lista de itens no carrinho"},
+        {"name": "subtotalBzr", "type": "string (computed)", "description": "Soma de (qty * priceBzrSnapshot) de todos os itens"},
+        {"name": "count", "type": "number (computed)", "description": "Soma de qty de todos os itens"},
+        {"name": "currentSellerId", "type": "string | null (computed)", "description": "sellerId do primeiro item, ou null se vazio"}
+      ],
+      "actions": [
+        {"name": "addItem", "params": "Omit<CartItem, 'addedAt'>", "returns": "Promise<boolean>", "description": "Retorna false se precisa confirmação de conflito de vendedor"},
+        {"name": "removeItem", "params": "listingId: string", "returns": "void"},
+        {"name": "updateQty", "params": "listingId: string, qty: number", "returns": "void", "description": "Remove item se qty <= 0"},
+        {"name": "clear", "params": "void", "returns": "void", "description": "Remove todos os itens"}
+      ]
+    }
+  ],
+  "constraints": [
+    {
+      "name": "Single Seller Rule (MVP)",
+      "description": "Todos os itens no carrinho devem ter o mesmo sellerId. Se usuário tentar adicionar item de vendedor diferente, `addItem()` retorna false e requer confirmação via modal."
+    },
+    {
+      "name": "User Isolation",
+      "description": "Cada usuário (SS58 address) tem carrinho isolado. Storage key: bazari_cart_{address}. Usuários anônimos usam bazari_cart_anonymous."
+    },
+    {
+      "name": "Price Snapshots",
+      "description": "Preço e título são salvos no momento da adição (snapshot). Protege contra mudanças de preço entre adição e checkout."
+    },
+    {
+      "name": "Client-Side Only",
+      "description": "Carrinho é 100% client-side (localStorage). Não há rota de backend `/api/cart`."
+    }
+  ],
+  "localStorage_keys": [
+    {
+      "key": "bazari_cart_{address}",
+      "example": "bazari_cart_5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+      "value": "{\"state\": {\"items\": [...]}, \"version\": 1}"
+    },
+    {
+      "key": "bazari_cart_anonymous",
+      "description": "Usado quando nenhuma conta está ativa"
+    }
+  ]
+}

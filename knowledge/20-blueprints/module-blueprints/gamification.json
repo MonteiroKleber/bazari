@@ -1,0 +1,90 @@
+{
+  "module": {
+    "id": "gamification",
+    "name": "Gamification & Rewards",
+    "category": "auxiliary",
+    "version": "1.0.0",
+    "status": "beta",
+    "description": "Engajar usuários através de missões, conquistas, badges e recompensas, transformando ações na plataforma em experiências game-like com incentivos em BZR."
+  },
+  "vision": {
+    "statement": "Engajar usuários através de missões, conquistas, badges e recompensas, transformando ações na plataforma em experiências game-like com incentivos em BZR.",
+    "principles": [
+      "Incentive Alignment - Recompensar comportamentos desejados",
+      "Progressive Unlocking - Badges desbloqueados gradualmente",
+      "Social Competition - Leaderboards e comparações",
+      "Real Value - Recompensas em BZR (não pontos vazios)",
+      "Onboarding - Complete profile, first purchase",
+      "Referral - Invite friends",
+      "Sales - Sell X products",
+      "Engagement - Share, review, comment",
+      "Custom - Store-specific challenges"
+    ]
+  },
+  "entities": [
+    {
+      "name": "ChatMission",
+      "table": "ChatMission",
+      "note": "Documented in chat module - missions integrated with BazChat"
+    },
+    {
+      "name": "ChatMissionCompletion",
+      "table": "ChatMissionCompletion",
+      "note": "Progress tracking for missions"
+    },
+    {
+      "name": "ChatTrustBadge",
+      "table": "ChatTrustBadge",
+      "note": "Documented in chat module - trust badges from successful trades"
+    }
+  ],
+  "valueObjects": [],
+  "apis": [
+    {
+      "method": "GET",
+      "path": "/api/chat/missions",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/missions/:id/complete",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/profile/:handle/badges",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/leaderboard",
+      "auth": true,
+      "description": "```http"
+    }
+  ],
+  "useCases": [
+    {
+      "id": "UC-01",
+      "name": "Core Use Case",
+      "actors": [
+        "User",
+        "System"
+      ],
+      "flow": "User performs action → System processes → Returns result"
+    }
+  ],
+  "dependencies": {
+    "internal": [],
+    "external": []
+  },
+  "security": {
+    "authentication": "JWT-based via auth module",
+    "authorization": "Role-based and ownership-based access control"
+  },
+  "metrics": {
+    "key_metrics": []
+  }
+}

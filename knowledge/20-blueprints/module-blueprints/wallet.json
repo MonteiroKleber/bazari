@@ -1,0 +1,192 @@
+{
+  "module": {
+    "id": "wallet",
+    "name": "Wallet & Asset Management",
+    "category": "core-transversal",
+    "version": "1.0.0",
+    "status": "production",
+    "description": "Non-custodial Web3 wallet with multi-account support, asset management (BZR, ZARI), and secure PIN-protected key storage"
+  },
+  "vision": {
+    "statement": "Prover wallet Web3 não-custodial segura, simples e intuitiva para todos os usuários da Bazari, com suporte a múltiplas accounts e tokens (BZR, ZARI)",
+    "principles": [
+      "Non-Custodial: User owns private keys, seed stored locally (IndexedDB), no server access to keys",
+      "PIN-Protected: Seed encrypted with AES-256-GCM, PIN-derived key via PBKDF2, brute-force protected",
+      "Multi-Account: HD derivation with multiple accounts from same seed (BIP-39 mnemonic)",
+      "Developer-Friendly: Polkadot.js integration, TypeScript-first, React hooks"
+    ]
+  },
+  "entities": [
+    {
+      "name": "Vault",
+      "table": "IndexedDB",
+      "type": "value_object",
+      "storage": "client-side",
+      "description": "Encrypted seed storage in browser IndexedDB",
+      "fields": [
+        {"name": "encryptedSeed", "type": "Uint8Array", "description": "AES-256-GCM encrypted seed"},
+        {"name": "iv", "type": "Uint8Array", "description": "Initialization vector (12 bytes)"},
+        {"name": "salt", "type": "Uint8Array", "description": "PBKDF2 salt (16 bytes)"},
+        {"name": "createdAt", "type": "number", "description": "Creation timestamp"}
+      ],
+      "security": [
+        "Seed never stored in plaintext",
+        "PIN never stored",
+        "Encryption key derived from PIN + salt via PBKDF2 (100k iterations)",
+        "Unique IV per encryption"
+      ]
+    },
+    {
+      "name": "Account",
+      "type": "runtime_only",
+      "description": "Derived account from seed (not stored, always derived on-demand)",
+      "fields": [
+        {"name": "address", "type": "string", "description": "SS58 address"},
+        {"name": "publicKey", "type": "Uint8Array", "description": "32 bytes public key"},
+        {"name": "meta", "type": "object", "description": "Metadata (name, derivation path)"},
+        {"name": "derivationPath", "type": "string", "description": "HD path (//polkadot//0, //polkadot//1)"}
+      ]
+    },
+    {
+      "name": "Transaction",
+      "type": "on_chain",
+      "description": "Blockchain transaction (not stored locally, queried from chain)",
+      "fields": [
+        {"name": "hash", "type": "string", "description": "Transaction hash (blake2 256)"},
+        {"name": "from", "type": "string", "description": "Sender address"},
+        {"name": "to", "type": "string", "description": "Recipient address"},
+        {"name": "amount", "type": "bigint", "description": "Amount in planck (10^12 = 1 BZR)"},
+        {"name": "fee", "type": "bigint", "description": "Transaction fee in planck"},
+        {"name": "nonce", "type": "number", "description": "Account nonce"},
+        {"name": "blockNumber", "type": "number", "description": "Block number where included"},
+        {"name": "timestamp", "type": "number", "description": "Block timestamp"}
+      ]
+    }
+  ],
+  "valueObjects": [
+    {
+      "name": "Mnemonic",
+      "type": "string",
+      "format": "BIP-39 (12 or 24 words)",
+      "validation": "BIP-39 checksum must be valid",
+      "security": "Must be stored offline (paper, metal backup)",
+      "example": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+    },
+    {
+      "name": "Balance",
+      "type": "object",
+      "fields": {
+        "free": "bigint - Transferable balance",
+        "reserved": "bigint - Reserved (locked) balance",
+        "frozen": "bigint - Frozen balance"
+      }
+    },
+    {
+      "name": "Asset",
+      "type": "enum",
+      "assets": [
+        {"symbol": "BZR", "type": "native", "decimals": 12, "pallet": "balances"},
+        {"symbol": "ZARI", "type": "token", "decimals": 12, "pallet": "assets", "assetId": 1}
+      ]
+    }
+  ],
+  "apis": [
+    {"type": "RPC", "method": "query.system.account", "description": "Query BZR balance"},
+    {"type": "RPC", "method": "query.assets.account", "description": "Query ZARI (asset) balance"},
+    {"type": "RPC", "method": "tx.balances.transfer", "description": "Transfer BZR"},
+    {"type": "RPC", "method": "tx.assets.transfer", "description": "Transfer ZARI"},
+    {"type": "RPC", "method": "tx.paymentInfo", "description": "Query transaction fee"},
+    {"type": "Hook", "name": "useVaultAccounts", "description": "React hook for accounts management"},
+    {"type": "Hook", "name": "useChainProps", "description": "React hook for chain properties"},
+    {"type": "Hook", "name": "useTransactionFee", "description": "React hook for fee estimation"}
+  ],
+  "useCases": [
+    {
+      "id": "UC-01",
+      "name": "Create Wallet",
+      "actors": ["User", "System"],
+      "flow": "Generate mnemonic → User confirms backup → Define PIN → Derive seed → Encrypt with PIN → Store in IndexedDB → Load keyring → Wallet created"
+    },
+    {
+      "id": "UC-02",
+      "name": "Import Wallet",
+      "actors": ["User", "System"],
+      "flow": "User enters mnemonic → Validate checksum → Define PIN → Encrypt and store seed → Wallet imported"
+    },
+    {
+      "id": "UC-03",
+      "name": "Unlock Wallet",
+      "actors": ["User", "System"],
+      "flow": "User enters PIN → Decrypt seed → Load keyring → Wallet unlocked"
+    },
+    {
+      "id": "UC-04",
+      "name": "Send BZR",
+      "actors": ["User", "System"],
+      "flow": "Select token (BZR) → Enter recipient address → Enter amount → Calculate fee → Confirm → Sign transaction → Submit to chain → Wait confirmation"
+    },
+    {
+      "id": "UC-05",
+      "name": "Receive BZR",
+      "actors": ["User", "System"],
+      "flow": "Display QR code with address → Share address → Detect incoming transaction → Update balance"
+    },
+    {
+      "id": "UC-06",
+      "name": "View Balance",
+      "actors": ["User", "System"],
+      "flow": "Query BZR balance (native) → Query ZARI balance (assets pallet) → Format values → Display balances"
+    },
+    {
+      "id": "UC-07",
+      "name": "View Transaction History",
+      "actors": ["User", "System"],
+      "flow": "Query sent/received transfers → Paginate results → Display history"
+    },
+    {
+      "id": "UC-08",
+      "name": "Switch Account",
+      "actors": ["User", "System"],
+      "flow": "List accounts (//0, //1, //2) → User selects account → Update active account → Future transactions use selected account"
+    },
+    {
+      "id": "UC-09",
+      "name": "Add New Account",
+      "actors": ["User", "System"],
+      "flow": "Click 'Add Account' → Derive next account path (//N) → Add to list → User can switch to new account"
+    },
+    {
+      "id": "UC-10",
+      "name": "Recover Wallet",
+      "actors": ["User", "System"],
+      "flow": "User lost PIN → Enter mnemonic → Derive seed → Validate wallet exists → Define new PIN → Re-encrypt seed → Wallet recovered"
+    }
+  ],
+  "dependencies": {
+    "internal": [],
+    "external": ["@polkadot/api", "@polkadot/util-crypto", "@polkadot/keyring"]
+  },
+  "security": {
+    "keyManagement": "Non-custodial, client-side only",
+    "encryption": "AES-256-GCM with PBKDF2-derived key (100k iterations)",
+    "storage": "IndexedDB (browser), encrypted seed only",
+    "pinProtection": "Min 6 digits, 3 failed attempts → 5 min lockout",
+    "derivation": "HD derivation (sr25519), BIP-39 mnemonic",
+    "backupStrategy": "Mnemonic backup (offline paper/metal storage recommended)"
+  },
+  "metrics": {
+    "key_metrics": [
+      {"name": "Wallet Creation Rate", "target": ">95% on signup"},
+      {"name": "Transaction Success Rate", "target": ">99%"},
+      {"name": "Avg Transaction Time", "target": "<10s"},
+      {"name": "PIN Reset Rate", "target": "<5%"}
+    ]
+  },
+  "futureEnhancements": [
+    "Hardware wallet support (Ledger, Trezor)",
+    "Multi-sig wallets",
+    "WalletConnect integration",
+    "QR code payments",
+    "Transaction history export (CSV)"
+  ]
+}

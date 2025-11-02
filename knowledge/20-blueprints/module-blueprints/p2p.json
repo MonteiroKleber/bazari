@@ -1,0 +1,798 @@
+{
+  "module": {
+    "id": "p2p",
+    "name": "P2P Exchange",
+    "category": "defi-social",
+    "version": "1.0.0",
+    "status": "production",
+    "description": "Criar marketplace P2P descentralizado para troca de BZR/ZARI ↔ BRL via PIX, com escrow on-chain, disputas arbitradas por DAO, e suporte a vendas por fases de ZARI token."
+  },
+  "vision": {
+    "statement": "Criar marketplace P2P descentralizado para troca de BZR/ZARI ↔ BRL via PIX, com escrow on-chain, disputas arbitradas por DAO, e suporte a vendas por fases de ZARI token.",
+    "principles": [
+      "Non-Custodial - Plataforma não custodia fundos, apenas escrow on-chain",
+      "Trust by Design - Escrow + reviews + dispute system",
+      "BRL ↔ Crypto - Bridge entre sistema bancário brasileiro e blockchain",
+      "Phase-Based ZARI Sales - Controlled token release em múltiplas fases",
+      "Permissionless - Qualquer usuário pode criar ofertas",
+      "DAO Arbitration - Disputas resolvidas por votação da comunidade"
+    ]
+  },
+  "entities": [
+    {
+      "name": "P2POffer",
+      "table": "P2POffer",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String (CUID)",
+          "constraints": [
+            "PRIMARY KEY"
+          ]
+        },
+        {
+          "name": "ownerId",
+          "type": "String",
+          "description": "User ID do maker",
+          "constraints": [
+            "INDEX"
+          ]
+        },
+        {
+          "name": "side",
+          "type": "P2POfferSide",
+          "description": "BUY_BZR | SELL_BZR"
+        },
+        {
+          "name": "assetType",
+          "type": "P2PAssetType",
+          "description": "BZR | ZARI",
+          "constraints": [
+            "DEFAULT BZR",
+            "INDEX"
+          ]
+        },
+        {
+          "name": "assetId",
+          "type": "String?",
+          "description": "'1' for ZARI, null for BZR"
+        },
+        {
+          "name": "phase",
+          "type": "String?",
+          "description": "'2A' | '2B' | '3' (only for ZARI)",
+          "constraints": [
+            "INDEX"
+          ]
+        },
+        {
+          "name": "phasePrice",
+          "type": "Decimal(18,12)?",
+          "description": "0.25 | 0.35 | 0.50 (BZR per ZARI)"
+        },
+        {
+          "name": "priceBRLPerBZR",
+          "type": "Decimal(18,2)",
+          "description": "DEPRECATED: use priceBRLPerUnit"
+        },
+        {
+          "name": "priceBRLPerUnit",
+          "type": "Decimal(18,2)?",
+          "description": "R$/BZR or R$/ZARI"
+        },
+        {
+          "name": "minBRL",
+          "type": "Decimal(18,2)",
+          "description": "Minimum trade amount in BRL"
+        },
+        {
+          "name": "maxBRL",
+          "type": "Decimal(18,2)",
+          "description": "Maximum trade amount in BRL"
+        },
+        {
+          "name": "method",
+          "type": "P2PPaymentMethod",
+          "description": "PIX (future: TED, etc)"
+        },
+        {
+          "name": "autoReply",
+          "type": "String?",
+          "description": "Automated message for new orders"
+        },
+        {
+          "name": "status",
+          "type": "P2POfferStatus",
+          "description": "ACTIVE | PAUSED | ARCHIVED",
+          "constraints": [
+            "DEFAULT ACTIVE",
+            "INDEX"
+          ]
+        },
+        {
+          "name": "stats",
+          "type": "Json?",
+          "description": "{totalSold, totalVolume, phaseSupplyLeft}"
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "constraints": [
+            "DEFAULT now()"
+          ]
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "constraints": [
+            "AUTO UPDATE"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "ownerId",
+            "status",
+            "side"
+          ],
+          "type": "BTree"
+        },
+        {
+          "fields": [
+            "ownerId",
+            "status",
+            "side",
+            "assetType"
+          ],
+          "type": "BTree"
+        },
+        {
+          "fields": [
+            "assetType",
+            "phase",
+            "status"
+          ],
+          "type": "BTree"
+        }
+      ]
+    },
+    {
+      "name": "P2POrder",
+      "table": "P2POrder",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String (CUID)",
+          "constraints": [
+            "PRIMARY KEY"
+          ]
+        },
+        {
+          "name": "offerId",
+          "type": "String",
+          "description": "FK -> P2POffer.id",
+          "constraints": [
+            "INDEX"
+          ]
+        },
+        {
+          "name": "makerId",
+          "type": "String",
+          "description": "User ID do offer owner",
+          "constraints": [
+            "INDEX"
+          ]
+        },
+        {
+          "name": "takerId",
+          "type": "String",
+          "description": "User ID do taker",
+          "constraints": [
+            "INDEX"
+          ]
+        },
+        {
+          "name": "side",
+          "type": "P2POfferSide",
+          "description": "BUY_BZR | SELL_BZR"
+        },
+        {
+          "name": "assetType",
+          "type": "P2PAssetType",
+          "description": "BZR | ZARI",
+          "constraints": [
+            "DEFAULT BZR",
+            "INDEX"
+          ]
+        },
+        {
+          "name": "assetId",
+          "type": "String?",
+          "description": "'1' for ZARI"
+        },
+        {
+          "name": "phase",
+          "type": "String?",
+          "description": "'2A' | '2B' | '3' (snapshot)"
+        },
+        {
+          "name": "priceBRLPerBZR",
+          "type": "Decimal(18,2)",
+          "description": "DEPRECATED: use priceBRLPerUnit"
+        },
+        {
+          "name": "priceBRLPerUnit",
+          "type": "Decimal(18,2)?",
+          "description": "Price snapshot"
+        },
+        {
+          "name": "amountBZR",
+          "type": "Decimal(38,18)",
+          "description": "DEPRECATED: use amountAsset"
+        },
+        {
+          "name": "amountAsset",
+          "type": "Decimal(38,18)?",
+          "description": "BZR or ZARI amount"
+        },
+        {
+          "name": "amountBRL",
+          "type": "Decimal(18,2)",
+          "description": "Fiat amount in BRL"
+        },
+        {
+          "name": "method",
+          "type": "P2PPaymentMethod",
+          "description": "PIX"
+        },
+        {
+          "name": "status",
+          "type": "P2POrderStatus",
+          "description": "DRAFT | AWAITING_ESCROW | AWAITING_FIAT_PAYMENT | AWAITING_CONFIRMATION | RELEASED | EXPIRED | CANCELLED | DISPUTE_OPEN | DISPUTE_RESOLVED_BUYER | DISPUTE_RESOLVED_SELLER",
+          "constraints": [
+            "DEFAULT DRAFT",
+            "INDEX"
+          ]
+        },
+        {
+          "name": "escrowTxHash",
+          "type": "String?",
+          "description": "Hash da transação de escrow on-chain"
+        },
+        {
+          "name": "escrowAt",
+          "type": "DateTime?",
+          "description": "Timestamp do escrow"
+        },
+        {
+          "name": "releasedTxHash",
+          "type": "String?",
+          "description": "Hash da transação de release"
+        },
+        {
+          "name": "releasedAt",
+          "type": "DateTime?",
+          "description": "Timestamp do release"
+        },
+        {
+          "name": "pixKeySnapshot",
+          "type": "String?",
+          "description": "PIX key snapshot"
+        },
+        {
+          "name": "payerDeclaredAt",
+          "type": "DateTime?",
+          "description": "Timestamp quando taker declarou pagamento"
+        },
+        {
+          "name": "proofUrls",
+          "type": "Json?",
+          "description": "Array de URLs de provas"
+        },
+        {
+          "name": "expiresAt",
+          "type": "DateTime",
+          "description": "Order expiration (48h default)"
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "constraints": [
+            "DEFAULT now()"
+          ]
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "constraints": [
+            "AUTO UPDATE"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "makerId",
+            "takerId",
+            "status"
+          ],
+          "type": "BTree"
+        },
+        {
+          "fields": [
+            "makerId",
+            "takerId",
+            "status",
+            "assetType"
+          ],
+          "type": "BTree"
+        },
+        {
+          "fields": [
+            "offerId"
+          ],
+          "type": "BTree"
+        },
+        {
+          "fields": [
+            "assetType",
+            "phase"
+          ],
+          "type": "BTree"
+        }
+      ]
+    },
+    {
+      "name": "P2PMessage",
+      "table": "P2PMessage",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String (CUID)",
+          "constraints": [
+            "PRIMARY KEY"
+          ]
+        },
+        {
+          "name": "orderId",
+          "type": "String",
+          "description": "FK -> P2POrder.id",
+          "constraints": [
+            "INDEX"
+          ]
+        },
+        {
+          "name": "senderId",
+          "type": "String",
+          "description": "User ID do remetente"
+        },
+        {
+          "name": "body",
+          "type": "String (Text)",
+          "description": "Message content"
+        },
+        {
+          "name": "kind",
+          "type": "String",
+          "description": "text | proof_upload | escrow_detected | fiat_declared | release_request"
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "constraints": [
+            "DEFAULT now()"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "orderId",
+            "createdAt"
+          ],
+          "type": "BTree"
+        }
+      ]
+    },
+    {
+      "name": "P2PDispute",
+      "table": "P2PDispute",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String (CUID)",
+          "constraints": [
+            "PRIMARY KEY"
+          ]
+        },
+        {
+          "name": "orderId",
+          "type": "String",
+          "description": "FK -> P2POrder.id",
+          "constraints": [
+            "UNIQUE"
+          ]
+        },
+        {
+          "name": "openedById",
+          "type": "String",
+          "description": "User ID que abriu disputa"
+        },
+        {
+          "name": "reason",
+          "type": "String",
+          "description": "Razão da disputa"
+        },
+        {
+          "name": "evidence",
+          "type": "Json?",
+          "description": "URLs de evidências adicionais"
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "description": "OPEN | RESOLVED_BUYER | RESOLVED_SELLER"
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "constraints": [
+            "DEFAULT now()"
+          ]
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "constraints": [
+            "AUTO UPDATE"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "orderId"
+          ],
+          "type": "BTree",
+          "unique": true
+        },
+        {
+          "fields": [
+            "status"
+          ],
+          "type": "BTree"
+        }
+      ]
+    },
+    {
+      "name": "P2PReview",
+      "table": "P2PReview",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String (CUID)",
+          "constraints": [
+            "PRIMARY KEY"
+          ]
+        },
+        {
+          "name": "orderId",
+          "type": "String",
+          "description": "FK -> P2POrder.id",
+          "constraints": [
+            "UNIQUE"
+          ]
+        },
+        {
+          "name": "raterId",
+          "type": "String",
+          "description": "User ID do avaliador"
+        },
+        {
+          "name": "rateeId",
+          "type": "String",
+          "description": "User ID do avaliado"
+        },
+        {
+          "name": "stars",
+          "type": "Int",
+          "description": "Rating 1-5",
+          "constraints": [
+            "CHECK stars >= 1 AND stars <= 5"
+          ]
+        },
+        {
+          "name": "comment",
+          "type": "String?",
+          "description": "Optional review text"
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "constraints": [
+            "DEFAULT now()"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "orderId"
+          ],
+          "type": "BTree",
+          "unique": true
+        },
+        {
+          "fields": [
+            "rateeId"
+          ],
+          "type": "BTree"
+        }
+      ]
+    },
+    {
+      "name": "P2PPaymentProfile",
+      "table": "P2PPaymentProfile",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String (CUID)",
+          "constraints": [
+            "PRIMARY KEY"
+          ]
+        },
+        {
+          "name": "userId",
+          "type": "String",
+          "description": "FK -> User.id",
+          "constraints": [
+            "UNIQUE"
+          ]
+        },
+        {
+          "name": "pixKey",
+          "type": "String?",
+          "description": "Chave PIX (CPF, email, phone, random)"
+        },
+        {
+          "name": "bankName",
+          "type": "String?",
+          "description": "Nome do banco"
+        },
+        {
+          "name": "accountName",
+          "type": "String?",
+          "description": "Nome da conta"
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "constraints": [
+            "DEFAULT now()"
+          ]
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "constraints": [
+            "AUTO UPDATE"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ZARIPhaseConfig",
+      "table": "ZARIPhaseConfig",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String (CUID)",
+          "constraints": [
+            "PRIMARY KEY"
+          ]
+        },
+        {
+          "name": "phase",
+          "type": "String",
+          "description": "'2A' | '2B' | '3'",
+          "constraints": [
+            "UNIQUE"
+          ]
+        },
+        {
+          "name": "priceBZR",
+          "type": "Decimal(18,12)",
+          "description": "Price in BZR (0.25, 0.35, 0.50)"
+        },
+        {
+          "name": "supplyLimit",
+          "type": "BigInt",
+          "description": "Max ZARI in planck (2_100_000 * 10^12)"
+        },
+        {
+          "name": "startBlock",
+          "type": "BigInt?",
+          "description": "Block when phase started"
+        },
+        {
+          "name": "endBlock",
+          "type": "BigInt?",
+          "description": "Block when phase ended"
+        },
+        {
+          "name": "active",
+          "type": "Boolean",
+          "description": "Current active phase",
+          "constraints": [
+            "DEFAULT false",
+            "INDEX"
+          ]
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "constraints": [
+            "DEFAULT now()"
+          ]
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "constraints": [
+            "AUTO UPDATE"
+          ]
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "phase"
+          ],
+          "type": "BTree",
+          "unique": true
+        },
+        {
+          "fields": [
+            "phase",
+            "active"
+          ],
+          "type": "BTree"
+        }
+      ]
+    }
+  ],
+  "valueObjects": [],
+  "apis": [
+    {
+      "method": "GET",
+      "path": "/api/p2p/offers",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/p2p/offers",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/p2p/offers",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/p2p/orders",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/p2p/orders/:id/escrow",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/p2p/orders/:id/declare-payment",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/p2p/orders/:id/proof",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/p2p/orders/:id/release",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/p2p/orders/:id/cancel",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/p2p/orders/:id/messages",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/p2p/orders/:id/messages",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/p2p/reviews",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/p2p/disputes",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/p2p/disputes/:id/resolve",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/p2p/profile/:userId",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/p2p/payment-profile",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/p2p/zari/phases/active",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/p2p/zari/phases/transition",
+      "auth": true,
+      "description": "```http"
+    }
+  ],
+  "useCases": [
+    {
+      "id": "UC-01",
+      "name": "Core Use Case",
+      "actors": [
+        "User",
+        "System"
+      ],
+      "flow": "User performs action → System processes → Returns result"
+    }
+  ],
+  "dependencies": {
+    "internal": [],
+    "external": []
+  },
+  "security": {
+    "authentication": "JWT-based via auth module",
+    "authorization": "Role-based and ownership-based access control"
+  },
+  "metrics": {
+    "key_metrics": []
+  }
+}

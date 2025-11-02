@@ -1,0 +1,135 @@
+{
+  "entities": [
+    {
+      "name": "DeliveryRequest",
+      "table": "DeliveryRequest",
+      "fields": [
+        {"name": "id", "type": "String (UUID)", "constraints": ["PRIMARY KEY"]},
+        {"name": "sourceType", "type": "String", "description": "'order' | 'direct'"},
+        {"name": "orderId", "type": "String (UUID)?", "description": "FK -> Order.id", "constraints": ["UNIQUE"]},
+        {"name": "pickupAddress", "type": "Json", "description": "{street, number, city, state, zipCode, country, lat?, lng?, contactName?, contactPhone?}"},
+        {"name": "deliveryAddress", "type": "Json", "description": "{street, number, city, state, zipCode, country, lat?, lng?, contactName?, contactPhone?}"},
+        {"name": "senderId", "type": "String", "description": "storeId (SellerProfile.id) ou profileId"},
+        {"name": "senderType", "type": "String", "description": "'store' | 'profile'"},
+        {"name": "recipientId", "type": "String", "description": "profileId do destinatário"},
+        {"name": "packageType", "type": "String", "description": "envelope | small_box | medium_box | large_box | fragile | perishable | custom"},
+        {"name": "weight", "type": "Float?", "description": "Peso em kg"},
+        {"name": "dimensions", "type": "Json?", "description": "{length, width, height} em cm"},
+        {"name": "estimatedValue", "type": "Decimal(20,8)?", "description": "Valor estimado da mercadoria (para seguro)"},
+        {"name": "notes", "type": "String?", "description": "Observações do remetente"},
+        {"name": "requiresSignature", "type": "Boolean", "constraints": ["DEFAULT true"]},
+        {"name": "deliveryFeeBzr", "type": "Decimal(20,8)", "description": "Taxa de entrega calculada"},
+        {"name": "distance", "type": "Float?", "description": "Distância calculada em km"},
+        {"name": "status", "type": "String", "description": "pending | assigned | accepted | picked_up | in_transit | delivered | completed | cancelled | failed", "constraints": ["DEFAULT pending", "INDEX"]},
+        {"name": "deliveryPersonId", "type": "String?", "description": "FK -> Profile.id do entregador", "constraints": ["INDEX"]},
+        {"name": "preferredDeliverers", "type": "String[]", "description": "profileIds em ordem de prioridade", "constraints": ["GIN INDEX"]},
+        {"name": "isPrivateNetwork", "type": "Boolean", "description": "true = apenas rede vinculada pode ver", "constraints": ["DEFAULT false"]},
+        {"name": "createdAt", "type": "DateTime", "constraints": ["DEFAULT now()"]},
+        {"name": "updatedAt", "type": "DateTime", "constraints": ["AUTO UPDATE"]},
+        {"name": "expiresAt", "type": "DateTime?", "description": "Expiração do request se não aceito"},
+        {"name": "acceptedAt", "type": "DateTime?"},
+        {"name": "pickedUpAt", "type": "DateTime?"},
+        {"name": "inTransitAt", "type": "DateTime?"},
+        {"name": "deliveredAt", "type": "DateTime?"},
+        {"name": "completedAt", "type": "DateTime?"},
+        {"name": "cancelledAt", "type": "DateTime?"}
+      ],
+      "relations": [
+        {"name": "order", "type": "1:1", "target": "Order"},
+        {"name": "deliveryPerson", "type": "N:1", "target": "Profile"}
+      ],
+      "indexes": [
+        {"fields": ["orderId"], "type": "BTree", "unique": true},
+        {"fields": ["status"], "type": "BTree"},
+        {"fields": ["deliveryPersonId"], "type": "BTree"},
+        {"fields": ["senderId"], "type": "BTree"},
+        {"fields": ["recipientId"], "type": "BTree"},
+        {"fields": ["preferredDeliverers"], "type": "GIN"},
+        {"fields": ["createdAt"], "type": "BTree"}
+      ]
+    },
+    {
+      "name": "DeliveryProfile",
+      "table": "DeliveryProfile",
+      "fields": [
+        {"name": "id", "type": "String (UUID)", "constraints": ["PRIMARY KEY"]},
+        {"name": "profileId", "type": "String", "description": "FK -> Profile.id", "constraints": ["UNIQUE"]},
+        {"name": "fullName", "type": "String", "description": "Nome completo do entregador"},
+        {"name": "documentType", "type": "String", "description": "'cpf' | 'cnpj' | 'passport'"},
+        {"name": "documentNumber", "type": "String", "description": "CPF, CNPJ ou passaporte", "constraints": ["UNIQUE"]},
+        {"name": "phoneNumber", "type": "String"},
+        {"name": "emergencyContact", "type": "Json?", "description": "{name, phone, relationship}"},
+        {"name": "vehicleType", "type": "String", "description": "bike | motorcycle | car | van | truck"},
+        {"name": "vehiclePlate", "type": "String?"},
+        {"name": "vehicleModel", "type": "String?"},
+        {"name": "vehicleYear", "type": "Int?"},
+        {"name": "vehicleColor", "type": "String?"},
+        {"name": "maxWeight", "type": "Float", "description": "Capacidade máxima em kg"},
+        {"name": "maxVolume", "type": "Float", "description": "Capacidade máxima em m³"},
+        {"name": "canCarryFragile", "type": "Boolean", "constraints": ["DEFAULT false"]},
+        {"name": "canCarryPerishable", "type": "Boolean", "constraints": ["DEFAULT false"]},
+        {"name": "hasInsulatedBag", "type": "Boolean", "description": "Bag térmica", "constraints": ["DEFAULT false"]},
+        {"name": "isAvailable", "type": "Boolean", "description": "Disponível para aceitar entregas", "constraints": ["DEFAULT false", "INDEX"]},
+        {"name": "isOnline", "type": "Boolean", "description": "Conectado no momento", "constraints": ["DEFAULT false"]},
+        {"name": "currentLat", "type": "Float?", "description": "Latitude atual"},
+        {"name": "currentLng", "type": "Float?", "description": "Longitude atual"},
+        {"name": "ratingAvg", "type": "Float", "constraints": ["DEFAULT 0"]},
+        {"name": "ratingCount", "type": "Int", "constraints": ["DEFAULT 0"]},
+        {"name": "totalDeliveries", "type": "Int", "constraints": ["DEFAULT 0"]},
+        {"name": "createdAt", "type": "DateTime", "constraints": ["DEFAULT now()"]},
+        {"name": "updatedAt", "type": "DateTime", "constraints": ["AUTO UPDATE"]}
+      ],
+      "relations": [
+        {"name": "profile", "type": "1:1", "target": "Profile"}
+      ],
+      "indexes": [
+        {"fields": ["profileId"], "type": "BTree", "unique": true},
+        {"fields": ["documentNumber"], "type": "BTree", "unique": true},
+        {"fields": ["isAvailable"], "type": "BTree"},
+        {"fields": ["vehicleType"], "type": "BTree"}
+      ]
+    }
+  ],
+  "enums": [
+    {
+      "name": "DeliveryRequestStatus",
+      "values": ["pending", "assigned", "accepted", "picked_up", "in_transit", "delivered", "completed", "cancelled", "failed"]
+    },
+    {
+      "name": "PackageType",
+      "values": ["envelope", "small_box", "medium_box", "large_box", "fragile", "perishable", "custom"]
+    },
+    {
+      "name": "VehicleType",
+      "values": ["bike", "motorcycle", "car", "van", "truck"]
+    },
+    {
+      "name": "DocumentType",
+      "values": ["cpf", "cnpj", "passport"]
+    }
+  ],
+  "fee_calculation": {
+    "formula": "totalBzr = baseFee + distanceFee + weightFee + packageTypeFee",
+    "components": {
+      "baseFee": "env.DELIVERY_BASE_FEE_BZR (default: 10 BZR)",
+      "distanceFee": "distance * env.DELIVERY_FEE_PER_KM_BZR (default: 0.5 BZR/km)",
+      "weightFee": "max(0, weight - FREE_WEIGHT) * WEIGHT_FEE_PER_KG (default: 1 BZR/kg, 1kg grátis)",
+      "packageTypeFee": {
+        "envelope": "0 BZR",
+        "small_box": "1 BZR",
+        "medium_box": "2 BZR",
+        "large_box": "4 BZR",
+        "fragile": "3 BZR",
+        "perishable": "2.5 BZR",
+        "custom": "2 BZR"
+      }
+    }
+  },
+  "vehicle_capacities": {
+    "bike": {"maxWeight": 5, "maxVolume": 0.05},
+    "motorcycle": {"maxWeight": 20, "maxVolume": 0.2},
+    "car": {"maxWeight": 100, "maxVolume": 0.5},
+    "van": {"maxWeight": 300, "maxVolume": 2.0},
+    "truck": {"maxWeight": 1000, "maxVolume": 10.0}
+  }
+}

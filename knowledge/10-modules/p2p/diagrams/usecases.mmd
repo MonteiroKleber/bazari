@@ -1,0 +1,141 @@
+%% P2P Exchange Module - Use Cases Diagram
+graph TB
+    subgraph Actors
+        Maker((Maker))
+        Taker((Taker))
+        Admin((Admin))
+        System((System))
+        DAO((DAO))
+    end
+
+    subgraph "P2P Offer Management"
+        UC01[UC-01: Create P2P Offer]
+        UC02[UC-02: Browse P2P Offers]
+        UC03[UC-03: Pause/Resume Offer]
+        UC04[UC-04: Archive Offer]
+    end
+
+    subgraph "P2P Trading Flow"
+        UC05[UC-05: Accept Offer and Create Order]
+        UC06[UC-06: Deposit Crypto to Escrow]
+        UC07[UC-07: Send PIX Payment]
+        UC08[UC-08: Upload Payment Proof]
+        UC09[UC-09: Confirm Payment and Release Escrow]
+        UC10[UC-10: Cancel Order]
+    end
+
+    subgraph "ZARI Phase Trading"
+        UC11[UC-11: Create ZARI Phase Offer]
+        UC12[UC-12: View Active ZARI Phase]
+        UC13[UC-13: Transition ZARI Phase]
+    end
+
+    subgraph "Communication"
+        UC14[UC-14: Send Message in Order Chat]
+        UC15[UC-15: Receive Real-time Notifications]
+    end
+
+    subgraph "Reputation & Reviews"
+        UC16[UC-16: Leave Review After Trade]
+        UC17[UC-17: View P2P Profile Statistics]
+        UC18[UC-18: Calculate Completion Rate]
+    end
+
+    subgraph "Dispute Resolution"
+        UC19[UC-19: Open Dispute]
+        UC20[UC-20: Submit Evidence]
+        UC21[UC-21: Resolve Dispute]
+        UC22[UC-22: Penalize Bad Actor]
+    end
+
+    subgraph "Payment Management"
+        UC23[UC-23: Update Payment Profile]
+        UC24[UC-24: Validate PIX Key]
+    end
+
+    subgraph "System Operations"
+        UC25[UC-25: Expire Orders (48h Timeout)]
+        UC26[UC-26: Validate Escrow Transaction]
+        UC27[UC-27: Refund Expired Escrow]
+    end
+
+    %% Maker interactions
+    Maker -->|creates| UC01
+    Maker -->|manages| UC03
+    Maker -->|archives| UC04
+    Maker -->|deposits| UC06
+    Maker -->|confirms| UC09
+    Maker -->|reviews| UC16
+    Maker -->|chats| UC14
+    Maker -->|manages| UC23
+    Maker -->|creates ZARI offer| UC11
+
+    %% Taker interactions
+    Taker -->|browses| UC02
+    Taker -->|accepts| UC05
+    Taker -->|sends fiat| UC07
+    Taker -->|uploads proof| UC08
+    Taker -->|cancels| UC10
+    Taker -->|reviews| UC16
+    Taker -->|chats| UC14
+    Taker -->|views stats| UC17
+    Taker -->|checks phase| UC12
+
+    %% Both Maker and Taker
+    Maker -->|opens| UC19
+    Taker -->|opens| UC19
+    Maker -->|submits| UC20
+    Taker -->|submits| UC20
+    Maker -->|receives| UC15
+    Taker -->|receives| UC15
+
+    %% Admin interactions
+    Admin -->|transitions| UC13
+    Admin -->|monitors| UC17
+
+    %% DAO interactions
+    DAO -->|reviews| UC21
+    DAO -->|penalizes| UC22
+
+    %% System interactions
+    System -->|enforces| UC25
+    System -->|validates| UC26
+    System -->|processes| UC27
+    System -->|calculates| UC18
+    System -->|validates| UC24
+
+    %% Dependencies
+    UC01 -.->|requires| UC23
+    UC05 -.->|creates| UC06
+    UC06 -.->|uses| UC26
+    UC07 -.->|requires| UC08
+    UC08 -.->|triggers| UC09
+    UC09 -.->|enables| UC16
+    UC09 -.->|updates| UC18
+    UC10 -.->|may trigger| UC27
+    UC11 -.->|checks| UC12
+    UC13 -.->|updates| UC12
+    UC16 -.->|updates| UC17
+    UC19 -.->|requires| UC20
+    UC19 -.->|triggers| UC21
+    UC21 -.->|may trigger| UC22
+    UC25 -.->|triggers| UC27
+
+    %% Styling
+    classDef offerCase fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    classDef tradingCase fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef zariCase fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef commCase fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    classDef reputationCase fill:#fff9c4,stroke:#f9a825,stroke-width:2px
+    classDef disputeCase fill:#ffebee,stroke:#d32f2f,stroke-width:2px
+    classDef paymentCase fill:#e0f2f1,stroke:#00796b,stroke-width:2px
+    classDef systemCase fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+
+    class UC01,UC02,UC03,UC04 offerCase
+    class UC05,UC06,UC07,UC08,UC09,UC10 tradingCase
+    class UC11,UC12,UC13 zariCase
+    class UC14,UC15 commCase
+    class UC16,UC17,UC18 reputationCase
+    class UC19,UC20,UC21,UC22 disputeCase
+    class UC23,UC24 paymentCase
+    class UC25,UC26,UC27 systemCase

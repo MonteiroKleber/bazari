@@ -1,0 +1,95 @@
+{
+  "module": {
+    "id": "analytics",
+    "name": "Analytics & Insights",
+    "category": "auxiliary",
+    "version": "1.0.0",
+    "status": "beta",
+    "description": "Sistema de analytics focado em métricas de usuário e engajamento social, fornecendo insights sobre performance de posts, crescimento de seguidores, e otimizações de horários de postagem."
+  },
+  "vision": {
+    "statement": "Sistema de analytics focado em métricas de usuário e engajamento social, fornecendo insights sobre performance de posts, crescimento de seguidores, e otimizações de horários de postagem.",
+    "principles": [
+      "User-Centric - Cada usuário vê apenas suas próprias métricas",
+      "Actionable Insights - Dados úteis para decisões (ex: melhor horário para postar)",
+      "Time-Bounded - Filtros por período (7d, 30d, 90d)",
+      "Privacy-First - Analytics privado, não compartilhado publicamente",
+      "Real-Time - Cálculos sob demanda a partir de dados primários (Post, PostLike, PostComment, Follow)"
+    ]
+  },
+  "entities": [
+    {
+      "name": "Analytics (Virtual Entity)",
+      "table": "N/A - Computed on-demand",
+      "note": "No dedicated analytics tables. All metrics computed from existing entities.",
+      "computedFrom": [
+        "Post",
+        "PostLike",
+        "PostComment",
+        "Follow",
+        "Profile"
+      ]
+    }
+  ],
+  "valueObjects": [],
+  "apis": [
+    {
+      "method": "GET",
+      "path": "/api/users/me/analytics",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/stores/:storeId/analytics",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/products/:productId/analytics",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/delivery/:deliveryPersonId/analytics",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/p2p/analytics",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/platform/analytics",
+      "auth": true,
+      "description": "```http"
+    }
+  ],
+  "useCases": [
+    {
+      "id": "UC-01",
+      "name": "Core Use Case",
+      "actors": [
+        "User",
+        "System"
+      ],
+      "flow": "User performs action → System processes → Returns result"
+    }
+  ],
+  "dependencies": {
+    "internal": [],
+    "external": []
+  },
+  "security": {
+    "authentication": "JWT-based via auth module",
+    "authorization": "Role-based and ownership-based access control"
+  },
+  "metrics": {
+    "key_metrics": []
+  }
+}

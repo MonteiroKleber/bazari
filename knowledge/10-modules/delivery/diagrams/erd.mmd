@@ -1,0 +1,89 @@
+%% Delivery Module - Entity Relationship Diagram
+erDiagram
+    Profile ||--o| DeliveryProfile : "has"
+    Profile ||--o{ DeliveryRequest : "delivers"
+    Order ||--o| DeliveryRequest : "generates"
+    SellerProfile ||--o{ DeliveryRequest : "sends"
+
+    DeliveryRequest }o--|| Order : "for"
+    DeliveryRequest }o--o| Profile : "deliverer"
+    DeliveryRequest }o--|| Profile : "recipient"
+
+    Profile {
+        string id PK "CUID"
+        string handle "Username"
+        int reputationScore "Reputation points"
+    }
+
+    DeliveryProfile {
+        string id PK "UUID"
+        string profileId FK UK "References Profile.id"
+        string fullName "Full name"
+        string documentType "cpf | cnpj | passport"
+        string documentNumber UK "Document number"
+        string phoneNumber "Phone"
+        json emergencyContact "Emergency contact"
+        string vehicleType "bike | motorcycle | car | van | truck"
+        string vehiclePlate "License plate"
+        string vehicleModel "Vehicle model"
+        int vehicleYear "Vehicle year"
+        string vehicleColor "Vehicle color"
+        float maxWeight "Max capacity (kg)"
+        float maxVolume "Max volume (m3)"
+        boolean canCarryFragile "Can carry fragile"
+        boolean canCarryPerishable "Can carry perishable"
+        boolean hasInsulatedBag "Has insulated bag"
+        boolean isAvailable "Available for deliveries"
+        boolean isOnline "Currently online"
+        float currentLat "Current latitude"
+        float currentLng "Current longitude"
+        float ratingAvg "Average rating"
+        int ratingCount "Rating count"
+        int totalDeliveries "Total deliveries"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    DeliveryRequest {
+        string id PK "UUID"
+        string sourceType "order | direct"
+        string orderId FK UK "References Order.id"
+        json pickupAddress "Pickup location"
+        json deliveryAddress "Delivery location"
+        string senderId "Store or Profile ID"
+        string senderType "store | profile"
+        string recipientId FK "Profile ID"
+        string packageType "envelope | small_box | medium_box | large_box | fragile | perishable | custom"
+        float weight "Weight in kg"
+        json dimensions "Length, width, height (cm)"
+        decimal estimatedValue "Package value"
+        text notes "Delivery notes"
+        boolean requiresSignature "Requires signature"
+        decimal deliveryFeeBzr "Delivery fee in BZR"
+        float distance "Distance in km"
+        string status "pending | assigned | accepted | picked_up | in_transit | delivered | completed | cancelled | failed"
+        string deliveryPersonId FK "References Profile.id"
+        array preferredDeliverers "Preferred deliverer IDs"
+        boolean isPrivateNetwork "Private network only"
+        datetime createdAt
+        datetime updatedAt
+        datetime expiresAt "Request expiration"
+        datetime acceptedAt "Acceptance time"
+        datetime pickedUpAt "Pickup time"
+        datetime inTransitAt "Transit start time"
+        datetime deliveredAt "Delivery time"
+        datetime completedAt "Completion time"
+        datetime cancelledAt "Cancellation time"
+    }
+
+    Order {
+        string id PK "UUID"
+        string buyerAddr "Buyer address"
+        string sellerAddr "Seller address"
+        json shippingAddress "Shipping details"
+    }
+
+    SellerProfile {
+        string id PK "UUID"
+        string storeName "Store name"
+    }

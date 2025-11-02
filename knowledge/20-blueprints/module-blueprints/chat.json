@@ -1,0 +1,535 @@
+{
+  "module": {
+    "id": "chat",
+    "name": "Messaging & Chat",
+    "category": "defi-social",
+    "version": "1.0.0",
+    "status": "production",
+    "description": "BazChat: Sistema de mensagens E2EE (End-to-End Encrypted) integrado ao marketplace, suportando DMs, chat de pedidos, grupos comunitários, propostas de checkout in-chat, e gamificação com missões e bad"
+  },
+  "vision": {
+    "statement": "BazChat: Sistema de mensagens E2EE (End-to-End Encrypted) integrado ao marketplace, suportando DMs, chat de pedidos, grupos comunitários, propostas de checkout in-chat, e gamificação com missões e badges.",
+    "principles": [
+      "Privacy First - E2EE com chaves derivadas de seed phrases",
+      "Commerce Integration - Comprar diretamente via chat",
+      "Context-Aware - Threads ligados a orders, stores, groups",
+      "Real-Time - WebSocket para mensagens instantâneas",
+      "Decentralized Moderation - Community voting on reports",
+      "dm: Direct message 1-on-1",
+      "store: Chat com loja (buyer-seller)",
+      "order: Chat específico de pedido",
+      "group: Community groups/channels",
+      "ChatMission - Tasks with BZR rewards (share, review, referral)",
+      "ChatTrustBadge - Bronze, Silver, Gold, Platinum levels",
+      "ChatOpportunity - Jobs, freelance, partnerships posted in groups",
+      "ChatReport - Report messages/profiles/groups",
+      "ChatReportVote - Community votes on reports",
+      "Resolutions - warning, suspend, ban, dismiss"
+    ]
+  },
+  "entities": [
+    {
+      "name": "ChatThread",
+      "table": "ChatThread",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String (UUID)"
+        },
+        {
+          "name": "kind",
+          "type": "String",
+          "description": "dm | store | order | group"
+        },
+        {
+          "name": "participants",
+          "type": "String[]",
+          "description": "Array of profileIds",
+          "constraints": [
+            "GIN INDEX"
+          ]
+        },
+        {
+          "name": "orderId",
+          "type": "String?"
+        },
+        {
+          "name": "groupId",
+          "type": "String?"
+        },
+        {
+          "name": "lastMessageAt",
+          "type": "BigInt",
+          "constraints": [
+            "INDEX"
+          ]
+        },
+        {
+          "name": "metadata",
+          "type": "Json?"
+        },
+        {
+          "name": "createdAt",
+          "type": "BigInt"
+        },
+        {
+          "name": "updatedAt",
+          "type": "BigInt"
+        }
+      ]
+    },
+    {
+      "name": "ChatMessage",
+      "table": "ChatMessage",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String (UUID)"
+        },
+        {
+          "name": "threadId",
+          "type": "String"
+        },
+        {
+          "name": "fromProfile",
+          "type": "String"
+        },
+        {
+          "name": "type",
+          "type": "String",
+          "description": "text | audio | image | file | video | proposal | checkout | payment | system"
+        },
+        {
+          "name": "ciphertext",
+          "type": "String (Text)",
+          "description": "Encrypted message (Curve25519)"
+        },
+        {
+          "name": "mediaCid",
+          "type": "String?",
+          "description": "IPFS CID for media"
+        },
+        {
+          "name": "meta",
+          "type": "Json?"
+        },
+        {
+          "name": "createdAt",
+          "type": "BigInt"
+        },
+        {
+          "name": "deliveredAt",
+          "type": "BigInt?"
+        },
+        {
+          "name": "readAt",
+          "type": "BigInt?"
+        },
+        {
+          "name": "replyTo",
+          "type": "String?",
+          "description": "Message ID being replied to"
+        },
+        {
+          "name": "editedAt",
+          "type": "BigInt?"
+        }
+      ]
+    },
+    {
+      "name": "ChatGroup",
+      "table": "ChatGroup",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String (UUID)"
+        },
+        {
+          "name": "name",
+          "type": "String"
+        },
+        {
+          "name": "description",
+          "type": "String?"
+        },
+        {
+          "name": "avatarUrl",
+          "type": "String?"
+        },
+        {
+          "name": "kind",
+          "type": "String",
+          "description": "community | channel | dao",
+          "constraints": [
+            "DEFAULT community"
+          ]
+        },
+        {
+          "name": "isPublic",
+          "type": "Boolean",
+          "constraints": [
+            "DEFAULT false"
+          ]
+        },
+        {
+          "name": "adminIds",
+          "type": "String[]"
+        },
+        {
+          "name": "memberIds",
+          "type": "String[]"
+        },
+        {
+          "name": "maxMembers",
+          "type": "Int?",
+          "constraints": [
+            "DEFAULT 500"
+          ]
+        },
+        {
+          "name": "metadata",
+          "type": "Json?"
+        },
+        {
+          "name": "createdAt",
+          "type": "BigInt"
+        }
+      ]
+    },
+    {
+      "name": "ChatProposal",
+      "table": "ChatProposal",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String (UUID)"
+        },
+        {
+          "name": "threadId",
+          "type": "String"
+        },
+        {
+          "name": "sellerId",
+          "type": "String"
+        },
+        {
+          "name": "buyerId",
+          "type": "String?"
+        },
+        {
+          "name": "items",
+          "type": "Json",
+          "description": "Array of ProposalItem"
+        },
+        {
+          "name": "subtotal",
+          "type": "Decimal(20,8)"
+        },
+        {
+          "name": "shipping",
+          "type": "Json?"
+        },
+        {
+          "name": "total",
+          "type": "Decimal(20,8)"
+        },
+        {
+          "name": "commissionPercent",
+          "type": "Int"
+        },
+        {
+          "name": "isMultiStore",
+          "type": "Boolean",
+          "constraints": [
+            "DEFAULT false"
+          ]
+        },
+        {
+          "name": "storeGroups",
+          "type": "Json?"
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "description": "draft | sent | accepted | expired | paid",
+          "constraints": [
+            "DEFAULT draft"
+          ]
+        },
+        {
+          "name": "expiresAt",
+          "type": "BigInt?"
+        },
+        {
+          "name": "createdAt",
+          "type": "BigInt"
+        },
+        {
+          "name": "updatedAt",
+          "type": "BigInt"
+        }
+      ]
+    },
+    {
+      "name": "ChatMission",
+      "table": "ChatMission",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String (UUID)"
+        },
+        {
+          "name": "title",
+          "type": "String"
+        },
+        {
+          "name": "description",
+          "type": "String"
+        },
+        {
+          "name": "reward",
+          "type": "Decimal(20,8)",
+          "description": "BZR reward"
+        },
+        {
+          "name": "type",
+          "type": "String",
+          "description": "share | review | referral | custom"
+        },
+        {
+          "name": "kind",
+          "type": "String",
+          "description": "onboarding | referral | sales | engagement"
+        },
+        {
+          "name": "goal",
+          "type": "Int",
+          "description": "Quantity to complete"
+        },
+        {
+          "name": "requirements",
+          "type": "Json?"
+        },
+        {
+          "name": "maxCompletions",
+          "type": "Int?"
+        },
+        {
+          "name": "completedCount",
+          "type": "Int"
+        },
+        {
+          "name": "expiresAt",
+          "type": "BigInt?"
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "description": "active | paused | completed"
+        },
+        {
+          "name": "isActive",
+          "type": "Boolean"
+        },
+        {
+          "name": "createdBy",
+          "type": "String"
+        },
+        {
+          "name": "createdAt",
+          "type": "BigInt"
+        }
+      ]
+    },
+    {
+      "name": "ChatTrustBadge",
+      "table": "ChatTrustBadge",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String"
+        },
+        {
+          "name": "profileId",
+          "type": "String"
+        },
+        {
+          "name": "level",
+          "type": "String",
+          "description": "bronze | silver | gold | platinum"
+        },
+        {
+          "name": "nftId",
+          "type": "String?",
+          "description": "Mock NFT ID"
+        },
+        {
+          "name": "isActive",
+          "type": "Boolean"
+        },
+        {
+          "name": "issuedAt",
+          "type": "BigInt"
+        }
+      ]
+    },
+    {
+      "name": "ChatReport",
+      "table": "ChatReport",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String"
+        },
+        {
+          "name": "reporterId",
+          "type": "String"
+        },
+        {
+          "name": "reportedId",
+          "type": "String"
+        },
+        {
+          "name": "contentType",
+          "type": "String",
+          "description": "message | profile | group"
+        },
+        {
+          "name": "contentId",
+          "type": "String"
+        },
+        {
+          "name": "reason",
+          "type": "String"
+        },
+        {
+          "name": "description",
+          "type": "String"
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "description": "pending | under_review | resolved"
+        },
+        {
+          "name": "votes",
+          "type": "Int"
+        },
+        {
+          "name": "approveVotes",
+          "type": "Int"
+        },
+        {
+          "name": "rejectVotes",
+          "type": "Int"
+        },
+        {
+          "name": "resolution",
+          "type": "String?",
+          "description": "warning | suspend | ban | dismiss"
+        },
+        {
+          "name": "resolvedBy",
+          "type": "String?"
+        },
+        {
+          "name": "resolvedAt",
+          "type": "BigInt?"
+        },
+        {
+          "name": "resolutionNotes",
+          "type": "String?"
+        },
+        {
+          "name": "createdAt",
+          "type": "BigInt"
+        }
+      ]
+    }
+  ],
+  "valueObjects": [],
+  "apis": [
+    {
+      "method": "POST",
+      "path": "/api/chat/threads",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/messages",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/threads/:id/messages",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/proposals",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/proposals/:id/accept",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/groups/:id/join",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/missions",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/missions/:id/complete",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/reports",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/reports/:id/vote",
+      "auth": true,
+      "description": "```http"
+    }
+  ],
+  "useCases": [
+    {
+      "id": "UC-01",
+      "name": "Core Use Case",
+      "actors": [
+        "User",
+        "System"
+      ],
+      "flow": "User performs action → System processes → Returns result"
+    }
+  ],
+  "dependencies": {
+    "internal": [],
+    "external": []
+  },
+  "security": {
+    "authentication": "JWT-based via auth module",
+    "authorization": "Role-based and ownership-based access control"
+  },
+  "metrics": {
+    "key_metrics": []
+  }
+}

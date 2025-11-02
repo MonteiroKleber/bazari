@@ -1,0 +1,124 @@
+%% Profile Module - Use Cases Diagram
+graph TB
+    subgraph Actors
+        User((User))
+        System((System))
+        Admin((Admin))
+    end
+
+    subgraph "Profile Management"
+        UC01[UC-01: Auto-Create Profile]
+        UC02[UC-02: Complete Profile]
+        UC03[UC-03: Edit Profile]
+        UC04[UC-04: Upload Avatar/Banner]
+        UC05[UC-05: Add External Links]
+        UC06[UC-06: Change Handle]
+    end
+
+    subgraph "Social Network"
+        UC07[UC-07: Follow User]
+        UC08[UC-08: Unfollow User]
+        UC09[UC-09: View Followers List]
+        UC10[UC-10: View Following List]
+        UC11[UC-11: Check Follow Status]
+    end
+
+    subgraph "Profile Discovery"
+        UC12[UC-12: Search Profiles]
+        UC13[UC-13: View Trending Profiles]
+        UC14[UC-14: Get Profile Recommendations]
+        UC15[UC-15: View Public Profile]
+    end
+
+    subgraph "Reputation System"
+        UC16[UC-16: Calculate Reputation Score]
+        UC17[UC-17: Update Reputation Tier]
+        UC18[UC-18: Track Reputation Events]
+        UC19[UC-19: View Reputation History]
+        UC20[UC-20: Emit Reputation Event]
+    end
+
+    subgraph "Badges & Achievements"
+        UC21[UC-21: Issue Badge]
+        UC22[UC-22: Revoke Badge]
+        UC23[UC-23: View Active Badges]
+        UC24[UC-24: View Badge History]
+    end
+
+    subgraph "Handle Management"
+        UC25[UC-25: Validate Handle]
+        UC26[UC-26: Check Handle Availability]
+        UC27[UC-27: Record Handle History]
+        UC28[UC-28: View Handle History]
+    end
+
+    %% User interactions
+    User -->|triggers| UC01
+    User -->|completes| UC02
+    User -->|edits| UC03
+    User -->|uploads| UC04
+    User -->|adds| UC05
+    User -->|changes| UC06
+    User -->|follows| UC07
+    User -->|unfollows| UC08
+    User -->|views| UC09
+    User -->|views| UC10
+    User -->|checks| UC11
+    User -->|searches| UC12
+    User -->|views| UC13
+    User -->|views| UC14
+    User -->|views| UC15
+    User -->|views| UC19
+    User -->|views| UC23
+    User -->|views| UC28
+
+    %% System interactions
+    System -->|calculates| UC16
+    System -->|updates| UC17
+    System -->|tracks| UC18
+    System -->|emits| UC20
+    System -->|validates| UC25
+    System -->|checks| UC26
+    System -->|records| UC27
+
+    %% Admin interactions
+    Admin -->|issues| UC21
+    Admin -->|revokes| UC22
+    Admin -->|reviews| UC24
+
+    %% Dependencies
+    UC01 -.->|creates| UC15
+    UC02 -.->|updates| UC03
+    UC04 -.->|updates| UC03
+    UC05 -.->|updates| UC03
+    UC06 -.->|uses| UC25
+    UC06 -.->|uses| UC26
+    UC06 -.->|triggers| UC27
+    UC07 -.->|increments| UC09
+    UC07 -.->|increments| UC10
+    UC07 -.->|triggers| UC20
+    UC08 -.->|decrements| UC09
+    UC08 -.->|decrements| UC10
+    UC12 -.->|finds| UC15
+    UC13 -.->|ranks| UC15
+    UC16 -.->|determines| UC17
+    UC17 -.->|may trigger| UC21
+    UC18 -.->|records| UC19
+    UC20 -.->|uses| UC16
+    UC21 -.->|triggers| UC20
+    UC22 -.->|triggers| UC20
+
+    %% Styling
+    classDef profileCase fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    classDef socialCase fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef discoveryCase fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    classDef reputationCase fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef badgeCase fill:#fff9c4,stroke:#f9a825,stroke-width:2px
+    classDef handleCase fill:#ffebee,stroke:#d32f2f,stroke-width:2px
+
+    class UC01,UC02,UC03,UC04,UC05,UC06 profileCase
+    class UC07,UC08,UC09,UC10,UC11 socialCase
+    class UC12,UC13,UC14,UC15 discoveryCase
+    class UC16,UC17,UC18,UC19,UC20 reputationCase
+    class UC21,UC22,UC23,UC24 badgeCase
+    class UC25,UC26,UC27,UC28 handleCase

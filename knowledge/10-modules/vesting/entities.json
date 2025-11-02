@@ -1,0 +1,59 @@
+{
+  "entities": [
+    {
+      "name": "VestingInfo",
+      "storage": "On-Chain (Vesting Pallet)",
+      "fields": [
+        {"name": "locked", "type": "Balance", "description": "Total tokens locked"},
+        {"name": "perBlock", "type": "Balance", "description": "Tokens released per block"},
+        {"name": "startingBlock", "type": "BlockNumber", "description": "Block when vesting starts (after cliff)"}
+      ]
+    },
+    {
+      "name": "VestingSchedule",
+      "storage": "On-Chain (Runtime State)",
+      "fields": [
+        {"name": "account", "type": "AccountId"},
+        {"name": "schedules", "type": "Vec<VestingInfo>"},
+        {"name": "totalLocked", "type": "Balance"},
+        {"name": "totalVested", "type": "Balance"},
+        {"name": "totalUnvested", "type": "Balance"}
+      ]
+    }
+  ],
+  "accounts": {
+    "founders": {
+      "address": "0x714a0df32c1ea7c5d9836ded01eb47e66e4116f0bded907b454a8b9fd72ecee5",
+      "allocation": "15000000000000000000",
+      "cliff": "12 months",
+      "duration": "48 months"
+    },
+    "team": {
+      "address": "0x64dabd5108446dfaeaf947d5eab1635070dae096c735ea790be97303dde602ca",
+      "allocation": "10000000000000000000",
+      "cliff": "6 months",
+      "duration": "36 months"
+    },
+    "partners": {
+      "address": "0x0a11a8290d0acfe65c8ae624f725e85c2e9b7cef820f591220c17b8432a4905d",
+      "allocation": "8000000000000000000",
+      "cliff": "3 months",
+      "duration": "24 months"
+    },
+    "marketing": {
+      "address": "0x76bcbbfb178cef58a8ebe02149946ab9571acf04cf020e7c70ef4a495d4ad86e",
+      "allocation": "5000000000000000000",
+      "cliff": "0 months",
+      "duration": "18 months"
+    }
+  },
+  "pallets": [
+    {
+      "name": "Vesting",
+      "extrinsics": [
+        {"name": "vest", "params": [], "description": "Claim all vested tokens"},
+        {"name": "vestOther", "params": ["target"], "description": "Claim vested for another account"}
+      ]
+    }
+  ]
+}

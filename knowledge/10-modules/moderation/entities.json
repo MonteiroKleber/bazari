@@ -1,0 +1,15 @@
+{
+  "entities": [
+    {
+      "name": "ChatReport",
+      "table": "ChatReport",
+      "note": "Documented in chat module - report system integrated with BazChat"
+    },
+    {
+      "name": "ChatReportVote",
+      "table": "ChatReportVote",
+      "note": "Community voting on reports"
+    }
+  ],
+  "note": "Moderation is integrated with chat module. See /knowledge/10-modules/chat/ for full entities."
+}

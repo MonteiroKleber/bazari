@@ -1,0 +1,206 @@
+%% Governance Module - Governance Flow Sequence Diagram
+sequenceDiagram
+    actor User
+    actor CouncilMember
+    actor TechMember
+    participant Client
+    participant API
+    participant Blockchain
+    participant Treasury
+
+    %% Phase 1: Submit Treasury Proposal
+    rect rgb(200, 230, 255)
+        Note over User,Treasury: Phase 1: Submit Treasury Proposal
+        User->>Client: Navigate to /app/governance/treasury/propose
+        User->>Client: Fill proposal form<br/>(amount, beneficiary, description)
+        Client->>Client: Calculate 5% deposit
+        Client->>Blockchain: Sign tx: treasury.proposeSpend<br/>(value, beneficiary)
+        Blockchain->>Blockchain: Verify deposit (5% bond)
+        Blockchain-->>Client: Proposal submitted
+        Note over Blockchain: ProposalIndex assigned
+        Client-->>User: Proposal ID returned
+        Note over CouncilMember: Notification: New proposal
+    end
+
+    %% Phase 2: Council Reviews Proposal
+    rect rgb(255, 240, 200)
+        Note over CouncilMember,Blockchain: Phase 2: Council Reviews Treasury Proposal
+        CouncilMember->>Client: Navigate to /app/governance/treasury
+        Client->>API: GET /api/governance/treasury/proposals
+        API->>Blockchain: Query Treasury pallet
+        Blockchain-->>API: Proposals list
+        API-->>Client: {proposals}
+        Client-->>CouncilMember: Display pending proposals
+
+        CouncilMember->>CouncilMember: Review proposal details
+        CouncilMember->>Client: Vote to approve/reject
+        Client->>Blockchain: Sign tx: council.propose<br/>(threshold, treasury.approveProposal)
+        Blockchain->>Blockchain: Record council vote
+        Blockchain-->>Client: Vote recorded
+
+        alt Majority approves
+            Blockchain->>Blockchain: Queue proposal for payment
+            Note over Treasury: Scheduled for next spend period
+        else Majority rejects
+            Blockchain->>Blockchain: Slash proposer deposit
+            Note over User: Deposit lost
+        end
+    end
+
+    %% Phase 3: Submit Public Proposal
+    rect rgb(200, 255, 200)
+        Note over User,Blockchain: Phase 3: Submit Public Proposal (Democracy)
+        User->>Client: Navigate to /app/governance/democracy/propose
+        User->>Client: Prepare proposal call data
+        Client->>Blockchain: Sign tx: democracy.propose<br/>(proposalHash, deposit)
+        Blockchain->>Blockchain: Store proposal in queue
+        Blockchain-->>Client: ProposalIndex assigned
+        Client-->>User: Proposal submitted
+
+        Note over User: Other users can second
+        User->>Client: Second existing proposal
+        Client->>Blockchain: Sign tx: democracy.second<br/>(proposalIndex)
+        Blockchain->>Blockchain: Increment second count
+        Blockchain-->>Client: Seconded
+
+        alt Enough seconds
+            Blockchain->>Blockchain: Promote to referendum
+            Note over Blockchain: Becomes active referendum
+        else Not enough seconds
+            Note over Blockchain: Remains in queue
+        end
+    end
+
+    %% Phase 4: Vote on Referendum
+    rect rgb(255, 230, 255)
+        Note over User,Blockchain: Phase 4: Vote on Active Referendum
+        User->>Client: Navigate to /app/governance
+        Client->>API: GET /api/governance/democracy/referendums
+        API->>Blockchain: Query Democracy pallet
+        Blockchain-->>API: Active referendums
+        API-->>Client: {referendums}
+        Client-->>User: Display referendums with tally
+
+        User->>Client: Select referendum to vote
+        User->>Client: Choose: Aye/Nay + Conviction (0x-6x)
+        Client->>Client: Calculate voting power<br/>(balance * conviction multiplier)
+        Client->>Blockchain: Sign tx: democracy.vote<br/>(refIndex, vote)
+        Blockchain->>Blockchain: Lock tokens based on conviction
+        Blockchain->>Blockchain: Update referendum tally
+        Blockchain-->>Client: Vote recorded
+        Client-->>User: Vote confirmed
+
+        Note over Blockchain: Voting period ends
+        Blockchain->>Blockchain: Calculate result<br/>(SimpleMajority/SuperMajority)
+
+        alt Referendum passes
+            Blockchain->>Blockchain: Schedule enactment<br/>(after delay period)
+            Note over Blockchain: Proposal executes after delay
+        else Referendum fails
+            Blockchain->>Blockchain: Proposal rejected
+            Note over User: Locked tokens released
+        end
+    end
+
+    %% Phase 5: Delegation
+    rect rgb(240, 240, 240)
+        Note over User,Blockchain: Phase 5: Delegate Voting Power
+        User->>Client: Navigate to /app/governance/delegate
+        User->>Client: Select trusted delegate
+        User->>Client: Choose conviction + amount
+        Client->>Blockchain: Sign tx: democracy.delegate<br/>(to, conviction, balance)
+        Blockchain->>Blockchain: Transfer voting power<br/>(tokens stay in account)
+        Blockchain-->>Client: Delegation recorded
+        Client-->>User: Voting power delegated
+
+        Note over User: Delegate votes on behalf
+        CouncilMember->>Blockchain: Vote includes delegated power
+        Blockchain->>Blockchain: Count direct + delegated votes
+
+        Note over User: User can undelegate anytime
+        User->>Client: Click "Undelegate"
+        Client->>Blockchain: Sign tx: democracy.undelegate()
+        Blockchain->>Blockchain: Revoke delegation
+        Blockchain-->>Client: Delegation removed
+        Client-->>User: Voting power restored
+    end
+
+    %% Phase 6: Council Proposal
+    rect rgb(200, 255, 255)
+        Note over CouncilMember,Blockchain: Phase 6: Council Fast-Track Proposal
+        CouncilMember->>Client: Create council proposal
+        CouncilMember->>Client: Prepare call data<br/>(e.g., treasury.approveProposal)
+        Client->>Blockchain: Sign tx: council.propose<br/>(threshold, proposal)
+        Blockchain->>Blockchain: Create council proposal
+        Blockchain-->>Client: ProposalHash assigned
+        Client-->>CouncilMember: Proposal created
+
+        Note over CouncilMember: Other council members vote
+        CouncilMember->>Client: Vote on proposal
+        Client->>Blockchain: Sign tx: council.vote<br/>(proposalHash, index, approve)
+        Blockchain->>Blockchain: Record vote (aye/nay)
+
+        alt Threshold met
+            Blockchain->>Blockchain: Execute proposal immediately
+            Note over Blockchain: No public referendum needed
+        else Threshold not met
+            Blockchain->>Blockchain: Proposal expires
+        end
+    end
+
+    %% Phase 7: Technical Committee Emergency
+    rect rgb(255, 200, 200)
+        Note over TechMember,Blockchain: Phase 7: Emergency Fast-Track (Technical Committee)
+        Note over TechMember: Critical bug discovered
+        TechMember->>Client: Navigate to /app/governance/tech-committee
+        TechMember->>Client: Create emergency proposal<br/>(runtime upgrade)
+        Client->>Blockchain: Sign tx: technicalCommittee.propose<br/>(threshold, proposal)
+        Blockchain->>Blockchain: Create tech committee proposal
+        Blockchain-->>Client: ProposalHash assigned
+
+        Note over TechMember: Other tech members vote
+        TechMember->>Client: Vote to approve emergency action
+        Client->>Blockchain: Sign tx: technicalCommittee.vote<br/>(proposalHash, index, approve)
+        Blockchain->>Blockchain: Record vote
+
+        alt Emergency threshold met
+            Blockchain->>Blockchain: Fast-track execution<br/>(bypass referendum)
+            Blockchain->>Blockchain: Apply runtime upgrade
+            Note over Blockchain: Network secured
+            Note over User: Community notified post-facto
+        else Not approved
+            Blockchain->>Blockchain: Proposal rejected
+        end
+    end
+
+    %% Phase 8: Multisig Treasury Management
+    rect rgb(255, 230, 200)
+        Note over User,Blockchain: Phase 8: Multisig Treasury Transaction
+        User->>Client: Initiate multisig transaction
+        User->>Client: Prepare call (e.g., transfer funds)
+        Client->>Blockchain: Sign tx: multisig.asMulti<br/>(threshold, signatories, call)
+        Blockchain->>Blockchain: Store pending multisig<br/>(callHash, timepoint)
+        Blockchain-->>Client: Approval 1 recorded
+        Client-->>User: Awaiting co-signers
+
+        Note over CouncilMember: Co-signer receives notification
+        CouncilMember->>Client: Review pending multisig
+        Client->>API: GET /api/governance/multisig/:address
+        API->>Blockchain: Query Multisig pallet
+        Blockchain-->>API: Pending multisigs
+        API-->>Client: {multisigs}
+        Client-->>CouncilMember: Display call data
+
+        CouncilMember->>Client: Approve multisig
+        Client->>Blockchain: Sign tx: multisig.approveAsMulti<br/>(threshold, signatories, timepoint, callHash)
+        Blockchain->>Blockchain: Record approval
+
+        alt Threshold reached (M-of-N)
+            Blockchain->>Blockchain: Execute call
+            Blockchain->>Treasury: Transfer funds
+            Treasury-->>Blockchain: Transaction complete
+            Note over User,CouncilMember: All signers notified
+        else Still awaiting signatures
+            Note over Blockchain: Pending in multisig storage
+        end
+    end

@@ -1,0 +1,155 @@
+%% Chat Module (BazChat) - Use Cases Diagram
+graph TB
+    subgraph Actors
+        User((User))
+        Seller((Seller))
+        Moderator((Moderator))
+        System((System))
+    end
+
+    subgraph "E2EE Messaging"
+        UC01[UC-01: Generate Encryption Keypair]
+        UC02[UC-02: Exchange Public Keys]
+        UC03[UC-03: Send Encrypted Message]
+        UC04[UC-04: Receive and Decrypt Message]
+        UC05[UC-05: Mark Message as Read]
+    end
+
+    subgraph "Thread Management"
+        UC06[UC-06: Create DM Thread]
+        UC07[UC-07: Create Store Chat Thread]
+        UC08[UC-08: Create Order Chat Thread]
+        UC09[UC-09: View Thread List]
+        UC10[UC-10: Archive Thread]
+    end
+
+    subgraph "Group Chat"
+        UC11[UC-11: Create Group]
+        UC12[UC-12: Invite Members]
+        UC13[UC-13: Leave Group]
+        UC14[UC-14: Manage Group Admins]
+        UC15[UC-15: Browse Public Groups]
+    end
+
+    subgraph "In-Chat Commerce"
+        UC16[UC-16: Create Checkout Proposal]
+        UC17[UC-17: Send Proposal in Chat]
+        UC18[UC-18: Accept Proposal]
+        UC19[UC-19: Generate Payment Link]
+        UC20[UC-20: Convert Proposal to Order]
+    end
+
+    subgraph "Media & Attachments"
+        UC21[UC-21: Send Image]
+        UC22[UC-22: Send Audio Message]
+        UC23[UC-23: Send File Attachment]
+        UC24[UC-24: Upload to IPFS]
+    end
+
+    subgraph "Gamification"
+        UC25[UC-25: View Active Missions]
+        UC26[UC-26: Complete Mission]
+        UC27[UC-27: Claim Mission Reward]
+        UC28[UC-28: Earn Trust Badge]
+        UC29[UC-29: View Opportunities]
+    end
+
+    subgraph "Moderation"
+        UC30[UC-30: Report Message/Profile/Group]
+        UC31[UC-31: Vote on Report]
+        UC32[UC-32: Resolve Report]
+        UC33[UC-33: Apply Sanction]
+    end
+
+    subgraph "Real-Time"
+        UC34[UC-34: Connect WebSocket]
+        UC35[UC-35: Receive Real-Time Messages]
+        UC36[UC-36: Send Typing Indicator]
+        UC37[UC-37: Receive Read Receipts]
+    end
+
+    %% User interactions
+    User -->|generates| UC01
+    User -->|exchanges| UC02
+    User -->|sends| UC03
+    User -->|receives| UC04
+    User -->|marks| UC05
+    User -->|creates| UC06
+    User -->|creates| UC07
+    User -->|views| UC09
+    User -->|archives| UC10
+    User -->|creates| UC11
+    User -->|invites| UC12
+    User -->|leaves| UC13
+    User -->|browses| UC15
+    User -->|sends| UC21
+    User -->|sends| UC22
+    User -->|sends| UC23
+    User -->|views| UC25
+    User -->|completes| UC26
+    User -->|claims| UC27
+    User -->|earns| UC28
+    User -->|views| UC29
+    User -->|reports| UC30
+    User -->|votes| UC31
+    User -->|connects| UC34
+    User -->|receives| UC35
+    User -->|sends| UC36
+    User -->|receives| UC37
+
+    %% Seller interactions
+    Seller -->|creates| UC16
+    Seller -->|sends| UC17
+    Seller -->|generates| UC19
+
+    %% Moderator interactions
+    Moderator -->|resolves| UC32
+    Moderator -->|applies| UC33
+    Moderator -->|manages| UC14
+
+    %% System interactions
+    System -->|processes| UC18
+    System -->|converts| UC20
+    System -->|uploads| UC24
+    System -->|validates| UC26
+    System -->|awards| UC28
+
+    %% Dependencies
+    UC01 -.->|enables| UC02
+    UC02 -.->|enables| UC03
+    UC03 -.->|triggers| UC04
+    UC04 -.->|allows| UC05
+    UC06 -.->|creates| UC09
+    UC08 -.->|auto-creates| UC09
+    UC11 -.->|requires| UC12
+    UC16 -.->|generates| UC17
+    UC17 -.->|enables| UC18
+    UC18 -.->|triggers| UC20
+    UC21 -.->|uses| UC24
+    UC22 -.->|uses| UC24
+    UC23 -.->|uses| UC24
+    UC26 -.->|awards| UC27
+    UC30 -.->|triggers| UC31
+    UC31 -.->|informs| UC32
+    UC32 -.->|may trigger| UC33
+    UC34 -.->|enables| UC35
+    UC34 -.->|enables| UC37
+
+    %% Styling
+    classDef encryptionCase fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    classDef threadCase fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef groupCase fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef commerceCase fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    classDef mediaCase fill:#fff9c4,stroke:#f9a825,stroke-width:2px
+    classDef gamificationCase fill:#ffebee,stroke:#d32f2f,stroke-width:2px
+    classDef moderationCase fill:#e0f2f1,stroke:#00796b,stroke-width:2px
+    classDef realtimeCase fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+
+    class UC01,UC02,UC03,UC04,UC05 encryptionCase
+    class UC06,UC07,UC08,UC09,UC10 threadCase
+    class UC11,UC12,UC13,UC14,UC15 groupCase
+    class UC16,UC17,UC18,UC19,UC20 commerceCase
+    class UC21,UC22,UC23,UC24 mediaCase
+    class UC25,UC26,UC27,UC28,UC29 gamificationCase
+    class UC30,UC31,UC32,UC33 moderationCase
+    class UC34,UC35,UC36,UC37 realtimeCase

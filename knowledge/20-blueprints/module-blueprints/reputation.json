@@ -1,0 +1,216 @@
+{
+  "module": {
+    "id": "reputation",
+    "name": "Reputation System",
+    "category": "auxiliary",
+    "version": "1.0.0",
+    "status": "production",
+    "description": "Sistema de reputação on-chain transparente que rastreia comportamento de usuários através de eventos verificáveis, calculando score e tier dinâmicos que influenciam acesso a funcionalidades e confianç"
+  },
+  "vision": {
+    "statement": "Sistema de reputação on-chain transparente que rastreia comportamento de usuários através de eventos verificáveis, calculando score e tier dinâmicos que influenciam acesso a funcionalidades e confiança na plataforma.",
+    "principles": [
+      "Transparency - Todos os eventos visíveis e auditáveis",
+      "Blockchain-First - Eventos registrados on-chain (ProfileReputationEvent com blockNumber)",
+      "Progressive Trust - Reputação aumenta com comportamento positivo consistente",
+      "Rate Limiting - Limites diários evitam farming de pontos",
+      "Multi-Context - Eventos de múltiplos emitters (marketplace, delivery, social, dao, p2p)",
+      "sales: Total completed orders",
+      "positive: Positive reviews (estimated from ratingAvg)",
+      "negative: Negative reviews (estimated from ratingAvg)",
+      "volumePlanck: Total sales volume in BZR (planck units)"
+    ]
+  },
+  "entities": [
+    {
+      "name": "Profile",
+      "table": "Profile",
+      "note": "Core profile with reputation fields",
+      "fields": [
+        {
+          "name": "reputationScore",
+          "type": "Int",
+          "constraints": [
+            "DEFAULT 0"
+          ],
+          "description": "Accumulated reputation points from ProfileReputationEvent"
+        },
+        {
+          "name": "reputationTier",
+          "type": "String",
+          "constraints": [
+            "DEFAULT 'bronze'"
+          ],
+          "description": "Tier based on score: bronze | prata | ouro | diamante"
+        },
+        {
+          "name": "onChainProfileId",
+          "type": "BigInt?",
+          "description": "ID on BazariChain profiles pallet"
+        },
+        {
+          "name": "lastChainSync",
+          "type": "DateTime?",
+          "description": "Last time profile was synced with blockchain"
+        }
+      ],
+      "indexes": [
+        "@@index([reputationScore])",
+        "@@index([reputationTier])"
+      ]
+    },
+    {
+      "name": "ProfileReputationEvent",
+      "table": "ProfileReputationEvent",
+      "note": "Audit trail for all reputation changes",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "constraints": [
+            "@id",
+            "@default(cuid())"
+          ],
+          "description": "Unique event ID"
+        },
+        {
+          "name": "profileId",
+          "type": "String",
+          "description": "Profile affected by this event"
+        },
+        {
+          "name": "eventCode",
+          "type": "String",
+          "description": "ORDER_COMPLETED | DELIVERY_DONE | DAO_VOTE_VALID | FRAUD_CONFIRMED | etc"
+        },
+        {
+          "name": "delta",
+          "type": "Int",
+          "description": "Points added/subtracted (can be negative)"
+        },
+        {
+          "name": "newTotal",
+          "type": "Int",
+          "description": "Reputation score after applying delta"
+        },
+        {
+          "name": "reason",
+          "type": "String?",
+          "description": "Optional human-readable reason for event"
+        },
+        {
+          "name": "emittedBy",
+          "type": "String",
+          "description": "Source module: marketplace | delivery | social | dao | p2p | arbitration"
+        },
+        {
+          "name": "blockNumber",
+          "type": "BigInt",
+          "description": "Blockchain block number when event was recorded"
+        },
+        {
+          "name": "extrinsicId",
+          "type": "String?",
+          "description": "Optional on-chain extrinsic ID for verification"
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "constraints": [
+            "@default(now())"
+          ],
+          "description": "Timestamp of event creation"
+        }
+      ],
+      "relations": [
+        {
+          "name": "profile",
+          "type": "N:1",
+          "target": "Profile",
+          "fields": [
+            "profileId"
+          ],
+          "references": [
+            "id"
+          ],
+          "onDelete": "Cascade"
+        }
+      ],
+      "indexes": [
+        "@@index([profileId, createdAt])",
+        "@@index([eventCode])",
+        "@@index([blockNumber])"
+      ]
+    },
+    {
+      "name": "Store Reputation (On-Chain)",
+      "table": "stores.reputation",
+      "note": "On-chain store reputation via Substrate pallet",
+      "fields": [
+        {
+          "name": "sales",
+          "type": "u32",
+          "description": "Total completed orders (Order.status = RELEASED)"
+        },
+        {
+          "name": "positive",
+          "type": "u32",
+          "description": "Positive reviews (estimated from SellerProfile.ratingAvg)"
+        },
+        {
+          "name": "negative",
+          "type": "u32",
+          "description": "Negative reviews (estimated from SellerProfile.ratingAvg)"
+        },
+        {
+          "name": "volumePlanck",
+          "type": "u128",
+          "description": "Total sales volume in BZR planck units (1 BZR = 10^18 planck)"
+        }
+      ]
+    }
+  ],
+  "valueObjects": [],
+  "apis": [
+    {
+      "method": "GET",
+      "path": "/api/profiles/:handle/reputation",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/profiles/:handle/reputation/history",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/leaderboards/reputation",
+      "auth": true,
+      "description": "```http"
+    }
+  ],
+  "useCases": [
+    {
+      "id": "UC-01",
+      "name": "Core Use Case",
+      "actors": [
+        "User",
+        "System"
+      ],
+      "flow": "User performs action → System processes → Returns result"
+    }
+  ],
+  "dependencies": {
+    "internal": [],
+    "external": []
+  },
+  "security": {
+    "authentication": "JWT-based via auth module",
+    "authorization": "Role-based and ownership-based access control"
+  },
+  "metrics": {
+    "key_metrics": []
+  }
+}

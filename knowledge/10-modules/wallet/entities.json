@@ -1,0 +1,66 @@
+{
+  "entities": [
+    {
+      "name": "Vault (IndexedDB)",
+      "description": "Armazenamento criptografado da seed no browser",
+      "storage": "IndexedDB",
+      "fields": [
+        {"name": "encryptedSeed", "type": "Uint8Array", "description": "Seed criptografada com AES-256-GCM"},
+        {"name": "iv", "type": "Uint8Array", "description": "Initialization vector (12 bytes)"},
+        {"name": "salt", "type": "Uint8Array", "description": "Salt para PBKDF2 (16 bytes)"},
+        {"name": "createdAt", "type": "number", "description": "Timestamp de criação"}
+      ],
+      "security": [
+        "Seed nunca armazenada em plaintext",
+        "PIN nunca armazenado",
+        "Encryption key derivada de PIN + salt via PBKDF2 (100k iterations)",
+        "IV único por encryption"
+      ]
+    },
+    {
+      "name": "Account",
+      "description": "Account derivada do seed (não armazenada, sempre derivada)",
+      "type": "runtime_only",
+      "fields": [
+        {"name": "address", "type": "string", "description": "SS58 address", "example": "5GrwvaEF..."},
+        {"name": "publicKey", "type": "Uint8Array", "description": "32 bytes public key"},
+        {"name": "meta", "type": "object", "description": "Metadata (name, derivation path)"},
+        {"name": "derivationPath", "type": "string", "description": "//polkadot//0, //polkadot//1", "example": "//polkadot//0"}
+      ]
+    },
+    {
+      "name": "Transaction",
+      "description": "Transação submetida à blockchain (não armazenada localmente)",
+      "type": "on_chain",
+      "fields": [
+        {"name": "hash", "type": "string", "description": "Transaction hash (blake2 256)"},
+        {"name": "from", "type": "string", "description": "Sender address"},
+        {"name": "to", "type": "string", "description": "Recipient address"},
+        {"name": "amount", "type": "bigint", "description": "Amount in planck (10^12 = 1 BZR)"},
+        {"name": "fee", "type": "bigint", "description": "Transaction fee in planck"},
+        {"name": "nonce", "type": "number", "description": "Account nonce"},
+        {"name": "blockNumber", "type": "number", "description": "Block where included"},
+        {"name": "timestamp", "type": "number", "description": "Block timestamp"}
+      ]
+    }
+  ],
+  "value_objects": [
+    {
+      "name": "Mnemonic",
+      "description": "BIP-39 mnemonic phrase",
+      "type": "string (12 or 24 words)",
+      "example": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+      "validation": "BIP-39 checksum valid",
+      "security": "Must be stored offline (paper, metal backup)"
+    },
+    {
+      "name": "Balance",
+      "description": "Token balance",
+      "fields": {
+        "free": "bigint - Transferable balance",
+        "reserved": "bigint - Reserved (locked) balance",
+        "frozen": "bigint - Frozen balance"
+      }
+    }
+  ]
+}

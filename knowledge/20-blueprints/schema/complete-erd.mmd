@@ -1,0 +1,1106 @@
+erDiagram
+    %% ========================================
+    %% BAZARI COMPLETE ENTITY RELATIONSHIP DIAGRAM
+    %% ========================================
+    %% Generated: 2025-11-02
+    %% Source: /root/bazari/apps/api/prisma/schema.prisma
+    %% Total Entities: 64 models
+    %% ========================================
+
+    %% ========================================
+    %% AUTH DOMAIN
+    %% ========================================
+
+    User ||--o{ RefreshToken : "has"
+    User ||--o| Profile : "has"
+    User ||--o{ SellerProfile : "owns"
+    User ||--o{ Dao : "owns"
+    User ||--o{ Notification : "receives"
+    User ||--o{ UserInteraction : "performs"
+    User ||--o{ UserAchievement : "unlocks"
+    User ||--o{ UserQuest : "completes"
+    User ||--o{ ContentReport : "creates"
+    User ||--o{ ContentReport : "reviews"
+    User ||--o{ UserBlock : "blocks"
+    User ||--o{ UserBlock : "is_blocked_by"
+    User ||--o{ UserMute : "mutes"
+    User ||--o{ UserMute : "is_muted_by"
+
+    User {
+        uuid id PK
+        string address UK "Blockchain address"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    AuthNonce {
+        uuid id PK
+        string address
+        string nonce UK
+        string domain
+        string uri
+        string genesis
+        datetime issuedAt
+        datetime expiresAt
+        datetime usedAt
+    }
+
+    RefreshToken {
+        uuid id PK
+        string userId FK
+        string tokenHash UK
+        datetime createdAt
+        datetime revokedAt
+    }
+
+    %% ========================================
+    %% PROFILE & SOCIAL DOMAIN
+    %% ========================================
+
+    Profile ||--o{ Post : "authors"
+    Profile ||--o{ PostComment : "comments"
+    Profile ||--o{ PostRepost : "reposts"
+    Profile ||--o{ PostReaction : "reacts"
+    Profile ||--o{ PostCommentLike : "likes"
+    Profile ||--o{ Follow : "follows"
+    Profile ||--o{ Follow : "followed_by"
+    Profile ||--o{ ProfileBadge : "earns"
+    Profile ||--o{ ProfileReputationEvent : "receives"
+    Profile ||--o{ HandleHistory : "has"
+    Profile ||--o{ Notification : "triggers"
+    Profile ||--o{ ChatStoreAffiliate : "promotes"
+    Profile ||--o{ AffiliateMarketplace : "owns"
+    Profile ||--o| DeliveryProfile : "has"
+    Profile ||--o{ DeliveryRequest : "delivers"
+    Profile ||--o{ StoreDeliveryPartner : "partners_with"
+
+    Profile {
+        cuid id PK
+        string userId FK UK
+        string handle UK
+        string displayName
+        text bio
+        string avatarUrl
+        string bannerUrl
+        json externalLinks
+        int followersCount
+        int followingCount
+        int postsCount
+        bigint onChainProfileId UK
+        int reputationScore
+        string reputationTier
+        string metadataCid
+        boolean isVerified
+        datetime lastChainSync
+        string cashbackBalance
+        string chatPublicKey "E2EE public key"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    Follow {
+        cuid id PK
+        string followerId FK
+        string followingId FK
+        datetime createdAt
+    }
+
+    ProfileBadge {
+        cuid id PK
+        string profileId FK
+        string code
+        json label
+        string issuedBy
+        datetime issuedAt
+        bigint blockNumber
+        datetime revokedAt
+        string revokeReason
+    }
+
+    ProfileReputationEvent {
+        cuid id PK
+        string profileId FK
+        string eventCode
+        int delta
+        int newTotal
+        string reason
+        string emittedBy
+        bigint blockNumber
+        string extrinsicId
+        datetime createdAt
+    }
+
+    HandleHistory {
+        cuid id PK
+        string profileId FK
+        string oldHandle
+        string newHandle
+        datetime changedAt
+        bigint blockNumber
+    }
+
+    %% ========================================
+    %% STORE DOMAIN
+    %% ========================================
+
+    SellerProfile ||--o{ Product : "sells"
+    SellerProfile ||--o{ ServiceOffering : "offers"
+    SellerProfile ||--o{ StorePublishHistory : "publishes"
+
+    SellerProfile {
+        cuid id PK
+        string userId FK
+        string shopName
+        string shopSlug UK
+        text about
+        float ratingAvg
+        int ratingCount
+        json policies
+        string avatarUrl
+        string bannerUrl
+        boolean isDefault
+        bigint onChainStoreId
+        string ownerAddress
+        array operatorAddresses
+        string syncStatus
+        int version
+        bigint lastSyncBlock
+        datetime lastPublishedAt
+        string metadataCid
+        string categoriesCid
+        string categoriesHash
+        string productsCid
+        string productsHash
+        json pickupAddress
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    StorePublishHistory {
+        cuid id PK
+        string sellerProfileId FK
+        int version
+        bigint blockNumber
+        string extrinsicHash
+        string metadataCid
+        string categoriesCid
+        string categoriesHash
+        string productsCid
+        string productsHash
+        datetime publishedAt
+    }
+
+    StoreSnapshot {
+        cuid id PK
+        string storeId
+        int version
+        json storeJson
+        json categoriesJson
+        json productsJson
+        datetime cachedAt
+    }
+
+    StoreCommissionPolicy {
+        bigint storeId PK
+        string mode
+        int percent
+        int minReputation
+        decimal dailyCommissionCap
+        boolean allowMultiStore
+        bigint createdAt
+        bigint updatedAt
+    }
+
+    %% ========================================
+    %% MARKETPLACE DOMAIN
+    %% ========================================
+
+    Category ||--o{ Product : "categorizes"
+    Category ||--o{ ServiceOffering : "categorizes"
+
+    Product }o--|| Category : "belongs_to"
+    Product }o--o| SellerProfile : "sold_by"
+
+    ServiceOffering }o--|| Category : "belongs_to"
+    ServiceOffering }o--o| SellerProfile : "offered_by"
+
+    Category {
+        string id PK
+        string slug UK
+        string parentId
+        string kind "product|service"
+        int level
+        string namePt
+        string nameEn
+        string nameEs
+        array pathSlugs
+        array pathNamesPt
+        array pathNamesEn
+        array pathNamesEs
+        boolean active
+        int sort
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    CategorySpec {
+        cuid id PK
+        string categoryId
+        string version
+        string inheritsFrom
+        json jsonSchema
+        json uiSchema
+        array indexHints
+        datetime createdAt
+    }
+
+    Product {
+        uuid id PK
+        string daoId
+        string title
+        string description
+        decimal priceBzr
+        string categoryId FK
+        array categoryPath
+        json attributes
+        string attributesSpecVersion
+        string sellerUserId
+        string sellerStoreId FK
+        bigint onChainStoreId
+        enum status
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    ServiceOffering {
+        uuid id PK
+        string daoId
+        string title
+        string description
+        decimal basePriceBzr
+        string categoryId FK
+        array categoryPath
+        json attributes
+        string attributesSpecVersion
+        string sellerStoreId FK
+        bigint onChainStoreId
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    %% ========================================
+    %% ORDERS & PAYMENTS DOMAIN
+    %% ========================================
+
+    Order ||--o{ OrderItem : "contains"
+    Order ||--o{ PaymentIntent : "has"
+    Order ||--o{ EscrowLog : "logs"
+    Order ||--o| DeliveryRequest : "requires"
+
+    Order {
+        uuid id PK
+        string buyerAddr
+        string sellerAddr
+        string sellerId
+        string sellerStoreId
+        decimal subtotalBzr
+        decimal shippingBzr
+        decimal totalBzr
+        enum status
+        json shippingAddress
+        string shippingOptionId
+        string notes
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    OrderItem {
+        cuid id PK
+        string orderId FK
+        string listingId
+        string kind "product|service"
+        int qty
+        decimal unitPriceBzrSnapshot
+        string titleSnapshot
+        decimal lineTotalBzr
+        datetime createdAt
+    }
+
+    PaymentIntent {
+        cuid id PK
+        string orderId FK
+        decimal amountBzr
+        string escrowAddress
+        enum status
+        string txHashIn
+        string txHashRelease
+        string txHashRefund
+        datetime createdAt
+    }
+
+    EscrowLog {
+        cuid id PK
+        string orderId FK
+        string kind
+        json payloadJson
+        datetime createdAt
+    }
+
+    CartItem {
+        string id PK
+        string userId
+        string listingId
+        string listingKind
+        int quantity
+        datetime createdAt
+    }
+
+    %% ========================================
+    %% SOCIAL FEED DOMAIN
+    %% ========================================
+
+    Post ||--o{ PostLike : "liked_by"
+    Post ||--o{ PostRepost : "reposted_by"
+    Post ||--o{ PostReaction : "reacted_to"
+    Post ||--o{ PostComment : "comments"
+
+    PostComment ||--o{ PostCommentLike : "liked"
+    PostComment ||--o{ PostComment : "replies"
+
+    Post {
+        cuid id PK
+        string authorId FK
+        string kind
+        text content
+        json media
+        enum status
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    PostLike {
+        cuid id PK
+        string postId FK
+        string profileId FK
+        datetime createdAt
+    }
+
+    PostRepost {
+        cuid id PK
+        string postId FK
+        string profileId FK
+        datetime createdAt
+    }
+
+    PostReaction {
+        cuid id PK
+        string postId FK
+        string profileId FK
+        string reaction "love|laugh|wow|sad|angry"
+        datetime createdAt
+    }
+
+    PostComment {
+        cuid id PK
+        string postId FK
+        string authorId FK
+        text content
+        string parentId FK "self-reference"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    PostCommentLike {
+        cuid id PK
+        string commentId FK
+        string profileId FK
+        datetime createdAt
+    }
+
+    %% ========================================
+    %% NOTIFICATIONS DOMAIN
+    %% ========================================
+
+    Notification {
+        cuid id PK
+        string userId FK
+        enum type
+        string actorId FK
+        string targetId
+        json metadata
+        boolean read
+        datetime createdAt
+    }
+
+    %% ========================================
+    %% P2P TRADING DOMAIN
+    %% ========================================
+
+    P2POffer {
+        cuid id PK
+        string ownerId
+        enum side "BUY_BZR|SELL_BZR"
+        enum assetType "BZR|ZARI"
+        string assetId
+        string phase "2A|2B|3"
+        decimal phasePrice
+        decimal priceBRLPerBZR
+        decimal priceBRLPerUnit
+        decimal minBRL
+        decimal maxBRL
+        enum method
+        string autoReply
+        enum status
+        json stats
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    P2POrder {
+        cuid id PK
+        string offerId
+        string makerId
+        string takerId
+        enum side
+        enum assetType
+        string assetId
+        string phase
+        decimal priceBRLPerBZR
+        decimal priceBRLPerUnit
+        decimal amountBZR
+        decimal amountAsset
+        decimal amountBRL
+        enum method
+        enum status
+        string escrowTxHash
+        datetime escrowAt
+        string releasedTxHash
+        datetime releasedAt
+        string pixKeySnapshot
+        datetime payerDeclaredAt
+        json proofUrls
+        datetime expiresAt
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    P2PMessage {
+        cuid id PK
+        string orderId
+        string senderId
+        text body
+        string kind
+        datetime createdAt
+    }
+
+    P2PDispute {
+        cuid id PK
+        string orderId UK
+        string openedById
+        string reason
+        json evidence
+        string status
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    P2PReview {
+        cuid id PK
+        string orderId UK
+        string raterId
+        string rateeId
+        int stars
+        string comment
+        datetime createdAt
+    }
+
+    P2PPaymentProfile {
+        cuid id PK
+        string userId UK
+        string pixKey
+        string bankName
+        string accountName
+        datetime updatedAt
+        datetime createdAt
+    }
+
+    ZARIPhaseConfig {
+        cuid id PK
+        string phase UK "2A|2B|3"
+        decimal priceBZR
+        bigint supplyLimit
+        bigint startBlock
+        bigint endBlock
+        boolean active
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    %% ========================================
+    %% CHAT DOMAIN
+    %% ========================================
+
+    ChatThread ||--o{ ChatMessage : "contains"
+    ChatThread ||--o{ ChatProposal : "has"
+
+    ChatProposal ||--o{ AffiliateSale : "generates"
+
+    ChatThread {
+        uuid id PK
+        string kind "dm|store|order|group"
+        array participants
+        string orderId
+        string groupId
+        bigint lastMessageAt
+        json metadata
+        bigint createdAt
+        bigint updatedAt
+    }
+
+    ChatMessage {
+        uuid id PK
+        string threadId FK
+        string fromProfile
+        string type "text|audio|image|file|video|proposal|checkout|payment|system"
+        text ciphertext "E2EE encrypted"
+        string mediaCid
+        json meta
+        bigint createdAt
+        bigint deliveredAt
+        bigint readAt
+        string replyTo
+        bigint editedAt
+    }
+
+    ChatGroup {
+        uuid id PK
+        string name
+        string description
+        string avatarUrl
+        string kind "community|channel|dao"
+        boolean isPublic
+        array adminIds
+        array memberIds
+        int maxMembers
+        json metadata
+        bigint createdAt
+    }
+
+    ChatGroupMember {
+        string profileId PK
+        string groupId PK
+        string role
+        bigint joinedAt
+    }
+
+    ChatProposal {
+        uuid id PK
+        string threadId FK
+        string sellerId
+        string buyerId
+        json items
+        decimal subtotal
+        json shipping
+        decimal total
+        int commissionPercent
+        boolean isMultiStore
+        json storeGroups
+        string status "draft|sent|accepted|expired|paid"
+        bigint expiresAt
+        bigint createdAt
+        bigint updatedAt
+    }
+
+    ChatMission {
+        uuid id PK
+        string title
+        string description
+        decimal reward
+        string type "share|review|referral|custom"
+        string kind "onboarding|referral|sales|engagement"
+        int goal
+        json requirements
+        int maxCompletions
+        int completedCount
+        bigint expiresAt
+        string status "active|paused|completed"
+        boolean isActive
+        string createdBy
+        bigint createdAt
+    }
+
+    ChatMissionCompletion {
+        string profileId PK
+        string missionId PK FK
+        int progress
+        bigint completedAt
+    }
+
+    ChatMission ||--o{ ChatMissionCompletion : "completed_by"
+
+    ChatOpportunity {
+        uuid id PK
+        bigint storeId
+        string title
+        string description
+        string type "job|freelance|partnership"
+        string compensation
+        json requirements
+        string status "open|filled|closed"
+        bigint createdAt
+        bigint expiresAt
+    }
+
+    ChatTrustBadge {
+        string id PK
+        string profileId
+        string level "bronze|silver|gold|platinum"
+        string nftId
+        boolean isActive
+        bigint issuedAt
+    }
+
+    ChatReport {
+        string id PK
+        string reporterId
+        string reportedId
+        string contentType "message|profile|group"
+        string contentId
+        string reason
+        string description
+        string status "pending|under_review|resolved"
+        int votes
+        int approveVotes
+        int rejectVotes
+        string resolution "warning|suspend|ban|dismiss"
+        string resolvedBy
+        bigint resolvedAt
+        string resolutionNotes
+        bigint createdAt
+    }
+
+    ChatReportVote {
+        string reportId PK
+        string voterId PK
+        string vote "approve|reject"
+        int weight
+        bigint votedAt
+    }
+
+    ChatGroupPoll {
+        string id PK
+        string groupId
+        string creatorId
+        string question
+        json options
+        json votes
+        bigint endsAt
+        bigint createdAt
+    }
+
+    %% ========================================
+    %% AFFILIATE SYSTEM DOMAIN
+    %% ========================================
+
+    ChatStoreAffiliate }o--|| Profile : "promoted_by"
+
+    AffiliateMarketplace }o--|| Profile : "owned_by"
+    AffiliateMarketplace ||--o{ AffiliateProduct : "displays"
+    AffiliateMarketplace ||--o{ AffiliateSale : "tracks"
+
+    ChatProposal ||--o{ AffiliateSale : "results_in"
+
+    ChatStoreAffiliate {
+        uuid id PK
+        bigint storeId
+        string promoterId FK
+        string status "pending|approved|rejected|suspended"
+        int customCommission
+        decimal monthlySalesCap
+        text notes
+        bigint requestedAt
+        bigint approvedAt
+        bigint rejectedAt
+        bigint suspendedAt
+        decimal totalSales
+        decimal totalCommission
+        int salesCount
+        bigint createdAt
+        bigint updatedAt
+    }
+
+    ChatAffiliateInvite {
+        uuid id PK
+        bigint storeId
+        string inviteCode UK
+        int maxUses
+        int usesCount
+        bigint expiresAt
+        boolean autoApprove
+        int defaultCommission
+        bigint createdAt
+    }
+
+    AffiliateMarketplace {
+        uuid id PK
+        string ownerId FK
+        string name
+        string slug UK
+        text description
+        string logoUrl
+        string bannerUrl
+        string theme
+        string primaryColor
+        string secondaryColor
+        string metadataCid
+        int totalSales
+        decimal totalRevenue
+        decimal totalCommission
+        int productCount
+        boolean isActive
+        boolean isPublic
+        bigint createdAt
+        bigint updatedAt
+    }
+
+    AffiliateProduct {
+        uuid id PK
+        string marketplaceId FK
+        bigint storeId
+        string productId
+        string productName
+        string productImageUrl
+        decimal productPrice
+        int commissionPercent
+        text customDescription
+        string customImageUrl
+        boolean featured
+        int viewCount
+        int clickCount
+        bigint addedAt
+        bigint updatedAt
+    }
+
+    AffiliateSale {
+        uuid id PK
+        string marketplaceId FK
+        bigint storeId
+        string buyer
+        string seller
+        string promoter
+        decimal amount
+        int commissionPercent
+        decimal commissionAmount
+        decimal bazariFee
+        decimal sellerAmount
+        string status "pending|split|failed"
+        string txHash
+        string receiptNftCid
+        string proposalId FK
+        bigint createdAt
+        bigint settledAt
+    }
+
+    %% ========================================
+    %% DELIVERY NETWORK DOMAIN
+    %% ========================================
+
+    DeliveryRequest }o--o| Order : "fulfills"
+    DeliveryRequest }o--o| Profile : "delivered_by"
+
+    DeliveryProfile ||--|| Profile : "extends"
+
+    StoreDeliveryPartner }o--|| Profile : "partner"
+
+    DeliveryRequest {
+        uuid id PK
+        string sourceType "order|direct"
+        string orderId FK UK
+        json pickupAddress
+        json deliveryAddress
+        string senderId
+        string senderType "store|profile"
+        string recipientId
+        string packageType
+        float weight
+        json dimensions
+        decimal estimatedValue
+        text notes
+        boolean requiresSignature
+        decimal deliveryFeeBzr
+        float distance
+        string status "pending|assigned|accepted|picked_up|in_transit|delivered|completed|cancelled|failed"
+        string deliveryPersonId FK
+        array preferredDeliverers
+        boolean isPrivateNetwork
+        array notifiedDeliverers
+        bigint createdAt
+        bigint updatedAt
+        bigint expiresAt
+        bigint assignedAt
+        bigint acceptedAt
+        bigint pickedUpAt
+        bigint inTransitAt
+        bigint deliveredAt
+        bigint completedAt
+        bigint cancelledAt
+        string escrowAddress
+        string paymentTxHash
+        string releaseTxHash
+        json proofOfDelivery
+        int rating
+        text reviewComment
+        json metadata
+    }
+
+    StoreDeliveryPartner {
+        uuid id PK
+        bigint storeId
+        string deliveryPersonId FK
+        string status "pending|active|paused|suspended|rejected"
+        int priority
+        int commissionPercent
+        decimal bonusPerDelivery
+        int maxDailyDeliveries
+        array allowedDays
+        string workingHoursStart
+        string workingHoursEnd
+        int totalDeliveries
+        int completedDeliveries
+        int cancelledDeliveries
+        float avgRating
+        float avgDeliveryTime
+        float onTimeRate
+        bigint requestedAt
+        bigint approvedAt
+        bigint rejectedAt
+        bigint suspendedAt
+        bigint createdAt
+        bigint updatedAt
+        text notes
+        text rejectionReason
+    }
+
+    DeliveryProfile {
+        uuid id PK
+        string profileId FK UK
+        string fullName
+        string documentType "cpf|cnpj|passport"
+        string documentNumber UK
+        string phoneNumber
+        json emergencyContact
+        string vehicleType "bike|motorcycle|car|van|truck"
+        string vehiclePlate
+        string vehicleModel
+        int vehicleYear
+        string vehicleColor
+        float maxWeight
+        float maxVolume
+        boolean canCarryFragile
+        boolean canCarryPerishable
+        boolean hasInsulatedBag
+        boolean isAvailable
+        boolean isOnline
+        float currentLat
+        float currentLng
+        float currentAccuracy
+        bigint lastLocationUpdate
+        float serviceRadius
+        array serviceCities
+        array serviceStates
+        array preferredNeighborhoods
+        int totalDeliveries
+        int completedDeliveries
+        int cancelledDeliveries
+        float avgRating
+        int totalRatings
+        float onTimeRate
+        float acceptanceRate
+        float completionRate
+        float avgDeliveryTime
+        float fastestDelivery
+        float totalDistance
+        string walletAddress
+        decimal totalEarnings
+        decimal pendingEarnings
+        boolean isVerified
+        string verificationLevel "basic|intermediate|advanced"
+        boolean backgroundCheckCompleted
+        bigint backgroundCheckDate
+        float autoAcceptRadius
+        decimal minDeliveryFee
+        boolean notificationsEnabled
+        string accountStatus "active|suspended|banned|under_review"
+        text suspensionReason
+        bigint suspendedUntil
+        bigint createdAt
+        bigint updatedAt
+        bigint lastActiveAt
+        bigint verifiedAt
+    }
+
+    %% ========================================
+    %% MEDIA DOMAIN
+    %% ========================================
+
+    MediaAsset {
+        cuid id PK
+        string url
+        string mime
+        int size
+        string contentHash UK
+        string ownerType
+        string ownerId
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    %% ========================================
+    %% DAO & GOVERNANCE DOMAIN
+    %% ========================================
+
+    Dao {
+        cuid id PK
+        string name
+        string slug UK
+        string ownerUserId FK
+        datetime createdAt
+    }
+
+    SubDao {
+        cuid id PK
+        string daoId
+        string name
+        string slug UK
+        string ownerUserId
+    }
+
+    ProfileSubDao {
+        cuid id PK
+        string profileId
+        string subDaoId
+        string role "owner|admin|member"
+        datetime createdAt
+    }
+
+    %% ========================================
+    %% GAMIFICATION DOMAIN
+    %% ========================================
+
+    Achievement ||--o{ UserAchievement : "earned_by"
+    Quest ||--o{ UserQuest : "assigned_to"
+
+    Achievement {
+        cuid id PK
+        string slug UK
+        string name
+        text description
+        string category "SOCIAL|ENGAGEMENT|CONTENT|STREAK"
+        int tier "1-5"
+        json requirement
+        string icon
+        datetime createdAt
+    }
+
+    UserAchievement {
+        cuid id PK
+        string userId FK
+        string achievementId FK
+        int progress
+        datetime unlockedAt
+        datetime createdAt
+    }
+
+    Quest {
+        cuid id PK
+        string slug UK
+        string name
+        text description
+        string type "POST|LIKE|COMMENT|FOLLOW"
+        int target
+        int reward
+        string icon
+        datetime createdAt
+    }
+
+    UserQuest {
+        cuid id PK
+        string userId FK
+        string questId FK
+        int progress
+        datetime completedAt
+        datetime claimedAt
+        string date "YYYY-MM-DD"
+        datetime createdAt
+    }
+
+    %% ========================================
+    %% MODERATION & SAFETY DOMAIN
+    %% ========================================
+
+    ContentReport {
+        cuid id PK
+        string reporterId FK
+        string contentType "POST|COMMENT|PROFILE"
+        string contentId
+        enum reason
+        text details
+        enum status
+        string reviewedBy FK
+        datetime reviewedAt
+        datetime createdAt
+    }
+
+    UserBlock {
+        cuid id PK
+        string userId FK
+        string blockedUserId FK
+        datetime createdAt
+    }
+
+    UserMute {
+        cuid id PK
+        string userId FK
+        string mutedUserId FK
+        datetime createdAt
+    }
+
+    %% ========================================
+    %% ANALYTICS & TRENDING DOMAIN
+    %% ========================================
+
+    UserInteraction {
+        cuid id PK
+        string userId FK
+        string targetType "POST|PROFILE|PRODUCT"
+        string targetId
+        string interactionType "VIEW|LIKE|COMMENT|SHARE"
+        float weight
+        datetime createdAt
+    }
+
+    TrendingTopic {
+        cuid id PK
+        string tag UK
+        int count
+        float score
+        float growthRate
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    %% ========================================
+    %% AUDIT DOMAIN
+    %% ========================================
+
+    AuditLog {
+        cuid id PK
+        string entity
+        string entityId
+        string actor
+        string action
+        json diff
+        string ip
+        string ua
+        datetime createdAt
+    }

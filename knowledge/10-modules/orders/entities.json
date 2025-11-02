@@ -1,0 +1,113 @@
+{
+  "entities": [
+    {
+      "name": "Order",
+      "table": "Order",
+      "fields": [
+        {"name": "id", "type": "String (UUID)", "constraints": ["PRIMARY KEY"]},
+        {"name": "buyerAddr", "type": "String", "description": "SS58 address do comprador", "constraints": ["INDEX"]},
+        {"name": "sellerAddr", "type": "String", "description": "SS58 address do vendedor", "constraints": ["INDEX"]},
+        {"name": "sellerId", "type": "String", "description": "DAO ID do vendedor", "constraints": ["INDEX"]},
+        {"name": "sellerStoreId", "type": "String?", "description": "FK -> SellerProfile.id", "constraints": ["INDEX"]},
+        {"name": "subtotalBzr", "type": "Decimal(30,0)", "description": "Subtotal em planck"},
+        {"name": "shippingBzr", "type": "Decimal(30,0)", "description": "Frete em planck"},
+        {"name": "totalBzr", "type": "Decimal(30,0)", "description": "Total em planck"},
+        {"name": "status", "type": "OrderStatus", "description": "CREATED | PENDING | ESCROWED | SHIPPED | RELEASED | REFUNDED | CANCELLED | TIMEOUT", "constraints": ["DEFAULT CREATED", "INDEX"]},
+        {"name": "shippingAddress", "type": "Json?", "description": "Endereço de entrega {street, city, state, zipCode, country}"},
+        {"name": "shippingOptionId", "type": "String?", "description": "ID da opção de frete (ex: STD, EXPRESS)"},
+        {"name": "notes", "type": "String?", "description": "Observações do pedido"},
+        {"name": "createdAt", "type": "DateTime", "constraints": ["DEFAULT now()", "INDEX"]},
+        {"name": "updatedAt", "type": "DateTime", "constraints": ["AUTO UPDATE"]}
+      ],
+      "relations": [
+        {"name": "items", "type": "1:N", "target": "OrderItem"},
+        {"name": "paymentIntents", "type": "1:N", "target": "PaymentIntent"},
+        {"name": "escrowLogs", "type": "1:N", "target": "EscrowLog"},
+        {"name": "deliveryRequest", "type": "1:1", "target": "DeliveryRequest"}
+      ],
+      "indexes": [
+        {"fields": ["buyerAddr"], "type": "BTree"},
+        {"fields": ["sellerAddr"], "type": "BTree"},
+        {"fields": ["sellerId"], "type": "BTree"},
+        {"fields": ["sellerStoreId"], "type": "BTree"},
+        {"fields": ["status"], "type": "BTree"},
+        {"fields": ["createdAt"], "type": "BTree"}
+      ]
+    },
+    {
+      "name": "OrderItem",
+      "table": "OrderItem",
+      "fields": [
+        {"name": "id", "type": "String (CUID)", "constraints": ["PRIMARY KEY"]},
+        {"name": "orderId", "type": "String (UUID)", "constraints": ["FK -> Order.id", "INDEX"]},
+        {"name": "listingId", "type": "String", "description": "ID do produto/serviço", "constraints": ["INDEX"]},
+        {"name": "kind", "type": "String", "description": "'product' | 'service'", "constraints": ["INDEX"]},
+        {"name": "qty", "type": "Int", "description": "Quantidade"},
+        {"name": "unitPriceBzrSnapshot", "type": "Decimal(30,0)", "description": "Preço unitário em planck no momento do pedido"},
+        {"name": "titleSnapshot", "type": "String", "description": "Título no momento do pedido"},
+        {"name": "lineTotalBzr", "type": "Decimal(30,0)", "description": "qty * unitPrice em planck"},
+        {"name": "createdAt", "type": "DateTime", "constraints": ["DEFAULT now()"]}
+      ],
+      "relations": [
+        {"name": "order", "type": "N:1", "target": "Order"}
+      ],
+      "indexes": [
+        {"fields": ["orderId"], "type": "BTree"},
+        {"fields": ["listingId"], "type": "BTree"},
+        {"fields": ["kind"], "type": "BTree"}
+      ]
+    },
+    {
+      "name": "PaymentIntent",
+      "table": "PaymentIntent",
+      "fields": [
+        {"name": "id", "type": "String (CUID)", "constraints": ["PRIMARY KEY"]},
+        {"name": "orderId", "type": "String (UUID)", "constraints": ["FK -> Order.id", "INDEX"]},
+        {"name": "amountBzr", "type": "Decimal(30,0)", "description": "Valor em planck"},
+        {"name": "escrowAddress", "type": "String", "description": "Endereço de escrow gerado"},
+        {"name": "status", "type": "PaymentIntentStatus", "description": "PENDING | FUNDS_IN | RELEASED | REFUNDED | TIMEOUT | CANCELLED", "constraints": ["DEFAULT PENDING", "INDEX"]},
+        {"name": "txHashIn", "type": "String?", "description": "Hash da transação de depósito"},
+        {"name": "txHashRelease", "type": "String?", "description": "Hash da transação de release"},
+        {"name": "txHashRefund", "type": "String?", "description": "Hash da transação de refund"},
+        {"name": "createdAt", "type": "DateTime", "constraints": ["DEFAULT now()"]}
+      ],
+      "relations": [
+        {"name": "order", "type": "N:1", "target": "Order"}
+      ],
+      "indexes": [
+        {"fields": ["orderId"], "type": "BTree"},
+        {"fields": ["status"], "type": "BTree"},
+        {"fields": ["escrowAddress"], "type": "BTree"}
+      ]
+    },
+    {
+      "name": "EscrowLog",
+      "table": "EscrowLog",
+      "fields": [
+        {"name": "id", "type": "String (CUID)", "constraints": ["PRIMARY KEY"]},
+        {"name": "orderId", "type": "String (UUID)", "constraints": ["FK -> Order.id", "INDEX"]},
+        {"name": "kind", "type": "String", "description": "RELEASE_REQUEST | REFUND_REQUEST | DEPOSIT | RELEASE | REFUND"},
+        {"name": "payloadJson", "type": "Json", "description": "Dados do evento (amounts, addresses, timestamps)"},
+        {"name": "createdAt", "type": "DateTime", "constraints": ["DEFAULT now()"]}
+      ],
+      "relations": [
+        {"name": "order", "type": "N:1", "target": "Order"}
+      ],
+      "indexes": [
+        {"fields": ["orderId"], "type": "BTree"},
+        {"fields": ["kind"], "type": "BTree"},
+        {"fields": ["createdAt"], "type": "BTree"}
+      ]
+    }
+  ],
+  "enums": [
+    {
+      "name": "OrderStatus",
+      "values": ["CREATED", "PENDING", "ESCROWED", "SHIPPED", "RELEASED", "REFUNDED", "CANCELLED", "TIMEOUT"]
+    },
+    {
+      "name": "PaymentIntentStatus",
+      "values": ["PENDING", "FUNDS_IN", "RELEASED", "REFUNDED", "TIMEOUT", "CANCELLED"]
+    }
+  ]
+}

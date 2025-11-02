@@ -1,0 +1,54 @@
+%% Auth Module - Entity Relationship Diagram
+erDiagram
+    User ||--o{ RefreshToken : "has"
+    User ||--o| Profile : "has"
+    User ||--o{ SellerProfile : "owns"
+    User {
+        string id PK "UUID"
+        string address UK "Substrate SS58 address"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    RefreshToken {
+        string id PK "UUID"
+        string userId FK "References User.id"
+        string tokenHash UK "SHA-256 hash"
+        datetime createdAt
+        datetime revokedAt "NULL if active"
+    }
+
+    AuthNonce {
+        string id PK "UUID"
+        string address "Substrate address"
+        string nonce UK "32-byte random hex"
+        string domain "bazari.xyz"
+        string uri "https://bazari.xyz"
+        string genesis "Chain genesis hash"
+        datetime issuedAt
+        datetime expiresAt "5 min after issuedAt"
+        datetime usedAt "NULL if unused"
+    }
+
+    Profile {
+        string id PK "UUID"
+        string userId FK "References User.id"
+        string handle UK "@username"
+        string displayName
+        string avatarUrl
+        int reputationScore
+        string reputationTier
+    }
+
+    SellerProfile {
+        string id PK "UUID"
+        string userId FK "References User.id"
+        string storeName
+        string storeSlug UK
+        boolean verified
+        decimal ratingAvg
+        int ratingCount
+    }
+
+    %% Notes
+    User ||..o{ AuthNonce : "generates (ephemeral)"

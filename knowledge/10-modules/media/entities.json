@@ -1,0 +1,28 @@
+{
+  "entities": [
+    {
+      "name": "MediaAsset",
+      "table": "MediaAsset",
+      "fields": [
+        {"name": "id", "type": "String (CUID)", "constraints": ["PRIMARY KEY"]},
+        {"name": "url", "type": "String", "description": "File URL (LocalFS: /uploads/abc.png, S3: https://...)"},
+        {"name": "mime", "type": "String", "description": "MIME type", "example": "image/png"},
+        {"name": "size", "type": "Int", "description": "File size in bytes"},
+        {"name": "contentHash", "type": "String", "description": "SHA-256 hash", "constraints": ["INDEX"]},
+        {"name": "ownerType", "type": "String?", "description": "Entity type (Profile, Product, Post)"},
+        {"name": "ownerId", "type": "String?", "description": "Entity ID"},
+        {"name": "createdAt", "type": "DateTime"},
+        {"name": "updatedAt", "type": "DateTime"}
+      ],
+      "indexes": [
+        {"fields": ["ownerType", "ownerId"], "type": "INDEX"},
+        {"fields": ["contentHash"], "type": "INDEX"}
+      ],
+      "business_rules": [
+        "Content hash previne duplicatas",
+        "Owner pode deletar apenas suas próprias mídias",
+        "URLs públicas para LocalFS, signed para S3"
+      ]
+    }
+  ]
+}

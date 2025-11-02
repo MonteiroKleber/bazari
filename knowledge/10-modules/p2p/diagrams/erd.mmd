@@ -1,0 +1,133 @@
+%% P2P Exchange Module - Entity Relationship Diagram
+erDiagram
+    User ||--o{ P2POffer : "creates"
+    User ||--o{ P2POrder : "makes/takes"
+    User ||--o| P2PPaymentProfile : "has"
+    User ||--o{ P2PReview : "rates/is_rated"
+
+    P2POffer ||--o{ P2POrder : "generates"
+    P2POffer }o--|| User : "owned_by"
+    P2POffer }o--o| ZARIPhaseConfig : "references"
+
+    P2POrder ||--o{ P2PMessage : "contains"
+    P2POrder ||--o| P2PDispute : "may_have"
+    P2POrder ||--o{ P2PReview : "generates"
+    P2POrder }o--|| P2POffer : "based_on"
+    P2POrder }o--|| User : "maker"
+    P2POrder }o--|| User : "taker"
+
+    P2PReview }o--|| P2POrder : "for"
+    P2PReview }o--|| User : "rater"
+    P2PReview }o--|| User : "ratee"
+
+    P2PMessage }o--|| P2POrder : "in"
+    P2PMessage }o--|| User : "sender"
+
+    P2PDispute }o--|| P2POrder : "for"
+    P2PDispute }o--|| User : "opened_by"
+
+    P2PPaymentProfile }o--|| User : "belongs_to"
+
+    User {
+        string id PK "CUID"
+        string address UK "Substrate SS58"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    P2POffer {
+        string id PK "CUID"
+        string ownerId FK "References User.id"
+        enum side "BUY_BZR | SELL_BZR"
+        enum assetType "BZR | ZARI"
+        string assetId "1 for ZARI, null for BZR"
+        string phase "2A | 2B | 3 (ZARI only)"
+        decimal phasePrice "0.25 | 0.35 | 0.50 BZR"
+        decimal priceBRLPerUnit "R$/unit"
+        decimal minBRL "Min trade amount"
+        decimal maxBRL "Max trade amount"
+        enum method "PIX"
+        string autoReply "Automated message"
+        enum status "ACTIVE | PAUSED | ARCHIVED"
+        json stats "totalSold, totalVolume"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    P2POrder {
+        string id PK "CUID"
+        string offerId FK "References P2POffer.id"
+        string makerId FK "References User.id"
+        string takerId FK "References User.id"
+        enum side "BUY_BZR | SELL_BZR"
+        enum assetType "BZR | ZARI"
+        string assetId "1 for ZARI"
+        string phase "Phase snapshot"
+        decimal priceBRLPerUnit "Price snapshot"
+        decimal amountAsset "BZR or ZARI amount"
+        decimal amountBRL "Fiat amount"
+        enum method "PIX"
+        enum status "DRAFT | AWAITING_ESCROW | AWAITING_FIAT_PAYMENT | AWAITING_CONFIRMATION | RELEASED | EXPIRED | CANCELLED | DISPUTE_OPEN | DISPUTE_RESOLVED_BUYER | DISPUTE_RESOLVED_SELLER"
+        string escrowTxHash "On-chain tx hash"
+        datetime escrowAt "Escrow timestamp"
+        string releasedTxHash "Release tx hash"
+        datetime releasedAt "Release timestamp"
+        string pixKeySnapshot "PIX key"
+        datetime payerDeclaredAt "Payment declaration"
+        json proofUrls "Proof screenshots"
+        datetime expiresAt "48h expiration"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    P2PMessage {
+        string id PK "CUID"
+        string orderId FK "References P2POrder.id"
+        string senderId FK "References User.id"
+        text body "Message content"
+        string kind "text | proof_upload | escrow_detected | fiat_declared | release_request"
+        datetime createdAt
+    }
+
+    P2PDispute {
+        string id PK "CUID"
+        string orderId FK UK "References P2POrder.id"
+        string openedById FK "References User.id"
+        string reason "Dispute reason"
+        json evidence "Evidence URLs"
+        string status "OPEN | RESOLVED_BUYER | RESOLVED_SELLER"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    P2PReview {
+        string id PK "CUID"
+        string orderId FK UK "References P2POrder.id"
+        string raterId FK "References User.id"
+        string rateeId FK "References User.id"
+        int stars "1-5 rating"
+        string comment "Optional review text"
+        datetime createdAt
+    }
+
+    P2PPaymentProfile {
+        string id PK "CUID"
+        string userId FK UK "References User.id"
+        string pixKey "PIX key (CPF, email, phone)"
+        string bankName "Bank name"
+        string accountName "Account holder name"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    ZARIPhaseConfig {
+        string id PK "CUID"
+        string phase UK "2A | 2B | 3"
+        decimal priceBZR "BZR per ZARI"
+        bigint supplyLimit "Max ZARI in planck"
+        bigint startBlock "Phase start block"
+        bigint endBlock "Phase end block"
+        boolean active "Is active phase"
+        datetime createdAt
+        datetime updatedAt
+    }

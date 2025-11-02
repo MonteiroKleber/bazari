@@ -1,0 +1,121 @@
+%% Delivery Module - Use Cases Diagram
+graph TB
+    subgraph Actors
+        Sender((Sender/Store))
+        Deliverer((Deliverer))
+        Recipient((Recipient))
+        System((System))
+    end
+
+    subgraph "Delivery Request"
+        UC01[UC-01: Auto-Create from Order]
+        UC02[UC-02: Create Direct Delivery Request]
+        UC03[UC-03: Calculate Delivery Fee]
+        UC04[UC-04: Estimate Package Dimensions]
+        UC05[UC-05: Set Preferred Deliverers]
+    end
+
+    subgraph "Deliverer Operations"
+        UC06[UC-06: Browse Available Requests]
+        UC07[UC-07: Accept Delivery Request]
+        UC08[UC-08: Pickup Package]
+        UC09[UC-09: Mark In Transit]
+        UC10[UC-10: Complete Delivery]
+        UC11[UC-11: Update Location]
+    end
+
+    subgraph "Delivery Profile"
+        UC12[UC-12: Create Delivery Profile]
+        UC13[UC-13: Update Vehicle Info]
+        UC14[UC-14: Set Availability]
+        UC15[UC-15: Update Capacities]
+        UC16[UC-16: View Delivery History]
+    end
+
+    subgraph "Tracking & Status"
+        UC17[UC-17: Track Delivery Status]
+        UC18[UC-18: View Delivery Timeline]
+        UC19[UC-19: Notify Status Changes]
+        UC20[UC-20: Update Delivery Status]
+    end
+
+    subgraph "Private Networks"
+        UC21[UC-21: Create Private Delivery Network]
+        UC22[UC-22: Add Preferred Deliverer]
+        UC23[UC-23: Remove from Network]
+        UC24[UC-24: View Network Deliverers]
+    end
+
+    subgraph "Capacity Matching"
+        UC25[UC-25: Validate Vehicle Capacity]
+        UC26[UC-26: Match Request to Deliverer]
+        UC27[UC-27: Check Weight/Volume Limits]
+    end
+
+    %% Sender interactions
+    Sender -->|creates| UC02
+    Sender -->|sets| UC05
+    Sender -->|creates| UC21
+    Sender -->|adds| UC22
+    Sender -->|removes| UC23
+    Sender -->|views| UC24
+    Sender -->|tracks| UC17
+    Sender -->|views| UC18
+
+    %% Deliverer interactions
+    Deliverer -->|browses| UC06
+    Deliverer -->|accepts| UC07
+    Deliverer -->|picks up| UC08
+    Deliverer -->|marks| UC09
+    Deliverer -->|completes| UC10
+    Deliverer -->|updates| UC11
+    Deliverer -->|creates| UC12
+    Deliverer -->|updates| UC13
+    Deliverer -->|sets| UC14
+    Deliverer -->|updates| UC15
+    Deliverer -->|views| UC16
+
+    %% Recipient interactions
+    Recipient -->|tracks| UC17
+    Recipient -->|views| UC18
+
+    %% System interactions
+    System -->|auto-creates| UC01
+    System -->|calculates| UC03
+    System -->|estimates| UC04
+    System -->|validates| UC25
+    System -->|matches| UC26
+    System -->|checks| UC27
+    System -->|updates| UC20
+    System -->|notifies| UC19
+
+    %% Dependencies
+    UC01 -.->|uses| UC03
+    UC01 -.->|uses| UC04
+    UC02 -.->|uses| UC03
+    UC07 -.->|uses| UC25
+    UC07 -.->|uses| UC27
+    UC07 -.->|triggers| UC20
+    UC08 -.->|triggers| UC20
+    UC09 -.->|triggers| UC20
+    UC10 -.->|triggers| UC20
+    UC20 -.->|triggers| UC19
+    UC21 -.->|manages| UC22
+    UC22 -.->|adds to| UC24
+    UC23 -.->|removes from| UC24
+    UC26 -.->|uses| UC25
+
+    %% Styling
+    classDef requestCase fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    classDef delivererCase fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef profileCase fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    classDef trackingCase fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef networkCase fill:#fff9c4,stroke:#f9a825,stroke-width:2px
+    classDef capacityCase fill:#ffebee,stroke:#d32f2f,stroke-width:2px
+
+    class UC01,UC02,UC03,UC04,UC05 requestCase
+    class UC06,UC07,UC08,UC09,UC10,UC11 delivererCase
+    class UC12,UC13,UC14,UC15,UC16 profileCase
+    class UC17,UC18,UC19,UC20 trackingCase
+    class UC21,UC22,UC23,UC24 networkCase
+    class UC25,UC26,UC27 capacityCase

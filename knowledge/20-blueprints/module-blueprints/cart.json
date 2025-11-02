@@ -1,0 +1,145 @@
+{
+  "module": {
+    "id": "cart",
+    "name": "Shopping Cart",
+    "category": "commerce",
+    "version": "1.0.0",
+    "status": "production",
+    "description": "Proporcionar experiência de carrinho de compras fluida, persistente e inteligente, com validação de vendedor único (MVP) e sincronização por usuário."
+  },
+  "vision": {
+    "statement": "Proporcionar experiência de carrinho de compras fluida, persistente e inteligente, com validação de vendedor único (MVP) e sincronização por usuário.",
+    "principles": [
+      "Client-Side First - Nenhum backend necessário, 100% localStorage",
+      "User Isolation - Carrinho vinculado ao address ativo (não compartilhado)",
+      "Seller Enforcement - Validação automática de vendedor único",
+      "Snapshot Pricing - Preço e título salvos no momento da adição (protege contra mudanças)",
+      "Optimistic UI - Atualizações instantâneas, sem loading states",
+      "Key Pattern: `bazari_cart_{address}` (ex: `bazari_cart_5GrwvaEF...`)",
+      "Anonymous Users: `bazari_cart_anonymous`",
+      "Auto-Switch: Carrinho troca automaticamente ao mudar conta ativa",
+      "Persistence: Zustand persist middleware com version=1"
+    ]
+  },
+  "entities": [
+    {
+      "name": "CartItem",
+      "storage": "localStorage (Zustand persist)",
+      "fields": [
+        {
+          "name": "listingId",
+          "type": "string",
+          "description": "UUID do produto/serviço"
+        },
+        {
+          "name": "qty",
+          "type": "number",
+          "description": "Quantidade",
+          "constraints": [
+            "MIN 1"
+          ]
+        },
+        {
+          "name": "priceBzrSnapshot",
+          "type": "string",
+          "description": "Preço em planck no momento da adição (protege contra mudanças)"
+        },
+        {
+          "name": "titleSnapshot",
+          "type": "string",
+          "description": "Título no momento da adição"
+        },
+        {
+          "name": "sellerId",
+          "type": "string",
+          "description": "DAO ID do vendedor"
+        },
+        {
+          "name": "kind",
+          "type": "'product' | 'service'",
+          "description": "Tipo de listing"
+        },
+        {
+          "name": "addedAt",
+          "type": "number",
+          "description": "Unix timestamp de adição"
+        }
+      ]
+    },
+    {
+      "name": "CartState",
+      "storage": "Zustand Store",
+      "fields": [
+        {
+          "name": "items",
+          "type": "CartItem[]",
+          "description": "Lista de itens no carrinho"
+        },
+        {
+          "name": "subtotalBzr",
+          "type": "string (computed)",
+          "description": "Soma de (qty * priceBzrSnapshot) de todos os itens"
+        },
+        {
+          "name": "count",
+          "type": "number (computed)",
+          "description": "Soma de qty de todos os itens"
+        },
+        {
+          "name": "currentSellerId",
+          "type": "string | null (computed)",
+          "description": "sellerId do primeiro item, ou null se vazio"
+        }
+      ],
+      "actions": [
+        {
+          "name": "addItem",
+          "params": "Omit<CartItem, 'addedAt'>",
+          "returns": "Promise<boolean>",
+          "description": "Retorna false se precisa confirmação de conflito de vendedor"
+        },
+        {
+          "name": "removeItem",
+          "params": "listingId: string",
+          "returns": "void"
+        },
+        {
+          "name": "updateQty",
+          "params": "listingId: string, qty: number",
+          "returns": "void",
+          "description": "Remove item se qty <= 0"
+        },
+        {
+          "name": "clear",
+          "params": "void",
+          "returns": "void",
+          "description": "Remove todos os itens"
+        }
+      ]
+    }
+  ],
+  "valueObjects": [],
+  "apis": [],
+  "useCases": [
+    {
+      "id": "UC-01",
+      "name": "Core Use Case",
+      "actors": [
+        "User",
+        "System"
+      ],
+      "flow": "User performs action → System processes → Returns result"
+    }
+  ],
+  "dependencies": {
+    "internal": [],
+    "external": []
+  },
+  "security": {
+    "authentication": "JWT-based via auth module",
+    "authorization": "Role-based and ownership-based access control"
+  },
+  "metrics": {
+    "key_metrics": []
+  }
+}

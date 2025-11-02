@@ -1,0 +1,186 @@
+{
+  "entities": [
+    {
+      "name": "Profile",
+      "description": "Perfil público do usuário com identidade, reputação e rede social",
+      "source": "apps/api/prisma/schema.prisma",
+      "table": "Profile",
+      "fields": [
+        {"name": "id", "type": "String (CUID)", "description": "ID único do perfil", "constraints": ["PRIMARY KEY"]},
+        {"name": "userId", "type": "String (UUID)", "description": "ID do User dono", "constraints": ["UNIQUE", "FK -> User.id"]},
+        {"name": "handle", "type": "String", "description": "Handle único (@alice)", "constraints": ["UNIQUE", "INDEX"], "example": "alice"},
+        {"name": "displayName", "type": "String", "description": "Nome de exibição", "example": "Alice Silva"},
+        {"name": "bio", "type": "String?", "description": "Bio em markdown (max 500 chars)", "constraints": ["NULLABLE", "TEXT"]},
+        {"name": "avatarUrl", "type": "String?", "description": "URL do avatar (IPFS)", "example": "https://ipfs.io/ipfs/Qm..."},
+        {"name": "bannerUrl", "type": "String?", "description": "URL do banner (IPFS)"},
+        {"name": "externalLinks", "type": "Json?", "description": "Links externos (Twitter, GitHub)", "example": "{\"twitter\":\"@alice\",\"github\":\"alice\"}"},
+        {"name": "followersCount", "type": "Int", "description": "Contador de seguidores", "constraints": ["DEFAULT 0", "INDEX"]},
+        {"name": "followingCount", "type": "Int", "description": "Contador de seguindo", "constraints": ["DEFAULT 0"]},
+        {"name": "postsCount", "type": "Int", "description": "Contador de posts", "constraints": ["DEFAULT 0"]},
+        {"name": "onChainProfileId", "type": "BigInt?", "description": "ID do NFT on-chain do perfil", "constraints": ["UNIQUE", "INDEX"]},
+        {"name": "reputationScore", "type": "Int", "description": "Pontuação de reputação (0-10000)", "constraints": ["DEFAULT 0", "INDEX"]},
+        {"name": "reputationTier", "type": "String", "description": "Tier atual (bronze/silver/gold/platinum/diamond)", "constraints": ["DEFAULT 'bronze'", "INDEX"]},
+        {"name": "metadataCid", "type": "String?", "description": "IPFS CID dos metadados on-chain"},
+        {"name": "isVerified", "type": "Boolean", "description": "Perfil verificado (blue check)", "constraints": ["DEFAULT false"]},
+        {"name": "lastChainSync", "type": "DateTime?", "description": "Última sincronização on-chain"},
+        {"name": "chatPublicKey", "type": "String?", "description": "Public key Curve25519 para E2EE chat"},
+        {"name": "createdAt", "type": "DateTime", "constraints": ["DEFAULT now()"]},
+        {"name": "updatedAt", "type": "DateTime", "constraints": ["AUTO UPDATE"]}
+      ],
+      "relations": [
+        {"name": "user", "type": "1:1", "target": "User"},
+        {"name": "posts", "type": "1:N", "target": "Post"},
+        {"name": "followers", "type": "1:N", "target": "Follow", "foreign_key": "followingId"},
+        {"name": "following", "type": "1:N", "target": "Follow", "foreign_key": "followerId"},
+        {"name": "badges", "type": "1:N", "target": "ProfileBadge"},
+        {"name": "reputationEvents", "type": "1:N", "target": "ProfileReputationEvent"}
+      ],
+      "indexes": [
+        {"fields": ["handle"], "type": "UNIQUE"},
+        {"fields": ["onChainProfileId"], "type": "UNIQUE"},
+        {"fields": ["reputationScore"], "type": "INDEX"},
+        {"fields": ["reputationTier"], "type": "INDEX"}
+      ],
+      "business_rules": [
+        "Handle deve ser único, lowercase, 3-20 chars, apenas alphanumeric + underscore",
+        "Handle pode ser alterado pagando fee de 10 BZR",
+        "DisplayName max 50 caracteres",
+        "Bio max 500 caracteres, markdown permitido",
+        "Avatar/banner hospedados em IPFS via Media module",
+        "ReputationScore calculado por Reputation Worker",
+        "ReputationTier atualizado automaticamente baseado em score",
+        "Profile criado automaticamente no primeiro login"
+      ]
+    },
+    {
+      "name": "Follow",
+      "description": "Relacionamento de follow entre perfis (grafo social)",
+      "source": "apps/api/prisma/schema.prisma",
+      "table": "Follow",
+      "fields": [
+        {"name": "id", "type": "String (CUID)", "constraints": ["PRIMARY KEY"]},
+        {"name": "followerId", "type": "String", "description": "Profile que está seguindo", "constraints": ["FK -> Profile.id", "INDEX"]},
+        {"name": "followingId", "type": "String", "description": "Profile sendo seguido", "constraints": ["FK -> Profile.id", "INDEX"]},
+        {"name": "createdAt", "type": "DateTime", "constraints": ["DEFAULT now()"]}
+      ],
+      "relations": [
+        {"name": "follower", "type": "N:1", "target": "Profile"},
+        {"name": "following", "type": "N:1", "target": "Profile"}
+      ],
+      "indexes": [
+        {"fields": ["followerId", "followingId"], "type": "UNIQUE"},
+        {"fields": ["followingId"], "type": "INDEX"}
+      ],
+      "business_rules": [
+        "Não pode seguir a si mesmo (follower != following)",
+        "Par (followerId, followingId) deve ser único",
+        "Unfollow deleta o registro",
+        "Follow incrementa followersCount e followingCount via transaction",
+        "Emite evento de reputação (+5 para quem foi seguido)"
+      ]
+    },
+    {
+      "name": "ProfileBadge",
+      "description": "Badges e conquistas on-chain vinculadas ao perfil",
+      "source": "apps/api/prisma/schema.prisma",
+      "table": "ProfileBadge",
+      "fields": [
+        {"name": "id", "type": "String (CUID)", "constraints": ["PRIMARY KEY"]},
+        {"name": "profileId", "type": "String", "constraints": ["FK -> Profile.id", "INDEX"]},
+        {"name": "code", "type": "String", "description": "Código do badge (EARLY_ADOPTER, TOP_SELLER)", "constraints": ["INDEX"]},
+        {"name": "label", "type": "Json", "description": "Labels i18n {pt, en, es}", "example": "{\"pt\":\"Pioneiro\",\"en\":\"Early Adopter\"}"},
+        {"name": "issuedBy", "type": "String", "description": "Emissor (marketplace, dao, system)"},
+        {"name": "issuedAt", "type": "DateTime", "constraints": ["INDEX"]},
+        {"name": "blockNumber", "type": "BigInt", "description": "Bloco on-chain da emissão"},
+        {"name": "revokedAt", "type": "DateTime?", "description": "Data de revogação (null = ativo)"},
+        {"name": "revokeReason", "type": "String?", "description": "Razão da revogação"}
+      ],
+      "relations": [
+        {"name": "profile", "type": "N:1", "target": "Profile"}
+      ],
+      "indexes": [
+        {"fields": ["profileId", "code"], "type": "UNIQUE"},
+        {"fields": ["code"], "type": "INDEX"},
+        {"name": "issuedAt", "type": "INDEX"}
+      ],
+      "business_rules": [
+        "Badge code deve ser único por perfil",
+        "Badges podem ser revogados (revokedAt preenchido)",
+        "Badges ativos: revokedAt IS NULL",
+        "Badges emitidos on-chain (futuro): blockNumber preenchido",
+        "Badges dão +100 de reputação ao serem emitidos"
+      ]
+    },
+    {
+      "name": "ProfileReputationEvent",
+      "description": "Histórico de eventos que modificaram a reputação do perfil",
+      "source": "apps/api/prisma/schema.prisma",
+      "table": "ProfileReputationEvent",
+      "fields": [
+        {"name": "id", "type": "String (CUID)", "constraints": ["PRIMARY KEY"]},
+        {"name": "profileId", "type": "String", "constraints": ["FK -> Profile.id", "INDEX"]},
+        {"name": "eventCode", "type": "String", "description": "Tipo de evento (ORDER_COMPLETED, DELIVERY_DONE)", "constraints": ["INDEX"]},
+        {"name": "delta", "type": "Int", "description": "Variação de pontos (+50, -100, etc)"},
+        {"name": "newTotal", "type": "Int", "description": "Score total após o evento"},
+        {"name": "reason", "type": "String?", "description": "Razão do evento"},
+        {"name": "emittedBy", "type": "String", "description": "Módulo emissor (marketplace, delivery, social)"},
+        {"name": "blockNumber", "type": "BigInt", "description": "Bloco on-chain", "constraints": ["INDEX"]},
+        {"name": "extrinsicId", "type": "String?", "description": "ID da extrinsic on-chain"},
+        {"name": "createdAt", "type": "DateTime", "constraints": ["DEFAULT now()", "INDEX"]}
+      ],
+      "relations": [
+        {"name": "profile", "type": "N:1", "target": "Profile"}
+      ],
+      "indexes": [
+        {"fields": ["profileId", "createdAt"], "type": "INDEX"},
+        {"fields": ["eventCode"], "type": "INDEX"},
+        {"fields": ["blockNumber"], "type": "INDEX"}
+      ],
+      "business_rules": [
+        "Eventos são append-only (não podem ser editados ou deletados)",
+        "Delta pode ser positivo ou negativo",
+        "newTotal é snapshot do reputationScore após o evento",
+        "BlockNumber registra em qual bloco on-chain ocorreu",
+        "Usado para auditoria e replay de reputação"
+      ]
+    },
+    {
+      "name": "HandleHistory",
+      "description": "Histórico de mudanças de handle (para auditoria e prevenção de fraude)",
+      "source": "apps/api/prisma/schema.prisma",
+      "table": "HandleHistory",
+      "fields": [
+        {"name": "id", "type": "String (CUID)", "constraints": ["PRIMARY KEY"]},
+        {"name": "profileId", "type": "String", "constraints": ["FK -> Profile.id", "INDEX"]},
+        {"name": "oldHandle", "type": "String?", "description": "Handle anterior (null se é o primeiro)"},
+        {"name": "newHandle", "type": "String", "description": "Novo handle", "constraints": ["INDEX"]},
+        {"name": "changedAt", "type": "DateTime", "constraints": ["INDEX"]},
+        {"name": "blockNumber", "type": "BigInt", "description": "Bloco on-chain da mudança"}
+      ],
+      "relations": [
+        {"name": "profile", "type": "N:1", "target": "Profile"}
+      ],
+      "indexes": [
+        {"fields": ["profileId", "changedAt"], "type": "INDEX"},
+        {"fields": ["newHandle"], "type": "INDEX"}
+      ],
+      "business_rules": [
+        "Registra todas as mudanças de handle",
+        "Permite rastrear histórico de identidade",
+        "Previne fraude (impersonation após handle change)",
+        "Mudança de handle custa 10 BZR",
+        "Handle anterior fica disponível para outros após mudança"
+      ]
+    }
+  ],
+  "domain_events": [
+    {"name": "ProfileCreated", "payload": {"profileId": "String", "userId": "String", "handle": "String"}},
+    {"name": "ProfileUpdated", "payload": {"profileId": "String", "fields": "String[]"}},
+    {"name": "HandleChanged", "payload": {"profileId": "String", "oldHandle": "String", "newHandle": "String"}},
+    {"name": "UserFollowed", "payload": {"followerId": "String", "followingId": "String"}},
+    {"name": "UserUnfollowed", "payload": {"followerId": "String", "followingId": "String"}},
+    {"name": "ReputationUpdated", "payload": {"profileId": "String", "oldScore": "Int", "newScore": "Int", "oldTier": "String", "newTier": "String"}},
+    {"name": "BadgeIssued", "payload": {"profileId": "String", "badgeCode": "String"}},
+    {"name": "BadgeRevoked", "payload": {"profileId": "String", "badgeCode": "String", "reason": "String"}}
+  ]
+}

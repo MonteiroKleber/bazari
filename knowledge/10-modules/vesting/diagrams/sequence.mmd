@@ -1,0 +1,87 @@
+%% Vesting Module - Token Vesting Flow Sequence Diagram
+sequenceDiagram
+    actor Stakeholder
+    participant Client
+    participant API
+    participant Blockchain
+
+    %% Phase 1: Genesis Configuration
+    rect rgb(200, 230, 255)
+        Note over Stakeholder,Blockchain: Phase 1: Genesis Vesting Configuration
+        Note over Blockchain: Chain genesis includes vesting schedules
+        Blockchain->>Blockchain: Initialize Vesting pallet
+        Blockchain->>Blockchain: Create founder account<br/>(15M BZR locked, 12mo cliff, 48mo vest)
+        Blockchain->>Blockchain: Create team account<br/>(10M BZR locked, 6mo cliff, 36mo vest)
+        Blockchain->>Blockchain: Create partners account<br/>(8M BZR locked, 3mo cliff, 24mo vest)
+        Blockchain->>Blockchain: Create marketing account<br/>(5M BZR locked, 0mo cliff, 18mo vest)
+        Note over Blockchain: Vesting schedules immutable
+    end
+
+    %% Phase 2: View Vesting Schedule
+    rect rgb(255, 240, 200)
+        Note over Stakeholder,Blockchain: Phase 2: Query Vesting Status
+        Stakeholder->>Client: Navigate to /app/vesting
+        Client->>API: GET /api/vesting/schedules/:address
+        API->>Blockchain: RPC: vesting.vesting(accountId)
+        Blockchain-->>API: {locked, perBlock, startingBlock}
+        API->>Blockchain: RPC: system.number() (current block)
+        Blockchain-->>API: {currentBlock}
+
+        API->>API: Calculate vested amount<br/>(currentBlock - startingBlock) * perBlock
+        API->>API: Calculate unvested amount<br/>locked - vested
+        API-->>Client: {locked, vested, unvested, schedule}
+        Client-->>Stakeholder: Display vesting timeline<br/>(progress bar, amounts, dates)
+    end
+
+    %% Phase 3: Claim Vested Tokens
+    rect rgb(200, 255, 200)
+        Note over Stakeholder,Blockchain: Phase 3: Claim Vested Tokens
+        Stakeholder->>Client: Click "Claim Vested Tokens"
+        Client->>Blockchain: Sign tx: vesting.vest()
+        Blockchain->>Blockchain: Calculate claimable amount<br/>(vested - already_claimed)
+
+        alt Nothing to claim (cliff not passed)
+            Blockchain-->>Client: Error: No vested tokens yet
+            Client-->>Stakeholder: Cliff period not passed
+        else Tokens available
+            Blockchain->>Blockchain: Transfer vested amount<br/>from reserved to free balance
+            Blockchain->>Blockchain: Update vesting storage
+            Blockchain-->>Client: {txHash, amountClaimed}
+            Client-->>Stakeholder: Claimed: 125,000 BZR
+            Note over Stakeholder: Tokens now transferable
+        end
+    end
+
+    %% Phase 4: Automatic Vesting Release
+    rect rgb(255, 230, 255)
+        Note over Blockchain,Blockchain: Phase 4: Automatic Release Per Block
+        Note over Blockchain: Every block, tokens unlock automatically
+        Blockchain->>Blockchain: Block N produced
+        Blockchain->>Blockchain: For each vesting account:<br/>vested += perBlock
+        Blockchain->>Blockchain: Update free balance limits
+        Note over Blockchain: No manual claim needed<br/>for balance queries
+    end
+
+    %% Phase 5: View All Stakeholder Schedules
+    rect rgb(240, 240, 240)
+        Note over Stakeholder,API: Phase 5: View All Vesting Categories
+        Stakeholder->>Client: View "Transparency Dashboard"
+        Client->>API: GET /api/vesting/all-schedules
+        API->>Blockchain: Query vesting for:<br/>founders, team, partners, marketing
+        Blockchain-->>API: All vesting data
+        API-->>Client: {schedules: [founders, team, partners, marketing]}
+        Client-->>Stakeholder: Display table:<br/>- Category<br/>- Total Allocated<br/>- Vested<br/>- Unvested<br/>- Progress %
+    end
+
+    %% Phase 6: Claim on Behalf (Optional)
+    rect rgb(200, 255, 255)
+        Note over Stakeholder,Blockchain: Phase 6: Claim Vested for Another Account
+        Stakeholder->>Client: Click "Claim for Team Account"
+        Client->>Blockchain: Sign tx: vesting.vestOther(teamAccountId)
+        Blockchain->>Blockchain: Verify permissions<br/>(anyone can call)
+        Blockchain->>Blockchain: Calculate claimable<br/>for target account
+        Blockchain->>Blockchain: Transfer vested to free balance
+        Blockchain-->>Client: {txHash, amountClaimed}
+        Client-->>Stakeholder: Claimed 50,000 BZR for team
+        Note over Blockchain: Useful for automated claims
+    end

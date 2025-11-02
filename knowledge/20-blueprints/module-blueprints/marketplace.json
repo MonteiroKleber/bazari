@@ -1,0 +1,435 @@
+{
+  "module": {
+    "id": "marketplace",
+    "name": "Marketplace & Products",
+    "category": "commerce",
+    "version": "1.0.0",
+    "status": "production",
+    "description": "Criar um marketplace Web3 descentralizado onde qualquer pessoa pode comprar e vender produtos/serviços com transparência, segurança e sem intermediários centralizados."
+  },
+  "vision": {
+    "statement": "Criar um marketplace Web3 descentralizado onde qualquer pessoa pode comprar e vender produtos/serviços com transparência, segurança e sem intermediários centralizados.",
+    "principles": [
+      "Decentralized - Produtos on-chain, catálogo em IPFS",
+      "Open - Qualquer um pode listar produtos",
+      "Transparent - Preços e reviews públicos",
+      "Dynamic Attributes - CategorySpec permite atributos customizados por categoria"
+    ]
+  },
+  "entities": [
+    {
+      "name": "Product",
+      "table": "Product",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String (UUID)",
+          "constraints": [
+            "PRIMARY KEY"
+          ]
+        },
+        {
+          "name": "daoId",
+          "type": "String",
+          "description": "DAO ID do vendedor",
+          "constraints": [
+            "INDEX"
+          ]
+        },
+        {
+          "name": "title",
+          "type": "String",
+          "description": "Nome do produto",
+          "constraints": [
+            "INDEX"
+          ]
+        },
+        {
+          "name": "description",
+          "type": "String?",
+          "description": "Descrição markdown"
+        },
+        {
+          "name": "priceBzr",
+          "type": "Decimal(20,12)",
+          "description": "Preço em BZR",
+          "constraints": [
+            "INDEX"
+          ]
+        },
+        {
+          "name": "categoryId",
+          "type": "String",
+          "description": "ID da categoria (products-L1-L2-L3-L4)",
+          "constraints": [
+            "FK -> Category.id",
+            "INDEX"
+          ]
+        },
+        {
+          "name": "categoryPath",
+          "type": "String[]",
+          "description": "Path slugs [L1, L2, L3, L4]",
+          "constraints": [
+            "GIN INDEX"
+          ]
+        },
+        {
+          "name": "attributes",
+          "type": "Json",
+          "description": "Atributos dinâmicos (CategorySpec)",
+          "constraints": [
+            "GIN INDEX"
+          ]
+        },
+        {
+          "name": "attributesSpecVersion",
+          "type": "String",
+          "description": "Versão do spec usado"
+        },
+        {
+          "name": "sellerUserId",
+          "type": "String?",
+          "description": "User ID do vendedor",
+          "constraints": [
+            "INDEX"
+          ]
+        },
+        {
+          "name": "sellerStoreId",
+          "type": "String?",
+          "description": "SellerProfile ID",
+          "constraints": [
+            "FK -> SellerProfile.id",
+            "INDEX"
+          ]
+        },
+        {
+          "name": "onChainStoreId",
+          "type": "BigInt?",
+          "description": "ID on-chain da loja",
+          "constraints": [
+            "INDEX"
+          ]
+        },
+        {
+          "name": "status",
+          "type": "ProductStatus",
+          "description": "DRAFT | PUBLISHED | ARCHIVED",
+          "constraints": [
+            "INDEX",
+            "DEFAULT PUBLISHED"
+          ]
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime"
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime"
+        }
+      ],
+      "relations": [
+        {
+          "name": "category",
+          "type": "N:1",
+          "target": "Category"
+        },
+        {
+          "name": "sellerStore",
+          "type": "N:1",
+          "target": "SellerProfile",
+          "nullable": true
+        }
+      ],
+      "business_rules": [
+        "Title max 200 chars",
+        "Description max 5000 chars (markdown)",
+        "Price > 0",
+        "Category deve existir e ser level 1-4",
+        "Attributes devem seguir CategorySpec",
+        "Apenas owner pode editar/deletar",
+        "Status PUBLISHED para aparecer no marketplace"
+      ]
+    },
+    {
+      "name": "ServiceOffering",
+      "table": "ServiceOffering",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String (UUID)",
+          "constraints": [
+            "PRIMARY KEY"
+          ]
+        },
+        {
+          "name": "daoId",
+          "type": "String"
+        },
+        {
+          "name": "title",
+          "type": "String"
+        },
+        {
+          "name": "description",
+          "type": "String?"
+        },
+        {
+          "name": "basePriceBzr",
+          "type": "Decimal(20,12)?",
+          "description": "Preço base (pode ser null para cotação)"
+        },
+        {
+          "name": "categoryId",
+          "type": "String"
+        },
+        {
+          "name": "categoryPath",
+          "type": "String[]"
+        },
+        {
+          "name": "attributes",
+          "type": "Json"
+        },
+        {
+          "name": "attributesSpecVersion",
+          "type": "String"
+        },
+        {
+          "name": "sellerStoreId",
+          "type": "String?"
+        },
+        {
+          "name": "onChainStoreId",
+          "type": "BigInt?"
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime"
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime"
+        }
+      ],
+      "business_rules": [
+        "Similar a Product, mas para serviços",
+        "basePriceBzr pode ser null (quote on request)",
+        "Category deve ser kind='service'"
+      ]
+    },
+    {
+      "name": "Category",
+      "table": "Category",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "description": "products-L1-L2-L3 ou services-L1-L2",
+          "constraints": [
+            "PRIMARY KEY"
+          ]
+        },
+        {
+          "name": "slug",
+          "type": "String",
+          "description": "Slug único",
+          "constraints": [
+            "UNIQUE"
+          ]
+        },
+        {
+          "name": "parentId",
+          "type": "String?",
+          "description": "Parent category ID"
+        },
+        {
+          "name": "kind",
+          "type": "String",
+          "description": "product | service"
+        },
+        {
+          "name": "level",
+          "type": "Int",
+          "description": "1-4 (hierarchy depth)"
+        },
+        {
+          "name": "namePt",
+          "type": "String"
+        },
+        {
+          "name": "nameEn",
+          "type": "String"
+        },
+        {
+          "name": "nameEs",
+          "type": "String"
+        },
+        {
+          "name": "pathSlugs",
+          "type": "String[]",
+          "description": "Full path [L1, L2, L3]",
+          "constraints": [
+            "GIN INDEX"
+          ]
+        },
+        {
+          "name": "pathNamesPt",
+          "type": "String[]"
+        },
+        {
+          "name": "pathNamesEn",
+          "type": "String[]"
+        },
+        {
+          "name": "pathNamesEs",
+          "type": "String[]"
+        },
+        {
+          "name": "active",
+          "type": "Boolean",
+          "constraints": [
+            "DEFAULT true"
+          ]
+        },
+        {
+          "name": "sort",
+          "type": "Int",
+          "constraints": [
+            "DEFAULT 0"
+          ]
+        }
+      ],
+      "business_rules": [
+        "ID format: {kind}-{slug1}-{slug2}-{slug3}-{slug4}",
+        "Max 4 levels de profundidade",
+        "Slugs são lowercase, hyphenated",
+        "pathSlugs armazena full path para queries"
+      ]
+    },
+    {
+      "name": "CategorySpec",
+      "table": "CategorySpec",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String (CUID)",
+          "constraints": [
+            "PRIMARY KEY"
+          ]
+        },
+        {
+          "name": "categoryId",
+          "type": "String",
+          "constraints": [
+            "INDEX"
+          ]
+        },
+        {
+          "name": "version",
+          "type": "String",
+          "description": "Semantic version (1.0.0)"
+        },
+        {
+          "name": "inheritsFrom",
+          "type": "String?",
+          "description": "Parent category spec ID"
+        },
+        {
+          "name": "jsonSchema",
+          "type": "Json",
+          "description": "JSON Schema para attributes"
+        },
+        {
+          "name": "uiSchema",
+          "type": "Json",
+          "description": "UI rendering hints"
+        },
+        {
+          "name": "indexHints",
+          "type": "String[]",
+          "description": "Campos para indexar"
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime"
+        }
+      ],
+      "business_rules": [
+        "Cada categoria pode ter múltiplas versões",
+        "Latest version usada por padrão",
+        "Specs podem herdar de parent category",
+        "Products devem validar attributes contra spec"
+      ]
+    }
+  ],
+  "valueObjects": [],
+  "apis": [
+    {
+      "method": "GET",
+      "path": "/api/marketplace/search",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/products",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/products/:id",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/products",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/products/:id",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/products/:id",
+      "auth": true,
+      "description": "Marks as ARCHIVED (soft delete)."
+    },
+    {
+      "method": "GET",
+      "path": "/api/categories",
+      "auth": true,
+      "description": "```http"
+    }
+  ],
+  "useCases": [
+    {
+      "id": "UC-01",
+      "name": "Core Use Case",
+      "actors": [
+        "User",
+        "System"
+      ],
+      "flow": "User performs action → System processes → Returns result"
+    }
+  ],
+  "dependencies": {
+    "internal": [],
+    "external": []
+  },
+  "security": {
+    "authentication": "JWT-based via auth module",
+    "authorization": "Role-based and ownership-based access control"
+  },
+  "metrics": {
+    "key_metrics": []
+  }
+}

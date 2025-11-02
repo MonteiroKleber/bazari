@@ -1,0 +1,57 @@
+%% Auth Module - Use Cases Diagram
+graph TB
+    subgraph Actors
+        User((User))
+        Admin((Admin))
+        System((System))
+    end
+
+    subgraph "Authentication Use Cases"
+        UC01[UC-01: Web3 Authentication]
+        UC02[UC-02: Token Refresh]
+        UC03[UC-03: Session Logout]
+        UC04[UC-04: Multi-Device Sessions]
+        UC05[UC-05: Session Revocation]
+    end
+
+    subgraph "Security Use Cases"
+        UC06[UC-06: Replay Attack Prevention]
+        UC07[UC-07: Token Rotation]
+        UC08[UC-08: Nonce Cleanup]
+    end
+
+    subgraph "Admin Use Cases"
+        UC09[UC-09: Force Logout User]
+        UC10[UC-10: View Active Sessions]
+    end
+
+    %% User interactions
+    User -->|initiates| UC01
+    User -->|automatic| UC02
+    User -->|manually| UC03
+    User -->|manages| UC04
+    User -->|requests| UC05
+
+    %% System interactions
+    System -->|enforces| UC06
+    System -->|performs| UC07
+    System -->|scheduled| UC08
+
+    %% Admin interactions
+    Admin -->|executes| UC09
+    Admin -->|monitors| UC10
+
+    %% Dependencies
+    UC01 -.->|creates| UC04
+    UC02 -.->|uses| UC07
+    UC03 -.->|triggers| UC05
+    UC06 -.->|uses| UC08
+
+    %% Styling
+    classDef userCase fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    classDef securityCase fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef adminCase fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+
+    class UC01,UC02,UC03,UC04,UC05 userCase
+    class UC06,UC07,UC08 securityCase
+    class UC09,UC10 adminCase

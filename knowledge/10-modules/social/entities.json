@@ -1,0 +1,81 @@
+{
+  "entities": [
+    {
+      "name": "Post",
+      "table": "Post",
+      "fields": [
+        {"name": "id", "type": "String (CUID)", "constraints": ["PRIMARY KEY"]},
+        {"name": "authorId", "type": "String", "constraints": ["FK -> Profile.id", "INDEX"]},
+        {"name": "kind", "type": "String", "description": "text | image | link"},
+        {"name": "content", "type": "String (Text)"},
+        {"name": "media", "type": "Json?", "description": "Array of media URLs"},
+        {"name": "status", "type": "PostStatus", "constraints": ["DEFAULT PUBLISHED"]},
+        {"name": "createdAt", "type": "DateTime"},
+        {"name": "updatedAt", "type": "DateTime"}
+      ],
+      "relations": [
+        {"name": "likes", "type": "1:N", "target": "PostLike"},
+        {"name": "reactions", "type": "1:N", "target": "PostReaction"},
+        {"name": "comments", "type": "1:N", "target": "PostComment"},
+        {"name": "reposts", "type": "1:N", "target": "PostRepost"}
+      ]
+    },
+    {
+      "name": "PostLike",
+      "table": "PostLike",
+      "fields": [
+        {"name": "id", "type": "String (CUID)"},
+        {"name": "postId", "type": "String"},
+        {"name": "profileId", "type": "String"}
+      ],
+      "constraints": [
+        {"type": "UNIQUE", "fields": ["postId", "profileId"]}
+      ]
+    },
+    {
+      "name": "PostReaction",
+      "table": "PostReaction",
+      "fields": [
+        {"name": "id", "type": "String (CUID)"},
+        {"name": "postId", "type": "String"},
+        {"name": "profileId", "type": "String"},
+        {"name": "reaction", "type": "String", "description": "love | laugh | wow | sad | angry"}
+      ],
+      "constraints": [
+        {"type": "UNIQUE", "fields": ["postId", "profileId"]}
+      ]
+    },
+    {
+      "name": "PostComment",
+      "table": "PostComment",
+      "fields": [
+        {"name": "id", "type": "String (CUID)"},
+        {"name": "postId", "type": "String"},
+        {"name": "authorId", "type": "String"},
+        {"name": "content", "type": "String (Text)"},
+        {"name": "parentId", "type": "String?", "description": "For nested replies"}
+      ],
+      "relations": [
+        {"name": "replies", "type": "1:N", "target": "PostComment (self)"}
+      ]
+    },
+    {
+      "name": "PostRepost",
+      "table": "PostRepost",
+      "fields": [
+        {"name": "id", "type": "String (CUID)"},
+        {"name": "postId", "type": "String"},
+        {"name": "profileId", "type": "String"}
+      ],
+      "constraints": [
+        {"type": "UNIQUE", "fields": ["postId", "profileId"]}
+      ]
+    }
+  ],
+  "enums": [
+    {
+      "name": "PostStatus",
+      "values": ["DRAFT", "PUBLISHED", "HIDDEN", "FLAGGED", "REMOVED"]
+    }
+  ]
+}

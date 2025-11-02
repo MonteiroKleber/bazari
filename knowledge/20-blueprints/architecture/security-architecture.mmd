@@ -1,0 +1,133 @@
+%% Bazari Platform - Security Architecture
+graph TB
+    subgraph "Perimeter Security"
+        Firewall["🔥 Firewall<br/>iptables + UFW"]
+        WAF["🛡️ WAF<br/>Cloudflare WAF"]
+        RateLimit["⏱️ Rate Limiting<br/>API throttling"]
+    end
+
+    subgraph "Transport Security"
+        TLS["🔒 TLS 1.3<br/>SSL Certificates<br/>Let's Encrypt"]
+        HSTS["🔐 HSTS<br/>Strict-Transport-Security"]
+    end
+
+    subgraph "Authentication Layer"
+        SIWS["🔑 SIWS<br/>Sign-In with Substrate<br/>Cryptographic signatures"]
+        JWT["🎫 JWT<br/>Access tokens<br/>15 min expiry"]
+        RefreshToken["🔄 Refresh Tokens<br/>SHA-256 hashed<br/>30 day expiry"]
+    end
+
+    subgraph "Authorization Layer"
+        RBAC["👥 RBAC<br/>Role-Based Access<br/>user/moderator/admin"]
+        Middleware["🔐 Auth Middleware<br/>requireAuth()<br/>req.user injection"]
+        OwnershipCheck["✅ Ownership Checks<br/>userId validation"]
+    end
+
+    subgraph "Input Security"
+        XSSPrevention["🚫 XSS Prevention<br/>Input sanitization<br/>CSP headers"]
+        SQLInjection["🚫 SQL Injection Prevention<br/>Prisma ORM<br/>Parameterized queries"]
+        ZodValidation["✅ Zod Validation<br/>Type-safe schemas"]
+    end
+
+    subgraph "Session Security"
+        NonceProtection["🔢 Nonce Protection<br/>5 min expiry<br/>Single-use"]
+        TokenRotation["🔄 Token Rotation<br/>Automatic refresh<br/>Old tokens revoked"]
+        SessionRevocation["🚫 Session Revocation<br/>Logout + logout-all"]
+    end
+
+    subgraph "Data Security"
+        Encryption["🔐 E2EE<br/>Chat encryption<br/>Curve25519"]
+        Hashing["#️⃣ Password Hashing<br/>No passwords!<br/>Wallet signatures only"]
+        DataMasking["🎭 Data Masking<br/>PII protection<br/>Sensitive fields"]
+    end
+
+    subgraph "Blockchain Security"
+        SignatureVerif["✍️ Signature Verification<br/>@polkadot/util-crypto<br/>sr25519"]
+        OnChainValidation["✅ On-Chain Validation<br/>Substrate runtime<br/>Extrinsic verification"]
+        ReplayProtection["🔁 Replay Protection<br/>Nonce + genesis hash"]
+    end
+
+    subgraph "API Security"
+        CORS["🌐 CORS<br/>Origin validation<br/>Whitelist"]
+        CSP["📋 CSP<br/>Content-Security-Policy<br/>Restrict resources"]
+        CSRF["🛡️ CSRF Protection<br/>SameSite cookies<br/>Token validation"]
+    end
+
+    subgraph "Infrastructure Security"
+        SecretManagement["🔑 Secret Management<br/>.env files<br/>Environment vars"]
+        DBAccess["🗄️ DB Access Control<br/>Least privilege<br/>Connection limits"]
+        AuditLog["📝 Audit Logs<br/>Security events<br/>User actions"]
+    end
+
+    subgraph "Monitoring & Response"
+        Intrusion["🚨 Intrusion Detection<br/>fail2ban<br/>Anomaly detection"]
+        Alerts["⚠️ Security Alerts<br/>Prometheus alerts<br/>Admin notifications"]
+        IncidentResponse["🚑 Incident Response<br/>Runbooks<br/>Escalation"]
+    end
+
+    %% Flow connections
+    WAF --> Firewall
+    Firewall --> RateLimit
+    RateLimit --> TLS
+    TLS --> HSTS
+
+    HSTS --> SIWS
+    SIWS --> JWT
+    JWT --> RefreshToken
+
+    JWT --> Middleware
+    Middleware --> RBAC
+    RBAC --> OwnershipCheck
+
+    Middleware --> XSSPrevention
+    Middleware --> SQLInjection
+    Middleware --> ZodValidation
+
+    SIWS --> NonceProtection
+    JWT --> TokenRotation
+    RefreshToken --> SessionRevocation
+
+    Middleware --> Encryption
+    Middleware --> Hashing
+    Middleware --> DataMasking
+
+    SIWS --> SignatureVerif
+    SignatureVerif --> OnChainValidation
+    SIWS --> ReplayProtection
+
+    HSTS --> CORS
+    HSTS --> CSP
+    HSTS --> CSRF
+
+    Middleware --> SecretManagement
+    Middleware --> DBAccess
+    Middleware --> AuditLog
+
+    AuditLog --> Intrusion
+    Intrusion --> Alerts
+    Alerts --> IncidentResponse
+
+    %% Styling
+    classDef perimeterStyle fill:#ffebee,stroke:#c62828,stroke-width:2px
+    classDef transportStyle fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef authStyle fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
+    classDef authzStyle fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef inputStyle fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    classDef sessionStyle fill:#fff9c4,stroke:#f57f17,stroke-width:2px
+    classDef dataStyle fill:#e0f2f1,stroke:#00695c,stroke-width:2px
+    classDef blockchainStyle fill:#fce4ec,stroke:#ad1457,stroke-width:2px
+    classDef apiStyle fill:#ede7f6,stroke:#4527a0,stroke-width:2px
+    classDef infraStyle fill:#fbe9e7,stroke:#bf360c,stroke-width:2px
+    classDef monitorStyle fill:#eceff1,stroke:#263238,stroke-width:2px
+
+    class Firewall,WAF,RateLimit perimeterStyle
+    class TLS,HSTS transportStyle
+    class SIWS,JWT,RefreshToken authStyle
+    class RBAC,Middleware,OwnershipCheck authzStyle
+    class XSSPrevention,SQLInjection,ZodValidation inputStyle
+    class NonceProtection,TokenRotation,SessionRevocation sessionStyle
+    class Encryption,Hashing,DataMasking dataStyle
+    class SignatureVerif,OnChainValidation,ReplayProtection blockchainStyle
+    class CORS,CSP,CSRF apiStyle
+    class SecretManagement,DBAccess,AuditLog infraStyle
+    class Intrusion,Alerts,IncidentResponse monitorStyle

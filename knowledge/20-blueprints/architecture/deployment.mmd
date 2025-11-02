@@ -1,0 +1,153 @@
+%% Bazari Platform - Deployment Architecture
+graph TB
+    subgraph "User Devices"
+        Browser["🌐 Web Browser"]
+        Mobile["📱 Mobile Device"]
+        WalletExt["🔐 Wallet Extension"]
+    end
+
+    subgraph "CDN Layer"
+        CloudflareCDN["☁️ Cloudflare CDN<br/>Static Assets + Caching"]
+    end
+
+    subgraph "Load Balancer"
+        NginxLB["⚖️ NGINX<br/>Load Balancer<br/>SSL/TLS Termination"]
+    end
+
+    subgraph "Application Servers"
+        App1["🖥️ App Server 1<br/>Node.js + Fastify<br/>bazari.libervia.xyz:3000"]
+        App2["🖥️ App Server 2<br/>Node.js + Fastify<br/>(Future scaling)"]
+        App3["🖥️ App Server 3<br/>Node.js + Fastify<br/>(Future scaling)"]
+    end
+
+    subgraph "Background Workers"
+        ReputationWorker["⭐ Reputation Worker<br/>Sync every 60s"]
+        NonceCleanup["🧹 Nonce Cleanup<br/>Daily cron"]
+        IPFSPinner["📌 IPFS Pinner<br/>Continuous"]
+    end
+
+    subgraph "Database Layer"
+        PostgresPrimary[("💾 PostgreSQL Primary<br/>Write + Read<br/>localhost:5432")]
+        PostgresReplica1[("📖 PostgreSQL Replica 1<br/>Read-only<br/>(Future)")]
+        PostgresReplica2[("📖 PostgreSQL Replica 2<br/>Read-only<br/>(Future)")]
+    end
+
+    subgraph "Cache Layer"
+        RedisCluster["⚡ Redis Cluster<br/>Cache + Sessions<br/>localhost:6379"]
+    end
+
+    subgraph "Storage Layer"
+        IPFSNode["🌐 IPFS Node<br/>Decentralized Storage<br/>localhost:5001"]
+        LocalFS["💾 Local Filesystem<br/>/uploads<br/>(Temporary)"]
+    end
+
+    subgraph "Blockchain Network"
+        ChainNode1["⛓️ BazariChain Node 1<br/>Validator<br/>ws://localhost:9944"]
+        ChainNode2["⛓️ BazariChain Node 2<br/>Validator<br/>(Future)"]
+        ChainNode3["⛓️ BazariChain Node 3<br/>Full Node<br/>(Future)"]
+    end
+
+    subgraph "Monitoring & Logging"
+        Prometheus["📊 Prometheus<br/>Metrics Collection"]
+        Grafana["📈 Grafana<br/>Dashboards"]
+        Loki["📝 Loki<br/>Log Aggregation"]
+    end
+
+    subgraph "External Services"
+        PIXGateway["💳 PIX Gateway<br/>Brazilian Payments"]
+        EmailProvider["📧 Email Provider<br/>(SendGrid/Mailgun)"]
+        SMSProvider["📱 SMS Provider<br/>(Twilio)"]
+    end
+
+    %% User connections
+    Browser --> CloudflareCDN
+    Mobile -.-> CloudflareCDN
+    Browser --> WalletExt
+    WalletExt --> ChainNode1
+
+    %% CDN to load balancer
+    CloudflareCDN --> NginxLB
+
+    %% Load balancer to app servers
+    NginxLB --> App1
+    NginxLB -.-> App2
+    NginxLB -.-> App3
+
+    %% App servers to databases
+    App1 --> PostgresPrimary
+    App2 -.-> PostgresPrimary
+    App3 -.-> PostgresPrimary
+    App1 -.-> PostgresReplica1
+    App2 -.-> PostgresReplica2
+
+    %% Database replication
+    PostgresPrimary -.->|streaming replication| PostgresReplica1
+    PostgresPrimary -.->|streaming replication| PostgresReplica2
+
+    %% App servers to cache
+    App1 --> RedisCluster
+    App2 -.-> RedisCluster
+    App3 -.-> RedisCluster
+
+    %% App servers to storage
+    App1 --> IPFSNode
+    App1 --> LocalFS
+    App2 -.-> IPFSNode
+    App3 -.-> IPFSNode
+
+    %% App servers to blockchain
+    App1 --> ChainNode1
+    App2 -.-> ChainNode2
+    App3 -.-> ChainNode3
+
+    %% Background workers
+    ReputationWorker --> PostgresPrimary
+    ReputationWorker --> ChainNode1
+    NonceCleanup --> PostgresPrimary
+    IPFSPinner --> IPFSNode
+
+    %% Blockchain network
+    ChainNode1 -.->|p2p sync| ChainNode2
+    ChainNode2 -.->|p2p sync| ChainNode3
+
+    %% External services
+    App1 --> PIXGateway
+    App1 --> EmailProvider
+    App1 --> SMSProvider
+
+    %% Monitoring
+    App1 --> Prometheus
+    App2 -.-> Prometheus
+    App3 -.-> Prometheus
+    PostgresPrimary --> Prometheus
+    RedisCluster --> Prometheus
+    ChainNode1 --> Prometheus
+    Prometheus --> Grafana
+    App1 --> Loki
+    App2 -.-> Loki
+    App3 -.-> Loki
+
+    %% Styling
+    classDef userDevice fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef cdn fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef loadBalancer fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef appServer fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    classDef worker fill:#fff9c4,stroke:#f9a825,stroke-width:2px
+    classDef database fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    classDef cache fill:#e0f2f1,stroke:#00796b,stroke-width:2px
+    classDef storage fill:#ede7f6,stroke:#512da8,stroke-width:2px
+    classDef blockchain fill:#fbe9e7,stroke:#d84315,stroke-width:2px
+    classDef monitoring fill:#eceff1,stroke:#455a64,stroke-width:2px
+    classDef external fill:#f1f8e9,stroke:#689f38,stroke-width:2px
+
+    class Browser,Mobile,WalletExt userDevice
+    class CloudflareCDN cdn
+    class NginxLB loadBalancer
+    class App1,App2,App3 appServer
+    class ReputationWorker,NonceCleanup,IPFSPinner worker
+    class PostgresPrimary,PostgresReplica1,PostgresReplica2 database
+    class RedisCluster cache
+    class IPFSNode,LocalFS storage
+    class ChainNode1,ChainNode2,ChainNode3 blockchain
+    class Prometheus,Grafana,Loki monitoring
+    class PIXGateway,EmailProvider,SMSProvider external

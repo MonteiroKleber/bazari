@@ -1,0 +1,160 @@
+{
+  "entities": [
+    {
+      "name": "Profile",
+      "table": "Profile",
+      "note": "Core profile with reputation fields",
+      "fields": [
+        {
+          "name": "reputationScore",
+          "type": "Int",
+          "constraints": ["DEFAULT 0"],
+          "description": "Accumulated reputation points from ProfileReputationEvent"
+        },
+        {
+          "name": "reputationTier",
+          "type": "String",
+          "constraints": ["DEFAULT 'bronze'"],
+          "description": "Tier based on score: bronze | prata | ouro | diamante"
+        },
+        {
+          "name": "onChainProfileId",
+          "type": "BigInt?",
+          "description": "ID on BazariChain profiles pallet"
+        },
+        {
+          "name": "lastChainSync",
+          "type": "DateTime?",
+          "description": "Last time profile was synced with blockchain"
+        }
+      ],
+      "indexes": [
+        "@@index([reputationScore])",
+        "@@index([reputationTier])"
+      ]
+    },
+    {
+      "name": "ProfileReputationEvent",
+      "table": "ProfileReputationEvent",
+      "note": "Audit trail for all reputation changes",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "constraints": ["@id", "@default(cuid())"],
+          "description": "Unique event ID"
+        },
+        {
+          "name": "profileId",
+          "type": "String",
+          "description": "Profile affected by this event"
+        },
+        {
+          "name": "eventCode",
+          "type": "String",
+          "description": "ORDER_COMPLETED | DELIVERY_DONE | DAO_VOTE_VALID | FRAUD_CONFIRMED | etc"
+        },
+        {
+          "name": "delta",
+          "type": "Int",
+          "description": "Points added/subtracted (can be negative)"
+        },
+        {
+          "name": "newTotal",
+          "type": "Int",
+          "description": "Reputation score after applying delta"
+        },
+        {
+          "name": "reason",
+          "type": "String?",
+          "description": "Optional human-readable reason for event"
+        },
+        {
+          "name": "emittedBy",
+          "type": "String",
+          "description": "Source module: marketplace | delivery | social | dao | p2p | arbitration"
+        },
+        {
+          "name": "blockNumber",
+          "type": "BigInt",
+          "description": "Blockchain block number when event was recorded"
+        },
+        {
+          "name": "extrinsicId",
+          "type": "String?",
+          "description": "Optional on-chain extrinsic ID for verification"
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "constraints": ["@default(now())"],
+          "description": "Timestamp of event creation"
+        }
+      ],
+      "relations": [
+        {
+          "name": "profile",
+          "type": "N:1",
+          "target": "Profile",
+          "fields": ["profileId"],
+          "references": ["id"],
+          "onDelete": "Cascade"
+        }
+      ],
+      "indexes": [
+        "@@index([profileId, createdAt])",
+        "@@index([eventCode])",
+        "@@index([blockNumber])"
+      ]
+    },
+    {
+      "name": "Store Reputation (On-Chain)",
+      "table": "stores.reputation",
+      "note": "On-chain store reputation via Substrate pallet",
+      "fields": [
+        {
+          "name": "sales",
+          "type": "u32",
+          "description": "Total completed orders (Order.status = RELEASED)"
+        },
+        {
+          "name": "positive",
+          "type": "u32",
+          "description": "Positive reviews (estimated from SellerProfile.ratingAvg)"
+        },
+        {
+          "name": "negative",
+          "type": "u32",
+          "description": "Negative reviews (estimated from SellerProfile.ratingAvg)"
+        },
+        {
+          "name": "volumePlanck",
+          "type": "u128",
+          "description": "Total sales volume in BZR planck units (1 BZR = 10^18 planck)"
+        }
+      ]
+    }
+  ],
+  "enums": [
+    {
+      "name": "ReputationEventCode",
+      "values": [
+        "ORDER_COMPLETED",
+        "DELIVERY_DONE",
+        "DISPUTE_RESOLVED",
+        "DAO_VOTE_VALID",
+        "P2P_ESCROW_OK",
+        "SOCIAL_CONTRIB",
+        "SPAM_WARN",
+        "FRAUD_CONFIRMED"
+      ],
+      "note": "Defined in /apps/api/src/config/reputationRules.ts"
+    },
+    {
+      "name": "ReputationTier",
+      "values": ["bronze", "prata", "ouro", "diamante"],
+      "note": "Calculated via calculateTier(score) function"
+    }
+  ],
+  "note": "Hybrid system: ProfileReputationEvent off-chain (PostgreSQL) + Store reputation on-chain (Substrate)"
+}

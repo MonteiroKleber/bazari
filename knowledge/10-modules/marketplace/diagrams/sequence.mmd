@@ -1,0 +1,161 @@
+%% Marketplace Module - Marketplace Flow Sequence Diagram
+sequenceDiagram
+    actor User
+    actor Seller
+    participant Client
+    participant API
+    participant DB
+    participant OpenSearch
+    participant IPFS
+
+    %% Phase 1: Browse Marketplace
+    rect rgb(200, 230, 255)
+        Note over User,OpenSearch: Phase 1: Browse Marketplace
+        User->>Client: Navigate to /marketplace
+        Client->>API: GET /api/marketplace/search
+        API->>OpenSearch: Search products (status: PUBLISHED)
+
+        alt OpenSearch available
+            OpenSearch-->>API: Products list
+        else OpenSearch down (fallback)
+            API->>DB: Query Product table<br/>(full-text on title+description)
+            DB-->>API: Products list
+        end
+
+        API-->>Client: {items: [products], pagination}
+        Client-->>User: Display product grid<br/>(title, price, image, seller)
+    end
+
+    %% Phase 2: Search Products
+    rect rgb(255, 240, 200)
+        Note over User,OpenSearch: Phase 2: Search Products
+        User->>Client: Enter search query "quadro abstrato"
+        Client->>API: GET /api/marketplace/search?q=quadro+abstrato
+        API->>OpenSearch: Full-text search<br/>(title + description)
+        OpenSearch->>OpenSearch: Calculate relevance score
+        OpenSearch-->>API: Ranked results
+        API-->>Client: {items: [products], facets}
+        Client-->>User: Display search results
+    end
+
+    %% Phase 3: Filter by Category
+    rect rgb(200, 255, 200)
+        Note over User,DB: Phase 3: Filter by Category
+        User->>Client: Select category "Casa > Decoração > Quadros"
+        Client->>API: GET /api/products?category=products-casa-decoracao-decoracao-quadros
+        API->>DB: Query products by categoryPath<br/>(includes subcategories)
+        DB-->>API: Filtered products
+        API-->>Client: {items: [products]}
+        Client-->>User: Display category results
+    end
+
+    %% Phase 4: View Product Detail
+    rect rgb(255, 230, 255)
+        Note over User,DB: Phase 4: View Product Detail
+        User->>Client: Click on product
+        Client->>API: GET /api/products/:id
+        API->>DB: Query Product + relations<br/>(Category, Media, SellerProfile)
+        DB-->>API: Product with full details
+        API->>DB: Query CategorySpec<br/>(for attribute validation)
+        DB-->>API: CategorySpec + jsonSchema
+        API-->>Client: {product, category, media, seller}
+        Client-->>User: Display Product Detail Page<br/>(carousel, price, attributes, seller info)
+    end
+
+    %% Phase 5: Create Product Listing
+    rect rgb(240, 240, 240)
+        Note over Seller,OpenSearch: Phase 5: Seller Creates Product Listing
+        Seller->>Client: Navigate to /app/new (authenticated)
+        Seller->>Client: Fill product form<br/>(title, description, price, category)
+
+        Client->>API: GET /api/categories/:id/spec
+        API->>DB: Query CategorySpec
+        DB-->>API: {jsonSchema, uiSchema}
+        API-->>Client: Category spec
+        Client->>Client: Render dynamic attribute fields
+
+        Seller->>Client: Fill dynamic attributes<br/>(dimensions, material, style)
+        Seller->>Client: Upload images
+        Client->>IPFS: Upload media files
+        IPFS-->>Client: {mediaUrls}
+
+        Client->>API: POST /api/products<br/>{title, description, priceBzr, categoryId, attributes, mediaUrls}
+        API->>API: Validate attributes<br/>against CategorySpec jsonSchema
+
+        alt Validation fails
+            API-->>Client: 400 Invalid attributes
+            Client-->>Seller: Show validation errors
+        else Validation passes
+            API->>DB: Create Product (status: PUBLISHED)
+            API->>DB: Create ProductMedia entries
+            DB-->>API: Product created
+            API->>OpenSearch: Index product (async)
+            OpenSearch-->>API: Indexed
+            API-->>Client: {productId}
+            Client-->>Seller: Product published!
+            Note over Seller: Navigate to product page
+        end
+    end
+
+    %% Phase 6: Update Product
+    rect rgb(200, 255, 255)
+        Note over Seller,OpenSearch: Phase 6: Update Product
+        Seller->>Client: Edit own product
+        Seller->>Client: Update fields (price, description)
+        Client->>API: PUT /api/products/:id<br/>{priceBzr, description}
+        API->>DB: Verify ownership<br/>(sellerUserId matches)
+
+        alt Not owner
+            API-->>Client: 403 Forbidden
+            Client-->>Seller: Error: Not authorized
+        else Owner verified
+            API->>API: Validate attributes (if changed)
+            API->>DB: Update Product
+            DB-->>API: Product updated
+            API->>OpenSearch: Reindex product (async)
+            OpenSearch-->>API: Reindexed
+            API-->>Client: {success: true}
+            Client-->>Seller: Product updated
+        end
+    end
+
+    %% Phase 7: Advanced Filtering
+    rect rgb(255, 200, 200)
+        Note over User,OpenSearch: Phase 7: Filter by Price Range and Attributes
+        User->>Client: Adjust price slider (R$50-R$200)
+        User->>Client: Select attribute filter (material: wood)
+        Client->>Client: Convert BRL to BZR (exchange rate)
+        Client->>API: GET /api/marketplace/search?minPrice=X&maxPrice=Y&attributes.material=wood
+        API->>OpenSearch: Query with filters<br/>(range + nested attributes)
+        OpenSearch-->>API: Filtered results + facets
+        API-->>Client: {items, facets: {categories, priceRanges, materials}}
+        Client-->>User: Display filtered results<br/>+ facet counts
+    end
+
+    %% Phase 8: View Seller Store
+    rect rgb(255, 230, 200)
+        Note over User,DB: Phase 8: View Seller Store Catalog
+        User->>Client: Click on seller name
+        Client->>API: GET /api/sellers/:id/products
+        API->>DB: Query products<br/>(sellerStoreId = :id, status = PUBLISHED)
+        DB-->>API: Seller's products
+        API->>DB: Query SellerProfile stats
+        DB-->>API: {totalProducts, avgRating, totalSales}
+        API-->>Client: {products, sellerInfo}
+        Client-->>User: Display store catalog<br/>(seller header + products grid)
+    end
+
+    %% Phase 9: Delete Product
+    rect rgb(255, 200, 255)
+        Note over Seller,OpenSearch: Phase 9: Delete Product
+        Seller->>Client: Click "Delete Product"
+        Client->>API: DELETE /api/products/:id
+        API->>DB: Verify ownership
+        API->>DB: Update status → ARCHIVED<br/>(soft delete, preserves history)
+        DB-->>API: Product archived
+        API->>OpenSearch: Remove from index
+        OpenSearch-->>API: Removed
+        API-->>Client: {success: true}
+        Client-->>Seller: Product removed from marketplace
+        Note over DB: Orders still reference archived product
+    end

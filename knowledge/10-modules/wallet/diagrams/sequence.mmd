@@ -1,0 +1,120 @@
+%% Wallet Module - Wallet Operations Flow Sequence Diagram
+sequenceDiagram
+    actor User
+    participant Client
+    participant IndexedDB
+    participant Blockchain
+    participant API
+
+    %% Phase 1: Create Wallet
+    rect rgb(200, 230, 255)
+        Note over User,IndexedDB: Phase 1: Create New Wallet
+        User->>Client: Click "Create Wallet"
+        Client->>Client: Generate BIP-39 mnemonic<br/>(12 or 24 words)
+        Client-->>User: Display mnemonic<br/>("Write these down securely")
+        User->>User: Save mnemonic backup
+
+        User->>Client: Enter PIN (6-8 digits)
+        Client->>Client: Validate PIN strength
+        Client->>Client: Generate salt (16 bytes)
+        Client->>Client: Derive key<br/>(PBKDF2: PIN + salt, 100k iter)
+        Client->>Client: Encrypt mnemonic<br/>(AES-256-GCM)
+        Client->>IndexedDB: Store encrypted vault<br/>{encryptedSeed, iv, salt}
+        IndexedDB-->>Client: Stored
+        Client-->>User: Wallet created!
+    end
+
+    %% Phase 2: Unlock Wallet
+    rect rgb(255, 240, 200)
+        Note over User,IndexedDB: Phase 2: Unlock Wallet with PIN
+        User->>Client: Enter PIN
+        Client->>IndexedDB: Load vault<br/>{encryptedSeed, iv, salt}
+        IndexedDB-->>Client: Vault data
+        Client->>Client: Derive key<br/>(PBKDF2: PIN + salt)
+        Client->>Client: Decrypt seed<br/>(AES-256-GCM)
+
+        alt PIN incorrect
+            Client-->>User: Error: Invalid PIN<br/>(2 attempts remaining)
+        else PIN correct
+            Client->>Client: Initialize Polkadot Keyring
+            Client->>Client: Derive account(s)<br/>(//polkadot//0, //polkadot//1)
+            Client-->>User: Wallet unlocked<br/>(show accounts)
+        end
+    end
+
+    %% Phase 3: Query Balance
+    rect rgb(200, 255, 200)
+        Note over User,Blockchain: Phase 3: Query Account Balance
+        User->>Client: View balance
+        Client->>Blockchain: RPC: system.account<br/>(address)
+        Blockchain-->>Client: {data: {free, reserved, frozen}}
+        Client->>Blockchain: RPC: assets.account<br/>(address, assetId: 1)
+        Blockchain-->>Client: {balance: ZARI_balance}
+        Client->>Client: Format balances<br/>(planck → BZR/ZARI)
+        Client-->>User: Display balances<br/>(BZR: 100.5, ZARI: 50.25)
+    end
+
+    %% Phase 4: Send Transaction
+    rect rgb(255, 230, 255)
+        Note over User,Blockchain: Phase 4: Send BZR/ZARI Transaction
+        User->>Client: Click "Send"
+        User->>Client: Enter recipient address + amount
+        Client->>Client: Validate address format (SS58)
+        Client->>Client: Validate balance sufficient
+
+        Client->>Blockchain: RPC: payment.queryInfo<br/>(estimate fee)
+        Blockchain-->>Client: {partialFee: estimated_fee}
+        Client-->>User: Review transaction<br/>(amount, fee, total)
+
+        User->>Client: Confirm transaction
+        Client->>Client: Sign transaction<br/>(using decrypted keyring)
+        Client->>Blockchain: RPC: author.submitExtrinsic<br/>(signed_tx)
+        Blockchain->>Blockchain: Validate & include in block
+        Blockchain-->>Client: {txHash}
+
+        Client->>Blockchain: Subscribe to tx status
+        Blockchain-->>Client: InBlock event
+        Blockchain-->>Client: Finalized event
+        Client-->>User: Transaction complete!<br/>(txHash: 0xabc...)
+    end
+
+    %% Phase 5: Import Wallet
+    rect rgb(240, 240, 240)
+        Note over User,IndexedDB: Phase 5: Import Existing Wallet
+        User->>Client: Click "Import Wallet"
+        User->>Client: Enter mnemonic (12/24 words)
+        Client->>Client: Validate BIP-39 checksum
+
+        alt Invalid mnemonic
+            Client-->>User: Error: Invalid mnemonic
+        else Valid mnemonic
+            User->>Client: Set PIN
+            Client->>Client: Encrypt mnemonic with PIN
+            Client->>IndexedDB: Store encrypted vault
+            IndexedDB-->>Client: Stored
+            Client->>Client: Derive accounts
+            Client-->>User: Wallet imported!<br/>(accounts recovered)
+        end
+    end
+
+    %% Phase 6: Add Account
+    rect rgb(200, 255, 255)
+        Note over User,Client: Phase 6: Derive Additional Account
+        User->>Client: Click "Add Account"
+        Client->>Client: Unlock wallet (if locked)
+        Client->>Client: Get next derivation index<br/>(e.g., //polkadot//2)
+        Client->>Client: Derive new account<br/>(from mnemonic + path)
+        Client-->>User: New account created<br/>(address: 5xyz...)
+        Note over User: All accounts share same seed
+    end
+
+    %% Phase 7: View Transaction History
+    rect rgb(255, 200, 200)
+        Note over User,API: Phase 7: View Transaction History
+        User->>Client: View transactions
+        Client->>API: GET /api/wallet/transactions<br/>?address={address}
+        API->>Blockchain: Query chain history<br/>(system.events filter by address)
+        Blockchain-->>API: Transaction list
+        API-->>Client: {transactions: [tx1, tx2, ...]}
+        Client-->>User: Display history<br/>(date, amount, recipient)
+    end

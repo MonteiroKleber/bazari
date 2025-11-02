@@ -1,0 +1,128 @@
+%% Social Module - Use Cases Diagram
+graph TB
+    subgraph Actors
+        User((User))
+        Moderator((Moderator))
+        System((System))
+    end
+
+    subgraph "Post Management"
+        UC01[UC-01: Create Post]
+        UC02[UC-02: Edit Post]
+        UC03[UC-03: Delete Post]
+        UC04[UC-04: View Post Detail]
+        UC05[UC-05: View Own Posts]
+    end
+
+    subgraph "Feed"
+        UC06[UC-06: View Home Feed]
+        UC07[UC-07: View Profile Feed]
+        UC08[UC-08: View Trending Posts]
+        UC09[UC-09: Filter Feed by Type]
+    end
+
+    subgraph "Interactions"
+        UC10[UC-10: Like Post]
+        UC11[UC-11: Unlike Post]
+        UC12[UC-12: React to Post]
+        UC13[UC-13: Change Reaction]
+        UC14[UC-14: Repost]
+        UC15[UC-15: Undo Repost]
+    end
+
+    subgraph "Comments"
+        UC16[UC-16: Add Comment]
+        UC17[UC-17: Reply to Comment]
+        UC18[UC-18: Edit Comment]
+        UC19[UC-19: Delete Comment]
+        UC20[UC-20: View Comment Thread]
+    end
+
+    subgraph "Moderation"
+        UC21[UC-21: Flag Post]
+        UC22[UC-22: Hide Post]
+        UC23[UC-23: Remove Post]
+        UC24[UC-24: Review Flagged Posts]
+        UC25[UC-25: Restore Post]
+    end
+
+    subgraph "Reputation"
+        UC26[UC-26: Award Reputation for Like]
+        UC27[UC-27: Award Reputation for Comment]
+        UC28[UC-28: Track Engagement]
+    end
+
+    %% User interactions
+    User -->|creates| UC01
+    User -->|edits| UC02
+    User -->|deletes| UC03
+    User -->|views| UC04
+    User -->|views| UC05
+    User -->|views| UC06
+    User -->|views| UC07
+    User -->|views| UC08
+    User -->|filters| UC09
+    User -->|likes| UC10
+    User -->|unlikes| UC11
+    User -->|reacts| UC12
+    User -->|changes| UC13
+    User -->|reposts| UC14
+    User -->|undoes| UC15
+    User -->|adds| UC16
+    User -->|replies| UC17
+    User -->|edits| UC18
+    User -->|deletes| UC19
+    User -->|views| UC20
+    User -->|flags| UC21
+
+    %% Moderator interactions
+    Moderator -->|reviews| UC24
+    Moderator -->|hides| UC22
+    Moderator -->|removes| UC23
+    Moderator -->|restores| UC25
+
+    %% System interactions
+    System -->|awards| UC26
+    System -->|awards| UC27
+    System -->|tracks| UC28
+
+    %% Dependencies
+    UC01 -.->|appears in| UC06
+    UC01 -.->|appears in| UC07
+    UC02 -.->|modifies| UC04
+    UC03 -.->|removes from| UC06
+    UC06 -.->|displays| UC04
+    UC07 -.->|displays| UC04
+    UC08 -.->|ranks| UC04
+    UC10 -.->|triggers| UC26
+    UC11 -.->|removes| UC10
+    UC12 -.->|replaces| UC10
+    UC13 -.->|updates| UC12
+    UC14 -.->|copies to| UC06
+    UC15 -.->|undoes| UC14
+    UC16 -.->|triggers| UC27
+    UC16 -.->|adds to| UC20
+    UC17 -.->|nests in| UC20
+    UC18 -.->|modifies| UC16
+    UC19 -.->|removes from| UC20
+    UC21 -.->|triggers| UC24
+    UC22 -.->|hides from| UC06
+    UC23 -.->|removes from| UC06
+    UC24 -.->|resolves| UC21
+    UC25 -.->|reverses| UC23
+    UC28 -.->|informs| UC08
+
+    %% Styling
+    classDef postCase fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
+    classDef feedCase fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef interactionCase fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    classDef commentCase fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef moderationCase fill:#ffebee,stroke:#d32f2f,stroke-width:2px
+    classDef reputationCase fill:#fff9c4,stroke:#f9a825,stroke-width:2px
+
+    class UC01,UC02,UC03,UC04,UC05 postCase
+    class UC06,UC07,UC08,UC09 feedCase
+    class UC10,UC11,UC12,UC13,UC14,UC15 interactionCase
+    class UC16,UC17,UC18,UC19,UC20 commentCase
+    class UC21,UC22,UC23,UC24,UC25 moderationCase
+    class UC26,UC27,UC28 reputationCase

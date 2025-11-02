@@ -1,0 +1,140 @@
+%% Bazari Platform - System Architecture Overview
+graph TB
+    subgraph "Client Layer"
+        WebApp["🌐 Web App<br/>(React + Vite)"]
+        MobileApp["📱 Mobile App<br/>(Future)"]
+        Wallet["🔐 Polkadot.js<br/>Wallet Extension"]
+    end
+
+    subgraph "API Gateway Layer"
+        Gateway["⚡ API Gateway<br/>(Fastify)"]
+        WebSocket["🔌 WebSocket Server<br/>(Socket.io)"]
+    end
+
+    subgraph "Application Services Layer"
+        AuthService["🔐 Auth Service<br/>(JWT + SIWS)"]
+        ProfileService["👤 Profile Service"]
+        MarketService["🛒 Marketplace Service"]
+        OrderService["📦 Order Service"]
+        ChatService["💬 Chat Service<br/>(E2EE)"]
+        P2PService["💱 P2P Service"]
+        DeliveryService["🚚 Delivery Service"]
+        SocialService["📱 Social Service"]
+    end
+
+    subgraph "Infrastructure Services"
+        MediaService["🖼️ Media Service<br/>(IPFS)"]
+        NotifService["🔔 Notification Service"]
+        SearchService["🔍 Search Service<br/>(PostgreSQL FTS)"]
+        AnalyticsService["📊 Analytics Service"]
+        ReputationWorker["⭐ Reputation Worker<br/>(Background)"]
+    end
+
+    subgraph "Data Layer"
+        PostgreSQL[("🗄️ PostgreSQL<br/>Relational DB")]
+        Redis[("⚡ Redis<br/>Cache & Sessions")]
+        IPFS[("🌐 IPFS<br/>Decentralized Storage")]
+    end
+
+    subgraph "Blockchain Layer"
+        BazariChain["⛓️ BazariChain<br/>(Substrate)"]
+
+        subgraph "Pallets"
+            ProfilePallet["👤 Profiles Pallet"]
+            StorePallet["🏪 Stores Pallet"]
+            GovernancePallet["🗳️ Governance<br/>(Democracy + Council)"]
+            TreasuryPallet["💰 Treasury Pallet"]
+            VestingPallet["🔒 Vesting Pallet"]
+            BalancesPallet["💵 Balances Pallet"]
+        end
+    end
+
+    subgraph "External Services"
+        PIX["💳 PIX<br/>(Brazilian Payments)"]
+        EmailService["📧 Email Service"]
+        SMSService["📱 SMS Service"]
+    end
+
+    %% Client connections
+    WebApp --> Gateway
+    WebApp --> WebSocket
+    WebApp --> Wallet
+    MobileApp -.-> Gateway
+    Wallet --> BazariChain
+
+    %% Gateway to services
+    Gateway --> AuthService
+    Gateway --> ProfileService
+    Gateway --> MarketService
+    Gateway --> OrderService
+    Gateway --> ChatService
+    Gateway --> P2PService
+    Gateway --> DeliveryService
+    Gateway --> SocialService
+
+    %% WebSocket connections
+    WebSocket --> ChatService
+    WebSocket --> NotifService
+
+    %% Infrastructure services
+    Gateway --> MediaService
+    Gateway --> NotifService
+    Gateway --> SearchService
+    Gateway --> AnalyticsService
+
+    %% Service to data layer
+    AuthService --> PostgreSQL
+    ProfileService --> PostgreSQL
+    ProfileService --> BazariChain
+    MarketService --> PostgreSQL
+    OrderService --> PostgreSQL
+    ChatService --> PostgreSQL
+    P2PService --> PostgreSQL
+    DeliveryService --> PostgreSQL
+    SocialService --> PostgreSQL
+    MediaService --> IPFS
+    MediaService --> PostgreSQL
+    NotifService --> PostgreSQL
+    SearchService --> PostgreSQL
+    AnalyticsService --> PostgreSQL
+
+    %% Caching
+    AuthService --> Redis
+    ProfileService --> Redis
+    MarketService --> Redis
+
+    %% Blockchain interactions
+    AuthService --> BazariChain
+    ProfileService --> ProfilePallet
+    MarketService --> StorePallet
+    OrderService --> StorePallet
+    P2PService --> BalancesPallet
+    ReputationWorker --> StorePallet
+    ReputationWorker --> PostgreSQL
+
+    %% Governance
+    Gateway --> GovernancePallet
+    Gateway --> TreasuryPallet
+    Gateway --> VestingPallet
+
+    %% External services
+    P2PService --> PIX
+    NotifService --> EmailService
+    NotifService --> SMSService
+
+    %% Styling
+    classDef clientLayer fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef gatewayLayer fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef serviceLayer fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef infraLayer fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    classDef dataLayer fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    classDef blockchainLayer fill:#fff9c4,stroke:#f9a825,stroke-width:2px
+    classDef externalLayer fill:#eceff1,stroke:#455a64,stroke-width:2px
+
+    class WebApp,MobileApp,Wallet clientLayer
+    class Gateway,WebSocket gatewayLayer
+    class AuthService,ProfileService,MarketService,OrderService,ChatService,P2PService,DeliveryService,SocialService serviceLayer
+    class MediaService,NotifService,SearchService,AnalyticsService,ReputationWorker infraLayer
+    class PostgreSQL,Redis,IPFS dataLayer
+    class BazariChain,ProfilePallet,StorePallet,GovernancePallet,TreasuryPallet,VestingPallet,BalancesPallet blockchainLayer
+    class PIX,EmailService,SMSService externalLayer

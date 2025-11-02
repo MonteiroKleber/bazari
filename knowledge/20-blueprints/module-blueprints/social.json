@@ -1,0 +1,286 @@
+{
+  "module": {
+    "id": "social",
+    "name": "Social Feed",
+    "category": "defi-social",
+    "version": "1.0.0",
+    "status": "production",
+    "description": "Criar feed social descentralizado onde usuários compartilham conteúdo, interagem via likes/comments/reposts, e constroem reputação através de engajamento na comunidade Bazari."
+  },
+  "vision": {
+    "statement": "Criar feed social descentralizado onde usuários compartilham conteúdo, interagem via likes/comments/reposts, e constroem reputação através de engajamento na comunidade Bazari.",
+    "principles": [
+      "Profile-Centric - Posts ligados a Profile (não User)",
+      "Follow-Based Feed - Ver posts de quem você segue",
+      "Engagement - Likes, reactions (love, laugh, wow, sad, angry)",
+      "Threaded Discussions - Comments com replies aninhados"
+    ]
+  },
+  "entities": [
+    {
+      "name": "Post",
+      "table": "Post",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String (CUID)",
+          "constraints": [
+            "PRIMARY KEY"
+          ]
+        },
+        {
+          "name": "authorId",
+          "type": "String",
+          "constraints": [
+            "FK -> Profile.id",
+            "INDEX"
+          ]
+        },
+        {
+          "name": "kind",
+          "type": "String",
+          "description": "text | image | link"
+        },
+        {
+          "name": "content",
+          "type": "String (Text)"
+        },
+        {
+          "name": "media",
+          "type": "Json?",
+          "description": "Array of media URLs"
+        },
+        {
+          "name": "status",
+          "type": "PostStatus",
+          "constraints": [
+            "DEFAULT PUBLISHED"
+          ]
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime"
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime"
+        }
+      ],
+      "relations": [
+        {
+          "name": "likes",
+          "type": "1:N",
+          "target": "PostLike"
+        },
+        {
+          "name": "reactions",
+          "type": "1:N",
+          "target": "PostReaction"
+        },
+        {
+          "name": "comments",
+          "type": "1:N",
+          "target": "PostComment"
+        },
+        {
+          "name": "reposts",
+          "type": "1:N",
+          "target": "PostRepost"
+        }
+      ]
+    },
+    {
+      "name": "PostLike",
+      "table": "PostLike",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String (CUID)"
+        },
+        {
+          "name": "postId",
+          "type": "String"
+        },
+        {
+          "name": "profileId",
+          "type": "String"
+        }
+      ],
+      "constraints": [
+        {
+          "type": "UNIQUE",
+          "fields": [
+            "postId",
+            "profileId"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "PostReaction",
+      "table": "PostReaction",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String (CUID)"
+        },
+        {
+          "name": "postId",
+          "type": "String"
+        },
+        {
+          "name": "profileId",
+          "type": "String"
+        },
+        {
+          "name": "reaction",
+          "type": "String",
+          "description": "love | laugh | wow | sad | angry"
+        }
+      ],
+      "constraints": [
+        {
+          "type": "UNIQUE",
+          "fields": [
+            "postId",
+            "profileId"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "PostComment",
+      "table": "PostComment",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String (CUID)"
+        },
+        {
+          "name": "postId",
+          "type": "String"
+        },
+        {
+          "name": "authorId",
+          "type": "String"
+        },
+        {
+          "name": "content",
+          "type": "String (Text)"
+        },
+        {
+          "name": "parentId",
+          "type": "String?",
+          "description": "For nested replies"
+        }
+      ],
+      "relations": [
+        {
+          "name": "replies",
+          "type": "1:N",
+          "target": "PostComment (self)"
+        }
+      ]
+    },
+    {
+      "name": "PostRepost",
+      "table": "PostRepost",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String (CUID)"
+        },
+        {
+          "name": "postId",
+          "type": "String"
+        },
+        {
+          "name": "profileId",
+          "type": "String"
+        }
+      ],
+      "constraints": [
+        {
+          "type": "UNIQUE",
+          "fields": [
+            "postId",
+            "profileId"
+          ]
+        }
+      ]
+    }
+  ],
+  "valueObjects": [],
+  "apis": [
+    {
+      "method": "POST",
+      "path": "/api/posts",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "GET",
+      "path": "/api/posts/feed",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/posts/:id/like",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/posts/:id/react",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/posts/:id/comments",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/comments/:id/reply",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "POST",
+      "path": "/api/posts/:id/repost",
+      "auth": true,
+      "description": "```http"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/posts/:id",
+      "auth": true,
+      "description": "```http"
+    }
+  ],
+  "useCases": [
+    {
+      "id": "UC-01",
+      "name": "Core Use Case",
+      "actors": [
+        "User",
+        "System"
+      ],
+      "flow": "User performs action → System processes → Returns result"
+    }
+  ],
+  "dependencies": {
+    "internal": [],
+    "external": []
+  },
+  "security": {
+    "authentication": "JWT-based via auth module",
+    "authorization": "Role-based and ownership-based access control"
+  },
+  "metrics": {
+    "key_metrics": []
+  }
+}
