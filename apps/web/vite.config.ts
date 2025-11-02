@@ -74,7 +74,17 @@ export default defineConfig({
           }
         ],
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api/]
+        // SOLUÇÃO 2: Denylist completa para evitar conflitos com rotas não-React
+        navigateFallbackDenylist: [
+          /^\/api/,       // Backend API
+          /^\/doc/,       // Static documentation (HTML)
+          /^\/rpc/,       // Blockchain WebSocket
+          /^\/static/,    // User uploads
+          /^\/uploads/    // Static assets
+        ],
+        // Força update imediato do Service Worker
+        skipWaiting: true,
+        clientsClaim: true
       },
       devOptions: {
         enabled: true,

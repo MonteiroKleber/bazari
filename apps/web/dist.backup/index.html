@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Bazari - Nação Digital Descentralizada</title>
+    <meta name="description" content="Economia popular descentralizada com moeda própria (BZR) e cashback (LIVO)" />
+
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Bazari" />
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+
+    <!-- Mobile Web App Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="Bazari" />
+
+    <!-- Windows Meta Tags -->
+    <meta name="msapplication-TileColor" content="#000000" />
+    <meta name="msapplication-TileImage" content="/icons/icon-512x512.png" />
+
+    <!-- Anti-flash de tema -->
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem("bazari:theme") || "bazari";
+          document.documentElement.setAttribute("data-theme", t);
+        } catch(e) {}
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-xAMDYorp.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-D89sY1jt.css">
+  <link rel="manifest" href="/manifest.webmanifest"></head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

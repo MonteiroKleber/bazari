@@ -13,6 +13,7 @@ import {
   ShoppingBag,
   Truck,
   Vote,
+  TrendingUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDeliveryProfile } from '@/hooks/useDeliveryProfile';
@@ -96,6 +97,13 @@ const QUICK_ACTIONS: QuickAction[] = [
     to: '/app/governance',
     description: 'Propostas e votações',
     color: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
+  },
+  {
+    icon: <TrendingUp className="h-6 w-6" />,
+    label: 'Vesting',
+    to: '/vesting',
+    description: 'Liberação de tokens BZR',
+    color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
   },
 ];
 

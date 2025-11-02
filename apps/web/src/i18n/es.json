@@ -980,7 +980,14 @@
       "maxBRL": "Máximo por orden (R$)",
       "autoReply": "Respuesta automática",
       "autoReplyPh": "Instrucciones iniciales para la contraparte",
-      "promptPixKey": "Ingrese su clave PIX"
+      "promptPixKey": "Ingrese su clave PIX",
+      "assetType": "Tipo de activo",
+      "assetBZR": "BZR",
+      "assetZARI": "ZARI",
+      "amountZARI": "Cantidad ZARI",
+      "phaseSoldOut": "Fase {{phase}} agotada. Espere la próxima fase.",
+      "calculatedPrice": "Precio total: {{total}} BZR",
+      "invalidAmount": "Cantidad inválida"
     },
     "room": {
       "status": {
@@ -1120,13 +1127,6 @@
           "totalSupply": "Oferta total: 30 millones ZARI distribuidos vía P2P."
         }
       }
-    },
-    "new": {
-      "assetType": "Tipo de activo",
-      "assetBZR": "BZR",
-      "assetZARI": "ZARI",
-      "amountZARI": "Cantidad ZARI",
-      "phaseSoldOut": "Fase {{phase}} agotada. Espere la próxima fase."
     },
     "tabs": {
       "buyBzr": "Comprar BZR",
@@ -1416,6 +1416,116 @@
       "invalidType": "Tipo de propuesta inválido",
       "failedToLoad": "Error al cargar",
       "refresh": "Actualizar"
+    }
+  },
+  "testnet": {
+    "banner": {
+      "message": "Entorno de pruebas - Transacciones y datos no son reales"
+    },
+    "hero": {
+      "badge": "Entorno de Prueba",
+      "title": "Acceso a la Versión de Pruebas",
+      "subtitle": "Está accediendo al entorno de pruebas (testnet) de la aplicación Bazari — una versión en desarrollo, abierta al público para fines de transparencia, investigación y validación comunitaria.",
+      "accessApp": "Acceder a la App de Prueba",
+      "viewDocs": "Ver Documentación"
+    },
+    "warning": {
+      "title": "⚠️ Entorno de Prueba",
+      "description": "Está accediendo al entorno de pruebas (testnet) de la aplicación Bazari — una versión en desarrollo, abierta al público para fines de transparencia, investigación y validación comunitaria. Algunos flujos pueden presentar errores, lentitud o funcionalidades incompletas, ya que aún están siendo optimizados para el lanzamiento oficial."
+    },
+    "purpose": {
+      "badge": "Declaración y Propósito",
+      "title": "Por Qué Estamos Compartiendo",
+      "subtitle": "La liberación pública de este entorno forma parte de la estrategia de transparencia y compromiso comunitario de Bazari.",
+      "cards": {
+        "transparency": {
+          "title": "Transparencia Total",
+          "description": "Permitir que simpatizantes, desarrolladores y futuros usuarios puedan seguir el progreso real del proyecto."
+        },
+        "innovation": {
+          "title": "Innovación Abierta",
+          "description": "Representa el compromiso de Bazari con un modelo de innovación abierta (Open Innovation) y co-construcción participativa."
+        },
+        "engagement": {
+          "title": "Compromiso Comunitario",
+          "description": "Probar las funcionalidades y contribuir con comentarios constructivos antes del lanzamiento oficial."
+        }
+      }
+    },
+    "legal": {
+      "badge": "Aviso Legal",
+      "title": "Términos de Uso del Testnet",
+      "points": {
+        "notFinal": "Esta versión no representa el producto final y puede contener fallas o inestabilidades.",
+        "noRealTransactions": "Ninguna transacción, dato o acción realizada en este entorno debe ser interpretada como operación comercial o financiera real.",
+        "risks": "El uso del entorno de prueba implica conocimiento y aceptación de los riesgos inherentes a las versiones en desarrollo.",
+        "updates": "Bazari podrá actualizar, suspender o restablecer el entorno de prueba sin previo aviso, según la evolución técnica del proyecto."
+      }
+    },
+    "strategic": {
+      "badge": "Comunicación Estratégica",
+      "title": "Mensaje para Medios y Simpatizantes",
+      "subtitle": "La disponibilidad pública del enlace no es un lanzamiento oficial, sino una acción estratégica de transparencia y marketing técnico, alineada con los principios de Web3.",
+      "points": {
+        "maturity": {
+          "title": "Madurez Tecnológica",
+          "description": "Permitiendo auditoría pública del progreso"
+        },
+        "transparency": {
+          "title": "Transparencia Institucional",
+          "description": "Al mostrar el estado real del desarrollo"
+        },
+        "engagement": {
+          "title": "Compromiso Comunitario",
+          "description": "Invitando a los simpatizantes a participar en la evolución del ecosistema"
+        }
+      },
+      "finalMessage": "Esta postura refuerza la imagen de Bazari como un proyecto de soberanía digital, construido por el pueblo y para el pueblo, basado en la confianza, descentralización e innovación abierta."
+    },
+    "cta": {
+      "title": "Comience a Explorar",
+      "subtitle": "Entre en el entorno de pruebas y descubra el futuro de la economía descentralizada.",
+      "accessTestnet": "Acceder al Testnet",
+      "readDocs": "Leer Documentación",
+      "explore": "Explore otras páginas:",
+      "links": {
+        "vesting": "Vesting BZR",
+        "marketplace": "Marketplace",
+        "home": "Página de Inicio"
+      }
+    },
+    "welcome": {
+      "title": "¡Bienvenido a Bazari!",
+      "subtitle": "Antes de comenzar, es importante que sepas...",
+      "alert": {
+        "title": "Estás en un Entorno de Pruebas (Testnet)",
+        "description": "Esta es una versión en desarrollo, abierta al público para transparencia y validación comunitaria.",
+        "emphasis": "Algunos flujos pueden presentar errores, lentitud o funcionalidades incompletas."
+      },
+      "can": {
+        "title": "✅ Puedes",
+        "test": "Probar todas las funcionalidades",
+        "report": "Reportar bugs y problemas",
+        "feedback": "Dar comentarios constructivos",
+        "explore": "Explorar sin riesgos"
+      },
+      "cannot": {
+        "title": "❌ No Esperes",
+        "real": "Transacciones o valores reales",
+        "persistent": "Datos persistentes (pueden ser reseteados)",
+        "perfect": "Funcionamiento perfecto (se esperan bugs)",
+        "support": "Soporte 24/7 (¡estamos construyendo!)"
+      },
+      "transparency": {
+        "title": "¿Por qué estamos compartiendo?",
+        "description": "Bazari cree en la transparencia total. Al abrir nuestro testnet, permitimos que la comunidad siga el desarrollo real del proyecto y contribuya a su evolución."
+      },
+      "indicator": "Este indicador estará siempre visible mientras uses el testnet",
+      "cta": {
+        "start": "¡Entendido, Comenzar!",
+        "learn": "Saber Más sobre Testnet"
+      },
+      "skip": "Ya sé esto, continuar sin leer"
     }
   }
 }

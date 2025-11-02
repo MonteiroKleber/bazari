@@ -13,6 +13,7 @@ export function Header() {
 
   const navItems = [
     { label: t('header.explore', { defaultValue: 'Explorar' }), href: '/explore' },
+    { label: t('header.vesting', { defaultValue: 'Vesting' }), href: '/vesting' },
     { label: t('header.about'), href: '#about' },
     { label: t('header.modules'), href: '#modules' },
     { label: t('header.roadmap'), href: '#roadmap' },

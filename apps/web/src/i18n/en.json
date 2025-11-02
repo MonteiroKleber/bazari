@@ -980,7 +980,14 @@
       "maxBRL": "Max per order (R$)",
       "autoReply": "Auto reply",
       "autoReplyPh": "Initial instructions for the counterparty",
-      "promptPixKey": "Enter your PIX key"
+      "promptPixKey": "Enter your PIX key",
+      "assetType": "Asset type",
+      "assetBZR": "BZR",
+      "assetZARI": "ZARI",
+      "amountZARI": "Amount ZARI",
+      "phaseSoldOut": "Phase {{phase}} sold out. Wait for next phase.",
+      "calculatedPrice": "Total price: {{total}} BZR",
+      "invalidAmount": "Invalid amount"
     },
     "room": {
       "status": {
@@ -1120,13 +1127,6 @@
           "totalSupply": "Total supply: 30 million ZARI distributed via P2P."
         }
       }
-    },
-    "new": {
-      "assetType": "Asset type",
-      "assetBZR": "BZR",
-      "assetZARI": "ZARI",
-      "amountZARI": "Amount ZARI",
-      "phaseSoldOut": "Phase {{phase}} sold out. Wait for next phase."
     },
     "tabs": {
       "buyBzr": "Buy BZR",
@@ -1416,6 +1416,116 @@
       "invalidType": "Invalid proposal type",
       "failedToLoad": "Failed to load",
       "refresh": "Refresh"
+    }
+  },
+  "testnet": {
+    "banner": {
+      "message": "Test environment - Transactions and data are not real"
+    },
+    "hero": {
+      "badge": "Test Environment",
+      "title": "Access to Test Version",
+      "subtitle": "You are accessing Bazari's testnet environment — a development version open to the public for transparency, research, and community validation purposes.",
+      "accessApp": "Access Test App",
+      "viewDocs": "View Documentation"
+    },
+    "warning": {
+      "title": "⚠️ Test Environment",
+      "description": "You are accessing Bazari's testnet environment — a development version open to the public for transparency, research, and community validation purposes. Some flows may present errors, slowness, or incomplete functionalities as they are still being optimized for the official launch."
+    },
+    "purpose": {
+      "badge": "Declaration and Purpose",
+      "title": "Why We're Sharing This",
+      "subtitle": "The public release of this environment is part of Bazari's transparency and community engagement strategy.",
+      "cards": {
+        "transparency": {
+          "title": "Full Transparency",
+          "description": "Allow supporters, developers, and future users to follow the project's real progress."
+        },
+        "innovation": {
+          "title": "Open Innovation",
+          "description": "Represents Bazari's commitment to an Open Innovation model and participatory co-construction."
+        },
+        "engagement": {
+          "title": "Community Engagement",
+          "description": "Test functionalities and contribute constructive feedback before the official launch."
+        }
+      }
+    },
+    "legal": {
+      "badge": "Legal Notice",
+      "title": "Testnet Terms of Use",
+      "points": {
+        "notFinal": "This version does not represent the final product and may contain bugs or instabilities.",
+        "noRealTransactions": "No transaction, data, or action performed in this environment should be interpreted as a real commercial or financial operation.",
+        "risks": "Using the test environment implies awareness and acceptance of the risks inherent to development versions.",
+        "updates": "Bazari may update, suspend, or reset the test environment without prior notice, according to the project's technical evolution."
+      }
+    },
+    "strategic": {
+      "badge": "Strategic Communication",
+      "title": "Message for Media and Supporters",
+      "subtitle": "The public availability of this link is not an official launch, but a strategic action of transparency and technical marketing, aligned with Web3 principles.",
+      "points": {
+        "maturity": {
+          "title": "Technological Maturity",
+          "description": "Allowing public audit of progress"
+        },
+        "transparency": {
+          "title": "Institutional Transparency",
+          "description": "By showing the real development stage"
+        },
+        "engagement": {
+          "title": "Community Engagement",
+          "description": "Inviting supporters to participate in the ecosystem's evolution"
+        }
+      },
+      "finalMessage": "This stance reinforces Bazari's image as a digital sovereignty project, built by the people and for the people, based on trust, decentralization, and open innovation."
+    },
+    "cta": {
+      "title": "Start Exploring",
+      "subtitle": "Enter the test environment and discover the future of the decentralized economy.",
+      "accessTestnet": "Access Testnet",
+      "readDocs": "Read Documentation",
+      "explore": "Explore other pages:",
+      "links": {
+        "vesting": "BZR Vesting",
+        "marketplace": "Marketplace",
+        "home": "Home Page"
+      }
+    },
+    "welcome": {
+      "title": "Welcome to Bazari!",
+      "subtitle": "Before you begin, it's important that you know...",
+      "alert": {
+        "title": "You are in a Test Environment (Testnet)",
+        "description": "This is a development version, open to the public for transparency and community validation.",
+        "emphasis": "Some flows may present errors, slowness, or incomplete functionalities."
+      },
+      "can": {
+        "title": "✅ You Can",
+        "test": "Test all functionalities",
+        "report": "Report bugs and issues",
+        "feedback": "Give constructive feedback",
+        "explore": "Explore without risks"
+      },
+      "cannot": {
+        "title": "❌ Don't Expect",
+        "real": "Real transactions or values",
+        "persistent": "Persistent data (may be reset)",
+        "perfect": "Perfect functioning (bugs are expected)",
+        "support": "24/7 support (we're building!)"
+      },
+      "transparency": {
+        "title": "Why are we sharing this?",
+        "description": "Bazari believes in total transparency. By opening our testnet, we allow the community to follow the project's real development and contribute to its evolution."
+      },
+      "indicator": "This indicator will always be visible while you use the testnet",
+      "cta": {
+        "start": "Got it, Let's Start!",
+        "learn": "Learn More about Testnet"
+      },
+      "skip": "I already know this, continue without reading"
     }
   }
 }

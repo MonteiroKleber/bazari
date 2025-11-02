@@ -107,6 +107,12 @@ import {
   CreateProposalPage,
 } from './modules/governance';
 
+// Vesting pages (FASE 9)
+import { VestingPage } from './modules/vesting';
+
+// Testnet access page
+import { TestnetAccessPage } from './pages/TestnetAccessPage';
+
 function LandingPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -249,11 +255,14 @@ function AppLayout({ children }: { children: ReactNode }) {
 
 // Helper function to check if route is public
 function isPublicRoute(pathname: string): boolean {
-  const publicRoutes = ['/', '/auth', '/search', '/explore'];
+  const publicRoutes = ['/', '/auth', '/search', '/explore', '/vesting', '/testnet', '/delivery', '/marketplace'];
   return publicRoutes.some(route => pathname === route) ||
     pathname.startsWith('/auth/') ||
     pathname.startsWith('/product/') ||
-    pathname.startsWith('/service/');
+    pathname.startsWith('/service/') ||
+    pathname.startsWith('/loja/') ||
+    pathname.startsWith('/s/') ||
+    pathname.startsWith('/m/');
 }
 
 // Internal component that uses router hooks
@@ -357,6 +366,12 @@ function App() {
 
             {/* Delivery - Public landing page */}
             <Route path="/delivery" element={<DeliveryLandingPage />} />
+
+            {/* Vesting page - PUBLIC (FASE 9) */}
+            <Route path="/vesting" element={<VestingPage />} />
+
+            {/* Testnet Access page - PUBLIC */}
+            <Route path="/testnet" element={<TestnetAccessPage />} />
 
             {/* Profile Public - Requires Auth */}
             <Route

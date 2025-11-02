@@ -68,6 +68,7 @@ import affiliatesRoutes from './routes/affiliates.js';
 import { deliveryRoutes } from './routes/delivery.js';
 import { deliveryProfileRoutes } from './routes/delivery-profile.js';
 import { deliveryPartnerRoutes } from './routes/delivery-partners.js';
+import { vestingRoutes } from './routes/vesting.js';
 
 // Import workers with side effects
 import './workers/affiliate-stats.worker.js';
@@ -133,6 +134,7 @@ async function buildApp() {
   await app.register(marketplaceRoutes, { prefix: '/' });
   await app.register(notificationsRoutes, { prefix: '/', prisma });
   await app.register(governanceRoutes, { prefix: '/' });
+  await app.register(vestingRoutes, { prefix: '/' });
   await app.register(feedRoutes, { prefix: '/', prisma });
   await app.register(achievementsRoutes, { prefix: '/', prisma });
   await app.register(questsRoutes, { prefix: '/', prisma });

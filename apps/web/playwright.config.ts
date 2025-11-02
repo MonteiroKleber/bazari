@@ -9,6 +9,7 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
   // FASE 8: Governance tests
+  // FASE 11: E2E Tests Expansion - Auth, Vesting, Marketplace, P2P, Delivery, Orders
   testMatch: ['**/tests/**/*.spec.ts', '**/src/modules/governance/__tests__/e2e/**/*.spec.ts'],
 
   /* Run tests in files in parallel */
@@ -25,10 +26,17 @@ export default defineConfig({
 
   /* Reporter to use */
   reporter: [
-    ['html'],
+    ['html', { outputFolder: 'test-results/html-report' }],
     ['json', { outputFile: 'test-results/results.json' }],
-    ['junit', { outputFile: 'test-results/junit.xml' }]
+    ['junit', { outputFile: 'test-results/junit.xml' }],
+    ['list'] // Add list reporter for CI
   ],
+
+  /* Maximum test execution time */
+  timeout: 60 * 1000, // 60 seconds per test
+
+  /* Global timeout */
+  globalTimeout: 60 * 60 * 1000, // 1 hour for entire test suite
 
   /* Shared settings for all the projects below */
   use: {

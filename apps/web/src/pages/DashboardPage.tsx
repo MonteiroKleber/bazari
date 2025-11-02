@@ -11,6 +11,8 @@ import { WhoToFollow } from '../components/social/WhoToFollow';
 import { TrendingTopics } from '../components/social/TrendingTopics';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { PullToRefreshIndicator } from '../components/mobile/PullToRefreshIndicator';
+import { TestnetWelcomeModal } from '../components/onboarding/TestnetWelcomeModal';
+import { TestnetBanner } from '../components/TestnetBanner';
 import { FileText, Users, Bell, TrendingUp } from 'lucide-react';
 
 type MeProfile = {
@@ -111,8 +113,11 @@ export default function DashboardPage() {
 
   return (
     <>
+      <TestnetWelcomeModal />
       <PullToRefreshIndicator isRefreshing={isRefreshing} pullDistance={pullDistance} />
       <section className="container mx-auto px-4 py-2 md:py-3 mobile-safe-bottom">
+        <TestnetBanner />
+
         {/* Compact Header */}
         <header className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">

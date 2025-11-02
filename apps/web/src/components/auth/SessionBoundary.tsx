@@ -25,11 +25,14 @@ export function SessionBoundary() {
         const currentPath = window.location.pathname;
 
         // Check if we're on a public route
-        const publicRoutes = ['/', '/auth', '/search', '/explore'];
+        const publicRoutes = ['/', '/auth', '/search', '/explore', '/vesting', '/testnet', '/delivery', '/marketplace'];
         const isPublicRoute = publicRoutes.some(route => currentPath === route) ||
           currentPath.startsWith('/auth/') ||
           currentPath.startsWith('/product/') ||
-          currentPath.startsWith('/service/');
+          currentPath.startsWith('/service/') ||
+          currentPath.startsWith('/loja/') ||
+          currentPath.startsWith('/s/') ||
+          currentPath.startsWith('/m/');
 
         // Don't show modal on public routes
         if (isPublicRoute) {

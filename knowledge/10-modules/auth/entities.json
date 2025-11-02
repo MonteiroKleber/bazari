@@ -1,0 +1,322 @@
+{
+  "entities": [
+    {
+      "name": "User",
+      "description": "Entidade principal de usuário autenticado, identificado por address Substrate",
+      "source": "apps/api/prisma/schema.prisma",
+      "table": "User",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String (UUID)",
+          "description": "Identificador único interno",
+          "constraints": ["PRIMARY KEY", "DEFAULT uuid()"]
+        },
+        {
+          "name": "address",
+          "type": "String",
+          "description": "Endereço Substrate (SS58 format) - identidade única",
+          "constraints": ["UNIQUE", "NOT NULL"],
+          "example": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "description": "Data de criação da conta",
+          "constraints": ["DEFAULT now()"]
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "description": "Data da última atualização",
+          "constraints": ["AUTO UPDATE"]
+        }
+      ],
+      "relations": [
+        {
+          "name": "refreshTokens",
+          "type": "1:N",
+          "target": "RefreshToken",
+          "description": "Tokens de refresh ativos do usuário"
+        },
+        {
+          "name": "profile",
+          "type": "1:1",
+          "target": "Profile",
+          "description": "Perfil público do usuário"
+        },
+        {
+          "name": "sellerProfiles",
+          "type": "1:N",
+          "target": "SellerProfile",
+          "description": "Lojas do usuário"
+        }
+      ],
+      "indexes": [
+        {
+          "fields": ["address"],
+          "type": "UNIQUE"
+        }
+      ],
+      "business_rules": [
+        "Cada address pode ter apenas 1 User",
+        "User é criado automaticamente no primeiro login bem-sucedido",
+        "Address deve ser válido no formato SS58",
+        "User não pode ser deletado, apenas desativado (soft delete)"
+      ]
+    },
+    {
+      "name": "AuthNonce",
+      "description": "Nonce criptográfico usado para prevenir replay attacks no SIWS",
+      "source": "apps/api/prisma/schema.prisma",
+      "table": "AuthNonce",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String (UUID)",
+          "description": "Identificador único do nonce",
+          "constraints": ["PRIMARY KEY"]
+        },
+        {
+          "name": "address",
+          "type": "String",
+          "description": "Address Substrate que solicitou o nonce",
+          "constraints": ["NOT NULL", "INDEX"]
+        },
+        {
+          "name": "nonce",
+          "type": "String",
+          "description": "Valor aleatório único (hex 32 bytes)",
+          "constraints": ["UNIQUE", "NOT NULL"],
+          "example": "a3f5c8b2e9d1..."
+        },
+        {
+          "name": "domain",
+          "type": "String",
+          "description": "Domínio da aplicação (bazari.xyz)",
+          "constraints": ["NOT NULL"]
+        },
+        {
+          "name": "uri",
+          "type": "String",
+          "description": "URI da aplicação",
+          "constraints": ["NOT NULL"]
+        },
+        {
+          "name": "genesis",
+          "type": "String",
+          "description": "Genesis hash da chain (identifica a network)",
+          "constraints": ["NOT NULL"]
+        },
+        {
+          "name": "issuedAt",
+          "type": "DateTime",
+          "description": "Timestamp de emissão do nonce",
+          "constraints": ["NOT NULL"]
+        },
+        {
+          "name": "expiresAt",
+          "type": "DateTime",
+          "description": "Timestamp de expiração (5 min após issuedAt)",
+          "constraints": ["NOT NULL", "INDEX"]
+        },
+        {
+          "name": "usedAt",
+          "type": "DateTime?",
+          "description": "Timestamp de uso do nonce (null = não usado ainda)",
+          "constraints": ["NULLABLE", "INDEX"]
+        }
+      ],
+      "indexes": [
+        {
+          "fields": ["address"],
+          "type": "INDEX"
+        },
+        {
+          "fields": ["nonce"],
+          "type": "UNIQUE"
+        },
+        {
+          "fields": ["expiresAt"],
+          "type": "INDEX"
+        }
+      ],
+      "business_rules": [
+        "Nonce deve ser único por tentativa de login",
+        "Nonce expira em 5 minutos",
+        "Nonce só pode ser usado uma vez",
+        "Após uso, usedAt é preenchido",
+        "Tentativa de reusar nonce retorna erro",
+        "Nonces expirados podem ser removidos por cleanup job"
+      ],
+      "lifecycle": "Ephemeral (5 min + cleanup)"
+    },
+    {
+      "name": "RefreshToken",
+      "description": "Token de longa duração usado para renovar access tokens",
+      "source": "apps/api/prisma/schema.prisma",
+      "table": "RefreshToken",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String (UUID)",
+          "description": "Identificador único do refresh token",
+          "constraints": ["PRIMARY KEY"]
+        },
+        {
+          "name": "userId",
+          "type": "String (UUID)",
+          "description": "ID do usuário dono do token",
+          "constraints": ["NOT NULL", "INDEX", "FOREIGN KEY -> User.id"]
+        },
+        {
+          "name": "tokenHash",
+          "type": "String",
+          "description": "SHA-256 hash do refresh token",
+          "constraints": ["UNIQUE", "NOT NULL"],
+          "note": "Token real não é armazenado, apenas hash"
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "description": "Data de criação do token",
+          "constraints": ["DEFAULT now()"]
+        },
+        {
+          "name": "revokedAt",
+          "type": "DateTime?",
+          "description": "Data de revogação (null = ativo)",
+          "constraints": ["NULLABLE", "INDEX"]
+        }
+      ],
+      "relations": [
+        {
+          "name": "user",
+          "type": "N:1",
+          "target": "User",
+          "description": "Usuário dono do token"
+        }
+      ],
+      "indexes": [
+        {
+          "fields": ["userId"],
+          "type": "INDEX"
+        },
+        {
+          "fields": ["tokenHash"],
+          "type": "UNIQUE"
+        },
+        {
+          "fields": ["revokedAt"],
+          "type": "INDEX"
+        }
+      ],
+      "business_rules": [
+        "Token expira em 30 dias (verificado no JWT)",
+        "Token é rotacionado a cada refresh (novo token gerado, antigo revogado)",
+        "Múltiplos tokens ativos por usuário (multi-device)",
+        "Logout revoga o token específico",
+        "Logout everywhere revoga todos os tokens do userId",
+        "Tokens revogados não podem ser reativados"
+      ],
+      "security": [
+        "Token real é 32 bytes aleatórios (crypto.randomBytes)",
+        "Armazenado como SHA-256 hash no DB",
+        "Enviado ao client em cookie HttpOnly + Secure + SameSite=Strict",
+        "Não é acessível via JavaScript (XSS protection)"
+      ]
+    }
+  ],
+  "value_objects": [
+    {
+      "name": "AccessToken (JWT)",
+      "description": "Token stateless de curta duração para autenticação de requests",
+      "type": "JWT (JSON Web Token)",
+      "algorithm": "HS256",
+      "expiration": "15 minutes",
+      "payload": {
+        "userId": "UUID do User",
+        "address": "Substrate address",
+        "iat": "Issued at (timestamp)",
+        "exp": "Expiration (timestamp)"
+      },
+      "storage": "Client-side (memory only, não persistido)",
+      "security": [
+        "Assinado com secret env var (JWT_SECRET)",
+        "Verificação de assinatura em cada request",
+        "Não pode ser revogado (stateless)",
+        "Curta duração minimiza janela de exploração"
+      ]
+    },
+    {
+      "name": "SIWS Message",
+      "description": "Mensagem estruturada assinada pelo usuário para autenticação",
+      "format": "Plain text",
+      "example": "bazari.xyz wants you to sign in with your Substrate account:\n5GrwvaEF...\n\nSign in to Bazari Platform\n\nURI: https://bazari.xyz\nVersion: 1\nChain: Bazari Mainnet\nGenesis: 0x1234...\nNonce: a3f5c8b2...\nIssued At: 2025-11-02T10:30:00Z",
+      "fields": {
+        "domain": "bazari.xyz",
+        "address": "User's Substrate address",
+        "statement": "Sign in to Bazari Platform",
+        "uri": "https://bazari.xyz",
+        "version": "1",
+        "chainId": "Bazari Mainnet",
+        "genesis": "Genesis hash",
+        "nonce": "Unique nonce",
+        "issuedAt": "ISO 8601 timestamp"
+      },
+      "signing": "User signs message with private key using sr25519",
+      "verification": "Server verifies signature using public key (derived from address)"
+    }
+  ],
+  "aggregates": [
+    {
+      "name": "UserSession",
+      "description": "Agregado lógico representando sessão de usuário",
+      "root": "User",
+      "members": [
+        "User",
+        "RefreshToken (active)",
+        "Profile"
+      ],
+      "invariants": [
+        "User deve existir antes de ter RefreshToken",
+        "User deve ter Profile criado após primeiro login",
+        "RefreshTokens ativos devem ter createdAt + 30 dias > now()"
+      ]
+    }
+  ],
+  "domain_events": [
+    {
+      "name": "UserAuthenticated",
+      "description": "Usuário autenticado com sucesso",
+      "payload": {
+        "userId": "UUID",
+        "address": "String",
+        "timestamp": "DateTime"
+      },
+      "triggers": [
+        "Criar Profile se não existir",
+        "Registrar evento de analytics",
+        "Atualizar lastLoginAt"
+      ]
+    },
+    {
+      "name": "RefreshTokenRotated",
+      "description": "Refresh token rotacionado",
+      "payload": {
+        "userId": "UUID",
+        "oldTokenId": "UUID",
+        "newTokenId": "UUID"
+      }
+    },
+    {
+      "name": "SessionRevoked",
+      "description": "Sessão revogada (logout)",
+      "payload": {
+        "userId": "UUID",
+        "tokenId": "UUID",
+        "revokedAt": "DateTime"
+      }
+    }
+  ]
+}

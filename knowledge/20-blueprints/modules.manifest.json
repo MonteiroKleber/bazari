@@ -1,0 +1,966 @@
+{
+  "version": "1.0.0",
+  "generated_at": "2025-11-02T00:00:00Z",
+  "system": "Bazari Platform",
+  "description": "Consolidated module manifest for Bazari Web3 marketplace ecosystem",
+  "modules": [
+    {
+      "id": "auth",
+      "name": "Auth & Access Control",
+      "domain": "security",
+      "status": "implemented",
+      "paths": [
+        "apps/api/src/lib/auth",
+        "apps/api/src/routes/auth.ts",
+        "apps/web/src/modules/auth",
+        "apps/web/src/pages/auth",
+        "apps/web/src/components/auth"
+      ],
+      "capabilities": [
+        "auth.siws.challenge",
+        "auth.siws.verify",
+        "auth.login",
+        "auth.logout",
+        "auth.refresh",
+        "auth.me",
+        "authz.check",
+        "auth.nonce.create",
+        "auth.nonce.verify",
+        "auth.token.issue",
+        "auth.token.refresh",
+        "auth.session.manage"
+      ],
+      "entities": [
+        "User",
+        "AuthNonce",
+        "RefreshToken"
+      ],
+      "routes": [
+        "POST /api/auth/nonce",
+        "POST /api/auth/verify",
+        "POST /api/auth/logout",
+        "GET /api/auth/me",
+        "POST /api/auth/refresh"
+      ],
+      "depends_on": ["profile"],
+      "exposes": [
+        "auth.token.issue",
+        "auth.token.verify",
+        "authz.evaluate",
+        "auth.middleware.protect"
+      ],
+      "notes": "Módulo transversal de autenticação e autorização. Usa SIWS (Sign-In with Substrate) para autenticação Web3. Centraliza JWT, refresh tokens e middlewares de proteção."
+    },
+    {
+      "id": "profile",
+      "name": "Profile & Identity",
+      "domain": "identity",
+      "status": "implemented",
+      "paths": [
+        "apps/api/src/routes/profiles.ts",
+        "apps/web/src/pages/ProfileEditPage.tsx",
+        "apps/web/src/pages/ProfilePublicPage.tsx"
+      ],
+      "capabilities": [
+        "profile.create",
+        "profile.read",
+        "profile.update",
+        "profile.search",
+        "profile.follow",
+        "profile.unfollow",
+        "profile.verify",
+        "profile.reputation.calculate",
+        "profile.handle.reserve",
+        "profile.nft.mint",
+        "profile.e2ee.publickey.manage"
+      ],
+      "entities": [
+        "Profile",
+        "Follow",
+        "HandleHistory",
+        "ProfileBadge",
+        "ProfileReputationEvent"
+      ],
+      "routes": [
+        "POST /api/profiles",
+        "GET /api/profiles/:id",
+        "PUT /api/profiles/:id",
+        "POST /api/profiles/:id/follow",
+        "DELETE /api/profiles/:id/follow",
+        "GET /api/profiles/handle/:handle",
+        "GET /api/profiles/:id/followers",
+        "GET /api/profiles/:id/following"
+      ],
+      "depends_on": ["auth"],
+      "exposes": [
+        "profile.get",
+        "profile.verify",
+        "profile.reputation.score"
+      ],
+      "notes": "Perfil de usuário com identidade soberana baseada em NFT on-chain. Inclui reputação, badges e histórico de handles."
+    },
+    {
+      "id": "wallet",
+      "name": "Wallet & Assets",
+      "domain": "defi",
+      "status": "implemented",
+      "paths": [
+        "apps/web/src/modules/wallet"
+      ],
+      "capabilities": [
+        "wallet.create",
+        "wallet.import",
+        "wallet.export",
+        "wallet.send",
+        "wallet.receive",
+        "wallet.balance.query",
+        "wallet.history.query",
+        "wallet.accounts.list",
+        "wallet.pin.setup",
+        "wallet.pin.verify",
+        "wallet.vault.encrypt",
+        "wallet.vault.decrypt"
+      ],
+      "entities": [
+        "Vault",
+        "Account",
+        "Transaction"
+      ],
+      "routes": [],
+      "depends_on": ["auth"],
+      "exposes": [
+        "wallet.sign",
+        "wallet.balance.get",
+        "wallet.send.transaction"
+      ],
+      "notes": "Carteira Web3 não-custodial com suporte a múltiplas contas. Armazena seed criptografada localmente (IndexedDB). Suporta tokens BZR e ZARI."
+    },
+    {
+      "id": "marketplace",
+      "name": "Marketplace & Catalog",
+      "domain": "commerce",
+      "status": "implemented",
+      "paths": [
+        "apps/api/src/routes/marketplace.ts",
+        "apps/api/src/routes/products.ts",
+        "apps/api/src/routes/services.ts",
+        "apps/api/src/routes/categories.ts",
+        "apps/api/src/routes/search.ts",
+        "apps/api/src/lib/catalogBuilder.ts",
+        "apps/api/src/lib/categoryResolver.ts",
+        "apps/web/src/pages/MarketplacePage.tsx",
+        "apps/web/src/pages/ProductDetailPage.tsx",
+        "apps/web/src/pages/ServiceDetailPage.tsx",
+        "apps/web/src/pages/SearchPage.tsx"
+      ],
+      "capabilities": [
+        "product.create",
+        "product.read",
+        "product.update",
+        "product.delete",
+        "product.search",
+        "service.create",
+        "service.read",
+        "service.update",
+        "service.delete",
+        "category.list",
+        "category.seed",
+        "search.products",
+        "search.services",
+        "search.stores"
+      ],
+      "entities": [
+        "Product",
+        "ServiceOffering",
+        "Category",
+        "CategorySpec"
+      ],
+      "routes": [
+        "GET /api/products",
+        "GET /api/products/:id",
+        "POST /api/products",
+        "PUT /api/products/:id",
+        "DELETE /api/products/:id",
+        "GET /api/services",
+        "GET /api/services/:id",
+        "POST /api/services",
+        "GET /api/categories",
+        "POST /api/categories/seed",
+        "GET /api/search"
+      ],
+      "depends_on": ["auth", "store", "media"],
+      "exposes": [
+        "product.get",
+        "product.search",
+        "category.resolve"
+      ],
+      "notes": "Catálogo de produtos e serviços com categorias hierárquicas (4 níveis) e busca com OpenSearch/Postgres. Suporte a atributos dinâmicos via CategorySpec."
+    },
+    {
+      "id": "store",
+      "name": "Stores & Sellers",
+      "domain": "commerce",
+      "status": "implemented",
+      "paths": [
+        "apps/api/src/routes/stores.ts",
+        "apps/api/src/routes/sellers.ts",
+        "apps/api/src/routes/me.sellers.ts",
+        "apps/api/src/routes/storePublish.ts",
+        "apps/api/src/lib/storesChain.ts",
+        "apps/web/src/modules/store",
+        "apps/web/src/pages/SellerSetupPage.tsx",
+        "apps/web/src/pages/SellerPublicPage.tsx",
+        "apps/web/src/pages/SellerManagePage.tsx",
+        "apps/web/src/pages/StorePublicPage.tsx"
+      ],
+      "capabilities": [
+        "store.create",
+        "store.read",
+        "store.update",
+        "store.delete",
+        "store.publish.onchain",
+        "store.sync.onchain",
+        "store.operators.add",
+        "store.operators.remove",
+        "seller.setup",
+        "seller.profile.manage"
+      ],
+      "entities": [
+        "SellerProfile",
+        "StorePublishHistory",
+        "StoreSnapshot"
+      ],
+      "routes": [
+        "POST /api/sellers",
+        "GET /api/sellers/:slug",
+        "PUT /api/sellers/:slug",
+        "GET /api/me/sellers",
+        "POST /api/stores/publish",
+        "GET /api/stores/:id",
+        "GET /api/stores/:id/catalog"
+      ],
+      "depends_on": ["auth", "profile", "media"],
+      "exposes": [
+        "store.get",
+        "store.publish",
+        "store.catalog.build"
+      ],
+      "notes": "Lojas tokenizadas com sincronização on-chain (IPFS + blockchain). Suporte a múltiplas lojas por usuário e operadores delegados."
+    },
+    {
+      "id": "orders",
+      "name": "Orders & Payments",
+      "domain": "commerce",
+      "status": "implemented",
+      "paths": [
+        "apps/api/src/routes/orders.ts",
+        "apps/api/src/workers/paymentsTimeout.js",
+        "apps/web/src/modules/orders",
+        "apps/web/src/pages/OrderPage.tsx"
+      ],
+      "capabilities": [
+        "order.create",
+        "order.read",
+        "order.update",
+        "order.cancel",
+        "order.payment.process",
+        "order.escrow.lock",
+        "order.escrow.release",
+        "order.escrow.refund",
+        "order.status.track"
+      ],
+      "entities": [
+        "Order",
+        "OrderItem",
+        "PaymentIntent",
+        "EscrowLog"
+      ],
+      "routes": [
+        "POST /api/orders",
+        "GET /api/orders/:id",
+        "PUT /api/orders/:id",
+        "POST /api/orders/:id/pay",
+        "POST /api/orders/:id/cancel",
+        "POST /api/orders/:id/ship",
+        "POST /api/orders/:id/complete"
+      ],
+      "depends_on": ["auth", "marketplace", "wallet", "delivery"],
+      "exposes": [
+        "order.create",
+        "order.status.get",
+        "order.escrow.check"
+      ],
+      "notes": "Sistema de pedidos com escrow on-chain. Suporte a múltiplos itens, frete calculado e timeouts automáticos."
+    },
+    {
+      "id": "cart",
+      "name": "Shopping Cart",
+      "domain": "commerce",
+      "status": "implemented",
+      "paths": [
+        "apps/web/src/modules/cart"
+      ],
+      "capabilities": [
+        "cart.add",
+        "cart.remove",
+        "cart.update",
+        "cart.clear",
+        "cart.get"
+      ],
+      "entities": ["CartItem"],
+      "routes": [],
+      "depends_on": ["marketplace"],
+      "exposes": ["cart.get", "cart.checkout"],
+      "notes": "Carrinho de compras persistido localmente (Zustand). Validação de conflitos entre vendedores."
+    },
+    {
+      "id": "social",
+      "name": "Social Feed",
+      "domain": "social",
+      "status": "implemented",
+      "paths": [
+        "apps/api/src/routes/social.ts",
+        "apps/api/src/routes/posts.ts",
+        "apps/api/src/routes/feed.ts",
+        "apps/api/src/lib/feedAlgorithm.ts",
+        "apps/api/src/lib/trendingAlgorithm.ts",
+        "apps/web/src/pages/FeedPage.tsx",
+        "apps/web/src/pages/PostDetailPage.tsx",
+        "apps/web/src/components/social"
+      ],
+      "capabilities": [
+        "post.create",
+        "post.read",
+        "post.update",
+        "post.delete",
+        "post.like",
+        "post.unlike",
+        "post.repost",
+        "post.comment",
+        "feed.get",
+        "feed.algorithm.rank",
+        "trending.topics.get"
+      ],
+      "entities": [
+        "Post",
+        "PostLike",
+        "PostRepost",
+        "PostReaction",
+        "PostComment",
+        "PostCommentLike",
+        "UserInteraction",
+        "TrendingTopic"
+      ],
+      "routes": [
+        "POST /api/posts",
+        "GET /api/posts/:id",
+        "PUT /api/posts/:id",
+        "DELETE /api/posts/:id",
+        "POST /api/posts/:id/like",
+        "DELETE /api/posts/:id/like",
+        "POST /api/posts/:id/repost",
+        "POST /api/posts/:id/comment",
+        "GET /api/feed",
+        "GET /api/social/trending"
+      ],
+      "depends_on": ["auth", "profile"],
+      "exposes": [
+        "post.get",
+        "feed.algorithm.score",
+        "trending.calculate"
+      ],
+      "notes": "Feed social algorítmico com posts, likes, reposts e comentários. Sistema de trending topics e recomendações personalizadas."
+    },
+    {
+      "id": "chat",
+      "name": "BazChat (E2EE Messaging)",
+      "domain": "communication",
+      "status": "implemented",
+      "paths": [
+        "apps/api/src/chat",
+        "apps/web/src/pages/chat"
+      ],
+      "capabilities": [
+        "chat.thread.create",
+        "chat.thread.list",
+        "chat.message.send",
+        "chat.message.receive",
+        "chat.message.encrypt",
+        "chat.message.decrypt",
+        "chat.group.create",
+        "chat.group.join",
+        "chat.proposal.create",
+        "chat.proposal.accept",
+        "chat.ai.complete",
+        "chat.call.initiate",
+        "chat.call.answer"
+      ],
+      "entities": [
+        "ChatThread",
+        "ChatMessage",
+        "ChatGroup",
+        "ChatProposal"
+      ],
+      "routes": [
+        "GET /api/chat/threads",
+        "POST /api/chat/threads",
+        "GET /api/chat/threads/:id/messages",
+        "POST /api/chat/messages",
+        "POST /api/chat/groups",
+        "POST /api/chat/proposals",
+        "POST /api/chat/ai/complete",
+        "WS /ws/chat"
+      ],
+      "depends_on": ["auth", "profile", "marketplace", "media"],
+      "exposes": [
+        "chat.thread.get",
+        "chat.message.send",
+        "chat.e2ee.encrypt"
+      ],
+      "notes": "Sistema de mensagens E2EE com WebSocket. Suporte a propostas de vendas, grupos, chamadas de voz/vídeo (WebRTC) e AI assistente."
+    },
+    {
+      "id": "p2p",
+      "name": "P2P Exchange (BZR/ZARI)",
+      "domain": "defi",
+      "status": "implemented",
+      "paths": [
+        "apps/api/src/routes/p2p.offers.ts",
+        "apps/api/src/routes/p2p.orders.ts",
+        "apps/api/src/routes/p2p.paymentProfile.ts",
+        "apps/api/src/routes/p2p.messages.ts",
+        "apps/api/src/routes/p2p.zari.ts",
+        "apps/api/src/workers/p2pTimeout.js",
+        "apps/web/src/modules/p2p"
+      ],
+      "capabilities": [
+        "p2p.offer.create",
+        "p2p.offer.read",
+        "p2p.offer.update",
+        "p2p.offer.pause",
+        "p2p.order.create",
+        "p2p.order.accept",
+        "p2p.order.escrow.lock",
+        "p2p.order.payment.confirm",
+        "p2p.order.release",
+        "p2p.order.dispute",
+        "p2p.zari.stats",
+        "p2p.zari.phase.get"
+      ],
+      "entities": [
+        "P2POffer",
+        "P2POrder",
+        "P2PMessage",
+        "P2PDispute",
+        "P2PReview",
+        "P2PPaymentProfile",
+        "ZARIPhaseConfig"
+      ],
+      "routes": [
+        "GET /api/p2p/offers",
+        "POST /api/p2p/offers",
+        "GET /api/p2p/offers/:id",
+        "PUT /api/p2p/offers/:id",
+        "POST /api/p2p/orders",
+        "GET /api/p2p/orders/:id",
+        "PUT /api/p2p/orders/:id/escrow",
+        "PUT /api/p2p/orders/:id/confirm",
+        "PUT /api/p2p/orders/:id/release",
+        "GET /api/p2p/zari/stats"
+      ],
+      "depends_on": ["auth", "wallet", "profile"],
+      "exposes": [
+        "p2p.offer.get",
+        "p2p.order.create",
+        "p2p.zari.price.get"
+      ],
+      "notes": "Exchange P2P com escrow on-chain para BZR e ZARI. Suporte a fases de preço (2A, 2B, 3) e PIX para pagamentos fiat."
+    },
+    {
+      "id": "governance",
+      "name": "DAO Governance",
+      "domain": "governance",
+      "status": "implemented",
+      "paths": [
+        "apps/api/src/routes/governance.ts",
+        "apps/web/src/modules/governance"
+      ],
+      "capabilities": [
+        "proposal.create",
+        "proposal.read",
+        "proposal.vote",
+        "proposal.execute",
+        "council.elect",
+        "council.members.get",
+        "treasury.balance.get",
+        "treasury.proposal.create",
+        "multisig.create",
+        "multisig.approve",
+        "conviction.calculate"
+      ],
+      "entities": [
+        "Proposal",
+        "Vote",
+        "CouncilMember",
+        "TreasuryProposal",
+        "Multisig"
+      ],
+      "routes": [
+        "GET /api/governance/proposals",
+        "POST /api/governance/proposals",
+        "GET /api/governance/proposals/:id",
+        "POST /api/governance/proposals/:id/vote",
+        "GET /api/governance/council",
+        "GET /api/governance/treasury",
+        "POST /api/governance/treasury/proposals"
+      ],
+      "depends_on": ["auth", "wallet", "profile"],
+      "exposes": [
+        "governance.proposal.get",
+        "governance.vote.submit",
+        "governance.treasury.balance"
+      ],
+      "notes": "Sistema de governança DAO com propostas, votação (conviction voting), conselho e tesouraria. Integração com pallets de governança Substrate."
+    },
+    {
+      "id": "vesting",
+      "name": "Token Vesting",
+      "domain": "defi",
+      "status": "implemented",
+      "paths": [
+        "apps/api/src/routes/vesting.ts",
+        "apps/web/src/modules/vesting"
+      ],
+      "capabilities": [
+        "vesting.schedule.get",
+        "vesting.balance.get",
+        "vesting.claim",
+        "vesting.stats.calculate"
+      ],
+      "entities": ["VestingSchedule"],
+      "routes": [
+        "GET /api/vesting/schedule/:address",
+        "GET /api/vesting/balance/:address",
+        "POST /api/vesting/claim"
+      ],
+      "depends_on": ["auth", "wallet"],
+      "exposes": [
+        "vesting.schedule.get",
+        "vesting.claim.execute"
+      ],
+      "notes": "Sistema de vesting para tokens BZR com schedules configuráveis. Integração com pallet de vesting on-chain."
+    },
+    {
+      "id": "delivery",
+      "name": "Delivery Network",
+      "domain": "logistics",
+      "status": "implemented",
+      "paths": [
+        "apps/api/src/routes/delivery.ts",
+        "apps/api/src/routes/delivery-profile.ts",
+        "apps/api/src/routes/delivery-partners.ts",
+        "apps/api/src/lib/deliveryCalculator.ts",
+        "apps/web/src/pages/delivery"
+      ],
+      "capabilities": [
+        "delivery.request.create",
+        "delivery.request.list",
+        "delivery.request.accept",
+        "delivery.request.complete",
+        "delivery.profile.create",
+        "delivery.profile.update",
+        "delivery.partner.add",
+        "delivery.partner.approve",
+        "delivery.tracking.update",
+        "delivery.proof.upload"
+      ],
+      "entities": [
+        "DeliveryRequest",
+        "DeliveryProfile",
+        "StoreDeliveryPartner"
+      ],
+      "routes": [
+        "POST /api/delivery/requests",
+        "GET /api/delivery/requests",
+        "GET /api/delivery/requests/:id",
+        "PUT /api/delivery/requests/:id/accept",
+        "PUT /api/delivery/requests/:id/pickup",
+        "PUT /api/delivery/requests/:id/deliver",
+        "POST /api/delivery/profile",
+        "GET /api/delivery/profile",
+        "POST /api/delivery/partners",
+        "GET /api/delivery/partners"
+      ],
+      "depends_on": ["auth", "profile", "orders", "wallet"],
+      "exposes": [
+        "delivery.request.create",
+        "delivery.calculate.fee",
+        "delivery.tracking.get"
+      ],
+      "notes": "Rede descentralizada de entregadores com tracking, escrow e avaliações. Suporte a parcerias privadas loja-entregador."
+    },
+    {
+      "id": "affiliates",
+      "name": "Affiliate Program",
+      "domain": "marketing",
+      "status": "implemented",
+      "paths": [
+        "apps/api/src/routes/affiliates.ts",
+        "apps/api/src/chat/routes/chat.affiliates.ts",
+        "apps/api/src/workers/affiliate-stats.worker.js",
+        "apps/web/src/pages/seller/AffiliatesPage.tsx",
+        "apps/web/src/pages/promoter/MyAffiliationsPage.tsx",
+        "apps/web/src/pages/AffiliateDashboardPage.tsx",
+        "apps/web/src/pages/AffiliateMarketplacePage.tsx"
+      ],
+      "capabilities": [
+        "affiliate.request",
+        "affiliate.approve",
+        "affiliate.reject",
+        "affiliate.suspend",
+        "affiliate.marketplace.create",
+        "affiliate.marketplace.publish",
+        "affiliate.product.add",
+        "affiliate.sale.track",
+        "affiliate.commission.calculate",
+        "affiliate.stats.get"
+      ],
+      "entities": [
+        "ChatStoreAffiliate",
+        "ChatAffiliateInvite",
+        "AffiliateMarketplace",
+        "AffiliateProduct",
+        "AffiliateSale",
+        "StoreCommissionPolicy"
+      ],
+      "routes": [
+        "POST /api/affiliates/request",
+        "GET /api/affiliates",
+        "PUT /api/affiliates/:id/approve",
+        "PUT /api/affiliates/:id/reject",
+        "POST /api/affiliates/marketplace",
+        "GET /api/affiliates/marketplace/:slug",
+        "POST /api/affiliates/marketplace/:id/products",
+        "GET /api/affiliates/sales",
+        "GET /api/affiliates/stats"
+      ],
+      "depends_on": ["auth", "profile", "store", "chat"],
+      "exposes": [
+        "affiliate.commission.calculate",
+        "affiliate.marketplace.get",
+        "affiliate.stats.calculate"
+      ],
+      "notes": "Sistema de afiliados com marketplaces personalizados. Comissões configuráveis por loja e tracking de vendas. Worker automático para cálculo de estatísticas."
+    },
+    {
+      "id": "media",
+      "name": "Media Storage",
+      "domain": "infrastructure",
+      "status": "implemented",
+      "paths": [
+        "apps/api/src/routes/media.ts",
+        "apps/api/src/storage"
+      ],
+      "capabilities": [
+        "media.upload",
+        "media.download",
+        "media.delete",
+        "media.url.generate"
+      ],
+      "entities": ["MediaAsset"],
+      "routes": [
+        "POST /api/media/upload",
+        "GET /api/media/:id",
+        "GET /api/media/:id/url",
+        "DELETE /api/media/:id"
+      ],
+      "depends_on": ["auth"],
+      "exposes": [
+        "media.upload",
+        "media.url.get"
+      ],
+      "notes": "Armazenamento de mídia com suporte a LocalFS e S3. Content hashing para deduplicação."
+    },
+    {
+      "id": "analytics",
+      "name": "Analytics & Metrics",
+      "domain": "observability",
+      "status": "implemented",
+      "paths": [
+        "apps/api/src/routes/analytics.ts",
+        "apps/web/src/pages/AnalyticsDashboard.tsx"
+      ],
+      "capabilities": [
+        "analytics.track",
+        "analytics.metrics.get",
+        "analytics.dashboard.render"
+      ],
+      "entities": [],
+      "routes": [
+        "GET /api/analytics/overview",
+        "GET /api/analytics/sales",
+        "GET /api/analytics/users"
+      ],
+      "depends_on": ["auth"],
+      "exposes": ["analytics.metrics.get"],
+      "notes": "Sistema de métricas e dashboards. Rastreamento de vendas, usuários e engajamento."
+    },
+    {
+      "id": "notifications",
+      "name": "Notifications",
+      "domain": "communication",
+      "status": "implemented",
+      "paths": [
+        "apps/api/src/routes/notifications.ts",
+        "apps/api/src/lib/notifications.ts",
+        "apps/web/src/pages/NotificationsPage.tsx"
+      ],
+      "capabilities": [
+        "notification.create",
+        "notification.read",
+        "notification.list",
+        "notification.mark_read",
+        "notification.delete"
+      ],
+      "entities": ["Notification"],
+      "routes": [
+        "GET /api/notifications",
+        "PUT /api/notifications/:id/read",
+        "DELETE /api/notifications/:id"
+      ],
+      "depends_on": ["auth", "profile"],
+      "exposes": ["notification.send"],
+      "notes": "Sistema de notificações in-app. Suporte a múltiplos tipos (follow, like, badge, achievement, etc)."
+    },
+    {
+      "id": "gamification",
+      "name": "Gamification (Achievements & Quests)",
+      "domain": "engagement",
+      "status": "implemented",
+      "paths": [
+        "apps/api/src/routes/achievements.ts",
+        "apps/api/src/routes/quests.ts",
+        "apps/api/src/routes/leaderboards.ts",
+        "apps/api/src/lib/achievementChecker.ts",
+        "apps/api/src/lib/achievementsSeed.ts",
+        "apps/api/src/lib/questsSeed.ts"
+      ],
+      "capabilities": [
+        "achievement.unlock",
+        "achievement.list",
+        "achievement.progress.track",
+        "quest.create",
+        "quest.complete",
+        "quest.claim",
+        "leaderboard.get"
+      ],
+      "entities": [
+        "Achievement",
+        "UserAchievement",
+        "Quest",
+        "UserQuest"
+      ],
+      "routes": [
+        "GET /api/achievements",
+        "GET /api/achievements/user/:userId",
+        "GET /api/quests",
+        "POST /api/quests/:id/claim",
+        "GET /api/leaderboards"
+      ],
+      "depends_on": ["auth", "profile"],
+      "exposes": [
+        "achievement.check",
+        "quest.progress.update",
+        "leaderboard.calculate"
+      ],
+      "notes": "Sistema de gamificação com achievements (5 tiers), quests diárias e leaderboards."
+    },
+    {
+      "id": "moderation",
+      "name": "Content Moderation",
+      "domain": "security",
+      "status": "implemented",
+      "paths": [
+        "apps/api/src/routes/reports.ts",
+        "apps/api/src/routes/userActions.ts",
+        "apps/api/src/chat/services/moderation.ts"
+      ],
+      "capabilities": [
+        "report.create",
+        "report.review",
+        "report.resolve",
+        "user.block",
+        "user.mute",
+        "content.moderate"
+      ],
+      "entities": [
+        "ContentReport",
+        "UserBlock",
+        "UserMute",
+        "ChatReport",
+        "ChatReportVote"
+      ],
+      "routes": [
+        "POST /api/reports",
+        "GET /api/reports",
+        "PUT /api/reports/:id/resolve",
+        "POST /api/users/:id/block",
+        "POST /api/users/:id/mute"
+      ],
+      "depends_on": ["auth", "profile"],
+      "exposes": [
+        "moderation.check",
+        "report.handle"
+      ],
+      "notes": "Sistema de moderação com denúncias, votação comunitária e ações (block, mute, suspend)."
+    },
+    {
+      "id": "reputation",
+      "name": "Reputation System",
+      "domain": "social",
+      "status": "implemented",
+      "paths": [
+        "apps/api/src/workers/reputation.worker.js",
+        "apps/api/src/chat/services/reputation.ts",
+        "apps/api/src/config/reputationRules.ts"
+      ],
+      "capabilities": [
+        "reputation.calculate",
+        "reputation.update",
+        "reputation.event.emit",
+        "reputation.tier.calculate"
+      ],
+      "entities": ["ProfileReputationEvent"],
+      "routes": [],
+      "depends_on": ["profile"],
+      "exposes": [
+        "reputation.score.get",
+        "reputation.event.emit"
+      ],
+      "notes": "Sistema de reputação com eventos on-chain e tiers (bronze, silver, gold, platinum, diamond). Worker automático para recálculo."
+    },
+    {
+      "id": "ai-gateway",
+      "name": "AI Gateway",
+      "domain": "ai",
+      "status": "implemented",
+      "paths": [
+        "apps/ai-gateway"
+      ],
+      "capabilities": [
+        "ai.complete",
+        "ai.embed",
+        "ai.translate",
+        "ai.stt",
+        "ai.tts"
+      ],
+      "entities": [],
+      "routes": [
+        "POST /complete",
+        "POST /embed",
+        "POST /translate",
+        "POST /stt",
+        "POST /tts"
+      ],
+      "depends_on": [],
+      "exposes": [
+        "ai.complete",
+        "ai.translate"
+      ],
+      "notes": "Gateway para serviços de IA (vLLM, Whisper, TTS, NLLB). Usado no BazChat para tradução e assistente."
+    }
+  ],
+  "candidates": [
+    {
+      "id": "events",
+      "name": "Event Sourcing & Streaming",
+      "reason": "Eventos dispersos em múltiplos módulos (reputation, notifications, gamification). Centralização permitiria melhor auditoria e reprocessamento.",
+      "paths_suspects": [
+        "apps/api/src/lib/queue.ts",
+        "apps/api/src/workers/*.js"
+      ],
+      "interfaces": [
+        "event.emit",
+        "event.subscribe",
+        "event.replay"
+      ],
+      "depends_on": ["auth"],
+      "exposes": ["event.bus"]
+    },
+    {
+      "id": "telemetry",
+      "name": "Telemetry & Observability",
+      "reason": "Métricas e logs dispersos. Centralização com OpenTelemetry permitiria melhor observabilidade.",
+      "paths_suspects": [
+        "apps/api/src/plugins/logger.ts"
+      ],
+      "interfaces": [
+        "telemetry.trace",
+        "telemetry.metric",
+        "telemetry.log"
+      ],
+      "depends_on": [],
+      "exposes": ["telemetry.export"]
+    },
+    {
+      "id": "ipfs",
+      "name": "IPFS Storage Layer",
+      "reason": "Lógica IPFS dispersa em store, chat e governance. Centralização permitiria cache e otimizações.",
+      "paths_suspects": [
+        "apps/api/src/lib/storesChain.ts",
+        "apps/api/src/chat/routes/chat.upload.ts"
+      ],
+      "interfaces": [
+        "ipfs.add",
+        "ipfs.get",
+        "ipfs.pin"
+      ],
+      "depends_on": [],
+      "exposes": ["ipfs.cid.resolve"]
+    },
+    {
+      "id": "blockchain-indexer",
+      "name": "Blockchain Indexer",
+      "reason": "Queries on-chain dispersas em múltiplos módulos. Indexer dedicado permitiria cache e queries otimizadas.",
+      "paths_suspects": [
+        "apps/api/src/lib/storesChain.ts",
+        "apps/api/src/routes/governance.ts",
+        "apps/api/src/routes/vesting.ts"
+      ],
+      "interfaces": [
+        "indexer.query.block",
+        "indexer.query.extrinsic",
+        "indexer.query.event"
+      ],
+      "depends_on": [],
+      "exposes": ["indexer.subscribe"]
+    }
+  ],
+  "cross_cutting_concerns": [
+    {
+      "id": "auth",
+      "description": "Autenticação e autorização transversal",
+      "used_by": ["all"]
+    },
+    {
+      "id": "wallet",
+      "description": "Assinatura de transações e gestão de contas",
+      "used_by": ["orders", "p2p", "governance", "vesting", "delivery"]
+    },
+    {
+      "id": "profile",
+      "description": "Identidade e reputação",
+      "used_by": ["social", "chat", "marketplace", "delivery", "affiliates"]
+    },
+    {
+      "id": "media",
+      "description": "Upload e armazenamento de arquivos",
+      "used_by": ["marketplace", "store", "social", "chat", "profile"]
+    },
+    {
+      "id": "notifications",
+      "description": "Sistema de notificações",
+      "used_by": ["social", "chat", "orders", "delivery", "governance", "gamification"]
+    }
+  ]
+}

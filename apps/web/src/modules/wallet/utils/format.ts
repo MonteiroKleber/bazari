@@ -7,7 +7,38 @@ export function shortenAddress(address: string, size = 6) {
   return `${address.slice(0, size)}…${address.slice(-size)}`;
 }
 
-export function formatBalance(value: bigint, decimals: number, precision = 4) {
+// Overload signatures
+export function formatBalance(value: bigint, decimals: number, precision?: number): string;
+export function formatBalance(value: string, decimals?: number, precision?: number): string;
+
+// Implementation
+export function formatBalance(value: bigint | string | undefined | null, decimals: number = 12, precision = 4): string {
+  // Handle null/undefined
+  if (value === null || value === undefined) {
+    return '0';
+  }
+
+  // Handle string input (legacy format for governance)
+  if (typeof value === 'string') {
+    // If value is empty or invalid, return '0'
+    if (!value || value === '0') {
+      return '0';
+    }
+    // Check if it's already a formatted number (with commas/decimals)
+    if (value.includes(',') || value.includes('.')) {
+      return value;
+    }
+    // Convert string to bigint if it's a valid number
+    try {
+      const bigintValue = BigInt(value);
+      value = bigintValue;
+    } catch {
+      // If conversion fails, return '0'
+      return '0';
+    }
+  }
+
+  // Original bigint implementation
   const negative = value < 0n;
   const absolute = negative ? -value : value;
   const base = 10n ** BigInt(decimals);
