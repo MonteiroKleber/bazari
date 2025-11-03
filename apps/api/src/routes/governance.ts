@@ -1,5 +1,7 @@
 import { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import { getSubstrateApi } from '../lib/substrate.js';
+import { authOnRequest } from '../lib/auth/middleware.js';
 
 export async function governanceRoutes(app: FastifyInstance) {
   // ==================== TREASURY ====================
@@ -45,6 +47,57 @@ export async function governanceRoutes(app: FastifyInstance) {
   });
 
   // ==================== DEMOCRACY ====================
+
+  /**
+   * POST /governance/democracy/propose
+   * Cria uma nova proposta de democracia
+   */
+  app.post('/governance/democracy/propose', {
+    onRequest: authOnRequest,
+    schema: {
+      body: z.object({
+        title: z.string().min(1).max(100),
+        description: z.string().min(1).max(2000),
+        preimageHash: z.string().optional(),
+        signature: z.string(),
+        address: z.string(),
+      })
+    }
+  }, async (request, reply) => {
+    try {
+      const { title, description, preimageHash, signature, address } = request.body as any;
+      const authUser = (request as any).authUser;
+
+      // Validar que o endereço corresponde ao usuário autenticado
+      // TODO: Implementar validação de signature
+
+      // Por enquanto, apenas retornar sucesso simulado
+      // Em produção, isso deveria:
+      // 1. Verificar a assinatura
+      // 2. Submeter extrinsic para a blockchain
+      // 3. Salvar metadados off-chain (título, descrição)
+
+      const proposalId = Math.floor(Math.random() * 1000); // Simulado
+
+      return reply.status(201).send({
+        success: true,
+        data: {
+          id: proposalId,
+          type: 'democracy',
+          title,
+          description,
+          preimageHash,
+          proposer: address,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+        },
+        message: 'Proposta criada com sucesso (simulado). Implementação completa requer integração com blockchain.'
+      });
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      return reply.status(500).send({ success: false, error: errorMsg });
+    }
+  });
 
   /**
    * GET /governance/democracy/referendums
@@ -129,7 +182,102 @@ export async function governanceRoutes(app: FastifyInstance) {
     }
   );
 
+  // ==================== TREASURY ====================
+
+  /**
+   * POST /governance/treasury/propose
+   * Cria uma nova proposta de tesouro
+   */
+  app.post('/governance/treasury/propose', {
+    onRequest: authOnRequest,
+    schema: {
+      body: z.object({
+        title: z.string().min(1).max(100),
+        description: z.string().min(1).max(2000),
+        beneficiary: z.string(),
+        value: z.string(),
+        signature: z.string(),
+        address: z.string(),
+      })
+    }
+  }, async (request, reply) => {
+    try {
+      const { title, description, beneficiary, value, signature, address } = request.body as any;
+      const authUser = (request as any).authUser;
+
+      // Validar que o endereço corresponde ao usuário autenticado
+      // TODO: Implementar validação de signature
+
+      // Por enquanto, apenas retornar sucesso simulado
+      // Em produção, isso deveria:
+      // 1. Verificar a assinatura
+      // 2. Submeter extrinsic treasury.proposeSpend
+      // 3. Salvar metadados off-chain
+
+      const proposalId = Math.floor(Math.random() * 1000); // Simulado
+
+      return reply.status(201).send({
+        success: true,
+        data: {
+          id: proposalId,
+          type: 'treasury',
+          title,
+          description,
+          beneficiary,
+          value,
+          proposer: address,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+        },
+        message: 'Proposta de tesouro criada com sucesso (simulado). Implementação completa requer integração com blockchain.'
+      });
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      return reply.status(500).send({ success: false, error: errorMsg });
+    }
+  });
+
   // ==================== COUNCIL ====================
+
+  /**
+   * POST /governance/council/propose
+   * Cria uma nova proposta de conselho
+   */
+  app.post('/governance/council/propose', {
+    onRequest: authOnRequest,
+    schema: {
+      body: z.object({
+        title: z.string().min(1).max(100),
+        description: z.string().min(1).max(2000),
+        signature: z.string(),
+        address: z.string(),
+      })
+    }
+  }, async (request, reply) => {
+    try {
+      const { title, description, signature, address } = request.body as any;
+      const authUser = (request as any).authUser;
+
+      const proposalId = Math.floor(Math.random() * 1000);
+
+      return reply.status(201).send({
+        success: true,
+        data: {
+          id: proposalId,
+          type: 'council',
+          title,
+          description,
+          proposer: address,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+        },
+        message: 'Proposta de conselho criada com sucesso (simulado).'
+      });
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      return reply.status(500).send({ success: false, error: errorMsg });
+    }
+  });
 
   /**
    * GET /governance/council/members
@@ -181,6 +329,46 @@ export async function governanceRoutes(app: FastifyInstance) {
   });
 
   // ==================== TECHNICAL COMMITTEE ====================
+
+  /**
+   * POST /governance/tech-committee/propose
+   * Cria uma nova proposta do comitê técnico
+   */
+  app.post('/governance/tech-committee/propose', {
+    onRequest: authOnRequest,
+    schema: {
+      body: z.object({
+        title: z.string().min(1).max(100),
+        description: z.string().min(1).max(2000),
+        signature: z.string(),
+        address: z.string(),
+      })
+    }
+  }, async (request, reply) => {
+    try {
+      const { title, description, signature, address } = request.body as any;
+      const authUser = (request as any).authUser;
+
+      const proposalId = Math.floor(Math.random() * 1000);
+
+      return reply.status(201).send({
+        success: true,
+        data: {
+          id: proposalId,
+          type: 'technical',
+          title,
+          description,
+          proposer: address,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+        },
+        message: 'Proposta técnica criada com sucesso (simulado).'
+      });
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      return reply.status(500).send({ success: false, error: errorMsg });
+    }
+  });
 
   /**
    * GET /governance/tech-committee/members
