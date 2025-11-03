@@ -152,7 +152,7 @@ export async function governanceRoutes(app: FastifyInstance) {
           proposer: proposer,
           title: `Democracy Proposal #${id}`,
           description: `Proposal hash: ${hash}`,
-          status: 'active',
+          status: 'PROPOSED',
           preimageHash: hash,
           createdAt: new Date().toISOString(),
         };
