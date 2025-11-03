@@ -200,26 +200,14 @@ export function ProposalsListPage() {
         </div>
       )}
 
-      {/* FASE 8 - PROMPT 7: Layout with Advanced Filters */}
-      <div className="grid md:grid-cols-[300px_1fr] gap-6 mb-6">
-        {/* Advanced Filters Sidebar */}
-        <div className="hidden md:block">
-          <AdvancedFilters
-            filters={filters}
-            onChange={setFilters}
-            onReset={resetFilters}
-          />
-        </div>
-
-        {/* Mobile Filters (collapsed by default) */}
-        <div className="md:hidden mb-4">
-          <AdvancedFilters
-            filters={filters}
-            onChange={setFilters}
-            onReset={resetFilters}
-            defaultCollapsed={true}
-          />
-        </div>
+      {/* Mobile Filters (collapsed by default) */}
+      <div className="md:hidden mb-4">
+        <AdvancedFilters
+          filters={filters}
+          onChange={setFilters}
+          onReset={resetFilters}
+          defaultCollapsed={true}
+        />
       </div>
 
       {/* Error State */}
@@ -234,10 +222,16 @@ export function ProposalsListPage() {
         </Card>
       )}
 
-      {/* Proposals Grid - with filters sidebar */}
+      {/* FASE 8 - PROMPT 7: Layout with Advanced Filters and Proposals */}
       <div className="grid md:grid-cols-[300px_1fr] gap-6">
-        {/* Empty space for alignment with filters sidebar */}
-        <div className="hidden md:block" />
+        {/* Advanced Filters Sidebar - Desktop only */}
+        <div className="hidden md:block">
+          <AdvancedFilters
+            filters={filters}
+            onChange={setFilters}
+            onReset={resetFilters}
+          />
+        </div>
 
         {/* Proposals List */}
         <div>
