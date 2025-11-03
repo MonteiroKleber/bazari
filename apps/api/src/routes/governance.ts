@@ -52,20 +52,29 @@ export async function governanceRoutes(app: FastifyInstance) {
    * POST /governance/democracy/propose
    * Cria uma nova proposta de democracia
    */
+  const democracyProposeSchema = z.object({
+    title: z.string().min(1).max(100),
+    description: z.string().min(1).max(2000),
+    preimageHash: z.string().optional(),
+    signature: z.string(),
+    address: z.string(),
+  });
+
   app.post('/governance/democracy/propose', {
     onRequest: authOnRequest,
-    schema: {
-      body: z.object({
-        title: z.string().min(1).max(100),
-        description: z.string().min(1).max(2000),
-        preimageHash: z.string().optional(),
-        signature: z.string(),
-        address: z.string(),
-      })
-    }
   }, async (request, reply) => {
     try {
-      const { title, description, preimageHash, signature, address } = request.body as any;
+      // Validar body com Zod
+      const validationResult = democracyProposeSchema.safeParse(request.body);
+      if (!validationResult.success) {
+        return reply.status(400).send({
+          success: false,
+          error: 'Validation failed',
+          details: validationResult.error.errors,
+        });
+      }
+
+      const { title, description, preimageHash, signature, address } = validationResult.data;
       const authUser = (request as any).authUser;
 
       // Validar que o endereço corresponde ao usuário autenticado
@@ -188,21 +197,30 @@ export async function governanceRoutes(app: FastifyInstance) {
    * POST /governance/treasury/propose
    * Cria uma nova proposta de tesouro
    */
+  const treasuryProposeSchema = z.object({
+    title: z.string().min(1).max(100),
+    description: z.string().min(1).max(2000),
+    beneficiary: z.string(),
+    value: z.string(),
+    signature: z.string(),
+    address: z.string(),
+  });
+
   app.post('/governance/treasury/propose', {
     onRequest: authOnRequest,
-    schema: {
-      body: z.object({
-        title: z.string().min(1).max(100),
-        description: z.string().min(1).max(2000),
-        beneficiary: z.string(),
-        value: z.string(),
-        signature: z.string(),
-        address: z.string(),
-      })
-    }
   }, async (request, reply) => {
     try {
-      const { title, description, beneficiary, value, signature, address } = request.body as any;
+      // Validar body com Zod
+      const validationResult = treasuryProposeSchema.safeParse(request.body);
+      if (!validationResult.success) {
+        return reply.status(400).send({
+          success: false,
+          error: 'Validation failed',
+          details: validationResult.error.errors,
+        });
+      }
+
+      const { title, description, beneficiary, value, signature, address } = validationResult.data;
       const authUser = (request as any).authUser;
 
       // Validar que o endereço corresponde ao usuário autenticado
@@ -243,19 +261,28 @@ export async function governanceRoutes(app: FastifyInstance) {
    * POST /governance/council/propose
    * Cria uma nova proposta de conselho
    */
+  const councilProposeSchema = z.object({
+    title: z.string().min(1).max(100),
+    description: z.string().min(1).max(2000),
+    signature: z.string(),
+    address: z.string(),
+  });
+
   app.post('/governance/council/propose', {
     onRequest: authOnRequest,
-    schema: {
-      body: z.object({
-        title: z.string().min(1).max(100),
-        description: z.string().min(1).max(2000),
-        signature: z.string(),
-        address: z.string(),
-      })
-    }
   }, async (request, reply) => {
     try {
-      const { title, description, signature, address } = request.body as any;
+      // Validar body com Zod
+      const validationResult = councilProposeSchema.safeParse(request.body);
+      if (!validationResult.success) {
+        return reply.status(400).send({
+          success: false,
+          error: 'Validation failed',
+          details: validationResult.error.errors,
+        });
+      }
+
+      const { title, description, signature, address } = validationResult.data;
       const authUser = (request as any).authUser;
 
       const proposalId = Math.floor(Math.random() * 1000);
@@ -334,19 +361,28 @@ export async function governanceRoutes(app: FastifyInstance) {
    * POST /governance/tech-committee/propose
    * Cria uma nova proposta do comitê técnico
    */
+  const techCommitteeProposeSchema = z.object({
+    title: z.string().min(1).max(100),
+    description: z.string().min(1).max(2000),
+    signature: z.string(),
+    address: z.string(),
+  });
+
   app.post('/governance/tech-committee/propose', {
     onRequest: authOnRequest,
-    schema: {
-      body: z.object({
-        title: z.string().min(1).max(100),
-        description: z.string().min(1).max(2000),
-        signature: z.string(),
-        address: z.string(),
-      })
-    }
   }, async (request, reply) => {
     try {
-      const { title, description, signature, address } = request.body as any;
+      // Validar body com Zod
+      const validationResult = techCommitteeProposeSchema.safeParse(request.body);
+      if (!validationResult.success) {
+        return reply.status(400).send({
+          success: false,
+          error: 'Validation failed',
+          details: validationResult.error.errors,
+        });
+      }
+
+      const { title, description, signature, address } = validationResult.data;
       const authUser = (request as any).authUser;
 
       const proposalId = Math.floor(Math.random() * 1000);

@@ -167,6 +167,8 @@ async function buildApp() {
   await app.register(p2pZariRoutes, { prefix: '/api', prisma });
   await app.register(marketplaceRoutes, { prefix: '/api' });
   await app.register(notificationsRoutes, { prefix: '/api', prisma });
+  await app.register(governanceRoutes, { prefix: '/api' });
+  await app.register(vestingRoutes, { prefix: '/api' });
   await app.register(feedRoutes, { prefix: '/api', prisma });
   await app.register(achievementsRoutes, { prefix: '/api', prisma });
   await app.register(questsRoutes, { prefix: '/api', prisma });
