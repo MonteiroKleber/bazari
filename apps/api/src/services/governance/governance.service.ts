@@ -38,10 +38,18 @@ export class GovernanceService {
    */
   static verifySignature(message: string, signature: string, address: string): boolean {
     try {
+      console.log('[Governance] Verifying signature:');
+      console.log('[Governance] - Message:', message);
+      console.log('[Governance] - Signature:', signature);
+      console.log('[Governance] - Address:', address);
+
       const messageU8a = new TextEncoder().encode(message);
       const signatureU8a = hexToU8a(signature);
 
       const result = signatureVerify(messageU8a, signatureU8a, address);
+      console.log('[Governance] - Result isValid:', result.isValid);
+      console.log('[Governance] - Result crypto:', result.crypto);
+
       return result.isValid;
     } catch (error) {
       console.error('[Governance] Signature verification error:', error);
@@ -79,23 +87,38 @@ export class GovernanceService {
     const api = await getSubstrateApi();
 
     // Verificar assinatura
-    const messageData = JSON.stringify({
+    console.log('[Governance] submitDemocracyProposal - Params received:', JSON.stringify(params, null, 2));
+
+    // Build message data - only include preimageHash if it has a value
+    const messageObj: Record<string, any> = {
       type: 'democracy',
       title: params.title,
       description: params.description,
-      preimageHash: params.preimageHash,
-      proposer: params.proposer,
-    });
+    };
+
+    if (params.preimageHash) {
+      messageObj.preimageHash = params.preimageHash;
+    }
+
+    messageObj.proposer = params.proposer;
+
+    const messageData = JSON.stringify(messageObj);
+
+    console.log('[Governance] submitDemocracyProposal - Message to verify:', messageData);
 
     if (!this.verifySignature(messageData, params.signature, params.proposer)) {
       throw new Error('Assinatura inválida');
     }
 
-    // Criar preimage se não fornecido
-    let preimageHash = params.preimageHash;
-    if (!preimageHash) {
-      preimageHash = await this.createPreimage(api, params);
-    }
+    // Criar call de proposta (remark com metadados)
+    const metadata = JSON.stringify({
+      title: params.title,
+      description: params.description,
+      proposer: params.proposer,
+      timestamp: new Date().toISOString(),
+    });
+
+    const proposalCall = api.tx.system.remark(metadata);
 
     // Obter conta do proposer usando seed da conta de sudo (temporário)
     // TODO: Implementar sistema de contas delegadas ou usar a assinatura do frontend
@@ -104,8 +127,16 @@ export class GovernanceService {
     // Obter deposit mínimo
     const minimumDeposit = api.consts.democracy?.minimumDeposit || api.createType('Balance', 1000000000000);
 
-    // Criar extrinsic
-    const proposeTx = api.tx.democracy.propose(preimageHash, minimumDeposit);
+    console.log('[Governance] Creating democracy proposal with:');
+    console.log('[Governance] - Proposal call:', proposalCall.method.toHex());
+    console.log('[Governance] - Minimum deposit:', minimumDeposit.toString());
+
+    // Criar extrinsic - usar o formato Bounded correto
+    // Nas versões recentes do Substrate, democracy.propose aceita um Bounded<Call>
+    const proposeTx = api.tx.democracy.propose(
+      { Lookup: { hash: proposalCall.method.hash, len: proposalCall.encodedLength } },
+      minimumDeposit
+    );
 
     // Assinar e enviar
     return new Promise((resolve, reject) => {
