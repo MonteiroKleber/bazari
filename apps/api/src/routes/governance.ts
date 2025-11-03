@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { getSubstrateApi } from '../lib/substrate.js';
 import { authOnRequest } from '../lib/auth/middleware.js';
+import { GovernanceService } from '../services/governance/governance.service.js';
 
 export async function governanceRoutes(app: FastifyInstance) {
   // ==================== TREASURY ====================
@@ -77,30 +78,31 @@ export async function governanceRoutes(app: FastifyInstance) {
       const { title, description, preimageHash, signature, address } = validationResult.data;
       const authUser = (request as any).authUser;
 
-      // Validar que o endereço corresponde ao usuário autenticado
-      // TODO: Implementar validação de signature
-
-      // Por enquanto, apenas retornar sucesso simulado
-      // Em produção, isso deveria:
-      // 1. Verificar a assinatura
-      // 2. Submeter extrinsic para a blockchain
-      // 3. Salvar metadados off-chain (título, descrição)
-
-      const proposalId = Math.floor(Math.random() * 1000); // Simulado
+      // Submeter proposta para a blockchain
+      const result = await GovernanceService.submitDemocracyProposal({
+        title,
+        description,
+        preimageHash,
+        signature,
+        proposer: address,
+      });
 
       return reply.status(201).send({
         success: true,
         data: {
-          id: proposalId,
+          id: result.proposalId,
           type: 'democracy',
           title,
           description,
           preimageHash,
           proposer: address,
-          status: 'pending',
+          status: 'active',
+          txHash: result.txHash,
+          blockHash: result.blockHash,
+          blockNumber: result.blockNumber,
           createdAt: new Date().toISOString(),
         },
-        message: 'Proposta criada com sucesso (simulado). Implementação completa requer integração com blockchain.'
+        message: 'Proposta criada com sucesso na blockchain!'
       });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -223,31 +225,33 @@ export async function governanceRoutes(app: FastifyInstance) {
       const { title, description, beneficiary, value, signature, address } = validationResult.data;
       const authUser = (request as any).authUser;
 
-      // Validar que o endereço corresponde ao usuário autenticado
-      // TODO: Implementar validação de signature
-
-      // Por enquanto, apenas retornar sucesso simulado
-      // Em produção, isso deveria:
-      // 1. Verificar a assinatura
-      // 2. Submeter extrinsic treasury.proposeSpend
-      // 3. Salvar metadados off-chain
-
-      const proposalId = Math.floor(Math.random() * 1000); // Simulado
+      // Submeter proposta de tesouro para a blockchain
+      const result = await GovernanceService.submitTreasuryProposal({
+        title,
+        description,
+        beneficiary,
+        value,
+        signature,
+        proposer: address,
+      });
 
       return reply.status(201).send({
         success: true,
         data: {
-          id: proposalId,
+          id: result.proposalId,
           type: 'treasury',
           title,
           description,
           beneficiary,
           value,
           proposer: address,
-          status: 'pending',
+          status: 'active',
+          txHash: result.txHash,
+          blockHash: result.blockHash,
+          blockNumber: result.blockNumber,
           createdAt: new Date().toISOString(),
         },
-        message: 'Proposta de tesouro criada com sucesso (simulado). Implementação completa requer integração com blockchain.'
+        message: 'Proposta de tesouro criada com sucesso na blockchain!'
       });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -285,20 +289,29 @@ export async function governanceRoutes(app: FastifyInstance) {
       const { title, description, signature, address } = validationResult.data;
       const authUser = (request as any).authUser;
 
-      const proposalId = Math.floor(Math.random() * 1000);
+      // Submeter proposta de council para a blockchain
+      const result = await GovernanceService.submitCouncilProposal({
+        title,
+        description,
+        signature,
+        proposer: address,
+      });
 
       return reply.status(201).send({
         success: true,
         data: {
-          id: proposalId,
+          id: result.proposalId,
           type: 'council',
           title,
           description,
           proposer: address,
-          status: 'pending',
+          status: 'active',
+          txHash: result.txHash,
+          blockHash: result.blockHash,
+          blockNumber: result.blockNumber,
           createdAt: new Date().toISOString(),
         },
-        message: 'Proposta de conselho criada com sucesso (simulado).'
+        message: 'Proposta de conselho criada com sucesso na blockchain!'
       });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -385,20 +398,29 @@ export async function governanceRoutes(app: FastifyInstance) {
       const { title, description, signature, address } = validationResult.data;
       const authUser = (request as any).authUser;
 
-      const proposalId = Math.floor(Math.random() * 1000);
+      // Submeter proposta de technical committee para a blockchain
+      const result = await GovernanceService.submitTechCommitteeProposal({
+        title,
+        description,
+        signature,
+        proposer: address,
+      });
 
       return reply.status(201).send({
         success: true,
         data: {
-          id: proposalId,
+          id: result.proposalId,
           type: 'technical',
           title,
           description,
           proposer: address,
-          status: 'pending',
+          status: 'active',
+          txHash: result.txHash,
+          blockHash: result.blockHash,
+          blockNumber: result.blockNumber,
           createdAt: new Date().toISOString(),
         },
-        message: 'Proposta técnica criada com sucesso (simulado).'
+        message: 'Proposta técnica criada com sucesso na blockchain!'
       });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);

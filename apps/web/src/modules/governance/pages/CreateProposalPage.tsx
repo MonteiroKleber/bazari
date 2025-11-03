@@ -18,6 +18,7 @@ import { useKeyring } from '@/modules/auth/useKeyring';
 import { useVaultAccounts } from '@/modules/wallet/hooks/useVaultAccounts';
 import { PinService } from '@/modules/wallet/pin/PinService';
 import { decryptMnemonic } from '@/modules/auth/crypto.utils';
+import { getAccessToken } from '@/modules/auth/session';
 import type { ProposalType } from '../types';
 
 type FormData = {
@@ -147,10 +148,17 @@ export function CreateProposalPage() {
         TECHNICAL: '/api/governance/tech-committee/propose',
       }[formData.type];
 
+      // Get JWT token for authentication
+      const accessToken = getAccessToken();
+      if (!accessToken) {
+        throw new Error('Você precisa estar logado para criar propostas. Por favor, faça login novamente.');
+      }
+
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           title: formData.title,
