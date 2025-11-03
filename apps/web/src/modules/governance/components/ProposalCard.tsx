@@ -86,7 +86,7 @@ export function ProposalCard({ proposal, onClick }: ProposalCardProps) {
       <CardContent className="space-y-3">
         {/* Description */}
         {proposal.description && (
-          <p className="text-sm text-muted-foreground line-clamp-2">
+          <p className="text-sm text-muted-foreground line-clamp-2 break-all">
             {proposal.description}
           </p>
         )}
