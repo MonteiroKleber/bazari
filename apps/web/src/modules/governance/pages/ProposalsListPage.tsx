@@ -35,7 +35,8 @@ export function ProposalsListPage() {
 
     try {
       // Load proposals from all sources
-      const [democracyRes, treasuryRes, councilRes, techRes] = await Promise.all([
+      const [democracyProposalsRes, democracyRes, treasuryRes, councilRes, techRes] = await Promise.all([
+        governanceApi.getDemocracyProposals(), // Add democracy proposals
         governanceApi.getDemocracyReferendums(),
         governanceApi.getTreasuryProposals(),
         governanceApi.getCouncilProposals(),
@@ -44,6 +45,16 @@ export function ProposalsListPage() {
 
       // Combine and normalize all proposals
       const allProposals: GovernanceProposal[] = [];
+
+      // Democracy proposals (not yet referendums)
+      if (democracyProposalsRes.success && democracyProposalsRes.data) {
+        democracyProposalsRes.data.forEach((item: any) => {
+          allProposals.push({
+            ...item,
+            type: 'DEMOCRACY',
+          });
+        });
+      }
 
       // Democracy referendums
       if (democracyRes.success && democracyRes.data) {
