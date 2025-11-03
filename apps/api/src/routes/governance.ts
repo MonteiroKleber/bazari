@@ -139,8 +139,26 @@ export async function governanceRoutes(app: FastifyInstance) {
     try {
       const api = await getSubstrateApi();
       const proposals = await api.query.democracy.publicProps();
+      const proposalsArray = proposals.toJSON() as any[];
 
-      return reply.send({ success: true, data: proposals.toJSON() });
+      // Format proposals to match frontend interface
+      const formattedProposals = proposalsArray.map(([id, proposal, proposer]) => {
+        // Try to fetch metadata from preimage if available
+        const hash = proposal?.lookup?.hash || proposal?.hash;
+
+        return {
+          id: id,
+          type: 'DEMOCRACY',
+          proposer: proposer,
+          title: `Democracy Proposal #${id}`,
+          description: `Proposal hash: ${hash}`,
+          status: 'active',
+          preimageHash: hash,
+          createdAt: new Date().toISOString(),
+        };
+      });
+
+      return reply.send({ success: true, data: formattedProposals });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       return reply.status(500).send({ success: false, error: errorMsg });
