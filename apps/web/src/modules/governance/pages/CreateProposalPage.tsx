@@ -121,17 +121,25 @@ export function CreateProposalPage() {
         account.iterations
       );
 
-      // Step 3: Prepare proposal data
-      const proposalData = JSON.stringify({
-        type: formData.type.toLowerCase(),
-        title: formData.title,
-        description: formData.description,
-        beneficiary: formData.beneficiary,
-        value: formData.value,
-        preimageHash: formData.preimageHash,
-        proposer: account.address,
-        timestamp: new Date().toISOString(),
-      });
+      // Step 3: Prepare proposal data (must match backend verification format)
+      const proposalData = (() => {
+        const baseData: Record<string, any> = {
+          type: formData.type.toLowerCase(),
+          title: formData.title,
+          description: formData.description,
+        };
+
+        // Add type-specific fields
+        if (formData.type === 'TREASURY') {
+          baseData.beneficiary = formData.beneficiary;
+          baseData.value = formData.value;
+        } else if (formData.type === 'DEMOCRACY' && formData.preimageHash) {
+          baseData.preimageHash = formData.preimageHash;
+        }
+
+        baseData.proposer = account.address;
+        return JSON.stringify(baseData);
+      })();
 
       // Step 4: Sign proposal
       const signature = await signMessage(mnemonic, proposalData);
