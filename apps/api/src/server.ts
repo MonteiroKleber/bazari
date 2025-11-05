@@ -27,6 +27,7 @@ import { getPaymentsConfig, getLogSafeConfig } from './config/payments.js';
 import { startPaymentsTimeoutWorker } from './workers/paymentsTimeout.js';
 import { startP2PTimeoutWorker } from './workers/p2pTimeout.js';
 import { startReputationWorker } from './workers/reputation.worker.js';
+import { startGovernanceSyncWorker } from './workers/governance-sync.worker.js';
 import { profilesRoutes } from './routes/profiles.js';
 import { sellersRoutes } from './routes/sellers.js';
 import { socialRoutes } from './routes/social.js';
@@ -43,6 +44,7 @@ import { storePublishRoutes } from './routes/storePublish.js';
 import { marketplaceRoutes } from './routes/marketplace.js';
 import { notificationsRoutes } from './routes/notifications.js';
 import { governanceRoutes } from './routes/governance.js';
+import { governanceTreasuryRoutes } from './routes/governance-treasury.js';
 import { feedRoutes } from './routes/feed.js';
 import { achievementsRoutes } from './routes/achievements.js';
 import { questsRoutes } from './routes/quests.js';
@@ -134,6 +136,7 @@ async function buildApp() {
   await app.register(marketplaceRoutes, { prefix: '/' });
   await app.register(notificationsRoutes, { prefix: '/', prisma });
   await app.register(governanceRoutes, { prefix: '/' });
+  await app.register(governanceTreasuryRoutes, { prefix: '/' });
   await app.register(vestingRoutes, { prefix: '/' });
   await app.register(feedRoutes, { prefix: '/', prisma });
   await app.register(achievementsRoutes, { prefix: '/', prisma });
@@ -168,6 +171,7 @@ async function buildApp() {
   await app.register(marketplaceRoutes, { prefix: '/api' });
   await app.register(notificationsRoutes, { prefix: '/api', prisma });
   await app.register(governanceRoutes, { prefix: '/api' });
+  await app.register(governanceTreasuryRoutes, { prefix: '/api' });
   await app.register(vestingRoutes, { prefix: '/api' });
   await app.register(feedRoutes, { prefix: '/api', prisma });
   await app.register(achievementsRoutes, { prefix: '/api', prisma });
@@ -232,6 +236,7 @@ async function buildApp() {
   let timeoutWorker: NodeJS.Timeout | null = null;
   let p2pTimeoutWorker: NodeJS.Timeout | null = null;
   let reputationWorker: NodeJS.Timeout | null = null;
+  let governanceSyncWorker: any = null;
   if (process.env.NODE_ENV !== 'production') {
     try {
       timeoutWorker = startPaymentsTimeoutWorker(prisma, {
@@ -261,6 +266,14 @@ async function buildApp() {
     app.log.warn({ err }, 'Falha ao iniciar worker de reputação');
   }
 
+  // Iniciar Governance Sync Worker (escuta eventos da blockchain)
+  try {
+    governanceSyncWorker = startGovernanceSyncWorker(prisma, { logger: app.log });
+    app.log.info('Worker de sincronização de governança iniciado');
+  } catch (err) {
+    app.log.warn({ err }, 'Falha ao iniciar worker de sincronização de governança');
+  }
+
   // Limpar worker no graceful shutdown
   app.addHook('onClose', async () => {
     if (timeoutWorker) {
@@ -274,6 +287,10 @@ async function buildApp() {
     if (reputationWorker) {
       clearInterval(reputationWorker);
       app.log.info('Worker de reputação parado');
+    }
+    if (governanceSyncWorker) {
+      await governanceSyncWorker.stop();
+      app.log.info('Worker de sincronização de governança parado');
     }
   });
 

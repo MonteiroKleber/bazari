@@ -4,6 +4,10 @@ export { ConvictionSelector } from './ConvictionSelector';
 export { CouncilMemberCard } from './CouncilMemberCard';
 export { MultisigApprovalFlow } from './MultisigApprovalFlow';
 export { TreasuryStats } from './TreasuryStats';
+export { TreasuryRequestCard } from './TreasuryRequestCard';
+export { CouncilVoteButtons } from './CouncilVoteButtons';
+export { CloseMotionButton } from './CloseMotionButton';
+export { CreateMotionModal } from './CreateMotionModal';
 
 // FASE 8: Export dashboard, multisig, notifications, filters, skeleton components
 export * from './dashboard';

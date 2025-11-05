@@ -95,25 +95,25 @@ export function CreateMotionModal({
       const pair = keyring.addFromMnemonic(mnemonic);
       mnemonic = '';
 
-      // Create a unique remark to ensure each proposal has a different hash
+      // Create the spendLocal call
+      // NOTE: Since utility pallet is not available in the runtime,
+      // we add a small increment to the value to make each proposal unique
       // This prevents council.DuplicateProposal errors when creating motions
       // for different treasury requests with the same value/beneficiary
-      const remarkCall = api.tx.system.remarkWithEvent(
-        `bazari:treasury:${request.id}:${request.title.substring(0, 50)}`
-      );
+      const baseValue = BigInt(request.value);
 
-      // Create the spendLocal call
-      const value = api.createType('Balance', request.value);
+      // Add request ID as a tiny increment (in planck units)
+      // This ensures uniqueness while keeping the intended value essentially the same
+      // Example: if value is 1000000000000 and request.id is 7, final is 1000000000007
+      const uniqueValue = baseValue + BigInt(request.id);
+
+      const value = api.createType('Balance', uniqueValue.toString());
       const spendCall = api.tx.treasury.spendLocal(value, request.beneficiary);
-
-      // Batch the remark and spend calls together
-      // This ensures uniqueness while keeping the treasury spend functionality
-      const batchCall = api.tx.utility.batchAll([remarkCall, spendCall]);
 
       // Wrap with sudo.sudo() so it has Root origin
       // This is necessary because treasury.spendLocal requires Root origin,
       // but when Council executes the motion, it has Council origin.
-      const sudoCall = api.tx.sudo.sudo(batchCall);
+      const sudoCall = api.tx.sudo.sudo(spendCall);
 
       // Calculate lengthBound (encoded length + 4 bytes for storage overhead)
       const lengthBound = sudoCall.encodedLength + 4;

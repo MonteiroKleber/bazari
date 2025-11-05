@@ -105,6 +105,9 @@ import {
   CouncilPage,
   MultisigPage,
   CreateProposalPage,
+  TreasuryRequestsPage,
+  CreateTreasuryRequestPage,
+  TreasuryRequestDetailPage,
 } from './modules/governance';
 
 // Vesting pages (FASE 9)
@@ -448,6 +451,9 @@ function App() {
                       <Route path="governance/proposals/new" element={<CreateProposalPage />} />
                       <Route path="governance/proposals/:type/:id" element={<ProposalDetailPage />} />
                       <Route path="governance/treasury" element={<TreasuryPage />} />
+                      <Route path="governance/treasury/requests" element={<TreasuryRequestsPage />} />
+                      <Route path="governance/treasury/requests/new" element={<CreateTreasuryRequestPage />} />
+                      <Route path="governance/treasury/requests/:id" element={<TreasuryRequestDetailPage />} />
                       <Route path="governance/council" element={<CouncilPage />} />
                       <Route path="governance/multisig" element={<MultisigPage />} />
 

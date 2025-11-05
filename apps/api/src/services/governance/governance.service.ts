@@ -217,63 +217,18 @@ export class GovernanceService {
       throw new Error('Assinatura inválida');
     }
 
-    // Usar conta sudo (temporário)
-    const sudoAccount = this.keyring.addFromUri(env.BAZARICHAIN_SUDO_SEED);
+    // TODO: Implementar fluxo correto via Council Motion
+    // O fluxo correto deve ser:
+    // 1. Armazenar solicitação no banco de dados (status: PENDING_COUNCIL_REVIEW)
+    // 2. Council member cria motion via frontend
+    // 3. Outros council members votam
+    // 4. Após aprovação, spendLocal é executado automaticamente
 
-    // Criar extrinsic
-    const value = api.createType('Balance', params.value);
-    const proposeTx = api.tx.treasury.proposeSpend(value, params.beneficiary);
-
-    // Assinar e enviar
-    return new Promise((resolve, reject) => {
-      let proposalId: number | null = null;
-      let blockHash: string | null = null;
-      let blockNumber: number | null = null;
-
-      proposeTx.signAndSend(sudoAccount, ({ status, events, txHash, dispatchError }) => {
-        console.log(`[Governance] Treasury proposal TX status: ${status.type}`);
-
-        if (status.isInBlock) {
-          blockHash = status.asInBlock.toHex();
-
-          // Procurar evento de proposta criada
-          events.forEach(({ event }) => {
-            if (api.events.treasury.Proposed && event.section === 'treasury' && event.method === 'Proposed') {
-              proposalId = (event.data[0] as any).toNumber();
-              console.log(`[Governance] Treasury proposal created with ID: ${proposalId}`);
-            }
-          });
-        }
-
-        if (status.isFinalized) {
-          if (dispatchError) {
-            let errorMsg = 'Transaction failed';
-            if (dispatchError.isModule) {
-              try {
-                const decoded = api.registry.findMetaError(dispatchError.asModule);
-                errorMsg = `${decoded.section}.${decoded.name}: ${decoded.docs.join(' ')}`;
-              } catch (e) {
-                errorMsg = dispatchError.toString();
-              }
-            } else {
-              errorMsg = dispatchError.toString();
-            }
-            reject(new Error(errorMsg));
-          } else {
-            api.rpc.chain.getHeader(blockHash!).then((header) => {
-              blockNumber = header.number.toNumber();
-
-              resolve({
-                proposalId: proposalId || 0,
-                txHash: txHash.toHex(),
-                blockHash: blockHash!,
-                blockNumber: blockNumber,
-              });
-            }).catch(reject);
-          }
-        }
-      }).catch(reject);
-    });
+    throw new Error(
+      'Treasury proposals require Council approval. ' +
+      'This endpoint is not yet implemented. ' +
+      'Please use the Council interface to create a spend motion.'
+    );
   }
 
   /**

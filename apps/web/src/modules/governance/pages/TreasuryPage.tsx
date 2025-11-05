@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TreasuryStats } from '../components/TreasuryStats';
 import { governanceApi } from '../api';
 import type { GovernanceProposal } from '../types';
@@ -14,17 +15,22 @@ import {
   CheckCircle,
   Clock,
   XCircle,
+  FileText,
+  Users,
 } from 'lucide-react';
 import { shortenAddress as formatAddress, formatBalance } from '@/modules/wallet/utils/format';
+import { TreasuryRequestsPage } from './TreasuryRequestsPage';
 
 export function TreasuryPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [loading, setLoading] = useState(true);
   const [proposals, setProposals] = useState<GovernanceProposal[]>([]);
   const [approvals, setApprovals] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'onchain');
 
   const loadTreasuryData = useCallback(async () => {
     setLoading(true);
@@ -70,7 +76,21 @@ export function TreasuryPage() {
     loadTreasuryData();
   }, [loadTreasuryData]);
 
-  if (loading) {
+  // Update tab from URL param
+  useEffect(() => {
+    const tabFromUrl = searchParams.get('tab');
+    if (tabFromUrl && (tabFromUrl === 'onchain' || tabFromUrl === 'requests')) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [searchParams]);
+
+  // Handle tab change
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    setSearchParams({ tab: value });
+  };
+
+  if (loading && activeTab === 'onchain') {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center min-h-[400px]">
@@ -86,53 +106,75 @@ export function TreasuryPage() {
   return (
     <div className="container mx-auto px-4 py-8 mobile-safe-bottom">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Tesouro</h1>
-          <p className="text-muted-foreground">Gerencie propostas de financiamento da rede</p>
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-3xl font-bold">Tesouro</h1>
+            <p className="text-muted-foreground">Gerencie propostas de financiamento da rede</p>
+          </div>
+          <div className="flex gap-2">
+            {activeTab === 'onchain' && (
+              <>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={loadTreasuryData}
+                  disabled={loading}
+                >
+                  <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                </Button>
+                <Button onClick={() => navigate('/app/governance/proposals/new?type=treasury')}>
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Nova Proposta
+                </Button>
+              </>
+            )}
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={loadTreasuryData}
-            disabled={loading}
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          </Button>
-          <Button onClick={() => navigate('/app/governance/proposals/new?type=treasury')}>
-            <PlusCircle className="h-4 w-4 mr-2" />
-            Nova Proposta
-          </Button>
-        </div>
+
       </div>
 
-      {/* Stats */}
-      {stats && (
-        <div className="mb-8">
-          <TreasuryStats
-            balance={stats.balance}
-            proposalCount={stats.proposalCount}
-            approvedCount={approvals.length}
-            spendPeriod={stats.spendPeriod}
-            nextBurn={stats.nextBurn}
-          />
-        </div>
-      )}
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="onchain" className="flex items-center gap-2">
+            <Coins className="h-4 w-4" />
+            Propostas On-Chain
+          </TabsTrigger>
+          <TabsTrigger value="requests" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Solicitações Council
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Error State */}
-      {error && (
-        <Card className="mb-6 border-destructive">
-          <CardContent className="pt-6">
-            <p className="text-destructive">{error}</p>
-            <Button onClick={loadTreasuryData} variant="outline" className="mt-4">
-              Try Again
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+        {/* Tab Content: On-Chain Proposals */}
+        <TabsContent value="onchain" className="mt-6">
+          {/* Stats */}
+          {stats && (
+            <div className="mb-8">
+              <TreasuryStats
+                balance={stats.balance}
+                proposalCount={stats.proposalCount}
+                approvedCount={approvals.length}
+                spendPeriod={stats.spendPeriod}
+                nextBurn={stats.nextBurn}
+              />
+            </div>
+          )}
 
-      {/* Approved Proposals */}
+          {/* Error State */}
+          {error && (
+            <Card className="mb-6 border-destructive">
+              <CardContent className="pt-6">
+                <p className="text-destructive">{error}</p>
+                <Button onClick={loadTreasuryData} variant="outline" className="mt-4">
+                  Try Again
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Approved Proposals */}
       {approvals.length > 0 && (
         <div className="mb-8">
           <h2 className="text-2xl font-bold mb-4">Propostas Aprovadas</h2>
@@ -249,6 +291,13 @@ export function TreasuryPage() {
           </div>
         )}
       </div>
+        </TabsContent>
+
+        {/* Tab Content: Council Requests */}
+        <TabsContent value="requests" className="mt-6">
+          <TreasuryRequestsPage />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

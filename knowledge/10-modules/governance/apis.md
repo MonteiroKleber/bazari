@@ -5,6 +5,48 @@ The Governance module provides **read-only REST API** for querying on-chain gove
 
 ---
 
+## Democracy Lifecycle: Proposals vs Referendums
+
+**IMPORTANT**: Understanding the difference between Democracy Proposals and Democracy Referendums is crucial for proper API usage.
+
+### 📋 Democracy Proposals (Public Props Queue)
+- **Endpoint**: `GET /api/governance/democracy/proposals`
+- **State**: Waiting in queue to become a referendum
+- **Voting**: Not yet votable by public
+- **Data**: Contains `[id, proposalHash, proposer]`
+- **Status**: `PROPOSED`
+- **Use Case**: Display proposals waiting to enter voting phase
+
+### 🗳️ Democracy Referendums
+- **Endpoint**: `GET /api/governance/democracy/referendums`
+- **State**: Active voting or already finished
+- **Voting**: Public can vote (if ongoing)
+- **Data**: Contains voting tallies, threshold, end block
+- **Status**: `STARTED` (ongoing) or `PASSED`/`NOT_PASSED` (finished)
+- **Use Case**: Display active/past referendums with voting results
+
+### Flow Diagram
+```
+1. Proposal Created (democracy.propose)
+   ↓
+2. Proposal in Public Props Queue (/democracy/proposals)
+   ↓
+3. Proposal becomes Referendum (/democracy/referendums)
+   ↓
+4. Public Voting Period (status: ongoing)
+   ↓
+5. Referendum Finishes (status: finished)
+   ↓
+6. Execution (if passed)
+```
+
+### Frontend Mapping
+When building detail pages, use the correct endpoint:
+- **URL**: `/app/governance/proposals/democracy/:id` → Use `getDemocracyProposals()`
+- **URL**: `/app/governance/referendums/democracy/:id` → Use `getDemocracyReferendums()`
+
+---
+
 ## 1. Get Treasury Proposals
 **`GET /api/governance/treasury/proposals`** (Public)
 
@@ -355,12 +397,15 @@ GET /api/governance/stats
 import { ApiPromise } from '@polkadot/api';
 
 const api = await ApiPromise.create();
-const tx = api.tx.treasury.proposeSpend(
+// NOTE: Substrate v10+ usa spendLocal ao invés de proposeSpend
+const tx = api.tx.treasury.spendLocal(
   '1000000000000000000', // 1000 BZR in planck
   '5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty' // beneficiary
 );
 
 await tx.signAndSend(signer);
+
+// Evento emitido: treasury.SpendApproved
 ```
 
 ### Vote on Referendum

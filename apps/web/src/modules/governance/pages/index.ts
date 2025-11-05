@@ -5,3 +5,6 @@ export { TreasuryPage } from './TreasuryPage';
 export { CouncilPage } from './CouncilPage';
 export { MultisigPage } from './MultisigPage';
 export { CreateProposalPage } from './CreateProposalPage';
+export { TreasuryRequestsPage } from './TreasuryRequestsPage';
+export { CreateTreasuryRequestPage } from './CreateTreasuryRequestPage';
+export { TreasuryRequestDetailPage } from './TreasuryRequestDetailPage';

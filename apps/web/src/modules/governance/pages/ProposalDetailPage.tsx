@@ -50,7 +50,7 @@ export function ProposalDetailPage() {
 
       switch (proposalType) {
         case 'DEMOCRACY':
-          response = await governanceApi.getDemocracyReferendums();
+          response = await governanceApi.getDemocracyProposals();
           break;
         case 'TREASURY':
           response = await governanceApi.getTreasuryProposals();
@@ -72,6 +72,8 @@ export function ProposalDetailPage() {
           setProposal({
             id: found.id,
             type: proposalType,
+            title: found.title,
+            description: found.description,
             proposer: found.proposer || found.info?.Ongoing?.proposer || 'Unknown',
             beneficiary: found.beneficiary,
             value: found.value,

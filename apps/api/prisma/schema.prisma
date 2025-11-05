@@ -1620,3 +1620,65 @@ model DeliveryProfile {
   @@index([serviceRadius])
   @@index([accountStatus])
 }
+
+// ============================================================
+// GOVERNANCE MODELS
+// ============================================================
+
+model GovernanceTreasuryRequest {
+  id          Int      @id @default(autoincrement())
+
+  // Dados da solicitação
+  title       String   @db.VarChar(255)
+  description String   @db.Text
+  value       String   @db.VarChar(50) // Valor em planck (string para precisão)
+  beneficiary String   @db.VarChar(66) // Endereço SS58
+  proposer    String   @db.VarChar(66) // Quem criou a solicitação
+
+  // Status e tracking
+  status      String   @default("PENDING_REVIEW") @db.VarChar(50)
+  // PENDING_REVIEW: Aguardando council analisar
+  // IN_VOTING: Motion criado, aguardando votos
+  // APPROVED: Motion aprovado, spend executado
+  // REJECTED: Motion rejeitado pelo council
+  // PAID_OUT: Pagamento realizado
+
+  // Linkagem com blockchain
+  councilMotionHash  String?  @db.VarChar(66) // Hash do motion criado
+  councilMotionIndex Int?     // Índice do motion
+  spendId            Int?     // ID do spend aprovado on-chain
+  txHash             String?  @db.VarChar(66) // Hash da tx de aprovação
+  blockNumber        Int?     // Bloco de aprovação
+
+  // Assinatura para validação
+  signature   String   @db.Text
+
+  // Timestamps
+  createdAt   DateTime @default(now())
+  reviewedAt  DateTime?
+  approvedAt  DateTime?
+  paidOutAt   DateTime?
+
+  @@index([status])
+  @@index([proposer])
+  @@index([councilMotionHash])
+  @@index([createdAt(sort: Desc)])
+  @@map("governance_treasury_requests")
+}
+
+model GovernanceCouncilVote {
+  id          Int      @id @default(autoincrement())
+
+  motionHash  String   @db.VarChar(66)
+  motionIndex Int
+  voter       String   @db.VarChar(66) // Council member que votou
+  vote        Boolean  // true = AYE, false = NAY
+
+  txHash      String   @db.VarChar(66)
+  blockNumber Int
+  timestamp   DateTime @default(now())
+
+  @@unique([motionHash, motionIndex, voter])
+  @@index([motionHash, motionIndex])
+  @@map("governance_council_votes")
+}

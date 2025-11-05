@@ -560,14 +560,14 @@ export async function governanceRoutes(app: FastifyInstance) {
       }).length;
 
       // Obter saldo do tesouro (treasury pot)
+      // Treasury account address: 5EYCAe5ijiYfyeZ2JJCGq56LmPyNRAKzpG4QkoQkkQNB5e6Z
       let treasuryBalance = '0';
       try {
-        const treasuryAccount = await api.query.system.account(
-          (api as any).consts.treasury.palletId ||
-          '0x70792f74727372790000000000000000000000000000000000000000000000'
-        );
+        const treasuryAddress = '5EYCAe5ijiYfyeZ2JJCGq56LmPyNRAKzpG4QkoQkkQNB5e6Z';
+        const treasuryAccount = await api.query.system.account(treasuryAddress);
         treasuryBalance = (treasuryAccount as any).data.free.toString();
       } catch (err) {
+        console.error('[Stats] Error querying treasury balance:', err);
         // Fallback: usar saldo zero se falhar
         treasuryBalance = '0';
       }
