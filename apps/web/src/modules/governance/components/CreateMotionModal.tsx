@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -38,6 +38,37 @@ export function CreateMotionModal({
   const { props: chainProps } = useChainProps();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [threshold, setThreshold] = useState<number>(1);
+  const [requiredThreshold, setRequiredThreshold] = useState<number>(1);
+  const [councilSize, setCouncilSize] = useState<number>(1);
+
+  // Calculate required threshold based on council size
+  useEffect(() => {
+    if (!api || !open) return;
+
+    let mounted = true;
+
+    api.query.council
+      .members()
+      .then((members) => {
+        if (!mounted) return;
+        const size = members.length;
+        const needed = Math.max(1, Math.ceil(size / 2));
+        console.log('[CreateMotionModal] Council size:', size, 'Required threshold:', needed);
+        setCouncilSize(size);
+        setRequiredThreshold(needed);
+        setThreshold(needed);
+      })
+      .catch((err) => {
+        console.error('[CreateMotionModal] Error fetching council members:', err);
+        // Fallback to minimum
+        setRequiredThreshold(1);
+        setThreshold(1);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [api, open]);
 
   const handleSubmit = async () => {
     if (!api || !selectedAccount?.address) {
@@ -45,8 +76,9 @@ export function CreateMotionModal({
       return;
     }
 
-    if (threshold < 1) {
-      toast.error('Threshold deve ser pelo menos 1');
+    const majority = Math.max(1, requiredThreshold);
+    if (threshold < majority) {
+      toast.error(`Threshold mínimo é ${majority} votos (maioria simples do Council)`);
       return;
     }
 
@@ -95,7 +127,7 @@ export function CreateMotionModal({
       const pair = keyring.addFromMnemonic(mnemonic);
       mnemonic = '';
 
-      // Create the spendLocal call
+      // Create the spendLocal call wrapped in sudo
       // NOTE: Since utility pallet is not available in the runtime,
       // we add a small increment to the value to make each proposal unique
       // This prevents council.DuplicateProposal errors when creating motions
@@ -108,24 +140,23 @@ export function CreateMotionModal({
       const uniqueValue = baseValue + BigInt(request.id);
 
       const value = api.createType('Balance', uniqueValue.toString());
-      const spendCall = api.tx.treasury.spendLocal(value, request.beneficiary);
 
-      // Wrap with sudo.sudo() so it has Root origin
-      // This is necessary because treasury.spendLocal requires Root origin,
-      // but when Council executes the motion, it has Council origin.
-      const sudoCall = api.tx.sudo.sudo(spendCall);
+      // Create treasury.spendLocal call directly
+      // The runtime accepts Council origin (majority) for Treasury spends
+      // When Council closes and approves this motion, it executes treasury.spendLocal with Council origin
+      const proposal = api.tx.treasury.spendLocal(value, request.beneficiary);
 
       // Calculate lengthBound (encoded length + 4 bytes for storage overhead)
-      const lengthBound = sudoCall.encodedLength + 4;
+      const lengthBound = proposal.encodedLength + 4;
 
-      console.log('[CreateMotionModal] Proposal encoded length:', sudoCall.encodedLength);
+      console.log('[CreateMotionModal] Proposal encoded length:', proposal.encodedLength);
       console.log('[CreateMotionModal] Length bound:', lengthBound);
-      console.log('[CreateMotionModal] Proposal hash:', sudoCall.method.hash.toHex());
+      console.log('[CreateMotionModal] Proposal hash:', proposal.method.hash.toHex());
 
       // Create council motion with lengthBound
       const motionTx = api.tx.council.propose(
         threshold,
-        sudoCall,
+        proposal,
         lengthBound
       );
 
@@ -259,13 +290,17 @@ export function CreateMotionModal({
             <Input
               id="threshold"
               type="number"
-              min="1"
+              min={requiredThreshold}
               value={threshold}
-              onChange={(e) => setThreshold(parseInt(e.target.value) || 1)}
-              placeholder="Número de votos necessários"
+              onChange={(e) => {
+                const next = parseInt(e.target.value, 10) || requiredThreshold;
+                setThreshold(Math.max(requiredThreshold, next));
+              }}
+              placeholder={`≥ ${requiredThreshold}`}
+              disabled={isSubmitting}
             />
             <p className="text-xs text-muted-foreground">
-              Número mínimo de votos favoráveis necessários para aprovar a motion
+              Maioria simples do Council ({requiredThreshold} de {councilSize}) é exigida pelo runtime para gastos do Treasury.
             </p>
           </div>
         </div>
