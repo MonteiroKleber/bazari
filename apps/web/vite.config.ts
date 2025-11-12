@@ -84,7 +84,9 @@ export default defineConfig({
         ],
         // Força update imediato do Service Worker
         skipWaiting: true,
-        clientsClaim: true
+        clientsClaim: true,
+        // Desabilita cache de runtime para debug
+        cleanupOutdatedCaches: true
       },
       devOptions: {
         enabled: true,
@@ -106,6 +108,14 @@ export default defineConfig({
     target: 'esnext',
     modulePreload: {
       polyfill: true
+    },
+    // Force cache busting on every build
+    rollupOptions: {
+      output: {
+        entryFileNames: `assets/[name]-[hash].js`,
+        chunkFileNames: `assets/[name]-[hash].js`,
+        assetFileNames: `assets/[name]-[hash].[ext]`
+      }
     }
   },
   optimizeDeps: {

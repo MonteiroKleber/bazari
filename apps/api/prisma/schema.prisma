@@ -1682,3 +1682,90 @@ model GovernanceCouncilVote {
   @@index([motionHash, motionIndex])
   @@map("governance_council_votes")
 }
+
+// Tabela para salvar propostas Democracy quando criadas
+model GovernanceDemocracyProposal {
+  id             Int      @id @default(autoincrement())
+
+  // Dados da proposta on-chain
+  proposalIndex  Int      @unique
+  proposalHash   String   @db.VarChar(66) // Hash da proposta
+  preimageHash   String?  @db.VarChar(66) // Hash do preimage (se disponível)
+
+  // Metadata extraído do preimage/remark
+  title          String   @db.VarChar(255)
+  description    String   @db.Text
+  proposer       String?  @db.VarChar(66) // Quem propôs
+
+  // Dados financeiros
+  deposit        String   @db.VarChar(50) // Depósito em planck
+
+  // Status
+  status         String   @default("PROPOSED") @db.VarChar(50)
+  // PROPOSED: Proposta criada, aguardando endorsements
+  // STARTED: Virou referendum (migrado para GovernanceReferendum)
+  // CANCELLED: Proposta cancelada
+
+  // Blockchain data
+  txHash         String   @db.VarChar(66)
+  blockNumber    Int
+
+  // Timestamps
+  createdAt      DateTime @default(now())
+  startedAt      DateTime? // Quando virou referendum
+
+  // Relação com referendum (se virou referendum)
+  referendum     GovernanceReferendum?
+
+  @@index([proposalIndex])
+  @@index([proposalHash])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@map("governance_democracy_proposals")
+}
+
+// Tabela para salvar referendos com metadata persistente
+model GovernanceReferendum {
+  id                Int      @id @default(autoincrement())
+
+  // Dados do referendum on-chain
+  refIndex          Int      @unique
+  threshold         String   @db.VarChar(50) // VoteThreshold (SimpleMajority, SuperMajorityApprove, etc)
+
+  // Metadata copiado da proposta original
+  title             String   @db.VarChar(255)
+  description       String   @db.Text
+  proposer          String?  @db.VarChar(66)
+
+  // Linkagem com proposta original
+  proposalId        Int?     @unique
+  proposalHash      String?  @db.VarChar(66)
+  preimageHash      String?  @db.VarChar(66)
+
+  // Status
+  status            String   @default("ONGOING") @db.VarChar(50)
+  // ONGOING: Referendum ativo, aceitando votos
+  // APPROVED: Passou (será executado)
+  // REJECTED: Não passou
+  // EXECUTED: Foi executado
+
+  // Blockchain data
+  startTxHash       String   @db.VarChar(66) // Tx do evento Started
+  startBlockNumber  Int      // Bloco do evento Started
+  endTxHash         String?  @db.VarChar(66) // Tx do resultado final
+  endBlockNumber    Int?     // Bloco do resultado final
+
+  // Timestamps
+  createdAt         DateTime @default(now()) // Quando Started
+  endedAt           DateTime? // Quando Passed/NotPassed
+  executedAt        DateTime? // Quando Executed
+
+  // Relação com proposta original (FK opcional)
+  proposal          GovernanceDemocracyProposal? @relation(fields: [proposalId], references: [id])
+
+  @@index([refIndex])
+  @@index([status])
+  @@index([proposalHash])
+  @@index([createdAt(sort: Desc)])
+  @@map("governance_referendums")
+}

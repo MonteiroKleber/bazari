@@ -149,9 +149,15 @@ export function CreateMotionModal({
       // Calculate lengthBound (encoded length + 4 bytes for storage overhead)
       const lengthBound = proposal.encodedLength + 4;
 
+      console.log('=== CreateMotionModal Debug ===');
+      console.log('[CreateMotionModal] Creating proposal for Request #' + request.id);
+      console.log('[CreateMotionModal] Treasury method:', proposal.method.section + '.' + proposal.method.method);
+      console.log('[CreateMotionModal] Method args:', proposal.method.args.map((a: any) => a.toString()));
       console.log('[CreateMotionModal] Proposal encoded length:', proposal.encodedLength);
       console.log('[CreateMotionModal] Length bound:', lengthBound);
       console.log('[CreateMotionModal] Proposal hash:', proposal.method.hash.toHex());
+      console.log('[CreateMotionModal] Full proposal call:', proposal.toHuman());
+      console.log('===============================');
 
       // Create council motion with lengthBound
       const motionTx = api.tx.council.propose(

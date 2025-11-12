@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { governanceApi } from '../api';
-import type { GovernanceProposal, ProposalType } from '../types';
+import type { GovernanceProposal, ProposalType, ProposalStatus } from '../types';
 import {
   ArrowLeft,
   Vote,
@@ -17,29 +17,74 @@ import {
   XCircle,
   Clock,
   ExternalLink,
+  Users,
+  Info,
+  ArrowRight,
 } from 'lucide-react';
 import { VoteModal } from '../components/VoteModal';
+import { EndorseModal } from '../components/EndorseModal';
 import { VotingChart } from '../components/dashboard';
-import { useVotingData } from '../hooks';
 import { shortenAddress as formatAddress, formatBalance } from '@/modules/wallet/utils/format';
+
+const PROPOSAL_STATUS_VALUES: ProposalStatus[] = [
+  'PROPOSED',
+  'TABLED',
+  'STARTED',
+  'PASSED',
+  'NOT_PASSED',
+  'CANCELLED',
+  'EXECUTED',
+];
+
+const REFERENDUM_STATUS_MAP: Record<string, ProposalStatus> = {
+  ONGOING: 'STARTED',
+  APPROVED: 'PASSED',
+  REJECTED: 'NOT_PASSED',
+};
+
+function normalizeProposalStatus(status?: string, fallback: ProposalStatus = 'PROPOSED'): ProposalStatus {
+  if (!status) {
+    return fallback;
+  }
+
+  const normalized = status.toUpperCase();
+  if (REFERENDUM_STATUS_MAP[normalized as keyof typeof REFERENDUM_STATUS_MAP]) {
+    return REFERENDUM_STATUS_MAP[normalized as keyof typeof REFERENDUM_STATUS_MAP];
+  }
+
+  if (PROPOSAL_STATUS_VALUES.includes(normalized as ProposalStatus)) {
+    return normalized as ProposalStatus;
+  }
+
+  return fallback;
+}
 
 export function ProposalDetailPage() {
   const { type, id } = useParams<{ type: string; id: string }>();
   const navigate = useNavigate();
+  const location = window.location;
 
   const [loading, setLoading] = useState(true);
   const [proposal, setProposal] = useState<GovernanceProposal | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [voteModalOpen, setVoteModalOpen] = useState(false);
+  const [endorseModalOpen, setEndorseModalOpen] = useState(false);
 
-  const proposalType = type?.toUpperCase() as ProposalType;
+  // Detectar se é um referendo pela URL
+  const isReferendum = location.pathname.includes('/referendums/');
+  const proposalType = isReferendum ? 'DEMOCRACY' : (type?.toUpperCase() as ProposalType);
   const proposalId = parseInt(id || '0');
 
-  // FASE 8: Fetch voting data for chart
-  const { data: votingData, loading: votingDataLoading } = useVotingData({
-    proposalIds: [proposalId],
-    autoFetch: true,
-  });
+  // FASE 8: Prepare voting data for chart
+  // For referendums, use tally data directly from proposal
+  const votingData = proposal && isReferendum && proposal.ayeVotes && proposal.nayVotes
+    ? [{
+        proposalId: proposal.id,
+        proposalTitle: proposal.title,
+        ayeVotes: parseFloat(proposal.ayeVotes) / 1e12, // Convert from planck to BZR
+        nayVotes: parseFloat(proposal.nayVotes) / 1e12,
+      }]
+    : [];
 
   const loadProposal = useCallback(async () => {
     setLoading(true);
@@ -48,43 +93,67 @@ export function ProposalDetailPage() {
     try {
       let response;
 
-      switch (proposalType) {
-        case 'DEMOCRACY':
-          response = await governanceApi.getDemocracyProposals();
-          break;
-        case 'TREASURY':
-          response = await governanceApi.getTreasuryProposals();
-          break;
-        case 'COUNCIL':
-          response = await governanceApi.getCouncilProposals();
-          break;
-        case 'TECHNICAL':
-          response = await governanceApi.getTechCommitteeProposals();
-          break;
-        default:
-          setError('Invalid proposal type');
-          return;
+      // Se for referendo, buscar da API de referendos
+      if (isReferendum) {
+        response = await governanceApi.getDemocracyReferendums();
+      } else {
+        // Caso contrário, buscar por tipo de proposta
+        switch (proposalType) {
+          case 'DEMOCRACY':
+            response = await governanceApi.getDemocracyProposals();
+            break;
+          case 'TREASURY':
+            response = await governanceApi.getTreasuryProposals();
+            break;
+          case 'COUNCIL':
+            response = await governanceApi.getCouncilProposals();
+            break;
+          case 'TECHNICAL':
+            response = await governanceApi.getTechCommitteeProposals();
+            break;
+          default:
+            setError('Invalid proposal type');
+            return;
+        }
       }
 
       if (response.success && response.data) {
         const found = response.data.find((p: any) => p.id === proposalId);
         if (found) {
+          const fallbackStatus: ProposalStatus = found.info?.Ongoing ? 'STARTED' : 'PROPOSED';
+
+          // For referendums, extract votes from tally object
+          const ayeVotes = isReferendum
+            ? (found.tally?.ayes || '0')
+            : found.ayeVotes;
+          const nayVotes = isReferendum
+            ? (found.tally?.nays || '0')
+            : found.nayVotes;
+          const turnout = isReferendum
+            ? found.tally?.turnout
+            : found.turnout;
+
           setProposal({
             id: found.id,
             type: proposalType,
-            title: found.title,
-            description: found.description,
-            proposer: found.proposer || found.info?.Ongoing?.proposer || 'Unknown',
+            title: found.title || `${isReferendum ? 'Referendum' : 'Proposal'} #${found.id}`,
+            description: found.description || 'Descrição não disponível.',
+            proposer: found.proposer || found.info?.Ongoing?.proposer || (isReferendum ? 'Sistema (Referendo)' : 'Unknown'),
             beneficiary: found.beneficiary,
             value: found.value,
             deposit: found.bond || found.deposit,
-            status: found.info?.Ongoing ? 'STARTED' : 'PROPOSED',
-            preimageHash: found.preimageHash,
+            // Prioriza found.status (Democracy/Treasury), normalizando valores vindos de referendos
+            status: normalizeProposalStatus(found.status, fallbackStatus),
+            preimageHash: found.preimageHash || found.proposalHash,
+            endorsements: found.endorsements,
+            endorsers: found.endorsers,
+            referendumId: found.referendumId,
+            originProposalId: found.originProposalId,
             votingStartBlock: found.votingStartBlock,
-            votingEndBlock: found.votingEndBlock,
-            ayeVotes: found.ayeVotes,
-            nayVotes: found.nayVotes,
-            turnout: found.turnout,
+            votingEndBlock: found.votingEndBlock || found.end,
+            ayeVotes,
+            nayVotes,
+            turnout,
             createdAt: new Date().toISOString(),
           });
         } else {
@@ -99,7 +168,7 @@ export function ProposalDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [proposalType, proposalId]);
+  }, [proposalType, proposalId, isReferendum]);
 
   useEffect(() => {
     loadProposal();
@@ -107,6 +176,11 @@ export function ProposalDetailPage() {
 
   const handleVoteSuccess = () => {
     setVoteModalOpen(false);
+    loadProposal();
+  };
+
+  const handleEndorseSuccess = () => {
+    setEndorseModalOpen(false);
     loadProposal();
   };
 
@@ -158,7 +232,13 @@ export function ProposalDetailPage() {
     TABLED: { label: 'Tabled', icon: <Clock className="h-3 w-3" />, color: 'bg-yellow-500/10' },
   };
 
-  const currentStatus = statusConfig[proposal.status];
+  const currentStatus =
+    statusConfig[proposal.status] ||
+    {
+      label: proposal.status,
+      icon: <Info className="h-3 w-3" />,
+      color: 'bg-gray-500/10',
+    };
   const currentType = typeConfig[proposal.type];
 
   // Calculate voting percentages
@@ -170,6 +250,7 @@ export function ProposalDetailPage() {
   const nayPercent = totalVotes > 0 ? (parseFloat(proposal.nayVotes || '0') / totalVotes) * 100 : 0;
 
   const isVotingActive = proposal.status === 'STARTED';
+  const canEndorse = proposal.type === 'DEMOCRACY' && proposal.status === 'PROPOSED';
 
   return (
     <div className="container mx-auto px-4 py-8 mobile-safe-bottom">
@@ -193,6 +274,34 @@ export function ProposalDetailPage() {
           </h1>
         </div>
       </div>
+
+      {/* Referendum Tracking Banner */}
+      {proposal.referendumId && (
+        <Card className="mb-6 border-blue-500/50 bg-blue-500/5">
+          <CardContent className="py-4">
+            <div className="flex items-center gap-3">
+              <Info className="h-5 w-5 text-blue-600 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  Esta proposta foi promovida para Referendo #{proposal.referendumId}
+                </p>
+                <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                  A votação está ativa. Clique no botão ao lado para visualizar e votar no referendo.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-blue-500 text-blue-700 hover:bg-blue-500/10 flex-shrink-0"
+                onClick={() => navigate(`/app/governance/referendums/${proposal.referendumId}`)}
+              >
+                Ver Referendo
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main Content */}
@@ -260,20 +369,68 @@ export function ProposalDetailPage() {
                 <CardTitle>Visualização de Votos</CardTitle>
               </CardHeader>
               <CardContent>
-                {votingDataLoading ? (
-                  <div className="h-[300px] flex items-center justify-center">
-                    <div className="text-center space-y-2">
-                      <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto" />
-                      <p className="text-sm text-muted-foreground">Carregando dados...</p>
-                    </div>
+                <VotingChart
+                  data={votingData}
+                  type="pie"
+                  height={300}
+                  showLegend={true}
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Endorsements Display */}
+          {proposal.type === 'DEMOCRACY' && proposal.status === 'PROPOSED' && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Endossos ({proposal.endorsements || 0})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {proposal.endorsements && proposal.endorsements > 0 ? (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Esta proposta recebeu {proposal.endorsements} endosso{proposal.endorsements > 1 ? 's' : ''}.
+                      Propostas com mais endossos têm maior prioridade para virar referendo.
+                    </p>
+
+                    {proposal.endorsers && proposal.endorsers.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground uppercase">Endossantes:</p>
+                        <div className="space-y-1">
+                          {proposal.endorsers.map((endorser, idx) => (
+                            <div key={idx} className="flex items-center gap-2 text-sm">
+                              <User className="h-3 w-3 text-muted-foreground" />
+                              <code className="text-xs bg-muted px-2 py-1 rounded">
+                                {formatAddress(endorser)}
+                              </code>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <Button onClick={() => setEndorseModalOpen(true)} className="w-full mt-4" variant="outline">
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      Endossar Também
+                    </Button>
                   </div>
                 ) : (
-                  <VotingChart
-                    data={votingData}
-                    type="pie"
-                    height={300}
-                    showLegend={true}
-                  />
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Esta proposta ainda não recebeu endossos. Seja o primeiro a endossar!
+                      Endossos aumentam a prioridade da proposta para virar referendo.
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Requer depósito de <strong>100 BZR</strong> que será devolvido quando a proposta virar referendo.
+                    </p>
+                    <Button onClick={() => setEndorseModalOpen(true)} className="w-full" variant="default">
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      Endossar Proposta
+                    </Button>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -423,6 +580,16 @@ export function ProposalDetailPage() {
           </Card>
         </div>
       </div>
+
+      {/* Endorse Modal */}
+      {proposal && (
+        <EndorseModal
+          open={endorseModalOpen}
+          onOpenChange={setEndorseModalOpen}
+          proposal={proposal}
+          onSuccess={handleEndorseSuccess}
+        />
+      )}
 
       {/* Vote Modal */}
       {proposal && (

@@ -33,6 +33,7 @@ const CHART_COLORS = {
 
 /**
  * Custom tooltip for better data display
+ * Fixed: Added fallback for entry.color || entry.fill for pie charts
  */
 function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
@@ -43,16 +44,21 @@ function CustomTooltip({ active, payload, label }: any) {
         <p className="font-semibold text-sm">
           {payload[0]?.payload?.proposalTitle || `Proposta #${label}`}
         </p>
-        {payload.map((entry: any, index: number) => (
-          <p key={index} className="text-xs flex items-center gap-2">
-            <span
-              className="w-3 h-3 rounded-sm"
-              style={{ backgroundColor: entry.color }}
-            />
-            <span className="text-muted-foreground">{entry.name}:</span>
-            <span className="font-medium">{entry.value.toLocaleString()}</span>
-          </p>
-        ))}
+        {payload.map((entry: any, index: number) => {
+          // Safe color extraction with multiple fallbacks
+          const color = entry?.color || entry?.fill || entry?.payload?.fill || '#888888';
+
+          return (
+            <p key={index} className="text-xs flex items-center gap-2">
+              <span
+                className="w-3 h-3 rounded-sm"
+                style={{ backgroundColor: color }}
+              />
+              <span className="text-muted-foreground">{entry?.name || 'Unknown'}:</span>
+              <span className="font-medium">{entry?.value?.toLocaleString() || '0'}</span>
+            </p>
+          );
+        })}
         {payload[0]?.payload?.turnout && (
           <p className="text-xs text-muted-foreground pt-1 border-t">
             Turnout: {payload[0].payload.turnout}%
@@ -100,6 +106,11 @@ export function VotingChart({
     if (data.length === 0) return [];
 
     const firstProposal = data[0];
+
+    // Check if there are actually votes - if all values are 0, return empty array
+    const hasVotes = firstProposal.ayeVotes > 0 || firstProposal.nayVotes > 0 || (firstProposal.abstain && firstProposal.abstain > 0);
+    if (!hasVotes) return [];
+
     return [
       { name: 'Aye', value: firstProposal.ayeVotes, fill: CHART_COLORS.aye },
       { name: 'Nay', value: firstProposal.nayVotes, fill: CHART_COLORS.nay },
@@ -134,6 +145,19 @@ export function VotingChart({
 
       case 'pie':
         const pieData = getPieData();
+
+        // If no votes, show empty state instead of rendering chart
+        if (pieData.length === 0) {
+          return (
+            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+              <div className="text-center">
+                <p className="text-sm">Nenhum voto registrado ainda</p>
+                <p className="text-xs mt-1">Os votos aparecerão aqui quando forem submetidos</p>
+              </div>
+            </div>
+          );
+        }
+
         return (
           <ResponsiveContainer width="100%" height={height}>
             <PieChart>

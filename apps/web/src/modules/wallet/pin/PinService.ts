@@ -22,7 +22,9 @@ class _PinService {
   subscribe(listener: (s: PinState) => void) {
     this.listeners.add(listener);
     listener(this.state);
-    return () => this.listeners.delete(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
   }
 
   private emit() {

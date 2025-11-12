@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Limpando Service Worker...</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      max-width: 500px;
+      text-align: center;
+    }
+    .status {
+      margin: 1rem 0;
+      padding: 1rem;
+      border-radius: 4px;
+      background: #e3f2fd;
+      color: #1976d2;
+    }
+    .success {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    button {
+      margin-top: 1rem;
+      padding: 0.75rem 1.5rem;
+      background: #1976d2;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    button:hover {
+      background: #1565c0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔄 Limpando Cache</h1>
+    <div id="status" class="status">Processando...</div>
+    <button id="reload" style="display:none">Recarregar Aplicação</button>
+  </div>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    const reloadBtn = document.getElementById('reload');
+
+    async function clearServiceWorkers() {
+      try {
+        statusEl.textContent = '1. Desregistrando Service Workers...';
+
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+
+          for (let registration of registrations) {
+            await registration.unregister();
+          }
+
+          statusEl.textContent = `✅ ${registrations.length} Service Worker(s) removido(s)`;
+        }
+
+        // Clear all caches
+        statusEl.textContent = '2. Limpando todos os caches...';
+        if ('caches' in window) {
+          const cacheNames = await caches.keys();
+          await Promise.all(cacheNames.map(name => caches.delete(name)));
+          statusEl.textContent = `✅ ${cacheNames.length} cache(s) limpo(s)`;
+        }
+
+        // Clear localStorage
+        statusEl.textContent = '3. Mantendo dados de autenticação...';
+        const authData = localStorage.getItem('auth');
+        const vaultData = localStorage.getItem('vault');
+        localStorage.clear();
+        if (authData) localStorage.setItem('auth', authData);
+        if (vaultData) localStorage.setItem('vault', vaultData);
+
+        // Clear sessionStorage except important data
+        sessionStorage.clear();
+
+        statusEl.textContent = '✅ Cache limpo com sucesso!';
+        statusEl.className = 'status success';
+
+        reloadBtn.style.display = 'block';
+        reloadBtn.onclick = () => {
+          window.location.href = '/';
+        };
+
+        // Auto redirect after 2 seconds
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 2000);
+
+      } catch (error) {
+        statusEl.textContent = `❌ Erro: ${error.message}`;
+        statusEl.style.background = '#ffebee';
+        statusEl.style.color = '#c62828';
+      }
+    }
+
+    clearServiceWorkers();
+  </script>
+</body>
+</html>

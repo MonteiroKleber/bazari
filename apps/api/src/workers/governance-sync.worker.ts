@@ -5,11 +5,16 @@
  */
 import { PrismaClient } from '@prisma/client';
 import { BlockchainEventsService } from '../services/blockchain/blockchain-events.service.js';
+import { BlockchainService } from '../services/blockchain/blockchain.service.js';
 import type {
   CouncilProposedEvent,
   CouncilVotedEvent,
   CouncilClosedEvent,
   CouncilExecutedEvent,
+  BalancesTransferEvent,
+  TreasurySpendingEvent,
+  DemocracyProposedEvent,
+  DemocracyStartedEvent,
 } from '../services/blockchain/blockchain-events.service.js';
 
 export interface GovernanceSyncWorkerOptions {
@@ -21,6 +26,7 @@ export interface GovernanceSyncWorkerOptions {
 export class GovernanceSyncWorker {
   private prisma: PrismaClient;
   private eventsService: BlockchainEventsService;
+  private blockchainService: BlockchainService;
   private logger: any;
   private retryAttempts: number;
   private retryDelayMs: number;
@@ -29,6 +35,7 @@ export class GovernanceSyncWorker {
   constructor(prisma: PrismaClient, options: GovernanceSyncWorkerOptions = {}) {
     this.prisma = prisma;
     this.eventsService = BlockchainEventsService.getInstance();
+    this.blockchainService = BlockchainService.getInstance();
     this.logger = options.logger || console;
     this.retryAttempts = options.retryAttempts || 3;
     this.retryDelayMs = options.retryDelayMs || 1000;
@@ -51,6 +58,10 @@ export class GovernanceSyncWorker {
       onVoted: this.handleVoted.bind(this),
       onClosed: this.handleClosed.bind(this),
       onExecuted: this.handleExecuted.bind(this),
+      onBalancesTransfer: this.handleBalancesTransfer.bind(this),
+      onTreasurySpending: this.handleTreasurySpending.bind(this),
+      onDemocracyProposed: this.handleDemocracyProposed.bind(this),
+      onDemocracyStarted: this.handleDemocracyStarted.bind(this),
       onError: this.handleError.bind(this),
     });
 
@@ -223,8 +234,84 @@ export class GovernanceSyncWorker {
         return;
       }
 
-      // Se execução foi bem sucedida, marcar como pago
+      // Se execução foi bem sucedida, marcar como aprovado (não como pago!)
+      // O pagamento real acontece no próximo SpendPeriod automaticamente
       if (event.result === 'Ok') {
+        await this.prisma.governanceTreasuryRequest.update({
+          where: { id: request.id },
+          data: {
+            status: 'APPROVED',
+            approvedAt: new Date(),
+          },
+        });
+
+        this.logger.info(`[GovernanceSync] ✅ Motion ${event.proposalHash} executed successfully - Treasury spend approved, will be paid in next SpendPeriod`);
+      }
+    });
+  }
+
+  /**
+   * Handler: Treasury.Spending
+   * Detecta quando Treasury fez pagamentos automáticos via SpendPeriod
+   * Atualiza TODOS os requests APPROVED para PAID_OUT pois Treasury pagou tudo de uma vez
+   */
+  private async handleTreasurySpending(event: TreasurySpendingEvent): Promise<void> {
+    await this.withRetry(async () => {
+      // Buscar TODAS as Treasury Requests que estão APPROVED
+      const approvedRequests = await this.prisma.governanceTreasuryRequest.findMany({
+        where: { status: 'APPROVED' },
+        orderBy: { approvedAt: 'asc' },
+      });
+
+      if (approvedRequests.length === 0) {
+        this.logger.warn(`[GovernanceSync] treasury.Spending event but no APPROVED requests found`);
+        return;
+      }
+
+      // Marcar todas como PAID_OUT
+      const ids = approvedRequests.map(r => r.id);
+      await this.prisma.governanceTreasuryRequest.updateMany({
+        where: { id: { in: ids } },
+        data: {
+          status: 'PAID_OUT',
+          paidOutAt: new Date(),
+        },
+      });
+
+      this.logger.info(`[GovernanceSync] ✅ treasury.Spending: Marked ${approvedRequests.length} request(s) as PAID_OUT - Total: ${(parseFloat(event.amount) / 1e12).toFixed(4)} BZR`);
+      approvedRequests.forEach(r => {
+        this.logger.info(`   - Request #${r.id}: ${(parseFloat(r.value) / 1e12).toFixed(4)} BZR → ${r.beneficiary.slice(0, 10)}...`);
+      });
+    });
+  }
+
+  /**
+   * Handler: Balances.Transfer
+   * Detecta quando Treasury paga um beneficiário e atualiza status para PAID_OUT
+   */
+  private async handleBalancesTransfer(event: BalancesTransferEvent): Promise<void> {
+    await this.withRetry(async () => {
+      // Buscar Treasury Requests APPROVED que ainda não foram pagas
+      // e cujo beneficiário recebeu o transfer
+      const request = await this.prisma.governanceTreasuryRequest.findFirst({
+        where: {
+          status: 'APPROVED',
+          beneficiary: event.to,
+        },
+        orderBy: { approvedAt: 'asc' }, // Mais antigo primeiro
+      });
+
+      if (!request) {
+        // Não é um pagamento de Treasury Request
+        return;
+      }
+
+      // Verificar se o valor bate (com margem de erro para fees)
+      const requestValue = BigInt(request.value);
+      const transferValue = BigInt(event.amount);
+
+      // Aceitar se o valor for exatamente igual
+      if (requestValue === transferValue) {
         await this.prisma.governanceTreasuryRequest.update({
           where: { id: request.id },
           data: {
@@ -233,7 +320,261 @@ export class GovernanceSyncWorker {
           },
         });
 
-        this.logger.info(`[GovernanceSync] ✅ Motion ${event.proposalHash} executed successfully`);
+        this.logger.info(`[GovernanceSync] ✅ Treasury Request #${request.id} paid out to ${event.to.slice(0, 10)}... - ${(parseFloat(event.amount) / 1e12).toFixed(4)} BZR`);
+      }
+    });
+  }
+
+  /**
+   * Handler: Democracy.Proposed
+   * Salva proposta Democracy quando criada, extraindo metadata do preimage
+   */
+  private async handleDemocracyProposed(event: DemocracyProposedEvent): Promise<void> {
+    this.logger.info('[GovernanceSync] Processing Democracy.Proposed event:', {
+      proposalIndex: event.proposalIndex,
+      deposit: event.deposit,
+    });
+
+    await this.withRetry(async () => {
+      try {
+        const api = await this.blockchainService.getApi();
+
+        // Buscar proposta no storage
+        const proposalsRaw = await api.query.democracy.publicProps();
+        const proposalsArray = proposalsRaw.toJSON() as any[];
+
+        const proposal = proposalsArray.find((p: any) => p[0] === event.proposalIndex);
+
+        if (!proposal) {
+          this.logger.warn(`[GovernanceSync] Proposal ${event.proposalIndex} not found in storage`);
+          return;
+        }
+
+        const [proposalId, proposalData] = proposal;
+        const proposalHash = proposalData?.lookup?.hash || proposalData?.hash;
+        const proposer = proposalData?.lookup?.depositor || proposalData?.depositor;
+
+        if (!proposalHash) {
+          this.logger.warn(`[GovernanceSync] Proposal ${event.proposalIndex} has no hash`);
+          return;
+        }
+
+        const proposalHashHex = proposalHash;
+
+        this.logger.info(`[GovernanceSync] Found proposal ${event.proposalIndex} with hash ${proposalHashHex}`);
+
+        // Extrair metadata do preimage
+        let title = `Proposal #${event.proposalIndex}`;
+        let description = 'Democracy proposal';
+        // O proposalHash JÁ é o preimageHash (não precisa fazer blake2)
+        let preimageHash: string | null = proposalHashHex;
+
+        try {
+          // Buscar preimage diretamente com o proposalHash
+          const preimageStatus = await api.query.preimage.requestStatusFor(proposalHashHex);
+
+          if (preimageStatus.isSome) {
+            const status = preimageStatus.unwrap();
+            const len = status.isUnrequested
+              ? status.asUnrequested.len.toNumber()
+              : status.asRequested.len.toNumber();
+            const preimageData = await api.query.preimage.preimageFor([proposalHashHex, len]);
+
+            if (preimageData.isSome) {
+              const bytes = preimageData.unwrap();
+              const call = api.registry.createType('Call', bytes);
+
+              // Se for system.remark, extrair metadata JSON
+              if (call.section === 'system' && call.method === 'remark') {
+                try {
+                  const remarkHex = call.args[0].toHex();
+                  const remarkData = Buffer.from(remarkHex.slice(2), 'hex').toString('utf8');
+                  const metadata = JSON.parse(remarkData);
+
+                  if (metadata.title) title = metadata.title;
+                  if (metadata.description) description = metadata.description;
+
+                  this.logger.info(`[GovernanceSync] Extracted metadata: "${title}"`);
+                } catch (parseErr) {
+                  this.logger.warn(`[GovernanceSync] Could not parse preimage metadata`);
+                }
+              } else {
+                // Usar informações do call
+                description = `${call.section}.${call.method}`;
+              }
+            }
+          }
+        } catch (preimageErr) {
+          this.logger.warn(`[GovernanceSync] Could not fetch preimage:`, preimageErr);
+        }
+
+        // Salvar no banco
+        await this.prisma.governanceDemocracyProposal.create({
+          data: {
+            proposalIndex: event.proposalIndex,
+            proposalHash: proposalHashHex,
+            preimageHash,
+            title,
+            description,
+            proposer: proposer || null,
+            deposit: event.deposit,
+            status: 'PROPOSED',
+            txHash: event.txHash,
+            blockNumber: event.blockNumber,
+          },
+        });
+
+        this.logger.info(`[GovernanceSync] ✅ Saved Democracy proposal #${event.proposalIndex}: "${title}"`);
+      } catch (error) {
+        this.logger.error('[GovernanceSync] Error processing Democracy.Proposed:', error);
+        throw error;
+      }
+    });
+  }
+
+  /**
+   * Handler: Democracy.Started
+   * Quando proposta vira referendum, copia dados para GovernanceReferendum
+   */
+  private async handleDemocracyStarted(event: DemocracyStartedEvent): Promise<void> {
+    this.logger.info('[GovernanceSync] Processing Democracy.Started event:', {
+      refIndex: event.refIndex,
+      threshold: event.threshold,
+    });
+
+    await this.withRetry(async () => {
+      try {
+        const api = await this.blockchainService.getApi();
+
+        // Buscar referendum no storage para obter proposalHash
+        const refInfo = await api.query.democracy.referendumInfoOf(event.refIndex);
+
+        if (refInfo.isNone) {
+          this.logger.warn(`[GovernanceSync] Referendum ${event.refIndex} not found in storage`);
+          return;
+        }
+
+        const info = refInfo.unwrap();
+
+        if (!info.isOngoing) {
+          this.logger.warn(`[GovernanceSync] Referendum ${event.refIndex} is not ongoing`);
+          return;
+        }
+
+        const ongoing = info.asOngoing;
+        let proposalHashHex = ongoing.proposal.toHex();
+
+        this.logger.info(`[GovernanceSync] Referendum ${event.refIndex} has raw proposal: ${proposalHashHex}`);
+
+        // CRITICAL FIX: Extract pure hash from bounded call encoding
+        // Format: 0x02[HASH][LENGTH_ENCODING]
+        // The referendum stores a Bounded<Call> which includes:
+        // - prefix (0x02 = Lookup variant)
+        // - hash (32 bytes = 64 hex chars)
+        // - inline bytes length encoding
+        // We need to extract just the 32-byte hash to match with proposals
+        if (proposalHashHex.startsWith('0x02') && proposalHashHex.length > 68) {
+          // Extract hash: skip '0x02' prefix (4 chars), take next 64 chars (32 bytes)
+          const extractedHash = '0x' + proposalHashHex.substring(4, 68);
+          this.logger.info(`[GovernanceSync] Extracted pure hash from bounded call: ${extractedHash}`);
+          proposalHashHex = extractedHash;
+        }
+
+        this.logger.info(`[GovernanceSync] Searching for proposal with hash: ${proposalHashHex}`);
+
+        // Buscar proposta original no banco (se existir)
+        const proposal = await this.prisma.governanceDemocracyProposal.findFirst({
+          where: { proposalHash: proposalHashHex },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        let title = `Referendum #${event.refIndex}`;
+        let description = 'Democracy referendum';
+        let proposer: string | null = null;
+        let proposalId: number | null = null;
+        let preimageHash: string | null = null;
+
+        if (proposal) {
+          // Copiar dados da proposta com formato "Referendum #X: título"
+          title = `Referendum #${event.refIndex}: ${proposal.title}`;
+          description = proposal.description;
+          proposer = proposal.proposer;
+          proposalId = proposal.id;
+          preimageHash = proposal.preimageHash;
+
+          // Atualizar status da proposta
+          await this.prisma.governanceDemocracyProposal.update({
+            where: { id: proposal.id },
+            data: {
+              status: 'STARTED',
+              startedAt: new Date(),
+            },
+          });
+
+          this.logger.info(`[GovernanceSync] Linked referendum ${event.refIndex} to proposal #${proposal.proposalIndex}: "${title}"`);
+        } else {
+          // Tentar extrair do preimage (fallback)
+          try {
+            // O proposalHash JÁ é o preimageHash (não precisa fazer blake2)
+            preimageHash = proposalHashHex;
+
+            const preimageStatus = await api.query.preimage.requestStatusFor(proposalHashHex);
+
+            if (preimageStatus.isSome) {
+              const status = preimageStatus.unwrap();
+              const len = status.isUnrequested
+                ? status.asUnrequested.len.toNumber()
+                : status.asRequested.len.toNumber();
+              const preimageData = await api.query.preimage.preimageFor([proposalHashHex, len]);
+
+              if (preimageData.isSome) {
+                const bytes = preimageData.unwrap();
+                const call = api.registry.createType('Call', bytes);
+
+                if (call.section === 'system' && call.method === 'remark') {
+                  try {
+                    const remarkHex = call.args[0].toHex();
+                    const remarkData = Buffer.from(remarkHex.slice(2), 'hex').toString('utf8');
+                    const metadata = JSON.parse(remarkData);
+
+                    if (metadata.title) title = `Referendum #${event.refIndex}: ${metadata.title}`;
+                    if (metadata.description) description = metadata.description;
+                  } catch (parseErr) {
+                    this.logger.warn(`[GovernanceSync] Could not parse preimage metadata`);
+                  }
+                } else {
+                  description = `${call.section}.${call.method}`;
+                }
+              }
+            }
+          } catch (preimageErr) {
+            this.logger.warn(`[GovernanceSync] Could not fetch preimage for referendum:`, preimageErr);
+          }
+
+          this.logger.warn(`[GovernanceSync] No proposal found for referendum ${event.refIndex}, using fallback data`);
+        }
+
+        // Criar referendum no banco
+        await this.prisma.governanceReferendum.create({
+          data: {
+            refIndex: event.refIndex,
+            threshold: JSON.stringify(event.threshold),
+            title,
+            description,
+            proposer,
+            proposalId,
+            proposalHash: proposalHashHex,
+            preimageHash,
+            status: 'ONGOING',
+            startTxHash: event.txHash,
+            startBlockNumber: event.blockNumber,
+          },
+        });
+
+        this.logger.info(`[GovernanceSync] ✅ Created referendum #${event.refIndex}: "${title}"`);
+      } catch (error) {
+        this.logger.error('[GovernanceSync] Error processing Democracy.Started:', error);
+        throw error;
       }
     });
   }

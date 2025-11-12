@@ -197,7 +197,9 @@ export function useCouncilMotion(): UseCouncilMotionReturn {
       }
 
       const proposal = proposalOption.unwrap();
-      const proposalLength = proposal.encodedLength;
+      // Add 4 bytes overhead to encoded length as required by pallet_collective
+      // This prevents WrongProposalLength errors
+      const proposalLength = proposal.encodedLength + 4;
 
       // Use a reasonable weight bound for treasury proposals
       // Treasury.spendLocal is a relatively simple call, doesn't need huge weight

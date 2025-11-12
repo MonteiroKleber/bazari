@@ -135,7 +135,7 @@ async function buildApp() {
   await app.register(p2pZariRoutes, { prefix: '/', prisma });
   await app.register(marketplaceRoutes, { prefix: '/' });
   await app.register(notificationsRoutes, { prefix: '/', prisma });
-  await app.register(governanceRoutes, { prefix: '/' });
+  await app.register(governanceRoutes, { prefix: '/', prisma });
   await app.register(governanceTreasuryRoutes, { prefix: '/' });
   await app.register(vestingRoutes, { prefix: '/' });
   await app.register(feedRoutes, { prefix: '/', prisma });
@@ -170,7 +170,7 @@ async function buildApp() {
   await app.register(p2pZariRoutes, { prefix: '/api', prisma });
   await app.register(marketplaceRoutes, { prefix: '/api' });
   await app.register(notificationsRoutes, { prefix: '/api', prisma });
-  await app.register(governanceRoutes, { prefix: '/api' });
+  await app.register(governanceRoutes, { prefix: '/api', prisma });
   await app.register(governanceTreasuryRoutes, { prefix: '/api' });
   await app.register(vestingRoutes, { prefix: '/api' });
   await app.register(feedRoutes, { prefix: '/api', prisma });

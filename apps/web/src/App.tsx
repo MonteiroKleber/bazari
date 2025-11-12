@@ -101,6 +101,7 @@ import {
   GovernancePage,
   ProposalsListPage,
   ProposalDetailPage,
+  ReferendumsPage,
   TreasuryPage,
   CouncilPage,
   MultisigPage,
@@ -450,6 +451,8 @@ function App() {
                       <Route path="governance/proposals" element={<ProposalsListPage />} />
                       <Route path="governance/proposals/new" element={<CreateProposalPage />} />
                       <Route path="governance/proposals/:type/:id" element={<ProposalDetailPage />} />
+                      <Route path="governance/referendums" element={<ReferendumsPage />} />
+                      <Route path="governance/referendums/:id" element={<ProposalDetailPage />} />
                       <Route path="governance/treasury" element={<TreasuryPage />} />
                       <Route path="governance/treasury/requests" element={<TreasuryRequestsPage />} />
                       <Route path="governance/treasury/requests/new" element={<CreateTreasuryRequestPage />} />

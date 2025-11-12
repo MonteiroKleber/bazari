@@ -34,10 +34,9 @@ export function ProposalsListPage() {
     setError(null);
 
     try {
-      // Load proposals from all sources
-      const [democracyProposalsRes, democracyRes, treasuryRes, councilRes, techRes] = await Promise.all([
-        governanceApi.getDemocracyProposals(), // Add democracy proposals
-        governanceApi.getDemocracyReferendums(),
+      // Load proposals from all sources (EXCLUDING democracy referendums - they have their own page)
+      const [democracyProposalsRes, treasuryRes, councilRes, techRes] = await Promise.all([
+        governanceApi.getDemocracyProposals(), // Democracy proposals that haven't become referendums yet
         governanceApi.getTreasuryProposals(),
         governanceApi.getCouncilProposals(),
         governanceApi.getTechCommitteeProposals(),
@@ -52,19 +51,6 @@ export function ProposalsListPage() {
           allProposals.push({
             ...item,
             type: 'DEMOCRACY',
-          });
-        });
-      }
-
-      // Democracy referendums
-      if (democracyRes.success && democracyRes.data) {
-        democracyRes.data.forEach((item: any) => {
-          allProposals.push({
-            id: item.id,
-            type: 'DEMOCRACY',
-            proposer: item.info?.Ongoing?.proposer || 'Unknown',
-            status: item.info?.Ongoing ? 'STARTED' : 'PROPOSED',
-            createdAt: new Date().toISOString(),
           });
         });
       }

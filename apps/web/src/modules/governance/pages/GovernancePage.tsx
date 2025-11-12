@@ -149,7 +149,7 @@ export function GovernancePage() {
             }}
             icon={<Vote className="h-4 w-4" />}
             color="blue"
-            onClick={() => navigate('/app/governance/proposals')}
+            onClick={() => navigate('/app/governance/referendums')}
             loading={loading}
           />
 

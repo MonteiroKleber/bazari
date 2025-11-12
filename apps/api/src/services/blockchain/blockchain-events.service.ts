@@ -40,6 +40,68 @@ export interface CouncilExecutedEvent {
   txHash: string;
 }
 
+export interface BalancesTransferEvent {
+  from: string;
+  to: string;
+  amount: string;
+  blockNumber: number;
+  txHash: string;
+}
+
+export interface TreasurySpendingEvent {
+  amount: string;
+  blockNumber: number;
+  txHash: string;
+}
+
+export interface DemocracyStartedEvent {
+  refIndex: number;
+  threshold: any;
+  blockNumber: number;
+  txHash: string;
+}
+
+export interface DemocracyProposedEvent {
+  proposalIndex: number;
+  deposit: string;
+  blockNumber: number;
+  txHash: string;
+}
+
+export interface DemocracySecondedEvent {
+  seconder: string;
+  proposalIndex: number;
+  blockNumber: number;
+  txHash: string;
+}
+
+export interface DemocracyVotedEvent {
+  voter: string;
+  refIndex: number;
+  vote: any;
+  blockNumber: number;
+  txHash: string;
+}
+
+export interface DemocracyPassedEvent {
+  refIndex: number;
+  blockNumber: number;
+  txHash: string;
+}
+
+export interface DemocracyNotPassedEvent {
+  refIndex: number;
+  blockNumber: number;
+  txHash: string;
+}
+
+export interface DemocracyExecutedEvent {
+  refIndex: number;
+  result: 'Ok' | 'Err';
+  blockNumber: number;
+  txHash: string;
+}
+
 export type EventHandler<T> = (event: T) => Promise<void> | void;
 
 export interface EventHandlers {
@@ -47,6 +109,15 @@ export interface EventHandlers {
   onVoted?: EventHandler<CouncilVotedEvent>;
   onClosed?: EventHandler<CouncilClosedEvent>;
   onExecuted?: EventHandler<CouncilExecutedEvent>;
+  onBalancesTransfer?: EventHandler<BalancesTransferEvent>;
+  onTreasurySpending?: EventHandler<TreasurySpendingEvent>;
+  onDemocracyStarted?: EventHandler<DemocracyStartedEvent>;
+  onDemocracyProposed?: EventHandler<DemocracyProposedEvent>;
+  onDemocracySeconded?: EventHandler<DemocracySecondedEvent>;
+  onDemocracyVoted?: EventHandler<DemocracyVotedEvent>;
+  onDemocracyPassed?: EventHandler<DemocracyPassedEvent>;
+  onDemocracyNotPassed?: EventHandler<DemocracyNotPassedEvent>;
+  onDemocracyExecuted?: EventHandler<DemocracyExecutedEvent>;
   onError?: (error: Error) => void;
 }
 
@@ -120,7 +191,49 @@ export class BlockchainEventsService {
                 txHash,
                 api
               );
+
+              // Process democracy events
+              this.processDemocracyEvents(
+                extrinsicEvents,
+                blockNumber,
+                txHash,
+                api
+              );
+
+              // Process balances events (for Treasury payouts)
+              this.processBalancesEvents(
+                extrinsicEvents,
+                blockNumber,
+                txHash,
+                api
+              );
+
+              // Process treasury events (for automatic payouts)
+              this.processTreasuryEvents(
+                extrinsicEvents,
+                blockNumber,
+                txHash,
+                api
+              );
             });
+
+            // CRITICAL FIX: Process system-initiated events (e.g., Democracy.Started from on_initialize)
+            // These events are NOT part of any extrinsic, they have phase.isFinalization or phase.isInitialization
+            const systemEvents = (allRecords as any).filter(
+              ({ phase }: any) => !phase.isApplyExtrinsic
+            );
+
+            if (systemEvents.length > 0) {
+              const systemTxHash = '0x' + '0'.repeat(64); // Placeholder for system events
+
+              // Process democracy system events (e.g., Started)
+              this.processDemocracyEvents(
+                systemEvents,
+                blockNumber,
+                systemTxHash,
+                api
+              );
+            }
           } catch (error) {
             console.error('[BlockchainEvents] Error processing block:', error);
             if (this.handlers.onError) {
@@ -251,6 +364,297 @@ export class BlockchainEventsService {
 
           default:
             // Ignore other council events
+            break;
+        }
+      } catch (error) {
+        console.error(`[BlockchainEvents] Error processing ${event.method} event:`, error);
+        if (this.handlers.onError) {
+          this.handlers.onError(error as Error);
+        }
+      }
+    });
+  }
+
+  /**
+   * Processar eventos de Democracy
+   */
+  private processDemocracyEvents(
+    events: EventRecord[],
+    blockNumber: number,
+    txHash: string,
+    api: ApiPromise
+  ): void {
+    events.forEach((record) => {
+      const { event } = record;
+
+      if (event.section !== 'democracy') {
+        return;
+      }
+
+      try {
+        switch (event.method) {
+          case 'Started': {
+            // Event: Started(ReferendumIndex, VoteThreshold)
+            const [refIndex, threshold] = event.data;
+
+            const startedEvent: DemocracyStartedEvent = {
+              refIndex: (refIndex as any).toNumber(),
+              threshold: (threshold as any).toJSON(),
+              blockNumber,
+              txHash,
+            };
+
+            console.log('[BlockchainEvents] Democracy.Started:', startedEvent);
+
+            if (this.handlers.onDemocracyStarted) {
+              Promise.resolve(this.handlers.onDemocracyStarted(startedEvent)).catch((err: any) => {
+                console.error('[BlockchainEvents] Error in onDemocracyStarted handler:', err);
+              });
+            }
+            break;
+          }
+
+          case 'Proposed': {
+            // Event: Proposed(ProposalIndex, Balance)
+            const [proposalIndex, deposit] = event.data;
+
+            const proposedEvent: DemocracyProposedEvent = {
+              proposalIndex: (proposalIndex as any).toNumber(),
+              deposit: (deposit as any).toString(),
+              blockNumber,
+              txHash,
+            };
+
+            console.log('[BlockchainEvents] Democracy.Proposed:', proposedEvent);
+
+            if (this.handlers.onDemocracyProposed) {
+              Promise.resolve(this.handlers.onDemocracyProposed(proposedEvent)).catch((err: any) => {
+                console.error('[BlockchainEvents] Error in onDemocracyProposed handler:', err);
+              });
+            }
+            break;
+          }
+
+          case 'Seconded': {
+            // Event: Seconded(AccountId, ProposalIndex)
+            const [seconder, proposalIndex] = event.data;
+
+            const secondedEvent: DemocracySecondedEvent = {
+              seconder: seconder.toString(),
+              proposalIndex: (proposalIndex as any).toNumber(),
+              blockNumber,
+              txHash,
+            };
+
+            console.log('[BlockchainEvents] Democracy.Seconded:', secondedEvent);
+
+            if (this.handlers.onDemocracySeconded) {
+              Promise.resolve(this.handlers.onDemocracySeconded(secondedEvent)).catch((err: any) => {
+                console.error('[BlockchainEvents] Error in onDemocracySeconded handler:', err);
+              });
+            }
+            break;
+          }
+
+          case 'Voted': {
+            // Event: Voted(AccountId, ReferendumIndex, Vote)
+            const [voter, refIndex, vote] = event.data;
+
+            const votedEvent: DemocracyVotedEvent = {
+              voter: voter.toString(),
+              refIndex: (refIndex as any).toNumber(),
+              vote: (vote as any).toJSON(),
+              blockNumber,
+              txHash,
+            };
+
+            console.log('[BlockchainEvents] Democracy.Voted:', votedEvent);
+
+            if (this.handlers.onDemocracyVoted) {
+              Promise.resolve(this.handlers.onDemocracyVoted(votedEvent)).catch((err: any) => {
+                console.error('[BlockchainEvents] Error in onDemocracyVoted handler:', err);
+              });
+            }
+            break;
+          }
+
+          case 'Passed': {
+            // Event: Passed(ReferendumIndex)
+            const [refIndex] = event.data;
+
+            const passedEvent: DemocracyPassedEvent = {
+              refIndex: (refIndex as any).toNumber(),
+              blockNumber,
+              txHash,
+            };
+
+            console.log('[BlockchainEvents] Democracy.Passed:', passedEvent);
+
+            if (this.handlers.onDemocracyPassed) {
+              Promise.resolve(this.handlers.onDemocracyPassed(passedEvent)).catch((err: any) => {
+                console.error('[BlockchainEvents] Error in onDemocracyPassed handler:', err);
+              });
+            }
+            break;
+          }
+
+          case 'NotPassed': {
+            // Event: NotPassed(ReferendumIndex)
+            const [refIndex] = event.data;
+
+            const notPassedEvent: DemocracyNotPassedEvent = {
+              refIndex: (refIndex as any).toNumber(),
+              blockNumber,
+              txHash,
+            };
+
+            console.log('[BlockchainEvents] Democracy.NotPassed:', notPassedEvent);
+
+            if (this.handlers.onDemocracyNotPassed) {
+              Promise.resolve(this.handlers.onDemocracyNotPassed(notPassedEvent)).catch((err: any) => {
+                console.error('[BlockchainEvents] Error in onDemocracyNotPassed handler:', err);
+              });
+            }
+            break;
+          }
+
+          case 'Executed': {
+            // Event: Executed(ReferendumIndex, Result)
+            const [refIndex, result] = event.data;
+
+            const executedEvent: DemocracyExecutedEvent = {
+              refIndex: (refIndex as any).toNumber(),
+              result: (result as any).isOk ? 'Ok' : 'Err',
+              blockNumber,
+              txHash,
+            };
+
+            console.log('[BlockchainEvents] Democracy.Executed:', executedEvent);
+
+            if (this.handlers.onDemocracyExecuted) {
+              Promise.resolve(this.handlers.onDemocracyExecuted(executedEvent)).catch((err: any) => {
+                console.error('[BlockchainEvents] Error in onDemocracyExecuted handler:', err);
+              });
+            }
+            break;
+          }
+
+          default:
+            // Ignore other democracy events
+            break;
+        }
+      } catch (error) {
+        console.error(`[BlockchainEvents] Error processing ${event.method} event:`, error);
+        if (this.handlers.onError) {
+          this.handlers.onError(error as Error);
+        }
+      }
+    });
+  }
+
+  /**
+   * Processar eventos do Balances (para detectar Treasury payouts)
+   */
+  private processBalancesEvents(
+    events: EventRecord[],
+    blockNumber: number,
+    txHash: string,
+    api: ApiPromise
+  ): void {
+    events.forEach((record) => {
+      const { event } = record;
+
+      if (event.section !== 'balances') {
+        return;
+      }
+
+      try {
+        switch (event.method) {
+          case 'Transfer': {
+            // Event: Transfer(AccountId, AccountId, Balance)
+            const [from, to, amount] = event.data;
+
+            const transferEvent: BalancesTransferEvent = {
+              from: from.toString(),
+              to: to.toString(),
+              amount: amount.toString(),
+              blockNumber,
+              txHash,
+            };
+
+            // Only log and process if handler is registered (to avoid spam)
+            if (this.handlers.onBalancesTransfer) {
+              console.log('[BlockchainEvents] Balances.Transfer:', {
+                from: transferEvent.from.slice(0, 10) + '...',
+                to: transferEvent.to.slice(0, 10) + '...',
+                amount: (parseFloat(transferEvent.amount) / 1e12).toFixed(4) + ' BZR',
+                block: blockNumber,
+              });
+
+              Promise.resolve(this.handlers.onBalancesTransfer(transferEvent)).catch((err: any) => {
+                console.error('[BlockchainEvents] Error in onBalancesTransfer handler:', err);
+              });
+            }
+            break;
+          }
+
+          default:
+            // Ignore other balances events
+            break;
+        }
+      } catch (error) {
+        console.error(`[BlockchainEvents] Error processing ${event.method} event:`, error);
+        if (this.handlers.onError) {
+          this.handlers.onError(error as Error);
+        }
+      }
+    });
+  }
+
+  /**
+   * Processar eventos do Treasury (para detectar pagamentos automáticos)
+   */
+  private processTreasuryEvents(
+    events: EventRecord[],
+    blockNumber: number,
+    txHash: string,
+    api: ApiPromise
+  ): void {
+    events.forEach((record) => {
+      const { event } = record;
+
+      if (event.section !== 'treasury') {
+        return;
+      }
+
+      try {
+        switch (event.method) {
+          case 'Spending': {
+            // Event: Spending(Balance)
+            const [amount] = event.data;
+
+            const spendingEvent: TreasurySpendingEvent = {
+              amount: amount.toString(),
+              blockNumber,
+              txHash,
+            };
+
+            // Only log and process if handler is registered
+            if (this.handlers.onTreasurySpending) {
+              console.log('[BlockchainEvents] Treasury.Spending:', {
+                amount: (parseFloat(spendingEvent.amount) / 1e12).toFixed(4) + ' BZR',
+                block: blockNumber,
+              });
+
+              Promise.resolve(this.handlers.onTreasurySpending(spendingEvent)).catch((err: any) => {
+                console.error('[BlockchainEvents] Error in onTreasurySpending handler:', err);
+              });
+            }
+            break;
+          }
+
+          default:
+            // Ignore other treasury events
             break;
         }
       } catch (error) {

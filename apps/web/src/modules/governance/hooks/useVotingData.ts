@@ -101,16 +101,20 @@ export function useVotingData({
 
       const results = await Promise.all(promises);
 
-      // Store raw votes
+      // Store raw votes - extract votes array from API response
       const votesMap = new Map<number, GovernanceVote[]>();
       proposalIds.forEach((id, idx) => {
-        votesMap.set(id, results[idx] || []);
+        const result = results[idx];
+        // API returns { referendumId, info, votes } or { success, data: { votes } }
+        const votes = result?.data?.votes || result?.votes || [];
+        votesMap.set(id, votes);
       });
       setRawVotes(votesMap);
 
       // Transform to chart data
       const chartData = proposalIds.map((id, idx) => {
-        const votes = results[idx] || [];
+        const result = results[idx];
+        const votes = result?.data?.votes || result?.votes || [];
         return transformVotesToChartData(id, votes, `Proposta #${id}`);
       });
 

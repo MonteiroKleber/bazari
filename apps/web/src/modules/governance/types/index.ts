@@ -31,6 +31,10 @@ export interface GovernanceProposal {
   ayeVotes?: string;
   nayVotes?: string;
   turnout?: string;
+  endorsements?: number; // Number of endorsements (for democracy proposals)
+  endorsers?: string[]; // List of endorser addresses
+  originProposalId?: number; // For referendums: which proposal originated this referendum
+  referendumId?: number; // For proposals: which referendum ID this became (if promoted)
   createdAt: string;
   updatedAt?: string;
 }

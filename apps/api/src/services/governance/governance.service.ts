@@ -131,8 +131,47 @@ export class GovernanceService {
     console.log('[Governance] - Proposal call:', proposalCall.method.toHex());
     console.log('[Governance] - Minimum deposit:', minimumDeposit.toString());
 
-    // Criar extrinsic - usar o formato Bounded correto
-    // Nas versões recentes do Substrate, democracy.propose aceita um Bounded<Call>
+    // STEP 1: Registrar preimage primeiro (para que os metadados fiquem on-chain)
+    console.log('[Governance] Step 1: Registering preimage...');
+    const preimageBytes = proposalCall.method.toHex();
+    const notePreimageTx = api.tx.preimage.notePreimage(preimageBytes);
+
+    try {
+      await new Promise<void>((resolvePreimage, rejectPreimage) => {
+        notePreimageTx.signAndSend(sudoAccount, ({ status, dispatchError }) => {
+          console.log(`[Governance] Preimage TX status: ${status.type}`);
+
+          if (status.isInBlock) {
+            console.log(`[Governance] Preimage registered in block: ${status.asInBlock.toHex()}`);
+          }
+
+          if (status.isFinalized) {
+            if (dispatchError) {
+              let errorMsg = 'Preimage registration failed';
+              if (dispatchError.isModule) {
+                try {
+                  const decoded = api.registry.findMetaError(dispatchError.asModule);
+                  errorMsg = `${decoded.section}.${decoded.name}: ${decoded.docs.join(' ')}`;
+                } catch (e) {
+                  errorMsg = dispatchError.toString();
+                }
+              }
+              console.error('[Governance] Preimage error:', errorMsg);
+              rejectPreimage(new Error(errorMsg));
+            } else {
+              console.log('[Governance] ✅ Preimage registered successfully');
+              resolvePreimage();
+            }
+          }
+        }).catch(rejectPreimage);
+      });
+    } catch (preimageError) {
+      console.error('[Governance] Failed to register preimage:', preimageError);
+      throw new Error(`Failed to register preimage: ${preimageError}`);
+    }
+
+    // STEP 2: Agora propor (com o preimage já registrado)
+    console.log('[Governance] Step 2: Creating proposal...');
     const proposeTx = api.tx.democracy.propose(
       { Lookup: { hash: proposalCall.method.hash, len: proposalCall.encodedLength } },
       minimumDeposit
@@ -190,6 +229,205 @@ export class GovernanceService {
         }
       }).catch((error) => {
         console.error('[Governance] TX submission error:', error);
+        reject(error);
+      });
+    });
+  }
+
+  /**
+   * Endossa (second) uma proposta de democracia
+   */
+  static async secondProposal(params: {
+    proposalId: number;
+    address: string;
+    signature: string;
+    mnemonic: string; // Mnemonic descriptografado do usuário
+  }): Promise<ProposalResult> {
+    const api = await getSubstrateApi();
+
+    console.log('[Governance] secondProposal - Params received (without mnemonic):', {
+      proposalId: params.proposalId,
+      address: params.address,
+    });
+
+    // Criar keypair da conta do usuário usando o mnemonic
+    const userAccount = this.keyring.addFromMnemonic(params.mnemonic);
+
+    console.log('[Governance] Endorsing proposal:');
+    console.log('[Governance] - Proposal ID:', params.proposalId);
+    console.log('[Governance] - User Address:', params.address);
+    console.log('[Governance] - Derived Address:', userAccount.address);
+
+    // Verificar se o endereço derivado corresponde ao endereço fornecido
+    if (userAccount.address !== params.address) {
+      throw new Error('Address mismatch: derived address does not match provided address');
+    }
+
+    // Criar transação de endosso
+    const secondTx = api.tx.democracy.second(params.proposalId);
+
+    // Assinar e enviar com a conta do USUÁRIO (não sudo)
+    return new Promise((resolve, reject) => {
+      let blockHash: string | null = null;
+      let blockNumber: number | null = null;
+
+      secondTx.signAndSend(userAccount, ({ status, events, txHash, dispatchError }) => {
+        console.log(`[Governance] Second TX status: ${status.type}`);
+
+        if (status.isInBlock) {
+          blockHash = status.asInBlock.toHex();
+          console.log(`[Governance] TX in block: ${blockHash}`);
+
+          // Procurar evento de endosso
+          events.forEach(({ event }) => {
+            if (api.events.democracy.Seconded && event.section === 'democracy' && event.method === 'Seconded') {
+              const seconder = (event.data[0] as any).toString();
+              const proposalId = (event.data[1] as any).toNumber();
+              console.log(`[Governance] Proposal #${proposalId} seconded by ${seconder}`);
+            }
+          });
+        }
+
+        if (status.isFinalized) {
+          if (dispatchError) {
+            let errorMsg = 'Transaction failed';
+            if (dispatchError.isModule) {
+              try {
+                const decoded = api.registry.findMetaError(dispatchError.asModule);
+                errorMsg = `${decoded.section}.${decoded.name}: ${decoded.docs.join(' ')}`;
+              } catch (e) {
+                errorMsg = dispatchError.toString();
+              }
+            } else {
+              errorMsg = dispatchError.toString();
+            }
+            console.error('[Governance] Second TX error:', errorMsg);
+            reject(new Error(errorMsg));
+          } else {
+            // Obter block number
+            api.rpc.chain.getHeader(blockHash!).then((header) => {
+              blockNumber = header.number.toNumber();
+
+              console.log('[Governance] ✅ Proposal seconded successfully');
+              resolve({
+                proposalId: params.proposalId,
+                txHash: txHash.toHex(),
+                blockHash: blockHash!,
+                blockNumber: blockNumber,
+              });
+            }).catch(reject);
+          }
+        }
+      }).catch((error) => {
+        console.error('[Governance] Second TX submission error:', error);
+        reject(error);
+      });
+    });
+  }
+
+  /**
+   * Vota em um referendo de democracia
+   */
+  static async voteOnReferendum(params: {
+    refId: number;
+    vote: { aye: boolean; conviction: number };
+    balance: string;
+    address: string;
+    signature: string;
+  }): Promise<ProposalResult> {
+    const api = await getSubstrateApi();
+
+    console.log('[Governance] voteOnReferendum - Params received:', JSON.stringify(params, null, 2));
+
+    // Usar conta sudo para executar vote() em nome do usuário
+    const sudoAccount = this.keyring.addFromUri(env.BAZARICHAIN_SUDO_SEED);
+
+    console.log('[Governance] Voting on referendum:');
+    console.log('[Governance] - Referendum ID:', params.refId);
+    console.log('[Governance] - Vote:', params.vote.aye ? 'AYE' : 'NAY');
+    console.log('[Governance] - Conviction:', params.vote.conviction);
+    console.log('[Governance] - Balance (BZR):', params.balance);
+    console.log('[Governance] - Voter Address:', params.address);
+
+    // CRITICAL FIX: Convert BZR to planck (smallest unit)
+    // 1 BZR = 1e12 planck
+    const balanceInPlanck = (parseFloat(params.balance) * 1e12).toString();
+    console.log('[Governance] - Balance (planck):', balanceInPlanck);
+
+    // Criar vote object
+    const voteObj = {
+      Standard: {
+        vote: {
+          aye: params.vote.aye,
+          conviction: params.vote.conviction,
+        },
+        balance: balanceInPlanck,
+      },
+    };
+
+    // CRITICAL FIX: Use sudo.sudoAs to vote on behalf of the user
+    // This allows different users to vote independently
+    // Each user (address) will have their own vote recorded
+    const voteTx = api.tx.democracy.vote(params.refId, voteObj);
+    const sudoAsTx = api.tx.sudo.sudoAs(params.address, voteTx);
+
+    console.log('[Governance] - Using sudo.sudoAs to vote as:', params.address);
+
+    // Assinar e enviar com sudo
+    return new Promise((resolve, reject) => {
+      let blockHash: string | null = null;
+      let blockNumber: number | null = null;
+
+      sudoAsTx.signAndSend(sudoAccount, ({ status, events, txHash, dispatchError }) => {
+        console.log(`[Governance] Vote TX status: ${status.type}`);
+
+        if (status.isInBlock) {
+          blockHash = status.asInBlock.toHex();
+          console.log(`[Governance] TX in block: ${blockHash}`);
+
+          // Procurar evento de voto
+          events.forEach(({ event }) => {
+            if (api.events.democracy.Voted && event.section === 'democracy' && event.method === 'Voted') {
+              const voter = (event.data[0] as any).toString();
+              const refIndex = (event.data[1] as any).toNumber();
+              const vote = (event.data[2] as any).toJSON();
+              console.log(`[Governance] Vote recorded: voter=${voter}, ref=${refIndex}, vote=${JSON.stringify(vote)}`);
+            }
+          });
+        }
+
+        if (status.isFinalized) {
+          if (dispatchError) {
+            let errorMsg = 'Transaction failed';
+            if (dispatchError.isModule) {
+              try {
+                const decoded = api.registry.findMetaError(dispatchError.asModule);
+                errorMsg = `${decoded.section}.${decoded.name}: ${decoded.docs.join(' ')}`;
+              } catch (e) {
+                errorMsg = dispatchError.toString();
+              }
+            } else {
+              errorMsg = dispatchError.toString();
+            }
+            console.error('[Governance] Vote TX error:', errorMsg);
+            reject(new Error(errorMsg));
+          } else {
+            // Obter block number
+            api.rpc.chain.getHeader(blockHash!).then((header) => {
+              blockNumber = header.number.toNumber();
+
+              console.log('[Governance] ✅ Vote recorded successfully');
+              resolve({
+                proposalId: params.refId,
+                txHash: txHash.toHex(),
+                blockHash: blockHash!,
+                blockNumber: blockNumber,
+              });
+            }).catch(reject);
+          }
+        }
+      }).catch((error) => {
+        console.error('[Governance] Vote TX submission error:', error);
         reject(error);
       });
     });

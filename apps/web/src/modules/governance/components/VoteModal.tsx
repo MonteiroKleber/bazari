@@ -20,6 +20,8 @@ import { useVaultAccounts } from '@/modules/wallet/hooks/useVaultAccounts';
 import { PinService } from '@/modules/wallet/pin/PinService';
 import { decryptMnemonic } from '@/modules/auth/crypto.utils';
 import { formatBalance } from '@/modules/wallet/utils/format';
+import { governanceApi } from '../api';
+import { toast } from 'sonner';
 
 interface VoteModalProps {
   open: boolean;
@@ -38,6 +40,7 @@ export function VoteModal({ open, onOpenChange, proposal, onSuccess }: VoteModal
   const [amount, setAmount] = useState('');
   const [conviction, setConviction] = useState<Conviction>(1);
   const [loading, setLoading] = useState(false);
+  const [processingStep, setProcessingStep] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = useCallback(async () => {
@@ -53,6 +56,7 @@ export function VoteModal({ open, onOpenChange, proposal, onSuccess }: VoteModal
 
     setLoading(true);
     setError(null);
+    setProcessingStep(null);
 
     try {
       // Step 1: Get PIN with validation
@@ -61,10 +65,9 @@ export function VoteModal({ open, onOpenChange, proposal, onSuccess }: VoteModal
         description: `Votando ${voteDirection === 'AYE' ? 'SIM' : 'NÃO'} na proposta #${proposal.id}`,
         transaction: {
           type: 'governance_vote',
-          proposal: `${proposal.type} #${proposal.id}`,
-          direction: voteDirection,
+          description: `Votar ${voteDirection === 'AYE' ? 'SIM' : 'NÃO'} - ${proposal.type} #${proposal.id}`,
           amount: `${amount} BZR`,
-          conviction: conviction.toString(),
+          fee: '~0.001 BZR',
         },
         validate: async (candidatePin: string) => {
           try {
@@ -84,6 +87,7 @@ export function VoteModal({ open, onOpenChange, proposal, onSuccess }: VoteModal
       });
 
       // Step 2: Decrypt mnemonic with validated PIN
+      setProcessingStep('Descriptografando credenciais...');
       const mnemonic = await decryptMnemonic(
         account.cipher,
         account.iv,
@@ -93,6 +97,8 @@ export function VoteModal({ open, onOpenChange, proposal, onSuccess }: VoteModal
       );
 
       // Step 3: Prepare transaction data
+      setProcessingStep('Preparando transação...');
+      const timestamp = new Date().toISOString();
       const txData = JSON.stringify({
         type: 'democracy.vote',
         referendumId: proposal.id,
@@ -105,48 +111,59 @@ export function VoteModal({ open, onOpenChange, proposal, onSuccess }: VoteModal
             balance: amount,
           },
         },
-        timestamp: new Date().toISOString(),
+        timestamp,
       });
 
       // Step 4: Sign transaction with mnemonic
+      setProcessingStep('Assinando transação...');
       const signature = await signMessage(mnemonic, txData);
 
       // Step 5: Clean mnemonic from memory (security)
       const mnemonicArray = new TextEncoder().encode(mnemonic);
       mnemonicArray.fill(0);
 
-      // Step 6: Submit vote to backend
-      const response = await fetch('/api/governance/democracy/vote', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      // Step 6: Submit vote to backend (with timestamp for signature verification)
+      setProcessingStep('Enviando voto para a blockchain...');
+      const result = await governanceApi.voteReferendum(
+        proposal.id,
+        {
+          aye: voteDirection === 'AYE',
+          conviction,
         },
-        body: JSON.stringify({
-          referendumId: proposal.id,
-          vote: {
-            aye: voteDirection === 'AYE',
-            conviction,
-          },
-          balance: amount,
-          signature,
-          address: account.address,
-        }),
-      });
+        amount,
+        signature,
+        account.address,
+        timestamp // Send timestamp to backend
+      );
 
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
+      if (!result.success) {
         throw new Error(result.error || 'Failed to submit vote');
       }
 
       // Success!
+      const voteType = voteDirection === 'AYE' ? 'SIM' : 'NÃO';
+      toast.success('Voto enviado com sucesso!', {
+        description: `Seu voto ${voteType} na proposta #${proposal.id} foi registrado na blockchain.`,
+        duration: 5000,
+      });
       onSuccess();
       onOpenChange(false);
     } catch (err: any) {
+      if (err.message === 'cancelled') {
+        // User cancelled PIN dialog
+        setProcessingStep(null);
+        return;
+      }
+      const errorMessage = err.message || 'Erro ao enviar voto. Tente novamente.';
       console.error('Error submitting vote:', err);
-      setError(err.message || 'Erro ao enviar voto. Tente novamente.');
+      setError(errorMessage);
+      toast.error('Erro ao votar', {
+        description: errorMessage,
+        duration: 5000,
+      });
     } finally {
       setLoading(false);
+      setProcessingStep(null);
     }
   }, [
     account,
@@ -166,6 +183,7 @@ export function VoteModal({ open, onOpenChange, proposal, onSuccess }: VoteModal
       setAmount('');
       setConviction(1);
       setError(null);
+      setProcessingStep(null);
       onOpenChange(false);
     }
   };
@@ -266,6 +284,14 @@ export function VoteModal({ open, onOpenChange, proposal, onSuccess }: VoteModal
             </Alert>
           )}
 
+          {/* Processing Step Display */}
+          {processingStep && (
+            <Alert>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <AlertDescription>{processingStep}</AlertDescription>
+            </Alert>
+          )}
+
           {/* Error Display */}
           {error && (
             <Alert variant="destructive">
@@ -283,7 +309,7 @@ export function VoteModal({ open, onOpenChange, proposal, onSuccess }: VoteModal
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processando...
+                Aguardando PIN...
               </>
             ) : (
               <>

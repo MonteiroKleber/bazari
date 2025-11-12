@@ -21,6 +21,7 @@ export function PinProvider() {
       confirmText={state.confirmText || 'Confirmar'}
       loading={false}
       error={state.error || undefined}
+      transaction={state.transaction}
       onCancel={() => PinService.cancel()}
       onConfirm={(pin) => void PinService.confirm(pin)}
     />
