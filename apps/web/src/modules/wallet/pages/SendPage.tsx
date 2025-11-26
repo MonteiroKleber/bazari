@@ -287,7 +287,7 @@ export function SendPage() {
         warning: balanceSufficient === false ? 'Saldo insuficiente para completar a transação' : undefined,
       },
       validate: async (p) => {
-        try { await decryptMnemonic(acct.cipher, acct.iv, acct.salt, p, acct.iterations); return null; }
+        try { await decryptMnemonic(acct.cipher, acct.iv, acct.salt, p, acct.authTag, acct.iterations); return null; }
         catch { return t('wallet.send.errors.pinInvalid') as string; }
       },
     });
@@ -315,6 +315,7 @@ export function SendPage() {
         account.iv,
         account.salt,
         pin,
+        account.authTag,
         account.iterations
       );
 

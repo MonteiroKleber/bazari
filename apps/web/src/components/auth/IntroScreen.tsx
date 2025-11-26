@@ -2,13 +2,17 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Shield, Clock, Check, AlertCircle } from 'lucide-react';
+import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 
 interface IntroScreenProps {
   onStart: () => void;
+  onGoogleSuccess?: (credential: string) => void;
+  onGoogleError?: () => void;
 }
 
-export function IntroScreen({ onStart }: IntroScreenProps) {
+export function IntroScreen({ onStart, onGoogleSuccess, onGoogleError }: IntroScreenProps) {
   const { t } = useTranslation();
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
   return (
     <div className="space-y-6">
@@ -20,6 +24,57 @@ export function IntroScreen({ onStart }: IntroScreenProps) {
           {t('auth.create.intro.subtitle', { defaultValue: 'Um processo rápido e seguro para começar no Bazari' })}
         </p>
       </div>
+
+      {/* Google Login Option (if available) */}
+      {googleClientId && onGoogleSuccess && (
+        <GoogleOAuthProvider clientId={googleClientId}>
+          <Card className="border-green-500/30 bg-green-500/5">
+            <CardContent className="pt-6 space-y-4">
+              <div className="text-center">
+                <h3 className="font-semibold text-lg mb-2">
+                  {t('auth.create.intro.social.title', { defaultValue: '✨ Login Social - Rápido e Fácil' })}
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {t('auth.create.intro.social.desc', { defaultValue: 'Crie sua conta com Google em segundos. Sem precisar guardar 12 palavras!' })}
+                </p>
+              </div>
+
+              <div className="flex justify-center">
+                <GoogleLogin
+                  onSuccess={(credentialResponse) => {
+                    if (credentialResponse.credential) {
+                      onGoogleSuccess(credentialResponse.credential);
+                    }
+                  }}
+                  onError={onGoogleError}
+                  theme="outline"
+                  size="large"
+                  text="continue_with"
+                  locale="pt-BR"
+                />
+              </div>
+
+              <p className="text-xs text-center text-muted-foreground">
+                {t('auth.create.intro.social.info', {
+                  defaultValue: '💡 Recupere sua conta fazendo login novamente com Google em qualquer dispositivo'
+                })}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Separator */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                {t('auth.create.intro.or', { defaultValue: 'ou' })}
+              </span>
+            </div>
+          </div>
+        </GoogleOAuthProvider>
+      )}
 
       {/* Informações Chave */}
       <Card className="border-primary/20 bg-primary/5">
@@ -124,9 +179,9 @@ export function IntroScreen({ onStart }: IntroScreenProps) {
         </CardContent>
       </Card>
 
-      {/* Botão Começar */}
-      <Button onClick={onStart} className="w-full h-12 text-base" size="lg">
-        {t('auth.create.intro.startButton', { defaultValue: 'Começar' })} →
+      {/* Botão Seed Phrase (Advanced) */}
+      <Button onClick={onStart} className="w-full h-12 text-base" size="lg" variant="outline">
+        {t('auth.create.intro.startButton', { defaultValue: 'Criar com Seed Phrase (Avançado)' })} →
       </Button>
     </div>
   );

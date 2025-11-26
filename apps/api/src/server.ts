@@ -20,6 +20,7 @@ import { productsRoutes } from './routes/products.js';
 import { servicesRoutes } from './routes/services.js';
 import { searchRoutes } from './routes/search.js';
 import { authRoutes } from './routes/auth.js';
+import { vrRoutes } from './routes/vr.js';
 import { ordersRoutes } from './routes/orders.js';
 import { osEnabled, ensureStoreIndex } from './lib/opensearch.js';
 import { ensureOsIndex } from './lib/opensearchIndex.js';
@@ -53,6 +54,7 @@ import { reportsRoutes } from './routes/reports.js';
 import { userActionsRoutes } from './routes/userActions.js';
 import { analyticsRoutes } from './routes/analytics.js';
 import { setupChatWebSocket } from './chat/ws/server.js';
+import { setupVRWebSocket } from './vr/ws/server.js';
 import chatThreadsRoutes from './chat/routes/chat.threads.js';
 import chatMessagesRoutes from './chat/routes/chat.messages.js';
 import chatUploadRoutes from './chat/routes/chat.upload.js';
@@ -71,6 +73,16 @@ import { deliveryRoutes } from './routes/delivery.js';
 import { deliveryProfileRoutes } from './routes/delivery-profile.js';
 import { deliveryPartnerRoutes } from './routes/delivery-partners.js';
 import { vestingRoutes } from './routes/vesting.js';
+import { escrowRoutes } from './routes/blockchain/escrow.js';
+import { governanceRoutes as blockchainGovernanceRoutes } from './routes/blockchain/governance.js';
+import { commerceRoutes } from './routes/blockchain/commerce.js';
+import { blockchainUtilsRoutes } from './routes/blockchain/utils.js';
+import { BlockchainService } from './services/blockchain/blockchain.service.js';
+import { vrStoresRoute } from './routes/vr/stores.js';
+import { vrEventsRoute } from './routes/vr/events.js';
+import { vrSessionsRoute } from './routes/vr/sessions.js';
+import authSocialRoutes from './routes/auth-social.js';
+import { socialBackupRoutes } from './routes/social-backup.js';
 
 // Import workers with side effects
 import './workers/affiliate-stats.worker.js';
@@ -96,6 +108,17 @@ async function buildApp() {
     storage = new LocalFsStorage();
   }
 
+  // Conectar ao blockchain node
+  // TODO: Revisar como gerenciar server key (atualmente usa //Alice em dev, mnemonic em prod)
+  const blockchainService = BlockchainService.getInstance();
+  try {
+    await blockchainService.connect();
+    console.log('✅ Blockchain connected');
+  } catch (err) {
+    console.error('❌ Blockchain connection failed:', err);
+    // Continuar sem blockchain (degraded mode)
+  }
+
   const loggerInstance = createLogger();
   const app = Fastify({
     logger: loggerInstance as any,
@@ -111,6 +134,13 @@ async function buildApp() {
   await app.register(multipartPlugin);
   await app.register(staticPlugin);
 
+  // Rate limiting global
+  await app.register(import('@fastify/rate-limit'), {
+    global: false, // Aplicar apenas em rotas específicas
+    max: 100,
+    timeWindow: '1 minute'
+  });
+
   // Registrar rotas
   await app.register(healthRoutes, { prisma });
   await app.register(mediaRoutes, { prefix: '/', prisma, storage });
@@ -119,6 +149,8 @@ async function buildApp() {
   await app.register(servicesRoutes, { prefix: '/', prisma });
   await app.register(searchRoutes, { prefix: '/', prisma });
   await app.register(authRoutes, { prefix: '/', prisma });
+  await app.register(authSocialRoutes, { prefix: '/', prisma });
+  await app.register(socialBackupRoutes, { prefix: '/' });
   await app.register(ordersRoutes, { prefix: '/', prisma });
   await app.register(profilesRoutes, { prefix: '/', prisma });
   await app.register(sellersRoutes, { prefix: '/', prisma });
@@ -154,6 +186,9 @@ async function buildApp() {
   await app.register(servicesRoutes, { prefix: '/api', prisma });
   await app.register(searchRoutes, { prefix: '/api', prisma });
   await app.register(authRoutes, { prefix: '/api', prisma });
+  await app.register(authSocialRoutes, { prefix: '/api', prisma });
+  await app.register(socialBackupRoutes, { prefix: '/api' });
+  await app.register(vrRoutes, { prefix: '/api', prisma });
   await app.register(ordersRoutes, { prefix: '/api', prisma });
   await app.register(profilesRoutes, { prefix: '/api', prisma });
   await app.register(sellersRoutes, { prefix: '/api', prisma });
@@ -201,6 +236,17 @@ async function buildApp() {
   await app.register(deliveryRoutes, { prefix: '/api', prisma });
   await app.register(deliveryProfileRoutes, { prefix: '/api', prisma });
   await app.register(deliveryPartnerRoutes, { prefix: '/api', prisma });
+
+  // Blockchain routes (escrow, governance, commerce, utils)
+  await app.register(escrowRoutes, { prefix: '/api/blockchain', prisma });
+  await app.register(blockchainGovernanceRoutes, { prefix: '/api/blockchain' });
+  await app.register(commerceRoutes, { prefix: '/api/blockchain' });
+  await app.register(blockchainUtilsRoutes, { prefix: '/api/blockchain' });
+
+  // VR routes
+  await app.register(vrStoresRoute, { prefix: '/api/vr', prisma });
+  await app.register(vrEventsRoute, { prefix: '/api/vr', prisma });
+  await app.register(vrSessionsRoute, { prefix: '/api/vr', prisma });
 
   // Error handler (dev): log detalhado para diagnosticar 500
   if (process.env.NODE_ENV !== 'production') {
@@ -348,6 +394,9 @@ async function start() {
 
     // Setup Chat WebSocket
     await setupChatWebSocket(app);
+
+    // Setup VR WebSocket
+    await setupVRWebSocket(app, prisma);
 
     // Iniciar servidor
     await app.listen({

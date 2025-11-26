@@ -63,6 +63,7 @@ export function EndorseModal({ open, onOpenChange, proposal, onSuccess }: Endors
               account.iv,
               account.salt,
               candidatePin,
+              account.authTag,
               account.iterations
             );
             return null;
@@ -79,6 +80,7 @@ export function EndorseModal({ open, onOpenChange, proposal, onSuccess }: Endors
         account.iv,
         account.salt,
         pin,
+        account.authTag,
         account.iterations
       );
 

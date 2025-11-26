@@ -19,6 +19,7 @@ export interface VaultAccountRecord {
   cipher: string;
   iv: string;
   salt: string;
+  authTag?: string;
   iterations: number;
   createdAt: string;
   version: number;
@@ -30,6 +31,7 @@ export interface SaveAccountPayload {
   cipher: string;
   iv: string;
   salt: string;
+  authTag?: string;
   iterations: number;
   version?: number;
 }
@@ -100,6 +102,7 @@ function normalizeRecord(record: RawAccountRecord | null | undefined): VaultAcco
     cipher: record.cipher,
     iv: record.iv,
     salt: record.salt,
+    authTag: (record as any).authTag,
     iterations: record.iterations,
     createdAt: record.createdAt ?? new Date().toISOString(),
     version: record.version ?? ACCOUNT_VERSION,
@@ -181,6 +184,7 @@ export async function saveAccount(payload: SaveAccountPayload, options: { setAct
     cipher: payload.cipher,
     iv: payload.iv,
     salt: payload.salt,
+    authTag: payload.authTag ?? (existing as any)?.authTag,
     iterations: payload.iterations,
     createdAt,
     version: payload.version ?? existing?.version ?? ACCOUNT_VERSION,

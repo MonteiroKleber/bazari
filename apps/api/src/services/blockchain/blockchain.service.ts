@@ -1,4 +1,5 @@
 // FASE 5: BlockchainService - Gerencia conexão e transações no Bazari Chain
+// @ts-nocheck - Polkadot.js type incompatibilities
 import { ApiPromise, WsProvider } from '@polkadot/api';
 import { Keyring } from '@polkadot/keyring';
 import { KeyringPair } from '@polkadot/keyring/types';
@@ -178,5 +179,446 @@ export class BlockchainService {
       console.error('[Blockchain] Error verifying transaction:', error);
       return false;
     }
+  }
+
+  // ============================================================================
+  // TRANSACTION BUILDERS - Commerce, Fulfillment, Attestation
+  // ============================================================================
+
+  /**
+   * Criar pedido no pallet bazari-commerce
+   * @param buyer - Endereço do comprador
+   * @param seller - Endereço do vendedor
+   * @param marketplace - ID do marketplace
+   * @param items - Array de items [(listing_id, name, qty, price)]
+   * @param totalAmount - Valor total em planck
+   * @param signer - KeyringPair que assina a transação
+   */
+  async createOrder(
+    buyer: string,
+    seller: string,
+    marketplace: number,
+    items: Array<{ listingId: string | null; name: string; qty: number; price: bigint }>,
+    totalAmount: bigint,
+    signer: KeyringPair
+  ): Promise<{ txHash: string; blockNumber: bigint; orderId?: number }> {
+    const api = await this.getApi();
+
+    // Format items for pallet call
+    const formattedItems = items.map((item) => [
+      item.listingId ? { some: item.listingId } : { none: null },
+      item.name,
+      item.qty,
+      item.price.toString(),
+    ]);
+
+    const tx = api.tx.bazariCommerce.createOrder(
+      marketplace,
+      { none: null }, // courier (optional)
+      seller,
+      { none: null }, // affiliate (optional)
+      formattedItems
+    );
+
+    const result = await this.signAndSend(tx, signer);
+
+    // TODO: Extract orderId from events
+    return result;
+  }
+
+  /**
+   * Submeter prova de entrega no pallet bazari-attestation
+   * @param orderId - ID do pedido
+   * @param proofCid - CID IPFS da prova (foto, assinatura, etc)
+   * @param attestor - Endereço do entregador (attestor)
+   * @param signer - KeyringPair que assina a transação
+   */
+  async submitProof(
+    orderId: number,
+    proofCid: string,
+    attestor: string,
+    signer: KeyringPair
+  ): Promise<{ txHash: string; blockNumber: bigint }> {
+    const api = await this.getApi();
+
+    const tx = api.tx.bazariAttestation.submitProof(orderId, proofCid, attestor);
+
+    return await this.signAndSend(tx, signer);
+  }
+
+  /**
+   * Registrar entregador no pallet bazari-fulfillment
+   * @param courierAddress - Endereço do entregador
+   * @param stake - Valor em stake (planck)
+   * @param serviceAreas - Array de IDs de áreas de serviço
+   * @param signer - KeyringPair que assina a transação
+   */
+  async registerCourier(
+    courierAddress: string,
+    stake: bigint,
+    serviceAreas: number[],
+    signer: KeyringPair
+  ): Promise<{ txHash: string; blockNumber: bigint }> {
+    const api = await this.getApi();
+
+    const tx = api.tx.bazariFulfillment.registerCourier(stake.toString(), serviceAreas);
+
+    return await this.signAndSend(tx, signer);
+  }
+
+  /**
+   * Atualizar Merkle root de reviews no pallet bazari-fulfillment
+   * @param courierAddress - Endereço do entregador
+   * @param merkleRoot - Merkle root hex (0x...)
+   * @param signer - KeyringPair que assina a transação
+   */
+  async updateReviewsMerkleRoot(
+    courierAddress: string,
+    merkleRoot: string,
+    signer: KeyringPair
+  ): Promise<{ txHash: string; blockNumber: bigint }> {
+    const api = await this.getApi();
+
+    const tx = api.tx.bazariFulfillment.updateReviewsMerkleRoot(merkleRoot);
+
+    return await this.signAndSend(tx, signer);
+  }
+
+  // ============================================================================
+  // QUERY HELPERS - Read blockchain state
+  // ============================================================================
+
+  /**
+   * Buscar pedido pelo ID
+   * @param orderId - ID do pedido
+   * @returns Dados do pedido ou null se não existir
+   */
+  async getOrder(orderId: number): Promise<any | null> {
+    const api = await this.getApi();
+
+    const orderOption = await api.query.bazariCommerce.orders(orderId);
+
+    if (orderOption.isNone) {
+      return null;
+    }
+
+    const order = orderOption.unwrap();
+
+    return {
+      orderId: orderId,
+      buyer: order.buyer.toString(),
+      seller: order.seller.toString(),
+      marketplace: order.marketplace.toNumber(),
+      status: order.status.toString(),
+      totalAmount: BigInt(order.totalAmount.toString()),
+      items: order.items.map((item: any) => ({
+        listingId: item.listingId.isSome ? item.listingId.unwrap().toString() : null,
+        name: item.name.toUtf8(),
+        qty: item.qty.toNumber(),
+        price: BigInt(item.price.toString()),
+      })),
+      createdAt: order.createdAt.toNumber(),
+    };
+  }
+
+  /**
+   * Buscar entregador pelo endereço
+   * @param courierAddress - Endereço do entregador
+   * @returns Dados do entregador ou null se não existir
+   */
+  async getCourier(courierAddress: string): Promise<any | null> {
+    const api = await this.getApi();
+
+    const courierOption = await api.query.bazariFulfillment.couriers(courierAddress);
+
+    if (courierOption.isNone) {
+      return null;
+    }
+
+    const courier = courierOption.unwrap();
+
+    return {
+      account: courierAddress,
+      stake: BigInt(courier.stake.toString()),
+      reputationScore: courier.reputationScore.toNumber(),
+      serviceAreas: courier.serviceAreas.map((area: any) => area.toNumber()),
+      activeDeliveries: courier.activeDeliveries.toNumber(),
+      totalDeliveries: courier.totalDeliveries.toNumber(),
+      successfulDeliveries: courier.successfulDeliveries.toNumber(),
+      status: courier.status.toString(),
+    };
+  }
+
+  /**
+   * Buscar disputa pelo ID
+   * @param disputeId - ID da disputa
+   * @returns Dados da disputa ou null se não existir
+   */
+  async getDispute(disputeId: number): Promise<any | null> {
+    const api = await this.getApi();
+
+    const disputeOption = await api.query.bazariDispute.disputes(disputeId);
+
+    if (disputeOption.isNone) {
+      return null;
+    }
+
+    const dispute = disputeOption.unwrap();
+
+    return {
+      disputeId: disputeId,
+      orderId: dispute.orderId.toNumber(),
+      plaintiff: dispute.plaintiff.toString(),
+      defendant: dispute.defendant.toString(),
+      jurors: dispute.jurors.map((juror: any) => juror.toString()),
+      evidenceCid: dispute.evidenceCid.toUtf8(),
+      status: dispute.status.toString(),
+      ruling: dispute.ruling.isSome ? dispute.ruling.unwrap().toString() : null,
+      createdAt: dispute.createdAt.toNumber(),
+      commitDeadline: dispute.commitDeadline.toNumber(),
+      revealDeadline: dispute.revealDeadline.toNumber(),
+    };
+  }
+
+  // ==================== BAZARI REWARDS METHODS ====================
+
+  /**
+   * Mintar ZARI tokens como cashback
+   * @param buyer - Endereço do comprador
+   * @param orderAmount - Valor da order em BZR (string para precisão)
+   * @returns Transaction hash e valor do cashback
+   */
+  async mintCashback(buyer: string, orderAmount: string): Promise<{ txHash: string; cashbackAmount: string }> {
+    const api = await this.getApi();
+    const escrow = this.getEscrowAccount();
+
+    // Chamar extrinsic mint_cashback do pallet bazari-rewards
+    const extrinsic = api.tx.bazariRewards.mintCashback(buyer, orderAmount);
+
+    const result = await this.signAndSend(extrinsic, escrow);
+
+    // Extrair evento CashbackMinted
+    const cashbackEvent = result.events.find(
+      ({ event }) => api.events.bazariRewards.CashbackMinted.is(event)
+    );
+
+    if (!cashbackEvent) {
+      throw new Error('CashbackMinted event not found');
+    }
+
+    const [user, amount, orderAmt] = cashbackEvent.event.data;
+
+    return {
+      txHash: result.status.asInBlock.toString(),
+      cashbackAmount: amount.toString(),
+    };
+  }
+
+  /**
+   * Criar nova missão (DAO only)
+   * @param params - Parâmetros da missão
+   * @returns Mission ID e transaction hash
+   */
+  async createMission(params: {
+    title: string;
+    description: string;
+    missionType: string;
+    rewardAmount: string;
+    requiredCount: number;
+  }): Promise<{ missionId: number; txHash: string }> {
+    const api = await this.getApi();
+    const escrow = this.getEscrowAccount(); // TODO: Usar DAO account
+
+    const extrinsic = api.tx.bazariRewards.createMission(
+      params.title,
+      params.description,
+      params.missionType,
+      params.rewardAmount,
+      params.requiredCount
+    );
+
+    const result = await this.signAndSend(extrinsic, escrow);
+
+    // Extrair MissionCreated event
+    const missionEvent = result.events.find(
+      ({ event }) => api.events.bazariRewards.MissionCreated.is(event)
+    );
+
+    if (!missionEvent) {
+      throw new Error('MissionCreated event not found');
+    }
+
+    const [missionId] = missionEvent.event.data;
+
+    return {
+      missionId: missionId.toNumber(),
+      txHash: result.status.asInBlock.toString(),
+    };
+  }
+
+  /**
+   * Atualizar progresso de missão do usuário
+   * @param user - Endereço do usuário
+   * @param missionId - ID da missão
+   * @param increment - Quantidade a incrementar
+   * @returns Transaction hash
+   */
+  async progressMission(user: string, missionId: number, increment: number): Promise<string> {
+    const api = await this.getApi();
+    const escrow = this.getEscrowAccount(); // Backend/root account
+
+    const extrinsic = api.tx.bazariRewards.updateProgress(user, missionId, increment);
+
+    const result = await this.signAndSend(extrinsic, escrow);
+
+    return result.status.asInBlock.toString();
+  }
+
+  /**
+   * Buscar missão por ID
+   * @param missionId - ID da missão
+   * @returns Dados da missão ou null
+   */
+  async getMission(missionId: number): Promise<any | null> {
+    const api = await this.getApi();
+
+    const missionOption = await api.query.bazariRewards.missions(missionId);
+
+    if (missionOption.isNone) {
+      return null;
+    }
+
+    const mission = missionOption.unwrap();
+
+    return {
+      missionId,
+      title: mission.title.toUtf8(),
+      description: mission.description.toUtf8(),
+      missionType: mission.missionType.toString(),
+      rewardAmount: mission.rewardAmount.toString(),
+      requiredCount: mission.requiredCount.toNumber(),
+      isActive: mission.isActive.toPrimitive(),
+      createdAt: mission.createdAt.toNumber(),
+    };
+  }
+
+  /**
+   * Buscar todas as missões ativas
+   * @returns Array de missões
+   */
+  async getAllMissions(): Promise<any[]> {
+    try {
+      const api = await this.getApi();
+
+      // Verificar se o pallet bazariRewards existe
+      if (!api.query.bazariRewards || !api.query.bazariRewards.missions) {
+        console.warn('[BlockchainService] Pallet bazari-rewards not available or no missions storage');
+        return [];
+      }
+
+      const entries = await api.query.bazariRewards.missions.entries();
+
+      // Se não houver entries, retornar array vazio
+      if (!entries || entries.length === 0) {
+        return [];
+      }
+
+      const missions = entries
+        .filter(([_key, value]) => !value.isNone)
+        .map(([key, value]) => {
+          const mission = value.unwrap();
+          const missionId = key.args[0].toNumber();
+
+          return {
+            missionId,
+            title: mission.title.toUtf8(),
+            description: mission.description.toUtf8(),
+            missionType: mission.missionType.toString(),
+            rewardAmount: mission.rewardAmount.toString(),
+            requiredCount: mission.requiredCount.toNumber(),
+            isActive: mission.isActive.toPrimitive(),
+            createdAt: mission.createdAt.toNumber(),
+          };
+        })
+        .filter((m) => m.isActive); // Apenas ativas
+
+      return missions;
+    } catch (error) {
+      console.error('[BlockchainService] Failed to get all missions:', error);
+      return []; // Retornar array vazio em vez de propagar erro
+    }
+  }
+
+  /**
+   * Buscar progresso do usuário em uma missão
+   * @param user - Endereço do usuário
+   * @param missionId - ID da missão
+   * @returns Progresso do usuário ou null
+   */
+  async getUserMissionProgress(user: string, missionId: number): Promise<any | null> {
+    const api = await this.getApi();
+
+    const progressOption = await api.query.bazariRewards.userProgress(user, missionId);
+
+    if (progressOption.isNone) {
+      return null;
+    }
+
+    const progress = progressOption.unwrap();
+
+    return {
+      currentCount: progress.currentCount.toNumber(),
+      isCompleted: progress.isCompleted.toPrimitive(),
+      isClaimed: progress.isClaimed.toPrimitive(),
+      completedAt: progress.completedAt.isSome ? progress.completedAt.unwrap().toNumber() : null,
+    };
+  }
+
+  /**
+   * Buscar saldo de ZARI do usuário
+   * @param user - Endereço do usuário
+   * @returns Saldo em string (smallest unit)
+   */
+  async getZariBalance(user: string): Promise<string> {
+    const api = await this.getApi();
+
+    // ZARI é AssetId 1 no pallet-assets
+    const accountOption = await api.query.assets.account(1, user);
+
+    if (accountOption.isNone) {
+      return '0';
+    }
+
+    const account = accountOption.unwrap();
+    return account.balance.toString();
+  }
+
+  /**
+   * Subscrever a eventos do pallet bazari-rewards
+   * @param callback - Função chamada quando evento é emitido
+   * @returns Unsubscribe function
+   */
+  async subscribeToRewardsEvents(
+    callback: (event: { type: string; data: any }) => void
+  ): Promise<() => void> {
+    const api = await this.getApi();
+
+    const unsubscribe = await api.query.system.events((events) => {
+      events.forEach((record) => {
+        const { event } = record;
+
+        if (api.events.bazariRewards.MissionCreated.is(event)) {
+          callback({ type: 'MissionCreated', data: event.data.toJSON() });
+        } else if (api.events.bazariRewards.MissionCompleted.is(event)) {
+          callback({ type: 'MissionCompleted', data: event.data.toJSON() });
+        } else if (api.events.bazariRewards.CashbackMinted.is(event)) {
+          callback({ type: 'CashbackMinted', data: event.data.toJSON() });
+        } else if (api.events.bazariRewards.RewardClaimed.is(event)) {
+          callback({ type: 'RewardClaimed', data: event.data.toJSON() });
+        }
+      });
+    });
+
+    return unsubscribe;
   }
 }

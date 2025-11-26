@@ -77,6 +77,7 @@ export function VoteModal({ open, onOpenChange, proposal, onSuccess }: VoteModal
               account.iv,
               account.salt,
               candidatePin,
+              account.authTag,
               account.iterations
             );
             return null; // ✅ PIN válido
@@ -93,6 +94,7 @@ export function VoteModal({ open, onOpenChange, proposal, onSuccess }: VoteModal
         account.iv,
         account.salt,
         pin,
+        account.authTag,
         account.iterations
       );
 

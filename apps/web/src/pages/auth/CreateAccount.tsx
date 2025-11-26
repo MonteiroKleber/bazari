@@ -7,8 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ArrowLeft, Shield, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
-import { buildSiwsMessage, encryptMnemonic, fetchNonce, fetchProfile, loginSiws, saveAccount, useKeyring } from '@/modules/auth';
+import { buildSiwsMessage, encryptMnemonic, fetchNonce, fetchProfile, loginSiws, saveAccount, useKeyring, hashPin, hasEncryptedSeed, setSession, decryptMnemonicFlexible } from '@/modules/auth';
+import { createSocialBackup } from '@/modules/auth/api';
+import { verifyGoogleToken, storeAccessToken } from '@/modules/auth/social/google-login';
 import { OnboardingProgress } from '@/components/auth/OnboardingProgress';
 import { IntroScreen } from '@/components/auth/IntroScreen';
 import { SeedRevealToggle } from '@/components/auth/SeedRevealToggle';
@@ -52,6 +55,10 @@ export function CreateAccount() {
   const [pinValue, setPinValue] = useState('');
   const [accountName, setAccountName] = useState('');
   const [previewAddress, setPreviewAddress] = useState('');
+  const [isSocialFlow, setIsSocialFlow] = useState(false);
+  const [socialAccountName, setSocialAccountName] = useState('');
+  const [backupStatus, setBackupStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [backupMessage, setBackupMessage] = useState('');
 
   // Confirmation checkboxes state
   const [savedConfirmed, setSavedConfirmed] = useState(false);
@@ -59,8 +66,14 @@ export function CreateAccount() {
 
   // Word chip selection states for Step 2
   const [selectedWords, setSelectedWords] = useState<Record<number, string>>({});
+  const [isTraditionalFlow, setIsTraditionalFlow] = useState(false);
+  const [showSeedModal, setShowSeedModal] = useState(false);
 
+  // Gerar seed SOMENTE para fluxo tradicional (quando usuário clica "Começar")
+  // OAuth flow gera seed posteriormente, quando necessário
   useEffect(() => {
+    if (!isTraditionalFlow) return; // Não gerar seed automaticamente
+
     let isMounted = true;
     (async () => {
       const phrase = await generateMnemonic();
@@ -72,7 +85,7 @@ export function CreateAccount() {
     return () => {
       isMounted = false;
     };
-  }, [generateMnemonic]);
+  }, [generateMnemonic, isTraditionalFlow]);
 
   // Generate preview address when mnemonic is ready
   useEffect(() => {
@@ -104,6 +117,7 @@ export function CreateAccount() {
     },
   });
 
+  // Loading screen - Mostrar apenas se não houver mnemonic
   if (!mnemonic.length && step !== 'intro') {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-background via-background to-muted/30">
@@ -113,7 +127,50 @@ export function CreateAccount() {
   }
 
   const handleIntroComplete = () => {
+    setIsTraditionalFlow(true); // Ativar geração de seed para fluxo tradicional
     setStep(1);
+  };
+
+  const handleGoogleSuccess = async (credential: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // FLUXO OAUTH MULTI-CONTA:
+      // /auth/create SEMPRE cria NOVA conta
+      // Restauração agora é em /auth/import
+
+      // 1. Gerar seed localmente (cada conta tem seu próprio seed)
+      const oauthMnemonic = await generateMnemonic();
+      const oauthWords = oauthMnemonic.trim().split(' ').map((word) => word.toLowerCase());
+      const oauthAddress = await deriveAddress(oauthMnemonic);
+
+      // 2. Autenticar com Google (backend cria user OAuth se não existir)
+      const response = await verifyGoogleToken(credential, oauthAddress);
+      storeAccessToken(response.accessToken, response.expiresIn);
+
+      // 3. Popular sessão para chamadas autenticadas
+      setSession({
+        accessToken: response.accessToken,
+        accessTokenExpiresIn: response.expiresIn,
+        user: { id: response.user.id, address: response.user.address },
+      });
+
+      // 4. Ir direto para criação de nova conta (accountName + PIN)
+      setMnemonic(oauthWords);
+      setPreviewAddress(oauthAddress);
+      setIsSocialFlow(true);
+      setStep(3); // Pular para PIN (accountName será pedido antes do PIN)
+    } catch (err) {
+      console.error('[Google Login] Error:', err);
+      setError(err instanceof Error ? err.message : t('auth.errors.generic'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setError(t('auth.errors.googleLoginFailed', { defaultValue: 'Falha no login com Google' }));
   };
 
   const handleStep1Next = () => {
@@ -156,6 +213,7 @@ export function CreateAccount() {
   };
 
   const handlePinSubmit = pinForm.handleSubmit(async (values) => {
+    // Validação PIN
     if (values.pin !== values.confirmPin) {
       setError(t('auth.errors.pinMismatch', { defaultValue: 'Os PINs não coincidem' }));
       return;
@@ -167,6 +225,79 @@ export function CreateAccount() {
     }
 
     setError(null);
+
+    // NOVO USUÁRIO OAUTH: Finalizar direto sem passar por step 4
+    if (isSocialFlow) {
+      try {
+        setLoading(true);
+
+        // Validar accountName
+        if (!socialAccountName.trim()) {
+          setError('Por favor, dê um nome para esta conta');
+          return;
+        }
+
+        // Cifrar mnemonic com PIN
+        const mnemonicPhrase = mnemonic.join(' ');
+        const encrypted = await encryptMnemonic(mnemonicPhrase, values.pin);
+        const address = previewAddress || await deriveAddress(mnemonicPhrase);
+
+        // Salvar localmente
+        await saveAccount({
+          address,
+          cipher: encrypted.cipher,
+          iv: encrypted.iv,
+          salt: encrypted.salt,
+          authTag: encrypted.authTag,
+          iterations: encrypted.iterations,
+        });
+
+        // Salvar backup E2EE no servidor (multi-conta)
+        setBackupStatus('saving');
+        setBackupMessage('Salvando backup criptografado...');
+
+        try {
+          await createSocialBackup({
+            accountName: socialAccountName.trim(),
+            encryptedMnemonic: encrypted.cipher,
+            iv: encrypted.iv,
+            salt: encrypted.salt,
+            authTag: encrypted.authTag,
+            iterations: encrypted.iterations,
+            address,
+          });
+          setBackupStatus('success');
+        } catch (backupError) {
+          console.error('[OAuth Backup] Save failed:', backupError);
+          setBackupStatus('error');
+          // Não bloquear criação se backup falhar
+        }
+
+        // Fazer login SIWS para criar perfil
+        const nonce = await fetchNonce(address);
+        const message = buildSiwsMessage(address, nonce);
+        const signature = await signMessage(mnemonicPhrase, message);
+
+        await loginSiws({
+          address,
+          message,
+          signature,
+        });
+
+        await fetchProfile().catch(() => null);
+
+        // Redirecionar direto para /app (zero-friction)
+        navigate('/app');
+        return;
+      } catch (err) {
+        console.error('[OAuth Account Creation] Error:', err);
+        setError(err instanceof Error ? err.message : t('auth.errors.generic'));
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // FLUXO TRADICIONAL: Ir para step 4 (review)
     setPinValue(values.pin);
     setStep(4);
   });
@@ -186,8 +317,34 @@ export function CreateAccount() {
         cipher: encrypted.cipher,
         iv: encrypted.iv,
         salt: encrypted.salt,
+        authTag: encrypted.authTag,
         iterations: encrypted.iterations,
       });
+
+      if (isSocialFlow) {
+        // Salvar backup cifrado (blob opaco) com feedback visual
+        try {
+          setBackupStatus('saving');
+          setBackupMessage(t('auth.backup.saving', { defaultValue: 'Salvando backup criptografado...' }));
+
+          await saveSocialBackup({
+            encryptedMnemonic: encrypted.cipher,
+            iv: encrypted.iv,
+            salt: encrypted.salt,
+            authTag: encrypted.authTag,
+            iterations: encrypted.iterations,
+            address,
+          });
+
+          setBackupStatus('success');
+          setBackupMessage(t('auth.backup.success', { defaultValue: '✅ Backup salvo com sucesso!' }));
+        } catch (backupError) {
+          setBackupStatus('error');
+          setBackupMessage(t('auth.backup.error', { defaultValue: '❌ Erro ao salvar backup. Você ainda pode usar sua seed phrase.' }));
+          console.error('[Social Backup] Save failed:', backupError);
+          // Não interromper o fluxo - continuar mesmo se backup falhar
+        }
+      }
 
       const nonce = await fetchNonce(address);
       const message = buildSiwsMessage(address, nonce);
@@ -252,7 +409,11 @@ export function CreateAccount() {
 
             {/* INTRO SCREEN */}
             {step === 'intro' && (
-              <IntroScreen onStart={handleIntroComplete} />
+              <IntroScreen
+                onStart={handleIntroComplete}
+                onGoogleSuccess={handleGoogleSuccess}
+                onGoogleError={handleGoogleError}
+              />
             )}
 
             {/* STEP 1: Seed Phrase Backup */}
@@ -391,41 +552,94 @@ export function CreateAccount() {
                 <div className="text-center space-y-2">
                   <Lock className="h-12 w-12 text-primary mx-auto mb-2" />
                   <h2 className="text-xl font-semibold">
-                    {t('auth.create.step3.title', { defaultValue: 'Criar PIN de Proteção' })}
+                    {isSocialFlow
+                      ? t('auth.create.step3.titleSocial', { defaultValue: '🔐 Proteja Sua Conta' })
+                      : t('auth.create.step3.title', { defaultValue: 'Criar PIN de Proteção' })
+                    }
                   </h2>
-                  <p className="text-sm text-muted-foreground">
-                    {t('auth.create.step3.subtitle', { defaultValue: 'Proteja sua conta com um PIN forte' })}
+                  <p className="text-sm text-muted-foreground max-w-lg mx-auto">
+                    {isSocialFlow
+                      ? t('auth.create.step3.subtitleSocial', { defaultValue: 'Dê um nome para sua conta e crie um PIN de 8 dígitos. Você precisará dele para acessar em novos dispositivos.' })
+                      : t('auth.create.step3.subtitle', { defaultValue: 'Proteja sua conta com um PIN forte' })
+                    }
                   </p>
                 </div>
 
-                {/* PIN Context Card */}
-                <Card className="border-primary/20 bg-primary/5">
-                  <CardContent className="pt-6">
-                    <div className="space-y-3 text-sm">
-                      <p className="font-semibold flex items-center gap-2">
-                        <span>ℹ️</span>
-                        {t('auth.create.step3.context.title', { defaultValue: 'Para que serve o PIN?' })}
-                      </p>
-                      <ul className="space-y-2 text-muted-foreground">
-                        <li className="flex items-start gap-2">
-                          <span className="text-primary">•</span>
-                          {t('auth.create.step3.context.point1', { defaultValue: 'Você vai digitar TODA VEZ que abrir o app' })}
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-primary">•</span>
-                          {t('auth.create.step3.context.point2', { defaultValue: 'Protege suas chaves armazenadas no dispositivo' })}
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-primary">•</span>
-                          {t('auth.create.step3.context.point3', { defaultValue: 'Se esquecer: use sua seed phrase (12 palavras) para recuperar' })}
-                        </li>
-                      </ul>
-                    </div>
-                  </CardContent>
-                </Card>
+                {/* PIN Context Card - Simplificado para OAuth */}
+                {isSocialFlow ? (
+                  <Card className="border-green-500/20 bg-green-500/5">
+                    <CardContent className="pt-6">
+                      <div className="space-y-3 text-sm">
+                        <p className="font-semibold flex items-center gap-2 text-green-700">
+                          <span>✨</span>
+                          Por que o PIN?
+                        </p>
+                        <ul className="space-y-2 text-muted-foreground">
+                          <li className="flex items-start gap-2">
+                            <span className="text-green-600">•</span>
+                            Seu backup é criptografado com este PIN
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="text-green-600">•</span>
+                            Necessário para acessar em novos dispositivos
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="text-orange-500">⚠️</span>
+                            <span className="font-semibold text-orange-600">
+                              Nem nós conseguimos recuperar se você esquecer
+                            </span>
+                          </li>
+                        </ul>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : !isSocialFlow ? (
+                  <Card className="border-primary/20 bg-primary/5">
+                    <CardContent className="pt-6">
+                      <div className="space-y-3 text-sm">
+                        <p className="font-semibold flex items-center gap-2">
+                          <span>ℹ️</span>
+                          {t('auth.create.step3.context.title', { defaultValue: 'Para que serve o PIN?' })}
+                        </p>
+                        <ul className="space-y-2 text-muted-foreground">
+                          <li className="flex items-start gap-2">
+                            <span className="text-primary">•</span>
+                            {t('auth.create.step3.context.point1', { defaultValue: 'Você vai digitar TODA VEZ que abrir o app' })}
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="text-primary">•</span>
+                            {t('auth.create.step3.context.point2', { defaultValue: 'Protege suas chaves armazenadas no dispositivo' })}
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="text-primary">•</span>
+                            {t('auth.create.step3.context.point3', { defaultValue: 'Se esquecer: use sua seed phrase (12 palavras) para recuperar' })}
+                          </li>
+                        </ul>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : null}
 
                 <form className="space-y-6" onSubmit={handlePinSubmit}>
                   <div className="space-y-4">
+                    {/* Account Name - Apenas para OAuth */}
+                    {isSocialFlow && (
+                      <div className="space-y-2">
+                        <Label htmlFor="accountName">
+                          Nome da Conta
+                          <span className="text-muted-foreground ml-1">(ex: Conta Principal, Loja Online)</span>
+                        </Label>
+                        <Input
+                          id="accountName"
+                          type="text"
+                          placeholder="Minha Conta"
+                          value={socialAccountName}
+                          onChange={(e) => setSocialAccountName(e.target.value)}
+                          required
+                        />
+                      </div>
+                    )}
+
                     <div className="space-y-2">
                       <Label htmlFor="pin">
                         {t('auth.pin.create', { defaultValue: 'Crie seu PIN' })}
@@ -438,6 +652,7 @@ export function CreateAccount() {
                         type="password"
                         inputMode="numeric"
                         autoComplete="new-password"
+                        placeholder={isSocialFlow ? '••••••••' : ''}
                         {...pinForm.register('pin', { required: true })}
                         onChange={(e) => {
                           pinForm.register('pin').onChange(e);
@@ -456,22 +671,44 @@ export function CreateAccount() {
                         type="password"
                         inputMode="numeric"
                         autoComplete="new-password"
+                        placeholder={isSocialFlow ? '••••••••' : ''}
                         {...pinForm.register('confirmPin', { required: true })}
                       />
                     </div>
                   </div>
 
+                  {/* Opção Avançada: Ver Seed (apenas OAuth) */}
+                  {isSocialFlow && mnemonic.length > 0 && (
+                    <div className="text-center">
+                      <Button
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        onClick={() => setShowSeedModal(true)}
+                        className="text-muted-foreground hover:text-primary"
+                      >
+                        🔍 {t('auth.create.step3.viewSeedAdvanced', { defaultValue: 'Avançado: Ver minhas palavras secretas' })}
+                      </Button>
+                    </div>
+                  )}
+
                   <div className="flex gap-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setStep(2)}
-                      className="flex-1"
-                    >
-                      ← {t('common.back', { defaultValue: 'Voltar' })}
-                    </Button>
-                    <Button type="submit" className="flex-1">
-                      {t('auth.actions.next', { defaultValue: 'Próximo' })} →
+                    {/* Botão Voltar - Apenas para fluxo tradicional */}
+                    {!isSocialFlow && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setStep(2)}
+                        className="flex-1"
+                      >
+                        ← {t('common.back', { defaultValue: 'Voltar' })}
+                      </Button>
+                    )}
+                    <Button type="submit" className={isSocialFlow ? 'w-full h-12 text-base font-semibold' : 'flex-1'}>
+                      {isSocialFlow
+                        ? t('auth.actions.createAccountSocial', { defaultValue: '✨ Criar Conta' })
+                        : t('auth.actions.next', { defaultValue: 'Próximo' }) + ' →'
+                      }
                     </Button>
                   </div>
                 </form>
@@ -500,7 +737,36 @@ export function CreateAccount() {
                   onAccountNameChange={setAccountName}
                 />
 
-                {/* Final Reminder */}
+                {/* Backup Status Card - Only for social flow */}
+                {isSocialFlow && backupStatus !== 'idle' && (
+                  <Card className={
+                    backupStatus === 'success' ? 'border-green-500/50 bg-green-500/5' :
+                    backupStatus === 'error' ? 'border-orange-500/50 bg-orange-500/5' :
+                    'border-blue-500/50 bg-blue-500/5'
+                  }>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center gap-3">
+                        {backupStatus === 'saving' && (
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" />
+                        )}
+                        <p className={`text-sm font-semibold ${
+                          backupStatus === 'success' ? 'text-green-600' :
+                          backupStatus === 'error' ? 'text-orange-600' :
+                          'text-blue-600'
+                        }`}>
+                          {backupMessage}
+                        </p>
+                      </div>
+                      {backupStatus === 'success' && (
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {t('auth.backup.successDetail', { defaultValue: 'Seu backup E2EE foi salvo. Você pode restaurá-lo em qualquer dispositivo usando login Google + PIN.' })}
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Final Reminder - Ajustado para fluxo social */}
                 <Card className="border-orange-500/50 bg-orange-500/5">
                   <CardContent className="pt-6">
                     <div className="flex items-start gap-3">
@@ -512,7 +778,11 @@ export function CreateAccount() {
                         <ul className="space-y-1 text-muted-foreground list-disc list-inside">
                           <li>{t('auth.create.step4.reminder.point1', { defaultValue: 'Guarde suas 12 palavras em local MUITO seguro' })}</li>
                           <li>{t('auth.create.step4.reminder.point2', { defaultValue: 'Seu PIN será pedido toda vez que abrir o app' })}</li>
-                          <li>{t('auth.create.step4.reminder.point3', { defaultValue: 'Se esquecer o PIN, use as 12 palavras para recuperar' })}</li>
+                          {isSocialFlow ? (
+                            <li>{t('auth.create.step4.reminder.point3Social', { defaultValue: 'Para restaurar em novo dispositivo: login Google + digite o PIN' })}</li>
+                          ) : (
+                            <li>{t('auth.create.step4.reminder.point3', { defaultValue: 'Se esquecer o PIN, use as 12 palavras para recuperar' })}</li>
+                          )}
                         </ul>
                       </div>
                     </div>
@@ -555,6 +825,48 @@ export function CreateAccount() {
             )}
           </CardContent>
         </Card>
+
+        {/* Modal Avançado: Ver Seed (OAuth) */}
+        <Dialog open={showSeedModal} onOpenChange={setShowSeedModal}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5 text-orange-500" />
+                {t('auth.create.seedModal.title', { defaultValue: 'Suas Palavras Secretas' })}
+              </DialogTitle>
+              <DialogDescription>
+                {t('auth.create.seedModal.description', { defaultValue: 'Guarde estas 12 palavras em ordem. Elas são a única forma de recuperar sua conta se você perder o PIN.' })}
+              </DialogDescription>
+            </DialogHeader>
+
+            <Card className="border-orange-500/50 bg-orange-500/5">
+              <CardContent className="pt-6 space-y-3">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-orange-500 flex-shrink-0 mt-0.5" />
+                  <div className="space-y-2 text-sm">
+                    <p className="font-semibold text-orange-500">
+                      {t('auth.create.seedModal.warning.title', { defaultValue: '⚠️ ATENÇÃO!' })}
+                    </p>
+                    <ul className="space-y-1 text-muted-foreground list-disc list-inside">
+                      <li>{t('auth.create.seedModal.warning.point1', { defaultValue: 'Guarde em local SEGURO (cofre, gerenciador de senhas)' })}</li>
+                      <li>{t('auth.create.seedModal.warning.point2', { defaultValue: 'NUNCA compartilhe com ninguém' })}</li>
+                      <li>{t('auth.create.seedModal.warning.point3', { defaultValue: 'Quem tiver essas palavras terá acesso TOTAL à sua conta' })}</li>
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <SeedRevealToggle mnemonic={mnemonic} />
+            <SeedBackupTools mnemonic={mnemonic} />
+
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setShowSeedModal(false)}>
+                {t('common.close', { defaultValue: 'Fechar' })}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

@@ -97,11 +97,32 @@ export async function rotateRefresh(
   return issueRefresh(reply, prisma, user);
 }
 
+export interface VRTokenPayload {
+  sub: string;
+  type: 'vr-exchange';
+  iat: number;
+  exp: number;
+}
+
 export function verifyAccessToken(token: string): AccessTokenPayload {
   try {
     const decoded = jwt.verify(token, authConfig.jwtSecret as Secret) as AccessTokenPayload;
 
     if (decoded.type !== 'access') {
+      throw new Error('Tipo de token inválido.');
+    }
+
+    return decoded;
+  } catch (error) {
+    throw new Error('Token JWT inválido.');
+  }
+}
+
+export function verifyVRToken(token: string): VRTokenPayload {
+  try {
+    const decoded = jwt.verify(token, authConfig.jwtSecret as Secret) as VRTokenPayload;
+
+    if (decoded.type !== 'vr-exchange') {
       throw new Error('Tipo de token inválido.');
     }
 

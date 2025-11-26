@@ -2,6 +2,7 @@
  * BlockchainEventsService - Event listener para eventos da blockchain
  * Escuta eventos em tempo real e notifica callbacks registrados
  */
+// @ts-nocheck - Polkadot.js type incompatibilities
 import { ApiPromise } from '@polkadot/api';
 import { BlockchainService } from './blockchain.service.js';
 import type { EventRecord } from '@polkadot/types/interfaces';
@@ -102,6 +103,41 @@ export interface DemocracyExecutedEvent {
   txHash: string;
 }
 
+// Commerce Events
+export interface OrderCreatedEvent {
+  orderId: number;
+  buyer: string;
+  seller: string;
+  marketplace: number;
+  totalAmount: string;
+  blockNumber: number;
+  txHash: string;
+}
+
+export interface ProofSubmittedEvent {
+  orderId: number;
+  attestor: string;
+  proofCid: string;
+  blockNumber: number;
+  txHash: string;
+}
+
+export interface DisputeOpenedEvent {
+  disputeId: number;
+  orderId: number;
+  plaintiff: string;
+  blockNumber: number;
+  txHash: string;
+}
+
+export interface CommissionRecordedEvent {
+  saleId: number;
+  amount: string;
+  recipient: string;
+  blockNumber: number;
+  txHash: string;
+}
+
 export type EventHandler<T> = (event: T) => Promise<void> | void;
 
 export interface EventHandlers {
@@ -118,6 +154,11 @@ export interface EventHandlers {
   onDemocracyPassed?: EventHandler<DemocracyPassedEvent>;
   onDemocracyNotPassed?: EventHandler<DemocracyNotPassedEvent>;
   onDemocracyExecuted?: EventHandler<DemocracyExecutedEvent>;
+  // Commerce Events
+  onOrderCreated?: EventHandler<OrderCreatedEvent>;
+  onProofSubmitted?: EventHandler<ProofSubmittedEvent>;
+  onDisputeOpened?: EventHandler<DisputeOpenedEvent>;
+  onCommissionRecorded?: EventHandler<CommissionRecordedEvent>;
   onError?: (error: Error) => void;
 }
 
@@ -210,6 +251,14 @@ export class BlockchainEventsService {
 
               // Process treasury events (for automatic payouts)
               this.processTreasuryEvents(
+                extrinsicEvents,
+                blockNumber,
+                txHash,
+                api
+              );
+
+              // Process commerce events (OrderCreated, ProofSubmitted, DisputeOpened)
+              this.processCommerceEvents(
                 extrinsicEvents,
                 blockNumber,
                 txHash,
@@ -659,6 +708,143 @@ export class BlockchainEventsService {
         }
       } catch (error) {
         console.error(`[BlockchainEvents] Error processing ${event.method} event:`, error);
+        if (this.handlers.onError) {
+          this.handlers.onError(error as Error);
+        }
+      }
+    });
+  }
+
+  /**
+   * Processar eventos de Commerce (OrderCreated, ProofSubmitted, DisputeOpened)
+   */
+  private processCommerceEvents(
+    events: EventRecord[],
+    blockNumber: number,
+    txHash: string,
+    api: ApiPromise
+  ): void {
+    events.forEach((record: EventRecord) => {
+      const { event } = record;
+
+      try {
+        switch (event.section) {
+          case 'bazariCommerce': {
+            if (event.method === 'OrderCreated') {
+              const [orderId, buyer, seller, marketplace, totalAmount] = event.data as any;
+
+              const orderCreatedEvent: OrderCreatedEvent = {
+                orderId: orderId.toNumber(),
+                buyer: buyer.toString(),
+                seller: seller.toString(),
+                marketplace: marketplace.toNumber(),
+                totalAmount: totalAmount.toString(),
+                blockNumber,
+                txHash,
+              };
+
+              if (this.handlers.onOrderCreated) {
+                console.log('[BlockchainEvents] BazariCommerce.OrderCreated:', {
+                  orderId: orderCreatedEvent.orderId,
+                  buyer: orderCreatedEvent.buyer,
+                  seller: orderCreatedEvent.seller,
+                  amount: (parseFloat(orderCreatedEvent.totalAmount) / 1e12).toFixed(4) + ' BZR',
+                  block: blockNumber,
+                });
+
+                Promise.resolve(this.handlers.onOrderCreated(orderCreatedEvent)).catch((err: any) => {
+                  console.error('[BlockchainEvents] Error in onOrderCreated handler:', err);
+                });
+              }
+            } else if (event.method === 'CommissionRecorded') {
+              const [saleId, amount, recipient] = event.data as any;
+
+              const commissionRecordedEvent: CommissionRecordedEvent = {
+                saleId: saleId.toNumber(),
+                amount: amount.toString(),
+                recipient: recipient.toString(),
+                blockNumber,
+                txHash,
+              };
+
+              if (this.handlers.onCommissionRecorded) {
+                console.log('[BlockchainEvents] BazariCommerce.CommissionRecorded:', {
+                  saleId: commissionRecordedEvent.saleId,
+                  amount: (parseFloat(commissionRecordedEvent.amount) / 1e12).toFixed(4) + ' BZR',
+                  recipient: commissionRecordedEvent.recipient,
+                  block: blockNumber,
+                });
+
+                Promise.resolve(this.handlers.onCommissionRecorded(commissionRecordedEvent)).catch((err: any) => {
+                  console.error('[BlockchainEvents] Error in onCommissionRecorded handler:', err);
+                });
+              }
+            }
+            break;
+          }
+
+          case 'bazariAttestation': {
+            if (event.method === 'ProofSubmitted') {
+              const [orderId, attestor, proofCid] = event.data as any;
+
+              const proofSubmittedEvent: ProofSubmittedEvent = {
+                orderId: orderId.toNumber(),
+                attestor: attestor.toString(),
+                proofCid: proofCid.toUtf8(),
+                blockNumber,
+                txHash,
+              };
+
+              if (this.handlers.onProofSubmitted) {
+                console.log('[BlockchainEvents] BazariAttestation.ProofSubmitted:', {
+                  orderId: proofSubmittedEvent.orderId,
+                  attestor: proofSubmittedEvent.attestor,
+                  proofCid: proofSubmittedEvent.proofCid,
+                  block: blockNumber,
+                });
+
+                Promise.resolve(this.handlers.onProofSubmitted(proofSubmittedEvent)).catch((err: any) => {
+                  console.error('[BlockchainEvents] Error in onProofSubmitted handler:', err);
+                });
+              }
+            }
+            break;
+          }
+
+          case 'bazariDispute': {
+            if (event.method === 'DisputeOpened') {
+              const [disputeId, orderId, plaintiff] = event.data as any;
+
+              const disputeOpenedEvent: DisputeOpenedEvent = {
+                disputeId: disputeId.toNumber(),
+                orderId: orderId.toNumber(),
+                plaintiff: plaintiff.toString(),
+                blockNumber,
+                txHash,
+              };
+
+              if (this.handlers.onDisputeOpened) {
+                console.log('[BlockchainEvents] BazariDispute.DisputeOpened:', {
+                  disputeId: disputeOpenedEvent.disputeId,
+                  orderId: disputeOpenedEvent.orderId,
+                  plaintiff: disputeOpenedEvent.plaintiff,
+                  block: blockNumber,
+                });
+
+                Promise.resolve(this.handlers.onDisputeOpened(disputeOpenedEvent)).catch((err: any) => {
+                  console.error('[BlockchainEvents] Error in onDisputeOpened handler:', err);
+                });
+              }
+            }
+            break;
+          }
+
+          default:
+            // Ignore other commerce-related events
+            break;
+        }
+      } catch (error) {
+        console.error(`[BlockchainEvents] Error processing ${event.section}.${event.method} event:`, error);
         if (this.handlers.onError) {
           this.handlers.onError(error as Error);
         }

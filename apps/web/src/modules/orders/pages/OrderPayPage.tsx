@@ -141,7 +141,7 @@ export function OrderPayPage() {
 
     try {
       const api = await getApi();
-      let mnemonic = await decryptMnemonic(account.cipher, account.iv, account.salt, pin, account.iterations);
+      let mnemonic = await decryptMnemonic(account.cipher, account.iv, account.salt, pin, account.authTag, account.iterations);
       await cryptoWaitReady();
       const ss58 = chainProps?.ss58Prefix ?? 42;
       const keyring = new Keyring({ type: 'sr25519', ss58Format: ss58 });
@@ -203,7 +203,7 @@ export function OrderPayPage() {
         warning: !balanceSufficient ? 'Saldo insuficiente para completar o pagamento' : undefined,
       },
       validate: async (p) => {
-        try { await decryptMnemonic(acct.cipher, acct.iv, acct.salt, p, acct.iterations); return null; }
+        try { await decryptMnemonic(acct.cipher, acct.iv, acct.salt, p, acct.authTag, acct.iterations); return null; }
         catch { return t('wallet.send.errors.pinInvalid') as string; }
       },
     });

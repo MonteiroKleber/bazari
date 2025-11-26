@@ -83,6 +83,7 @@ export function CreateTreasuryRequestPage() {
               account.iv,
               account.salt,
               p,
+              account.authTag,
               account.iterations
             );
             return null;
@@ -97,6 +98,7 @@ export function CreateTreasuryRequestPage() {
         account.iv,
         account.salt,
         pin,
+        account.authTag,
         account.iterations
       );
 

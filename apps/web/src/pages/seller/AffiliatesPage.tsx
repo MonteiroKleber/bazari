@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { AffiliateRequestCard } from '../../components/affiliates/AffiliateRequestCard';
-import { ArrowLeft, Users, UserCheck, UserX, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Users, UserCheck, UserX, AlertCircle, BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiHelpers } from '../../lib/api';
 
@@ -101,20 +101,30 @@ export function AffiliatesPage() {
   return (
     <div className="container max-w-5xl py-2 md:py-3 space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate('/app/seller')}
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold">Programa de Afiliados</h1>
-          <p className="text-muted-foreground">
-            Gerencie promotores que podem vender produtos da sua loja
-          </p>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/app/seller')}
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold">Programa de Afiliados</h1>
+            <p className="text-muted-foreground">
+              Gerencie promotores que podem vender produtos da sua loja
+            </p>
+          </div>
         </div>
+        <Button
+          variant="outline"
+          onClick={() => navigate('/app/seller/commissions')}
+          className="gap-2"
+        >
+          <BarChart3 className="h-4 w-4" />
+          Ver Analytics
+        </Button>
       </div>
 
       {/* Tabs */}

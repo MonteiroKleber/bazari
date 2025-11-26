@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { deliveryApi } from '@/lib/api/delivery';
 import type { DeliveryProfile } from '@/types/delivery';
+import { isSessionActive } from '@/modules/auth';
 
 interface UseDeliveryProfileReturn {
   profile: DeliveryProfile | null;
@@ -21,6 +22,11 @@ export function useDeliveryProfile(): UseDeliveryProfileReturn {
   const [error, setError] = useState<string | null>(null);
 
   const loadProfile = useCallback(async () => {
+    if (!isSessionActive()) {
+      setProfile(null);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       setError(null);

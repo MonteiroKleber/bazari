@@ -14,17 +14,23 @@ import {
   Truck,
   Vote,
   TrendingUp,
+  Trophy,
+  Shield,
+  Glasses,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDeliveryProfile } from '@/hooks/useDeliveryProfile';
+import { useIsDAOMember } from '@/hooks/useIsDAOMember';
+import { getAccessToken } from '@/modules/auth/session';
 
 interface QuickAction {
   icon: React.ReactNode;
   label: string;
-  to: string;
+  to?: string;
+  onClick?: () => void;
   description: string;
   color: string;
-  badge?: number;
+  badge?: number | string;
 }
 
 const QUICK_ACTIONS: QuickAction[] = [
@@ -34,6 +40,13 @@ const QUICK_ACTIONS: QuickAction[] = [
     to: '/app/feed',
     description: 'Ver posts da comunidade',
     color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+  },
+  {
+    icon: <Trophy className="h-6 w-6" />,
+    label: 'Rewards & Missões',
+    to: '/app/rewards/missions',
+    description: 'Ganhe ZARI e BZR',
+    color: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
   },
   {
     icon: <MessageCircle className="h-6 w-6" />,
@@ -109,6 +122,42 @@ const QUICK_ACTIONS: QuickAction[] = [
 
 export function QuickActionsGrid() {
   const { profile: deliveryProfile } = useDeliveryProfile();
+  const isDAOMember = useIsDAOMember();
+
+  // Handler for Bazari VR button
+  const handleEnterVR = async () => {
+    try {
+      const accessToken = getAccessToken();
+
+      if (!accessToken) {
+        console.error('No active session');
+        return;
+      }
+
+      // Call API to generate VR token
+      const response = await fetch('https://bazari.libervia.xyz/api/auth/issue-vr-token', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to issue VR token');
+      }
+
+      const { vrToken } = await response.json();
+
+      // Open VR with token
+      const vrUrl = new URL('https://bazari-vr.libervia.xyz');
+      vrUrl.searchParams.set('token', vrToken);
+
+      // Open in new tab
+      window.open(vrUrl.toString(), '_blank');
+    } catch (err) {
+      console.error('Failed to enter VR:', err);
+    }
+  };
 
   // Add delivery action based on profile status
   const deliveryAction: QuickAction | null = deliveryProfile
@@ -128,20 +177,61 @@ export function QuickActionsGrid() {
         color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
       };
 
-  const allActions = deliveryAction
-    ? [...QUICK_ACTIONS, deliveryAction]
-    : QUICK_ACTIONS;
+  // Add Admin Escrows card for DAO members only
+  const adminEscrowAction: QuickAction | null = isDAOMember
+    ? {
+        icon: <Shield className="h-6 w-6" />,
+        label: 'Admin Escrows',
+        to: '/app/admin/escrows',
+        description: 'Gerenciar proteção de pagamento',
+        color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+      }
+    : null;
+
+  // Add Admin Missions card for DAO members only (Council Members)
+  const adminMissionsAction: QuickAction | null = isDAOMember
+    ? {
+        icon: <Shield className="h-6 w-6" />,
+        label: 'Admin Panel (DAO)',
+        to: '/app/admin/missions',
+        description: 'Gerenciar missões e recompensas',
+        color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
+      }
+    : null;
+
+  // Bazari VR action
+  const vrAction: QuickAction = {
+    icon: <Glasses className="h-6 w-6" />,
+    label: 'Bazari VR',
+    onClick: handleEnterVR,
+    description: 'Experiência imersiva 3D',
+    color: 'bg-gradient-to-br from-purple-500/10 to-pink-500/10 text-purple-600 dark:text-purple-400',
+    badge: 'BETA',
+  };
+
+  // Build final actions array
+  let allActions = [...QUICK_ACTIONS];
+  if (deliveryAction) {
+    allActions.push(deliveryAction);
+  }
+  if (adminEscrowAction) {
+    allActions.push(adminEscrowAction);
+  }
+  if (adminMissionsAction) {
+    allActions.push(adminMissionsAction);
+  }
+  allActions.push(vrAction);
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-      {allActions.map((action) => (
-        <Link key={action.to} to={action.to}>
+      {allActions.map((action, index) => {
+        const content = (
           <Card className="h-full transition-all hover:shadow-lg hover:scale-105 cursor-pointer group">
             <CardContent className="p-4 relative">
-              {action.badge !== undefined && action.badge > 0 && (
+              {action.badge !== undefined && (
                 <Badge
-                  variant="destructive"
-                  className="absolute top-2 right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+                  variant={typeof action.badge === 'string' ? 'secondary' : 'destructive'}
+                  className="absolute top-2 right-2 h-5 px-2 flex items-center justify-center text-xs"
                 >
                   {action.badge}
                 </Badge>
@@ -157,8 +247,23 @@ export function QuickActionsGrid() {
               </p>
             </CardContent>
           </Card>
-        </Link>
-      ))}
+        );
+
+        // If action has onClick, wrap in div. Otherwise, wrap in Link
+        if (action.onClick) {
+          return (
+            <div key={`action-${index}`} onClick={action.onClick}>
+              {content}
+            </div>
+          );
+        }
+
+        return (
+          <Link key={action.to} to={action.to!}>
+            {content}
+          </Link>
+        );
+      })}
     </div>
   );
 }

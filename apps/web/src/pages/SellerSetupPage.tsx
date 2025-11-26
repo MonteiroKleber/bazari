@@ -358,7 +358,7 @@ export default function SellerSetupPage() {
         }),
         validate: async (candidate) => {
           try {
-            await decryptMnemonic(account.cipher, account.iv, account.salt, candidate, account.iterations);
+            await decryptMnemonic(account.cipher, account.iv, account.salt, candidate, account.authTag, account.iterations);
             return null;
           } catch {
             return t('wallet.send.errors.pinInvalid') as string;
@@ -371,6 +371,7 @@ export default function SellerSetupPage() {
         account.iv,
         account.salt,
         pin,
+        account.authTag,
         account.iterations,
       );
       const keyring = new Keyring({ type: 'sr25519', ss58Format: chain.ss58Prefix });
@@ -502,6 +503,7 @@ export default function SellerSetupPage() {
                 activeAccount!.iv,
                 activeAccount!.salt,
                 candidate,
+                activeAccount!.authTag,
                 activeAccount!.iterations
               );
               return null;
@@ -516,6 +518,7 @@ export default function SellerSetupPage() {
           activeAccount!.iv,
           activeAccount!.salt,
           pin,
+          activeAccount!.authTag,
           activeAccount!.iterations
         );
 

@@ -9,6 +9,8 @@ import { createDeliveryRequestForOrder } from '../lib/deliveryRequestHelper.js';
 import { calculateDeliveryFee, estimatePackageDetails } from '../lib/deliveryCalculator.js';
 import { addressSchema } from '../lib/addressValidator.js';
 import { env } from '../env.js';
+import { authOnRequest } from '../lib/auth/middleware.js';
+import { afterOrderCreated, afterOrderCompleted } from '../services/gamification/order-hooks.js';
 
 const createPaymentIntentParamsSchema = z.object({
   id: z.string().uuid(),
@@ -68,7 +70,7 @@ export async function ordersRoutes(
   const IDEMPOTENCY_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
   // POST /orders - Criar pedido
-  app.post('/orders', async (request, reply) => {
+  app.post('/orders', { preHandler: authOnRequest }, async (request, reply) => {
     try {
       // Handle Idempotency-Key
       const idemKey = (request.headers['idempotency-key'] || request.headers['Idempotency-Key']) as string | undefined;
@@ -81,8 +83,13 @@ export async function ordersRoutes(
 
       const body = createOrderSchema.parse(request.body);
 
-      // TODO: Obter endereço do comprador do auth/session
-      const buyerAddr = 'buyer-placeholder'; // Será implementado com auth
+      // Obter endereço do comprador do auth/session
+      const authUser = (request as any).authUser as { sub: string; address: string } | undefined;
+      if (!authUser) {
+        return reply.status(401).send({ error: 'Unauthorized' });
+      }
+
+      const buyerAddr = authUser.address; // Wallet address do usuário autenticado
 
       // Carregar dados dos produtos/serviços para fazer snapshots
       const listings = await Promise.all(
@@ -204,6 +211,21 @@ export async function ordersRoutes(
           );
         }
       }
+
+      // ============================================
+      // Rewards: Trigger afterOrderCreated hook
+      // ============================================
+      const userId = authUser.sub; // User.id do usuário autenticado
+      await afterOrderCreated(prisma, userId, order.id).catch((err) => {
+        app.log.error(
+          {
+            err,
+            orderId: order.id,
+            userId,
+          },
+          'Falha ao processar rewards após criação de order'
+        );
+      });
 
       const oany: any = order as any;
       const payload = {
@@ -645,6 +667,37 @@ export async function ordersRoutes(
             sellerStoreId: order.sellerStoreId
           }, 'Falha ao atualizar reputação imediata - worker periódico atualizará');
         }
+      }
+
+      // ============================================
+      // Rewards: Trigger afterOrderCompleted hook
+      // ============================================
+      // Buscar userId real do buyerAddr (wallet → User.id)
+      const buyer = await prisma.user.findUnique({
+        where: { address: order.buyerAddr },
+        select: { id: true },
+      });
+
+      if (buyer) {
+        const orderTotalBzr = order.totalBzr.toString();
+        await afterOrderCompleted(prisma, buyer.id, order.id, orderTotalBzr).catch((err) => {
+          app.log.error(
+            {
+              err,
+              orderId: order.id,
+              userId: buyer.id,
+            },
+            'Falha ao processar rewards após completar order'
+          );
+        });
+      } else {
+        app.log.warn(
+          {
+            orderId: order.id,
+            buyerAddr: order.buyerAddr,
+          },
+          'User não encontrado para processar rewards - pulando hook afterOrderCompleted'
+        );
       }
 
       return reply.send({

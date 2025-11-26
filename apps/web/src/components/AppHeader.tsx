@@ -22,10 +22,12 @@ import { UserMenu } from "./UserMenu";
 import { GlobalSearchBar } from "./GlobalSearchBar";
 import { NotificationCenter } from "./NotificationCenter";
 import { ReputationBadge } from "./profile/ReputationBadge";
+import { StreakWidgetCompact, CashbackBalanceCompact } from "./rewards/index";
 import { logoutSession } from "@/modules/auth/api";
 import { clearSession } from "@/modules/auth/session";
 import { toast } from "sonner";
 import { apiHelpers } from "@/lib/api";
+import { useIsDAOMember } from "@/hooks/useIsDAOMember";
 // import { WalletMenu } from "./WalletMenu"; // placeholder futuro
 
 /**
@@ -40,6 +42,7 @@ export function AppHeader() {
   const [profile, setProfile] = React.useState<any>(null);
   const [loadingProfile, setLoadingProfile] = React.useState(true);
   const [loggingOut, setLoggingOut] = React.useState(false);
+  const isDAOMember = useIsDAOMember();
 
   const isActive = (path: string) => {
     if (path === '/app') {
@@ -56,12 +59,21 @@ export function AppHeader() {
   ];
 
   // Secondary navigation - accessed via dropdown "Mais"
-  const secondaryNavLinks = [
+  const baseSecondaryLinks = [
     { to: '/app', label: t('nav.dashboard', { defaultValue: 'Dashboard' }), checkActive: () => isActive('/app') && !location.pathname.includes('/sellers') && !location.pathname.includes('/wallet') && !location.pathname.includes('/p2p') && !location.pathname.includes('/feed') && !location.pathname.includes('/chat') },
     { to: '/app/sellers', label: t('nav.myStores', { defaultValue: 'Minhas Lojas' }), checkActive: () => isActive('/app/sellers') || isActive('/app/seller') },
     { to: '/app/wallet', label: t('nav.wallet', { defaultValue: 'Wallet' }), checkActive: () => isActive('/app/wallet') },
     { to: '/app/p2p', label: t('nav.p2p', { defaultValue: 'P2P' }), checkActive: () => isActive('/app/p2p') },
   ];
+
+  // Add Admin links for DAO members (Council Members)
+  const secondaryNavLinks = isDAOMember
+    ? [
+        ...baseSecondaryLinks,
+        { to: '/app/admin/escrows', label: t('nav.adminEscrows', { defaultValue: 'Admin Escrows' }), checkActive: () => isActive('/app/admin/escrows') },
+        { to: '/app/admin/missions', label: t('nav.adminMissions', { defaultValue: 'Admin Panel (DAO)' }), checkActive: () => isActive('/app/admin/missions') },
+      ]
+    : baseSecondaryLinks;
 
   // All links for mobile menu
   const allNavLinks = [...primaryNavLinks, ...secondaryNavLinks];
@@ -293,8 +305,17 @@ export function AppHeader() {
       right={
         <>
           {/* Ações internas */}
-          <div className="hidden md:flex items-center gap-6">
-            {/* Futuramente adicionar: Search, Notifications, Wallet */}
+          <div className="hidden md:flex items-center gap-3">
+            {/* Rewards Widgets */}
+            <Link to="/app/rewards/streaks" className="hover:opacity-80 transition-opacity">
+              <StreakWidgetCompact />
+            </Link>
+            <Link to="/app/rewards/cashback" className="hover:opacity-80 transition-opacity">
+              <CashbackBalanceCompact />
+            </Link>
+
+            <div className="w-px h-6 bg-border" /> {/* Separator */}
+
             <CreatePostButton />
             <ApiHealth />
             <LanguageSwitcher />

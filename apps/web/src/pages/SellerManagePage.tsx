@@ -314,6 +314,18 @@ export default function SellerManagePage() {
                   {t('seller.settings.configureCommission', { defaultValue: 'Configurar Comissões' })}
                 </Button>
               </div>
+
+              <div className="border rounded-lg p-4">
+                <h3 className="font-semibold mb-2">
+                  {t('seller.settings.commissionAnalytics', { defaultValue: 'Análise de Comissões' })}
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {t('seller.settings.commissionAnalyticsDescription', { defaultValue: 'Visualize estatísticas, tendências e histórico de comissões pagas aos afiliados' })}
+                </p>
+                <Button variant="outline" onClick={() => navigate('/app/seller/commissions')}>
+                  {t('seller.settings.viewCommissionAnalytics', { defaultValue: 'Ver Analytics de Comissões' })}
+                </Button>
+              </div>
             </CardContent>
           </Card>
 

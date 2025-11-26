@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useDeliveryProfile } from '@/hooks/useDeliveryProfile';
 import { useUnreadNotifications } from '@/hooks/useUnreadNotifications';
 import { apiHelpers } from '@/lib/api';
+import { isSessionActive } from '@/modules/auth';
 
 interface NavItem {
   icon: typeof Store;
@@ -24,6 +25,9 @@ export function MobileBottomNav() {
 
   // Fetch current user profile for handle
   useEffect(() => {
+    if (!isSessionActive()) {
+      return;
+    }
     let active = true;
     (async () => {
       try {

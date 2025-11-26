@@ -103,6 +103,7 @@ export function CreateProposalPage() {
               account.iv,
               account.salt,
               candidatePin,
+              account.authTag,
               account.iterations
             );
             return null;
@@ -118,6 +119,7 @@ export function CreateProposalPage() {
         account.iv,
         account.salt,
         pin,
+        account.authTag,
         account.iterations
       );
 

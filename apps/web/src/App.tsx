@@ -26,6 +26,8 @@ import { OrderPage } from './pages/OrderPage';
 import { CartPage } from './modules/cart/pages/CartPage';
 import { CheckoutPage } from './modules/orders/pages/CheckoutPage';
 import { OrderPayPage } from './modules/orders/pages/OrderPayPage';
+import EscrowManagementPage from './pages/orders/EscrowManagementPage';
+import AdminEscrowDashboard from './pages/admin/AdminEscrowDashboard';
 import { CreateAccount } from './pages/auth/CreateAccount';
 import { ImportAccount } from './pages/auth/ImportAccount';
 import { Unlock } from './pages/auth/Unlock';
@@ -78,6 +80,8 @@ import { SaleDetailsPage } from './pages/chat/SaleDetailsPage';
 import { ReceiptViewerPage } from './pages/chat/ReceiptViewerPage';
 import { CommissionPolicyPage } from './pages/seller/CommissionPolicyPage';
 import { AffiliatesPage } from './pages/seller/AffiliatesPage';
+import { CommissionAnalyticsPage } from './pages/seller/CommissionAnalyticsPage';
+import { SaleDetailPage } from './pages/seller/SaleDetailPage';
 import { MyAffiliationsPage } from './pages/promoter/MyAffiliationsPage';
 import { useChat } from './hooks/useChat';
 import { getAccessToken, refreshSession } from './modules/auth/session';
@@ -116,6 +120,13 @@ import { VestingPage } from './modules/vesting';
 
 // Testnet access page
 import { TestnetAccessPage } from './pages/TestnetAccessPage';
+
+// Rewards pages
+import MissionsHubPage from './pages/rewards/MissionsHubPage';
+import StreakHistoryPage from './pages/rewards/StreakHistoryPage';
+import CashbackDashboardPage from './pages/rewards/CashbackDashboardPage';
+import AdminMissionsManagementPage from './pages/rewards/AdminMissionsManagementPage';
+import TestRewardsHeader from './pages/TestRewardsHeader';
 
 function LandingPage() {
   const { t } = useTranslation();
@@ -414,6 +425,8 @@ function App() {
                       <Route path="checkout" element={<CheckoutPage />} />
                       <Route path="orders/:id/pay" element={<OrderPayPage />} />
                       <Route path="orders/:id" element={<OrderPage />} />
+                      <Route path="orders/:orderId/escrow" element={<EscrowManagementPage />} />
+                      <Route path="admin/escrows" element={<AdminEscrowDashboard />} />
                       <Route path="p2p" element={<P2PHomePage />} />
                       <Route path="p2p/my-orders" element={<P2PMyOrdersPage />} />
                       <Route path="p2p/offers/new" element={<P2POfferNewPage />} />
@@ -428,6 +441,8 @@ function App() {
                       <Route path="receipts/:cid" element={<ReceiptViewerPage />} />
                       <Route path="seller/commission-policy" element={<CommissionPolicyPage />} />
                       <Route path="seller/affiliates" element={<AffiliatesPage />} />
+                      <Route path="seller/commissions" element={<CommissionAnalyticsPage />} />
+                      <Route path="sales/:saleId" element={<SaleDetailPage />} />
                       <Route path="promoter/affiliates" element={<MyAffiliationsPage />} />
                       <Route path="affiliate/dashboard" element={<AffiliateDashboardPage />} />
 
@@ -459,6 +474,13 @@ function App() {
                       <Route path="governance/treasury/requests/:id" element={<TreasuryRequestDetailPage />} />
                       <Route path="governance/council" element={<CouncilPage />} />
                       <Route path="governance/multisig" element={<MultisigPage />} />
+
+                      {/* Rewards routes */}
+                      <Route path="rewards/missions" element={<MissionsHubPage />} />
+                      <Route path="rewards/streaks" element={<StreakHistoryPage />} />
+                      <Route path="rewards/cashback" element={<CashbackDashboardPage />} />
+                      <Route path="admin/missions" element={<AdminMissionsManagementPage />} />
+                      <Route path="test-rewards-header" element={<TestRewardsHeader />} />
 
                       {/* Futuras rotas internas */}
                       {/* <Route path="dashboard" element={<Dashboard />} /> */}

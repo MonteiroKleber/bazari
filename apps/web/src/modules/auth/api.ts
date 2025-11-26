@@ -1,5 +1,6 @@
 import { API_BASE_URL } from '../../config';
 import { SessionPayload, setSession, clearSession, getAccessToken } from './session';
+import { getAccessToken as getGoogleAccessToken } from './social/google-login';
 
 export interface NonceResponse {
   nonce: string;
@@ -11,7 +12,8 @@ export interface NonceResponse {
 }
 
 async function requestJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
-  const token = getAccessToken();
+  // Tenta primeiro token da sessão SIWS; se ausente, cai para token social armazenado em localStorage
+  const token = getAccessToken() ?? getGoogleAccessToken();
 
   const headers = new Headers(init?.headers ?? undefined);
   if (!headers.has('Accept')) {
@@ -88,5 +90,227 @@ export async function deviceLink(payload: { address: string; challenge: string; 
 export async function fetchProfile() {
   return requestJson<{ address: string }>(`${API_BASE_URL}/me`, {
     method: 'GET',
+  });
+}
+
+export interface SetupPinPayload {
+  pinHash: string;
+  googleId: string;
+}
+
+export interface SetupPinResponse {
+  success: boolean;
+  wallet: {
+    encryptedMnemonic: string;
+    iv: string;
+    salt: string;
+    authTag: string;
+    address: string;
+    iterations?: number;
+    format?: 'base64' | 'hex';
+  };
+}
+
+export async function setupPinForOAuth(payload: SetupPinPayload): Promise<SetupPinResponse> {
+  const token = getGoogleAccessToken();
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  return requestJson<SetupPinResponse>(`${API_BASE_URL}/auth/social/setup-pin`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  });
+}
+
+export interface SocialWalletResponse {
+  success: boolean;
+  wallet: {
+    encryptedMnemonic: string;
+    iv: string;
+    salt: string;
+    authTag: string;
+    address: string;
+  };
+  user: {
+    id: string;
+    address: string;
+    googleId: string;
+  };
+}
+
+export async function fetchSocialWallet(force = false, tokenOverride?: string): Promise<SocialWalletResponse> {
+  const token = tokenOverride ?? getGoogleAccessToken();
+  const headers: HeadersInit = {};
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  return requestJson<SocialWalletResponse>(`${API_BASE_URL}/auth/social/wallet${force ? '?force=true' : ''}`, {
+    method: 'GET',
+    headers,
+  });
+}
+
+export interface SocialBackupPayload {
+  encryptedMnemonic: string;
+  iv: string;
+  salt: string;
+  authTag?: string | null;
+  iterations: number;
+  address: string;
+}
+
+export async function saveSocialBackup(payload: SocialBackupPayload, tokenOverride?: string) {
+  const token = tokenOverride ?? getGoogleAccessToken();
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  return requestJson(`${API_BASE_URL}/auth/social/backup`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getSocialBackup(tokenOverride?: string): Promise<{ success: boolean; wallet: SocialBackupPayload }> {
+  const token = tokenOverride ?? getGoogleAccessToken();
+  const headers: HeadersInit = {};
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  return requestJson<{ success: boolean; wallet: SocialBackupPayload }>(`${API_BASE_URL}/auth/social/wallet`, {
+    method: 'GET',
+    headers,
+  });
+}
+
+// ===========================
+// OAuth Multi-Conta API
+// ===========================
+
+export interface CreateSocialBackupPayload {
+  accountName: string;
+  encryptedMnemonic: string;
+  iv: string;
+  salt: string;
+  authTag: string;
+  iterations?: number;
+  address: string;
+  deviceFingerprint?: string;
+}
+
+export interface SocialBackupMetadata {
+  id: string;
+  accountName: string;
+  accountIndex: number;
+  address: string;
+  createdAt: string;
+  lastUsedAt: string;
+  deviceFingerprint?: string;
+}
+
+export interface SocialBackupFull {
+  wallet: {
+    encryptedMnemonic: string;
+    iv: string;
+    salt: string;
+    authTag: string;
+    iterations: number;
+    address: string;
+  };
+  metadata: {
+    id: string;
+    accountName: string;
+    accountIndex: number;
+    createdAt: string;
+    lastUsedAt: string;
+  };
+}
+
+/**
+ * Criar novo backup E2EE para conta OAuth
+ */
+export async function createSocialBackup(payload: CreateSocialBackupPayload) {
+  const token = getGoogleAccessToken();
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  return requestJson<{ success: boolean; backup: SocialBackupMetadata }>(`${API_BASE_URL}/auth/social-backup/create`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  });
+}
+
+/**
+ * Listar todas contas OAuth do usuário
+ */
+export async function listSocialBackups() {
+  const token = getGoogleAccessToken();
+  const headers: HeadersInit = {};
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  return requestJson<{ backups: SocialBackupMetadata[]; total: number }>(`${API_BASE_URL}/auth/social-backup/list`, {
+    method: 'GET',
+    headers,
+  });
+}
+
+/**
+ * Buscar backup específico para restore
+ */
+export async function getSocialBackupById(id: string) {
+  const token = getGoogleAccessToken();
+  const headers: HeadersInit = {};
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  return requestJson<SocialBackupFull>(`${API_BASE_URL}/auth/social-backup/${id}`, {
+    method: 'GET',
+    headers,
+  });
+}
+
+/**
+ * Atualizar lastUsedAt após restore
+ */
+export async function updateSocialBackupUsage(id: string) {
+  const token = getGoogleAccessToken();
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  return requestJson<{ success: boolean; backup: SocialBackupMetadata }>(`${API_BASE_URL}/auth/social-backup/${id}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ lastUsedAt: true }),
   });
 }

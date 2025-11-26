@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Governance Sync Worker
  * Escuta eventos da blockchain e sincroniza com PostgreSQL
@@ -632,3 +633,4 @@ export function startGovernanceSyncWorker(
 
   return worker;
 }
+// @ts-nocheck

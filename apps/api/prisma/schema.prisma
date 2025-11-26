@@ -6,9 +6,10 @@ generator client {
 }
 
 datasource db {
-  provider   = "postgresql"
-  url        = env("DATABASE_URL")
-  extensions = [pg_trgm]
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+  extensions        = [pg_trgm]
 }
 
 model MediaAsset {
@@ -174,14 +175,94 @@ model User {
   quests UserQuest[]
 
   // Reports
-  reportsCreated ContentReport[] @relation("reporter")
+  reportsCreated  ContentReport[] @relation("reporter")
   reportsReviewed ContentReport[] @relation("reviewer")
 
   // Block & Mute
-  blocking UserBlock[] @relation("blocker")
+  blocking  UserBlock[] @relation("blocker")
   blockedBy UserBlock[] @relation("blocked")
-  muting UserMute[] @relation("muter")
-  mutedBy UserMute[] @relation("muted")
+  muting    UserMute[]  @relation("muter")
+  mutedBy   UserMute[]  @relation("muted")
+
+  // Social Auth (Fase 1)
+  socialAccount SocialAccount?
+  managedWallet ManagedWallet?
+
+  // OAuth Multi-Conta (Fase 2)
+  socialBackups SocialBackup[]
+
+  // VR Integration
+  vrTokens VRToken[]
+}
+
+model SocialAccount {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  provider   String // "google" | "email" (futuro)
+  providerId String // Google sub ou email hash
+  email      String?
+  name       String? // Nome do usuário do Google
+  picture    String? // Avatar URL do Google
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+  @@index([email])
+  @@index([providerId])
+}
+
+model ManagedWallet {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  encryptedMnemonic String // Mnemonic criptografado com ENCRYPTION_KEY
+  iv                String // Initialization vector para AES
+  salt              String // Salt usado na derivação de chave
+  authTag           String // Auth tag para GCM
+  address           String // Address SR25519 derivado
+  sentToClient      Boolean  @default(false) // Flag: mnemonic já foi enviado para cliente?
+  isPinSetup        Boolean  @default(false) // Flag: PIN foi configurado pelo usuário?
+  legacyServerSeed  Boolean  @default(false) // Flag: wallet criado com geração server-side (legacy)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([address])
+}
+
+// OAuth Multi-Conta: Múltiplos backups E2EE por usuário OAuth
+model SocialBackup {
+  id     String @id @default(uuid())
+  userId String // Múltiplos backups por user OAuth (não unique!)
+
+  // Identificação da conta
+  accountName  String // "Conta Principal", "Loja Online", etc
+  accountIndex Int // 1, 2, 3... (auto-incrementado por userId)
+  address      String @unique // Address SR25519 único
+
+  // E2EE Backup (cifrado client-side com PIN do usuário)
+  encryptedMnemonic String // Blob opaco cifrado
+  iv                String // Initialization vector
+  salt              String // Salt para PBKDF2
+  authTag           String // GCM auth tag
+  iterations        Int    @default(150000) // PBKDF2 iterations
+
+  // Metadata
+  createdAt         DateTime @default(now())
+  lastUsedAt        DateTime @default(now()) // Atualizado a cada restore
+  deviceFingerprint String? // Opcional: identificar device que criou
+
+  // Soft delete
+  isActive Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, accountIndex]) // Uma conta por índice por usuário
+  @@index([userId, isActive]) // Lista contas ativas
+  @@index([address])
+  @@index([lastUsedAt])
 }
 
 model AuthNonce {
@@ -272,12 +353,18 @@ model Order {
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
+  // ✅ NEW: Blockchain reference (bazari-commerce pallet)
+  blockchainOrderId BigInt?   @db.BigInt // On-chain OrderId (u64)
+  blockchainTxHash  String? // Transaction hash when created on-chain
+  onChainStatus     String? // Cache of on-chain status (PENDING, CONFIRMED, etc)
+  lastSyncedAt      DateTime? // Last time synced with blockchain
+
   items          OrderItem[]
   paymentIntents PaymentIntent[]
   escrowLogs     EscrowLog[]
 
   // === Delivery Relation ===
-  deliveryRequest   DeliveryRequest?
+  deliveryRequest DeliveryRequest?
 
   @@index([buyerAddr])
   @@index([sellerAddr])
@@ -285,6 +372,7 @@ model Order {
   @@index([sellerStoreId])
   @@index([status])
   @@index([createdAt])
+  @@index([blockchainOrderId])
 }
 
 model OrderItem {
@@ -316,11 +404,16 @@ model PaymentIntent {
   txHashRefund  String?
   createdAt     DateTime            @default(now())
 
+  // ✅ NEW: Blockchain reference (bazari-escrow pallet)
+  escrowId BigInt? @db.BigInt // On-chain escrow ID (order_id used as key)
+  txHash   String? // Real transaction hash from bazari-escrow (replaces MOCK)
+
   order Order @relation(fields: [orderId], references: [id])
 
   @@index([orderId])
   @@index([status])
   @@index([createdAt])
+  @@index([txHash])
 }
 
 model EscrowLog {
@@ -364,10 +457,10 @@ model Profile {
   lastChainSync    DateTime?
 
   // === Monetização (MOCK) ===
-  cashbackBalance  String    @default("0") // BZR cashback balance (MOCK)
+  cashbackBalance String @default("0") // BZR cashback balance (MOCK)
 
   // === Chat E2EE ===
-  chatPublicKey    String?   // Curve25519 public key (base64) for E2EE chat
+  chatPublicKey String? // Curve25519 public key (base64) for E2EE chat
 
   // Relations
   posts                 Post[]
@@ -385,9 +478,13 @@ model Profile {
   affiliateMarketplaces AffiliateMarketplace[]   @relation("AffiliateMarketplaces")
 
   // === Delivery Relations ===
-  deliveryProfile         DeliveryProfile?
-  deliveryRequestsAsDeliverer DeliveryRequest[] @relation("DeliveryPerson")
-  storePartnerships       StoreDeliveryPartner[] @relation("StoreDeliveryPartner")
+  deliveryProfile             DeliveryProfile?
+  deliveryRequestsAsDeliverer DeliveryRequest[]      @relation("DeliveryPerson")
+  storePartnerships           StoreDeliveryPartner[] @relation("StoreDeliveryPartner")
+
+  // === Rewards Relations (Blockchain Gamification) ===
+  missionProgress UserMissionProgress[]
+  cashbackGrants  CashbackGrant[]
 
   @@index([onChainProfileId])
   @@index([reputationScore])
@@ -427,23 +524,24 @@ model SellerProfile {
   updatedAt         DateTime @updatedAt
 
   // === Campos de Sincronização On-Chain ===
-  syncStatus       String?   @default("pending") // 'pending' | 'syncing' | 'synced' | 'error'
-  version          Int?      @default(0) // versão incremental da loja on-chain
-  lastSyncBlock    BigInt?   @db.BigInt // último bloco onde foi feita sincronização
-  lastPublishedAt  DateTime? // timestamp da última publicação on-chain
-  metadataCid      String? // CID do JSON de metadados da loja (store.json)
-  categoriesCid    String? // CID do JSON de categorias
-  categoriesHash   String? // SHA-256 do JSON de categorias
-  productsCid      String? // CID do JSON de produtos/catálogo
-  productsHash     String? // SHA-256 do JSON de produtos/catálogo
+  syncStatus      String?   @default("pending") // 'pending' | 'syncing' | 'synced' | 'error'
+  version         Int?      @default(0) // versão incremental da loja on-chain
+  lastSyncBlock   BigInt?   @db.BigInt // último bloco onde foi feita sincronização
+  lastPublishedAt DateTime? // timestamp da última publicação on-chain
+  metadataCid     String? // CID do JSON de metadados da loja (store.json)
+  categoriesCid   String? // CID do JSON de categorias
+  categoriesHash  String? // SHA-256 do JSON de categorias
+  productsCid     String? // CID do JSON de produtos/catálogo
+  productsHash    String? // SHA-256 do JSON de produtos/catálogo
 
   // === Address for Pickup ===
-  pickupAddress     Json? // { street, number, complement?, city, state, zipCode, lat?, lng?, instructions? }
+  pickupAddress Json? // { street, number, complement?, city, state, zipCode, lat?, lng?, instructions? }
 
   // Relations
   products       Product[]
   services       ServiceOffering[]
   publishHistory StorePublishHistory[]
+  land           Land? // VR: Relação 1:1 com terreno virtual
 
   @@index([userId])
   @@index([onChainStoreId])
@@ -503,7 +601,7 @@ model PostReaction {
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   profileId String
   profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  reaction  String   // love, laugh, wow, sad, angry
+  reaction  String // love, laugh, wow, sad, angry
   createdAt DateTime @default(now())
 
   @@unique([postId, profileId])
@@ -523,8 +621,8 @@ model PostComment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  parent  PostComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies PostComment[] @relation("CommentReplies")
+  parent  PostComment?      @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies PostComment[]     @relation("CommentReplies")
   likes   PostCommentLike[]
 
   @@index([postId, createdAt])
@@ -546,16 +644,16 @@ model PostCommentLike {
 }
 
 model Notification {
-  id        String             @id @default(cuid())
+  id        String           @id @default(cuid())
   userId    String
-  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      NotificationType
   actorId   String?
-  actor     Profile?           @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+  actor     Profile?         @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
   targetId  String? // ID do post, comment, badge, etc
   metadata  Json? // Dados adicionais específicos do tipo
-  read      Boolean            @default(false)
-  createdAt DateTime           @default(now())
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
 
   @@index([userId, read, createdAt])
   @@index([createdAt])
@@ -687,33 +785,33 @@ model P2PPaymentProfile {
 }
 
 model P2POffer {
-  id             String           @id @default(cuid())
-  ownerId        String
-  side           P2POfferSide
+  id      String       @id @default(cuid())
+  ownerId String
+  side    P2POfferSide
 
   // FASE 5: Asset being traded
-  assetType      P2PAssetType     @default(BZR)
-  assetId        String?          // '1' for ZARI, null for BZR
+  assetType P2PAssetType @default(BZR)
+  assetId   String? // '1' for ZARI, null for BZR
 
   // FASE 5: Phase info (only for ZARI)
-  phase          String?          // '2A' | '2B' | '3' | null
-  phasePrice     Decimal?         @db.Decimal(18, 12) // 0.25 | 0.35 | 0.50 (in BZR)
+  phase      String? // '2A' | '2B' | '3' | null
+  phasePrice Decimal? @db.Decimal(18, 12) // 0.25 | 0.35 | 0.50 (in BZR)
 
   // Pricing (now generic)
-  priceBRLPerBZR Decimal          @db.Decimal(18, 2)  // Deprecated, use priceBRLPerUnit
-  priceBRLPerUnit Decimal?        @db.Decimal(18, 2)  // R$/BZR or R$/ZARI
-  minBRL         Decimal          @db.Decimal(18, 2)
-  maxBRL         Decimal          @db.Decimal(18, 2)
+  priceBRLPerBZR  Decimal  @db.Decimal(18, 2) // Deprecated, use priceBRLPerUnit
+  priceBRLPerUnit Decimal? @db.Decimal(18, 2) // R$/BZR or R$/ZARI
+  minBRL          Decimal  @db.Decimal(18, 2)
+  maxBRL          Decimal  @db.Decimal(18, 2)
 
-  method         P2PPaymentMethod
-  autoReply      String?
-  status         P2POfferStatus   @default(ACTIVE)
+  method    P2PPaymentMethod
+  autoReply String?
+  status    P2POfferStatus   @default(ACTIVE)
 
   // FASE 5: Expanded stats
-  stats          Json?            // { totalSold, totalVolume, phaseSupplyLeft }
+  stats Json? // { totalSold, totalVolume, phaseSupplyLeft }
 
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([ownerId, status, side])
   @@index([ownerId, status, side, assetType])
@@ -721,26 +819,26 @@ model P2POffer {
 }
 
 model P2POrder {
-  id             String           @id @default(cuid())
-  offerId        String
-  makerId        String
-  takerId        String
-  side           P2POfferSide
+  id      String       @id @default(cuid())
+  offerId String
+  makerId String
+  takerId String
+  side    P2POfferSide
 
   // FASE 5: Asset info
-  assetType      P2PAssetType     @default(BZR)
-  assetId        String?          // '1' for ZARI
-  phase          String?          // '2A', '2B', '3'
+  assetType P2PAssetType @default(BZR)
+  assetId   String? // '1' for ZARI
+  phase     String? // '2A', '2B', '3'
 
   // Pricing
-  priceBRLPerBZR Decimal          @db.Decimal(18, 2)  // Deprecated, use priceBRLPerUnit
-  priceBRLPerUnit Decimal?        @db.Decimal(18, 2)
-  amountBZR      Decimal          @db.Decimal(38, 18) // Deprecated, use amountAsset
-  amountAsset    Decimal?         @db.Decimal(38, 18) // BZR or ZARI
-  amountBRL      Decimal          @db.Decimal(18, 2)
+  priceBRLPerBZR  Decimal  @db.Decimal(18, 2) // Deprecated, use priceBRLPerUnit
+  priceBRLPerUnit Decimal? @db.Decimal(18, 2)
+  amountBZR       Decimal  @db.Decimal(38, 18) // Deprecated, use amountAsset
+  amountAsset     Decimal? @db.Decimal(38, 18) // BZR or ZARI
+  amountBRL       Decimal  @db.Decimal(18, 2)
 
-  method         P2PPaymentMethod
-  status         P2POrderStatus   @default(DRAFT)
+  method P2PPaymentMethod
+  status P2POrderStatus   @default(DRAFT)
 
   // Escrow on-chain
   escrowTxHash   String?
@@ -798,11 +896,11 @@ model P2PReview {
 // FASE 5: ZARI Phase Configuration
 model ZARIPhaseConfig {
   id          String   @id @default(cuid())
-  phase       String   @unique  // '2A', '2B', '3'
-  priceBZR    Decimal  @db.Decimal(18, 12)  // 0.25, 0.35, 0.50
-  supplyLimit BigInt                         // 2_100_000 * 10^12 (decimals)
-  startBlock  BigInt?                        // Block number when phase started
-  endBlock    BigInt?                        // Block number when phase ended
+  phase       String   @unique // '2A', '2B', '3'
+  priceBZR    Decimal  @db.Decimal(18, 12) // 0.25, 0.35, 0.50
+  supplyLimit BigInt // 2_100_000 * 10^12 (decimals)
+  startBlock  BigInt? // Block number when phase started
+  endBlock    BigInt? // Block number when phase ended
   active      Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -851,9 +949,9 @@ model StoreSnapshot {
 model UserInteraction {
   id              String   @id @default(cuid())
   userId          String
-  targetType      String   // POST, PROFILE, PRODUCT
+  targetType      String // POST, PROFILE, PRODUCT
   targetId        String
-  interactionType String   // VIEW, LIKE, COMMENT, SHARE
+  interactionType String // VIEW, LIKE, COMMENT, SHARE
   weight          Float    @default(1.0)
   createdAt       DateTime @default(now())
 
@@ -865,13 +963,13 @@ model UserInteraction {
 }
 
 model TrendingTopic {
-  id        String   @id @default(cuid())
-  tag       String   @unique
-  count     Int      @default(0)
-  score     Float    @default(0)
-  growthRate Float?  // Taxa de crescimento vs período anterior
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  tag        String   @unique
+  count      Int      @default(0)
+  score      Float    @default(0)
+  growthRate Float? // Taxa de crescimento vs período anterior
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([score(sort: Desc), updatedAt])
   @@index([updatedAt])
@@ -882,10 +980,10 @@ model Achievement {
   slug        String   @unique
   name        String
   description String   @db.Text
-  category    String   // SOCIAL, ENGAGEMENT, CONTENT, STREAK
+  category    String // SOCIAL, ENGAGEMENT, CONTENT, STREAK
   tier        Int      @default(1) // 1-5 (Bronze to Diamond)
-  requirement Json     // { type: "POST_COUNT", value: 1 }
-  icon        String?  // Emoji ou URL
+  requirement Json // { type: "POST_COUNT", value: 1 }
+  icon        String? // Emoji ou URL
   createdAt   DateTime @default(now())
 
   userAchievements UserAchievement[]
@@ -914,9 +1012,9 @@ model Quest {
   slug        String   @unique
   name        String
   description String   @db.Text
-  type        String   // POST, LIKE, COMMENT, FOLLOW
-  target      Int      // Quantidade necessária
-  reward      Int      // Pontos de reward
+  type        String // POST, LIKE, COMMENT, FOLLOW
+  target      Int // Quantidade necessária
+  reward      Int // Pontos de reward
   icon        String?
   createdAt   DateTime @default(now())
 
@@ -932,7 +1030,7 @@ model UserQuest {
   progress    Int       @default(0)
   completedAt DateTime? // null = não completado
   claimedAt   DateTime? // null = reward não reivindicado
-  date        String    // YYYY-MM-DD para track diário
+  date        String // YYYY-MM-DD para track diário
   createdAt   DateTime  @default(now())
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -962,7 +1060,7 @@ enum ReportStatus {
 model ContentReport {
   id          String       @id @default(cuid())
   reporterId  String
-  contentType String       // POST, COMMENT, PROFILE
+  contentType String // POST, COMMENT, PROFILE
   contentId   String
   reason      ReportReason
   details     String?      @db.Text
@@ -994,10 +1092,10 @@ model UserBlock {
 }
 
 model UserMute {
-  id           String   @id @default(cuid())
-  userId       String
-  mutedUserId  String
-  createdAt    DateTime @default(now())
+  id          String   @id @default(cuid())
+  userId      String
+  mutedUserId String
+  createdAt   DateTime @default(now())
 
   user      User @relation("muter", fields: [userId], references: [id], onDelete: Cascade)
   mutedUser User @relation("muted", fields: [mutedUserId], references: [id], onDelete: Cascade)
@@ -1012,18 +1110,18 @@ model UserMute {
 // ===========================
 
 model ChatThread {
-  id             String   @id @default(uuid())
-  kind           String   // dm | store | order | group
-  participants   String[] // profileIds
-  orderId        String?
-  groupId        String?
-  lastMessageAt  BigInt
-  metadata       Json?
-  createdAt      BigInt
-  updatedAt      BigInt
+  id            String   @id @default(uuid())
+  kind          String // dm | store | order | group
+  participants  String[] // profileIds
+  orderId       String?
+  groupId       String?
+  lastMessageAt BigInt
+  metadata      Json?
+  createdAt     BigInt
+  updatedAt     BigInt
 
-  messages       ChatMessage[]
-  proposals      ChatProposal[]
+  messages  ChatMessage[]
+  proposals ChatProposal[]
 
   @@index([participants])
   @@index([lastMessageAt(sort: Desc)])
@@ -1031,20 +1129,20 @@ model ChatThread {
 }
 
 model ChatMessage {
-  id           String   @id @default(uuid())
-  threadId     String
-  fromProfile  String
-  type         String   // text | audio | image | file | video | proposal | checkout | payment | system
-  ciphertext   String   @db.Text
-  mediaCid     String?
-  meta         Json?
-  createdAt    BigInt
-  deliveredAt  BigInt?
-  readAt       BigInt?
-  replyTo      String?
-  editedAt     BigInt?
+  id          String  @id @default(uuid())
+  threadId    String
+  fromProfile String
+  type        String // text | audio | image | file | video | proposal | checkout | payment | system
+  ciphertext  String  @db.Text
+  mediaCid    String?
+  meta        Json?
+  createdAt   BigInt
+  deliveredAt BigInt?
+  readAt      BigInt?
+  replyTo     String?
+  editedAt    BigInt?
 
-  thread       ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  thread ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
 
   @@index([threadId, createdAt(sort: Desc)])
   @@index([fromProfile])
@@ -1071,27 +1169,27 @@ model ChatGroup {
 }
 
 model ChatProposal {
-  id                String   @id @default(uuid())
+  id                String  @id @default(uuid())
   threadId          String
   sellerId          String
   buyerId           String?
-  items             Json     // ProposalItem[]
-  subtotal          Decimal  @db.Decimal(20, 8)
+  items             Json // ProposalItem[]
+  subtotal          Decimal @db.Decimal(20, 8)
   shipping          Json?
-  total             Decimal  @db.Decimal(20, 8)
+  total             Decimal @db.Decimal(20, 8)
   commissionPercent Int
 
   // Multi-Store Support
-  isMultiStore      Boolean  @default(false)
-  storeGroups       Json?    // Array de StoreGroup[]
+  isMultiStore Boolean @default(false)
+  storeGroups  Json? // Array de StoreGroup[]
 
-  status            String   @default("draft") // draft | sent | accepted | expired | paid
-  expiresAt         BigInt?
-  createdAt         BigInt
-  updatedAt         BigInt
+  status    String  @default("draft") // draft | sent | accepted | expired | paid
+  expiresAt BigInt?
+  createdAt BigInt
+  updatedAt BigInt
 
-  thread            ChatThread @relation(fields: [threadId], references: [id])
-  sales             AffiliateSale[]
+  thread ChatThread      @relation(fields: [threadId], references: [id])
+  sales  AffiliateSale[]
 
   @@index([threadId])
   @@index([sellerId])
@@ -1099,33 +1197,33 @@ model ChatProposal {
 }
 
 model StoreCommissionPolicy {
-  storeId             BigInt   @id
-  mode                String   @default("open") // open | followers | affiliates
-  percent             Int      @default(5)
-  minReputation       Int?
-  dailyCommissionCap  Decimal? @db.Decimal(20, 8)
-  allowMultiStore     Boolean  @default(true) // FASE 8: Multi-Store Proposals
-  createdAt           BigInt
-  updatedAt           BigInt
+  storeId            BigInt   @id
+  mode               String   @default("open") // open | followers | affiliates
+  percent            Int      @default(5)
+  minReputation      Int?
+  dailyCommissionCap Decimal? @db.Decimal(20, 8)
+  allowMultiStore    Boolean  @default(true) // FASE 8: Multi-Store Proposals
+  createdAt          BigInt
+  updatedAt          BigInt
 }
 
 model ChatMission {
-  id              String                   @id @default(uuid())
-  title           String
-  description     String
-  reward          Decimal                  @db.Decimal(20, 8)
-  type            String                   // share | review | referral | custom
-  kind            String                   @default("custom") // onboarding | referral | sales | engagement
-  goal            Int                      @default(1) // Quantidade necessária para completar
-  requirements    Json?
-  maxCompletions  Int?
-  completedCount  Int                      @default(0)
-  expiresAt       BigInt?
-  status          String                   @default("active") // active | paused | completed
-  isActive        Boolean                  @default(true)
-  createdBy       String
-  createdAt       BigInt
-  completions     ChatMissionCompletion[]
+  id             String                  @id @default(uuid())
+  title          String
+  description    String
+  reward         Decimal                 @db.Decimal(20, 8)
+  type           String // share | review | referral | custom
+  kind           String                  @default("custom") // onboarding | referral | sales | engagement
+  goal           Int                     @default(1) // Quantidade necessária para completar
+  requirements   Json?
+  maxCompletions Int?
+  completedCount Int                     @default(0)
+  expiresAt      BigInt?
+  status         String                  @default("active") // active | paused | completed
+  isActive       Boolean                 @default(true)
+  createdBy      String
+  createdAt      BigInt
+  completions    ChatMissionCompletion[]
 
   @@index([status, expiresAt])
   @@index([createdBy])
@@ -1135,7 +1233,7 @@ model ChatMission {
 model ChatMissionCompletion {
   profileId   String
   missionId   String
-  progress    Int     @default(0)
+  progress    Int         @default(0)
   completedAt BigInt?
   mission     ChatMission @relation(fields: [missionId], references: [id], onDelete: Cascade)
 
@@ -1145,14 +1243,14 @@ model ChatMissionCompletion {
 }
 
 model ChatOpportunity {
-  id           String   @id @default(uuid())
+  id           String  @id @default(uuid())
   storeId      BigInt
   title        String
   description  String
-  type         String   // job | freelance | partnership
+  type         String // job | freelance | partnership
   compensation String?
   requirements Json?
-  status       String   @default("open") // open | filled | closed
+  status       String  @default("open") // open | filled | closed
   createdAt    BigInt
   expiresAt    BigInt?
 
@@ -1164,39 +1262,45 @@ model ChatOpportunity {
 // Esta tabela simula o que seria armazenado na blockchain
 // Será substituída por integração real posteriormente
 model AffiliateSale {
-  id                 String                    @id @default(uuid())
+  id String @id @default(uuid())
 
   // Link para marketplace (NOVO)
-  marketplaceId      String?
-  marketplace        AffiliateMarketplace?     @relation(fields: [marketplaceId], references: [id])
+  marketplaceId String?
+  marketplace   AffiliateMarketplace? @relation(fields: [marketplaceId], references: [id])
 
-  storeId            BigInt
-  buyer              String        // profileId
-  seller             String        // profileId
-  promoter           String?       // profileId (opcional)
-  amount             Decimal       @db.Decimal(20, 8)
-  commissionPercent  Int           @default(0)
-  commissionAmount   Decimal       @default(0) @db.Decimal(20, 8)
-  bazariFee          Decimal       @default(0) @db.Decimal(20, 8)
-  sellerAmount       Decimal       @db.Decimal(20, 8)
-  status             String        @default("pending") // pending, split, failed
-  txHash             String?       // Mock transaction hash
-  receiptNftCid      String?       // IPFS CID do recibo NFT
-  proposalId         String?
-  proposal           ChatProposal? @relation(fields: [proposalId], references: [id])
-  createdAt          BigInt
-  settledAt          BigInt?
+  storeId           BigInt
+  buyer             String // profileId
+  seller            String // profileId
+  promoter          String? // profileId (opcional)
+  amount            Decimal       @db.Decimal(20, 8)
+  commissionPercent Int           @default(0)
+  commissionAmount  Decimal       @default(0) @db.Decimal(20, 8)
+  bazariFee         Decimal       @default(0) @db.Decimal(20, 8)
+  sellerAmount      Decimal       @db.Decimal(20, 8)
+  status            String        @default("pending") // pending, split, failed
+  txHash            String? // Mock transaction hash
+  receiptNftCid     String? // IPFS CID do recibo NFT
+  proposalId        String?
+  proposal          ChatProposal? @relation(fields: [proposalId], references: [id])
+  createdAt         BigInt
+  settledAt         BigInt?
+
+  // ✅ NEW: Blockchain reference (bazari-commerce pallet)
+  blockchainSaleId BigInt?   @db.BigInt // On-chain SaleId (u64)
+  blockchainTxHash String? // Real transaction hash (replaces MOCK txHash)
+  onChainStatus    String? // Cache of on-chain status
+  lastSyncedAt     DateTime? // Last time synced with blockchain
 
   @@index([storeId])
   @@index([buyer])
   @@index([seller])
   @@index([promoter])
-  @@index([marketplaceId])  // NOVO
+  @@index([marketplaceId]) // NOVO
   @@index([status])
   @@index([proposalId])
   @@index([createdAt(sort: Desc)])
+  @@index([blockchainSaleId])
 }
-
 
 // === FASE 7: Social Features ===
 
@@ -1204,7 +1308,7 @@ model AffiliateSale {
 model ChatTrustBadge {
   id        String  @id
   profileId String
-  level     String  // bronze | silver | gold | platinum
+  level     String // bronze | silver | gold | platinum
   nftId     String? // Mock NFT ID
   isActive  Boolean @default(true)
   issuedAt  BigInt
@@ -1218,7 +1322,7 @@ model ChatReport {
   id              String  @id
   reporterId      String
   reportedId      String
-  contentType     String  // message | profile | group
+  contentType     String // message | profile | group
   contentId       String
   reason          String
   description     String  @default("")
@@ -1256,7 +1360,7 @@ model ChatGroupPoll {
   groupId   String
   creatorId String
   question  String
-  options   Json    // Array de opções
+  options   Json // Array de opções
   votes     Json    @default("{}") // Map de voterId -> optionIndex
   endsAt    BigInt?
   createdAt BigInt
@@ -1269,36 +1373,36 @@ model ChatGroupPoll {
 
 // Sistema de Afiliados - Gerenciamento de promotores aprovados
 model ChatStoreAffiliate {
-  id                String   @id @default(uuid())
-  storeId           BigInt   // ID on-chain da loja
-  promoterId        String   // profileId do promotor
-  promoter          Profile  @relation(fields: [promoterId], references: [id], onDelete: Cascade)
+  id         String  @id @default(uuid())
+  storeId    BigInt // ID on-chain da loja
+  promoterId String // profileId do promotor
+  promoter   Profile @relation(fields: [promoterId], references: [id], onDelete: Cascade)
 
   // Status
-  status            String   @default("pending") // pending | approved | rejected | suspended
+  status String @default("pending") // pending | approved | rejected | suspended
 
   // Comissão customizada (opcional - override da política geral)
-  customCommission  Int?     // Se null, usa a política da loja
+  customCommission Int? // Se null, usa a política da loja
 
   // Limites opcionais
-  monthlySalesCap   Decimal? @db.Decimal(20, 8) // Limite mensal de vendas
+  monthlySalesCap Decimal? @db.Decimal(20, 8) // Limite mensal de vendas
 
   // Metadata
-  notes             String?  @db.Text // Notas do dono da loja
+  notes String? @db.Text // Notas do dono da loja
 
   // Timestamps
-  requestedAt       BigInt   // Quando solicitou
-  approvedAt        BigInt?  // Quando foi aprovado
-  rejectedAt        BigInt?  // Quando foi rejeitado
-  suspendedAt       BigInt?  // Quando foi suspenso
+  requestedAt BigInt // Quando solicitou
+  approvedAt  BigInt? // Quando foi aprovado
+  rejectedAt  BigInt? // Quando foi rejeitado
+  suspendedAt BigInt? // Quando foi suspenso
 
   // Performance (calculado periodicamente)
-  totalSales        Decimal  @default(0) @db.Decimal(20, 8)
-  totalCommission   Decimal  @default(0) @db.Decimal(20, 8)
-  salesCount        Int      @default(0)
+  totalSales      Decimal @default(0) @db.Decimal(20, 8)
+  totalCommission Decimal @default(0) @db.Decimal(20, 8)
+  salesCount      Int     @default(0)
 
-  createdAt         BigInt
-  updatedAt         BigInt
+  createdAt BigInt
+  updatedAt BigInt
 
   @@unique([storeId, promoterId])
   @@index([promoterId])
@@ -1307,22 +1411,22 @@ model ChatStoreAffiliate {
 
 // Sistema de Convites de Afiliado (Opcional)
 model ChatAffiliateInvite {
-  id          String   @id @default(uuid())
-  storeId     BigInt
-  inviteCode  String   @unique // Código único de convite
+  id         String @id @default(uuid())
+  storeId    BigInt
+  inviteCode String @unique // Código único de convite
 
   // Configurações do convite
-  maxUses     Int?     // Número máximo de usos (null = ilimitado)
-  usesCount   Int      @default(0)
-  expiresAt   BigInt?  // Data de expiração
+  maxUses   Int? // Número máximo de usos (null = ilimitado)
+  usesCount Int     @default(0)
+  expiresAt BigInt? // Data de expiração
 
   // Auto-aprovação
-  autoApprove Boolean  @default(false)
+  autoApprove Boolean @default(false)
 
   // Comissão padrão para quem usar este convite
   defaultCommission Int @default(5)
 
-  createdAt   BigInt
+  createdAt BigInt
 
   @@index([storeId])
 }
@@ -1331,38 +1435,38 @@ model ChatAffiliateInvite {
 
 // Marketplace personalizado do afiliado (vitrine)
 model AffiliateMarketplace {
-  id                String   @id @default(uuid())
-  ownerId           String
-  owner             Profile  @relation("AffiliateMarketplaces", fields: [ownerId], references: [id], onDelete: Cascade)
+  id      String  @id @default(uuid())
+  ownerId String
+  owner   Profile @relation("AffiliateMarketplaces", fields: [ownerId], references: [id], onDelete: Cascade)
 
   // Branding
-  name              String
-  slug              String   @unique
-  description       String?  @db.Text
-  logoUrl           String?
-  bannerUrl         String?
-  theme             String   @default("bazari")
-  primaryColor      String?
-  secondaryColor    String?
+  name           String
+  slug           String  @unique
+  description    String? @db.Text
+  logoUrl        String?
+  bannerUrl      String?
+  theme          String  @default("bazari")
+  primaryColor   String?
+  secondaryColor String?
 
   // Metadados IPFS (opcional)
-  metadataCid       String?
+  metadataCid String?
 
   // Estatísticas (cache)
-  totalSales        Int      @default(0)
-  totalRevenue      Decimal  @default(0) @db.Decimal(20, 8)
-  totalCommission   Decimal  @default(0) @db.Decimal(20, 8)
-  productCount      Int      @default(0)
+  totalSales      Int     @default(0)
+  totalRevenue    Decimal @default(0) @db.Decimal(20, 8)
+  totalCommission Decimal @default(0) @db.Decimal(20, 8)
+  productCount    Int     @default(0)
 
   // Status
-  isActive          Boolean  @default(true)
-  isPublic          Boolean  @default(true)
+  isActive Boolean @default(true)
+  isPublic Boolean @default(true)
 
-  createdAt         BigInt
-  updatedAt         BigInt
+  createdAt BigInt
+  updatedAt BigInt
 
-  products          AffiliateProduct[]
-  sales             AffiliateSale[]
+  products AffiliateProduct[]
+  sales    AffiliateSale[]
 
   @@index([ownerId])
   @@index([slug])
@@ -1371,31 +1475,31 @@ model AffiliateMarketplace {
 
 // Produtos adicionados à vitrine do afiliado
 model AffiliateProduct {
-  id                String              @id @default(uuid())
-  marketplaceId     String
-  marketplace       AffiliateMarketplace @relation(fields: [marketplaceId], references: [id], onDelete: Cascade)
+  id            String               @id @default(uuid())
+  marketplaceId String
+  marketplace   AffiliateMarketplace @relation(fields: [marketplaceId], references: [id], onDelete: Cascade)
 
   // Produto original
-  storeId           BigInt
-  productId         String
-  productName       String
-  productImageUrl   String?
-  productPrice      Decimal             @db.Decimal(20, 8)
+  storeId         BigInt
+  productId       String
+  productName     String
+  productImageUrl String?
+  productPrice    Decimal @db.Decimal(20, 8)
 
   // Comissão
   commissionPercent Int
 
   // Customizações (opcional)
-  customDescription String?             @db.Text
+  customDescription String? @db.Text
   customImageUrl    String?
-  featured          Boolean             @default(false)
+  featured          Boolean @default(false)
 
   // Tracking
-  viewCount         Int                 @default(0)
-  clickCount        Int                 @default(0)
+  viewCount  Int @default(0)
+  clickCount Int @default(0)
 
-  addedAt           BigInt
-  updatedAt         BigInt
+  addedAt   BigInt
+  updatedAt BigInt
 
   @@unique([marketplaceId, storeId, productId])
   @@index([marketplaceId])
@@ -1407,42 +1511,42 @@ model AffiliateProduct {
 // ===========================
 
 model DeliveryRequest {
-  id                String   @id @default(uuid())
+  id String @id @default(uuid())
 
   // Origem da demanda
-  sourceType        String   // "order" | "direct"
-  orderId           String?  @unique
-  order             Order?   @relation(fields: [orderId], references: [id])
+  sourceType String // "order" | "direct"
+  orderId    String? @unique
+  order      Order?  @relation(fields: [orderId], references: [id])
 
   // Endereços
-  pickupAddress     Json     // { street, number, complement?, city, state, zipCode, country, lat?, lng?, contactName?, contactPhone? }
-  deliveryAddress   Json     // { street, number, complement?, city, state, zipCode, country, lat?, lng?, contactName?, contactPhone? }
+  pickupAddress   Json // { street, number, complement?, city, state, zipCode, country, lat?, lng?, contactName?, contactPhone? }
+  deliveryAddress Json // { street, number, complement?, city, state, zipCode, country, lat?, lng?, contactName?, contactPhone? }
 
   // Partes Envolvidas
-  senderId          String   // storeId (SellerProfile.id) ou profileId
-  senderType        String   // "store" | "profile"
-  recipientId       String   // profileId do destinatário
+  senderId    String // storeId (SellerProfile.id) ou profileId
+  senderType  String // "store" | "profile"
+  recipientId String // profileId do destinatário
 
   // Detalhes da Carga
-  packageType       String   // "envelope" | "small_box" | "medium_box" | "large_box" | "fragile" | "perishable" | "custom"
+  packageType       String // "envelope" | "small_box" | "medium_box" | "large_box" | "fragile" | "perishable" | "custom"
   weight            Float?   @db.Real // em kg
-  dimensions        Json?    // { length: float, width: float, height: float } em cm
+  dimensions        Json? // { length: float, width: float, height: float } em cm
   estimatedValue    Decimal? @db.Decimal(20, 8) // valor estimado da mercadoria (para seguro)
   notes             String?  @db.Text
   requiresSignature Boolean  @default(true)
 
   // Valor e Pagamento
-  deliveryFeeBzr    Decimal  @db.Decimal(20, 8)
-  distance          Float?   @db.Real // em km (calculado)
+  deliveryFeeBzr Decimal @db.Decimal(20, 8)
+  distance       Float?  @db.Real // em km (calculado)
 
   // Status
-  status            String   @default("pending")
+  status String @default("pending")
   // "pending" → "assigned" → "accepted" → "picked_up" → "in_transit" → "delivered" → "completed"
   // ou "cancelled" | "failed"
 
   // Entregador
-  deliveryPersonId  String?
-  deliveryPerson    Profile? @relation("DeliveryPerson", fields: [deliveryPersonId], references: [id])
+  deliveryPersonId String?
+  deliveryPerson   Profile? @relation("DeliveryPerson", fields: [deliveryPersonId], references: [id])
 
   // Rede de Entregadores
   preferredDeliverers String[] @default([]) // profileIds (ordem de prioridade)
@@ -1450,31 +1554,35 @@ model DeliveryRequest {
   notifiedDeliverers  String[] @default([]) // histórico de quem foi notificado
 
   // Tracking de Tempo
-  createdAt         BigInt
-  updatedAt         BigInt
-  expiresAt         BigInt?  // prazo limite para aceite
-  assignedAt        BigInt?  // quando foi atribuído
-  acceptedAt        BigInt?  // quando entregador aceitou
-  pickedUpAt        BigInt?  // quando coletou
-  inTransitAt       BigInt?  // quando iniciou trânsito
-  deliveredAt       BigInt?  // quando entregou
-  completedAt       BigInt?  // quando foi finalizado/pago
-  cancelledAt       BigInt?
+  createdAt   BigInt
+  updatedAt   BigInt
+  expiresAt   BigInt? // prazo limite para aceite
+  assignedAt  BigInt? // quando foi atribuído
+  acceptedAt  BigInt? // quando entregador aceitou
+  pickedUpAt  BigInt? // quando coletou
+  inTransitAt BigInt? // quando iniciou trânsito
+  deliveredAt BigInt? // quando entregou
+  completedAt BigInt? // quando foi finalizado/pago
+  cancelledAt BigInt?
 
   // Escrow e Pagamento
-  escrowAddress     String?
-  paymentTxHash     String?  // hash da transação de pagamento
-  releaseTxHash     String?  // hash da liberação do escrow
+  escrowAddress String?
+  paymentTxHash String? // hash da transação de pagamento
+  releaseTxHash String? // hash da liberação do escrow
 
   // Prova de Entrega
-  proofOfDelivery   Json?    // { signature?, photo_urls?: string[], timestamp: bigint }
+  proofOfDelivery Json? // { signature?, photo_urls?: string[], timestamp: bigint }
 
   // Avaliação
-  rating            Int?     // 1-5 estrelas
-  reviewComment     String?  @db.Text
+  rating        Int? // 1-5 estrelas
+  reviewComment String? @db.Text
 
   // Metadados
-  metadata          Json?    // campo flexível para dados extras
+  metadata Json? // campo flexível para dados extras
+
+  // Relations
+  waypoints DeliveryWaypoint[]
+  reviews   CourierReview[]
 
   @@index([status])
   @@index([senderId, senderType])
@@ -1485,46 +1593,46 @@ model DeliveryRequest {
 }
 
 model StoreDeliveryPartner {
-  id                String   @id @default(uuid())
+  id String @id @default(uuid())
 
   // Relação
-  storeId           BigInt   // SellerProfile.onChainStoreId
-  deliveryPersonId  String   // Profile.id
-  deliveryPerson    Profile  @relation("StoreDeliveryPartner", fields: [deliveryPersonId], references: [id], onDelete: Cascade)
+  storeId          BigInt // SellerProfile.onChainStoreId
+  deliveryPersonId String // Profile.id
+  deliveryPerson   Profile @relation("StoreDeliveryPartner", fields: [deliveryPersonId], references: [id], onDelete: Cascade)
 
   // Configurações
-  status            String   @default("pending") // "pending" | "active" | "paused" | "suspended" | "rejected"
-  priority          Int      @default(1) // 1 = primeira oferta, 2 = segunda, etc.
+  status   String @default("pending") // "pending" | "active" | "paused" | "suspended" | "rejected"
+  priority Int    @default(1) // 1 = primeira oferta, 2 = segunda, etc.
 
   // Comissão e Financeiro
   commissionPercent Int      @default(100) // % do deliveryFeeBzr que vai para o entregador
   bonusPerDelivery  Decimal? @db.Decimal(20, 8) // bônus fixo por entrega
 
   // Restrições
-  maxDailyDeliveries Int?    // limite de entregas por dia (null = sem limite)
-  allowedDays       String[] @default([]) // ["monday", "tuesday", ...] - vazio = todos os dias
-  workingHoursStart String?  // "08:00"
-  workingHoursEnd   String?  // "18:00"
+  maxDailyDeliveries Int? // limite de entregas por dia (null = sem limite)
+  allowedDays        String[] @default([]) // ["monday", "tuesday", ...] - vazio = todos os dias
+  workingHoursStart  String? // "08:00"
+  workingHoursEnd    String? // "18:00"
 
   // Métricas (cache)
-  totalDeliveries   Int      @default(0)
+  totalDeliveries     Int    @default(0)
   completedDeliveries Int    @default(0)
   cancelledDeliveries Int    @default(0)
-  avgRating         Float    @default(0)
-  avgDeliveryTime   Float?   @db.Real // em minutos
-  onTimeRate        Float    @default(100.0) // %
+  avgRating           Float  @default(0)
+  avgDeliveryTime     Float? @db.Real // em minutos
+  onTimeRate          Float  @default(100.0) // %
 
   // Timestamps
-  requestedAt       BigInt?  // quando entregador solicitou
-  approvedAt        BigInt?  // quando loja aprovou
-  rejectedAt        BigInt?
-  suspendedAt       BigInt?
-  createdAt         BigInt
-  updatedAt         BigInt
+  requestedAt BigInt? // quando entregador solicitou
+  approvedAt  BigInt? // quando loja aprovou
+  rejectedAt  BigInt?
+  suspendedAt BigInt?
+  createdAt   BigInt
+  updatedAt   BigInt
 
   // Notas
-  notes             String?  @db.Text // notas privadas da loja sobre o entregador
-  rejectionReason   String?  @db.Text
+  notes           String? @db.Text // notas privadas da loja sobre o entregador
+  rejectionReason String? @db.Text
 
   @@unique([storeId, deliveryPersonId])
   @@index([storeId, status])
@@ -1533,92 +1641,140 @@ model StoreDeliveryPartner {
 }
 
 model DeliveryProfile {
-  id                String   @id @default(uuid())
-  profileId         String   @unique
-  profile           Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  id        String  @id @default(uuid())
+  profileId String  @unique
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   // Documentação
-  fullName          String
-  documentType      String   // "cpf" | "cnpj" | "passport"
-  documentNumber    String   @unique
-  phoneNumber       String
-  emergencyContact  Json?    // { name: string, phone: string, relationship: string }
+  fullName         String
+  documentType     String // "cpf" | "cnpj" | "passport"
+  documentNumber   String @unique
+  phoneNumber      String
+  emergencyContact Json? // { name: string, phone: string, relationship: string }
 
   // Veículo
-  vehicleType       String   // "bike" | "motorcycle" | "car" | "van" | "truck"
-  vehiclePlate      String?
-  vehicleModel      String?
-  vehicleYear       Int?
-  vehicleColor      String?
+  vehicleType  String // "bike" | "motorcycle" | "car" | "van" | "truck"
+  vehiclePlate String?
+  vehicleModel String?
+  vehicleYear  Int?
+  vehicleColor String?
 
   // Capacidades
-  maxWeight         Float    @db.Real // kg
-  maxVolume         Float    @db.Real // m³
-  canCarryFragile   Boolean  @default(false)
+  maxWeight          Float   @db.Real // kg
+  maxVolume          Float   @db.Real // m³
+  canCarryFragile    Boolean @default(false)
   canCarryPerishable Boolean @default(false)
-  hasInsulatedBag   Boolean  @default(false) // bag térmica
+  hasInsulatedBag    Boolean @default(false) // bag térmica
 
   // Disponibilidade
-  isAvailable       Boolean  @default(false)
-  isOnline          Boolean  @default(false) // conectado no momento
-  currentLat        Float?   @db.Real
-  currentLng        Float?   @db.Real
-  currentAccuracy   Float?   @db.Real // em metros
+  isAvailable        Boolean @default(false)
+  isOnline           Boolean @default(false) // conectado no momento
+  currentLat         Float?  @db.Real
+  currentLng         Float?  @db.Real
+  currentAccuracy    Float?  @db.Real // em metros
   lastLocationUpdate BigInt?
 
   // Área de Atuação
-  serviceRadius     Float    @default(10.0) @db.Real // km
-  serviceCities     String[] @default([]) // ["Rio de Janeiro", "Niterói"]
-  serviceStates     String[] @default([]) // ["RJ"]
+  serviceRadius          Float    @default(10.0) @db.Real // km
+  serviceCities          String[] @default([]) // ["Rio de Janeiro", "Niterói"]
+  serviceStates          String[] @default([]) // ["RJ"]
   preferredNeighborhoods String[] @default([])
 
   // Estatísticas
-  totalDeliveries   Int      @default(0)
-  completedDeliveries Int    @default(0)
-  cancelledDeliveries Int    @default(0)
-  avgRating         Float    @default(0)
-  totalRatings      Int      @default(0)
-  onTimeRate        Float    @default(100.0) // %
-  acceptanceRate    Float    @default(100.0) // % de entregas aceitas vs oferecidas
-  completionRate    Float    @default(100.0) // % de entregas completadas vs aceitas
+  totalDeliveries     Int   @default(0)
+  completedDeliveries Int   @default(0)
+  cancelledDeliveries Int   @default(0)
+  avgRating           Float @default(0)
+  totalRatings        Int   @default(0)
+  onTimeRate          Float @default(100.0) // %
+  acceptanceRate      Float @default(100.0) // % de entregas aceitas vs oferecidas
+  completionRate      Float @default(100.0) // % de entregas completadas vs aceitas
 
   // Performance
-  avgDeliveryTime   Float?   @db.Real // tempo médio em minutos
-  fastestDelivery   Float?   @db.Real // entrega mais rápida (minutos)
-  totalDistance     Float    @default(0) @db.Real // km acumulados
+  avgDeliveryTime Float? @db.Real // tempo médio em minutos
+  fastestDelivery Float? @db.Real // entrega mais rápida (minutos)
+  totalDistance   Float  @default(0) @db.Real // km acumulados
 
   // Financeiro
-  walletAddress     String?  // endereço blockchain para receber pagamentos
-  totalEarnings     Decimal  @default(0) @db.Decimal(20, 8) // BZR ganhos (histórico)
-  pendingEarnings   Decimal  @default(0) @db.Decimal(20, 8) // BZR em escrow
+  walletAddress   String? // endereço blockchain para receber pagamentos
+  totalEarnings   Decimal @default(0) @db.Decimal(20, 8) // BZR ganhos (histórico)
+  pendingEarnings Decimal @default(0) @db.Decimal(20, 8) // BZR em escrow
 
   // Verificação
-  isVerified        Boolean  @default(false)
-  verificationLevel String   @default("basic") // "basic" | "intermediate" | "advanced"
+  isVerified               Boolean @default(false)
+  verificationLevel        String  @default("basic") // "basic" | "intermediate" | "advanced"
   backgroundCheckCompleted Boolean @default(false)
-  backgroundCheckDate BigInt?
+  backgroundCheckDate      BigInt?
 
   // Configurações
-  autoAcceptRadius  Float?   @db.Real // km - aceita automaticamente dentro desse raio
-  minDeliveryFee    Decimal? @db.Decimal(20, 8) // valor mínimo de entrega que aceita
-  notificationsEnabled Boolean @default(true)
+  autoAcceptRadius     Float?   @db.Real // km - aceita automaticamente dentro desse raio
+  minDeliveryFee       Decimal? @db.Decimal(20, 8) // valor mínimo de entrega que aceita
+  notificationsEnabled Boolean  @default(true)
 
   // Status da Conta
-  accountStatus     String   @default("active") // "active" | "suspended" | "banned" | "under_review"
-  suspensionReason  String?  @db.Text
-  suspendedUntil    BigInt?
+  accountStatus    String  @default("active") // "active" | "suspended" | "banned" | "under_review"
+  suspensionReason String? @db.Text
+  suspendedUntil   BigInt?
 
   // Timestamps
-  createdAt         BigInt
-  updatedAt         BigInt
-  lastActiveAt      BigInt?
-  verifiedAt        BigInt?
+  createdAt    BigInt
+  updatedAt    BigInt
+  lastActiveAt BigInt?
+  verifiedAt   BigInt?
+
+  // ✅ NEW: Blockchain sync (bazari-fulfillment pallet)
+  reviewsMerkleRoot      String? // Cache of on-chain Merkle root
+  lastMerkleUpdate       DateTime? // Last time Merkle root was updated
+  onChainReputationScore Int? // Cache of on-chain reputation score
 
   @@index([isAvailable, isOnline])
   @@index([profileId])
   @@index([documentNumber])
   @@index([serviceRadius])
   @@index([accountStatus])
+  @@index([reviewsMerkleRoot])
+}
+
+// === DeliveryWaypoint (NEW) - GPS Tracking ===
+model DeliveryWaypoint {
+  id                String          @id @default(uuid())
+  deliveryRequestId String
+  deliveryRequest   DeliveryRequest @relation(fields: [deliveryRequestId], references: [id], onDelete: Cascade)
+  latitude          Float           @db.Real
+  longitude         Float           @db.Real
+  accuracy          Float?          @db.Real // em metros
+  altitude          Float?          @db.Real
+  speed             Float?          @db.Real // m/s
+  bearing           Float?          @db.Real // degrees
+  timestamp         BigInt
+
+  // ✅ NEW: Proof tracking (bazari-attestation pallet)
+  proofSubmitted Boolean @default(false) // Was this waypoint part of a proof?
+  proofCid       String? // IPFS CID if submitted as HandoffProof/DeliveryProof
+
+  @@index([deliveryRequestId, timestamp])
+  @@index([proofSubmitted])
+}
+
+// === CourierReview (NEW) - Off-Chain Reviews ===
+model CourierReview {
+  id                String          @id @default(uuid())
+  deliveryRequestId String
+  deliveryRequest   DeliveryRequest @relation(fields: [deliveryRequestId], references: [id], onDelete: Cascade)
+  courierId         String // Profile.id (delivery person)
+  reviewerId        String // Profile.id (quem avaliou: sender ou recipient)
+  rating            Int // 1-5 stars
+  comment           String?         @db.Text
+  createdAt         BigInt
+
+  // ✅ NEW: Merkle inclusion tracking (bazari-fulfillment pallet)
+  merkleIncluded Boolean @default(false) // Was included in Merkle tree?
+  merkleRootHash String? // Which Merkle root includes this review?
+
+  @@index([courierId, createdAt])
+  @@index([reviewerId])
+  @@index([deliveryRequestId])
+  @@index([courierId, merkleIncluded])
 }
 
 // ============================================================
@@ -1626,17 +1782,17 @@ model DeliveryProfile {
 // ============================================================
 
 model GovernanceTreasuryRequest {
-  id          Int      @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
   // Dados da solicitação
-  title       String   @db.VarChar(255)
-  description String   @db.Text
-  value       String   @db.VarChar(50) // Valor em planck (string para precisão)
-  beneficiary String   @db.VarChar(66) // Endereço SS58
-  proposer    String   @db.VarChar(66) // Quem criou a solicitação
+  title       String @db.VarChar(255)
+  description String @db.Text
+  value       String @db.VarChar(50) // Valor em planck (string para precisão)
+  beneficiary String @db.VarChar(66) // Endereço SS58
+  proposer    String @db.VarChar(66) // Quem criou a solicitação
 
   // Status e tracking
-  status      String   @default("PENDING_REVIEW") @db.VarChar(50)
+  status String @default("PENDING_REVIEW") @db.VarChar(50)
   // PENDING_REVIEW: Aguardando council analisar
   // IN_VOTING: Motion criado, aguardando votos
   // APPROVED: Motion aprovado, spend executado
@@ -1644,20 +1800,20 @@ model GovernanceTreasuryRequest {
   // PAID_OUT: Pagamento realizado
 
   // Linkagem com blockchain
-  councilMotionHash  String?  @db.VarChar(66) // Hash do motion criado
-  councilMotionIndex Int?     // Índice do motion
-  spendId            Int?     // ID do spend aprovado on-chain
-  txHash             String?  @db.VarChar(66) // Hash da tx de aprovação
-  blockNumber        Int?     // Bloco de aprovação
+  councilMotionHash  String? @db.VarChar(66) // Hash do motion criado
+  councilMotionIndex Int? // Índice do motion
+  spendId            Int? // ID do spend aprovado on-chain
+  txHash             String? @db.VarChar(66) // Hash da tx de aprovação
+  blockNumber        Int? // Bloco de aprovação
 
   // Assinatura para validação
-  signature   String   @db.Text
+  signature String @db.Text
 
   // Timestamps
-  createdAt   DateTime @default(now())
-  reviewedAt  DateTime?
-  approvedAt  DateTime?
-  paidOutAt   DateTime?
+  createdAt  DateTime  @default(now())
+  reviewedAt DateTime?
+  approvedAt DateTime?
+  paidOutAt  DateTime?
 
   @@index([status])
   @@index([proposer])
@@ -1667,12 +1823,12 @@ model GovernanceTreasuryRequest {
 }
 
 model GovernanceCouncilVote {
-  id          Int      @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
-  motionHash  String   @db.VarChar(66)
+  motionHash  String  @db.VarChar(66)
   motionIndex Int
-  voter       String   @db.VarChar(66) // Council member que votou
-  vote        Boolean  // true = AYE, false = NAY
+  voter       String  @db.VarChar(66) // Council member que votou
+  vote        Boolean // true = AYE, false = NAY
 
   txHash      String   @db.VarChar(66)
   blockNumber Int
@@ -1685,37 +1841,37 @@ model GovernanceCouncilVote {
 
 // Tabela para salvar propostas Democracy quando criadas
 model GovernanceDemocracyProposal {
-  id             Int      @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
   // Dados da proposta on-chain
-  proposalIndex  Int      @unique
-  proposalHash   String   @db.VarChar(66) // Hash da proposta
-  preimageHash   String?  @db.VarChar(66) // Hash do preimage (se disponível)
+  proposalIndex Int     @unique
+  proposalHash  String  @db.VarChar(66) // Hash da proposta
+  preimageHash  String? @db.VarChar(66) // Hash do preimage (se disponível)
 
   // Metadata extraído do preimage/remark
-  title          String   @db.VarChar(255)
-  description    String   @db.Text
-  proposer       String?  @db.VarChar(66) // Quem propôs
+  title       String  @db.VarChar(255)
+  description String  @db.Text
+  proposer    String? @db.VarChar(66) // Quem propôs
 
   // Dados financeiros
-  deposit        String   @db.VarChar(50) // Depósito em planck
+  deposit String @db.VarChar(50) // Depósito em planck
 
   // Status
-  status         String   @default("PROPOSED") @db.VarChar(50)
+  status String @default("PROPOSED") @db.VarChar(50)
   // PROPOSED: Proposta criada, aguardando endorsements
   // STARTED: Virou referendum (migrado para GovernanceReferendum)
   // CANCELLED: Proposta cancelada
 
   // Blockchain data
-  txHash         String   @db.VarChar(66)
-  blockNumber    Int
+  txHash      String @db.VarChar(66)
+  blockNumber Int
 
   // Timestamps
-  createdAt      DateTime @default(now())
-  startedAt      DateTime? // Quando virou referendum
+  createdAt DateTime  @default(now())
+  startedAt DateTime? // Quando virou referendum
 
   // Relação com referendum (se virou referendum)
-  referendum     GovernanceReferendum?
+  referendum GovernanceReferendum?
 
   @@index([proposalIndex])
   @@index([proposalHash])
@@ -1726,46 +1882,277 @@ model GovernanceDemocracyProposal {
 
 // Tabela para salvar referendos com metadata persistente
 model GovernanceReferendum {
-  id                Int      @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
   // Dados do referendum on-chain
-  refIndex          Int      @unique
-  threshold         String   @db.VarChar(50) // VoteThreshold (SimpleMajority, SuperMajorityApprove, etc)
+  refIndex  Int    @unique
+  threshold String @db.VarChar(50) // VoteThreshold (SimpleMajority, SuperMajorityApprove, etc)
 
   // Metadata copiado da proposta original
-  title             String   @db.VarChar(255)
-  description       String   @db.Text
-  proposer          String?  @db.VarChar(66)
+  title       String  @db.VarChar(255)
+  description String  @db.Text
+  proposer    String? @db.VarChar(66)
 
   // Linkagem com proposta original
-  proposalId        Int?     @unique
-  proposalHash      String?  @db.VarChar(66)
-  preimageHash      String?  @db.VarChar(66)
+  proposalId   Int?    @unique
+  proposalHash String? @db.VarChar(66)
+  preimageHash String? @db.VarChar(66)
 
   // Status
-  status            String   @default("ONGOING") @db.VarChar(50)
+  status String @default("ONGOING") @db.VarChar(50)
   // ONGOING: Referendum ativo, aceitando votos
   // APPROVED: Passou (será executado)
   // REJECTED: Não passou
   // EXECUTED: Foi executado
 
   // Blockchain data
-  startTxHash       String   @db.VarChar(66) // Tx do evento Started
-  startBlockNumber  Int      // Bloco do evento Started
-  endTxHash         String?  @db.VarChar(66) // Tx do resultado final
-  endBlockNumber    Int?     // Bloco do resultado final
+  startTxHash      String  @db.VarChar(66) // Tx do evento Started
+  startBlockNumber Int // Bloco do evento Started
+  endTxHash        String? @db.VarChar(66) // Tx do resultado final
+  endBlockNumber   Int? // Bloco do resultado final
 
   // Timestamps
-  createdAt         DateTime @default(now()) // Quando Started
-  endedAt           DateTime? // Quando Passed/NotPassed
-  executedAt        DateTime? // Quando Executed
+  createdAt  DateTime  @default(now()) // Quando Started
+  endedAt    DateTime? // Quando Passed/NotPassed
+  executedAt DateTime? // Quando Executed
 
   // Relação com proposta original (FK opcional)
-  proposal          GovernanceDemocracyProposal? @relation(fields: [proposalId], references: [id])
+  proposal GovernanceDemocracyProposal? @relation(fields: [proposalId], references: [id])
 
   @@index([refIndex])
   @@index([status])
   @@index([proposalHash])
   @@index([createdAt(sort: Desc)])
   @@map("governance_referendums")
+}
+
+// ============================================================================
+// Blockchain Commerce Sync Models (for blockchain-sync.worker)
+// ============================================================================
+
+model BlockchainOrder {
+  id          Int      @id @default(autoincrement())
+  orderId     Int      @unique // On-chain order ID
+  buyer       String   @db.VarChar(66)
+  seller      String   @db.VarChar(66)
+  marketplace Int
+  totalAmount String   @db.VarChar(100) // Stored as string to preserve precision
+  status      String   @default("CREATED") @db.VarChar(50) // CREATED, PROOF_SUBMITTED, DISPUTED, COMPLETED
+  txHash      String   @db.VarChar(66)
+  blockNumber Int
+  createdAt   DateTime @default(now())
+
+  @@index([orderId])
+  @@index([buyer])
+  @@index([seller])
+  @@index([status])
+  @@index([createdAt])
+  @@map("blockchain_orders")
+}
+
+model DeliveryProof {
+  id          Int      @id @default(autoincrement())
+  orderId     Int
+  proofCid    String   @db.VarChar(100) // IPFS CID
+  attestor    String   @db.VarChar(66) // Courier who submitted proof
+  txHash      String   @db.VarChar(66)
+  blockNumber Int
+  submittedAt DateTime @default(now())
+
+  @@unique([orderId, proofCid])
+  @@index([orderId])
+  @@index([attestor])
+  @@index([submittedAt])
+  @@map("delivery_proofs")
+}
+
+model BlockchainDispute {
+  id          Int      @id @default(autoincrement())
+  disputeId   Int      @unique // On-chain dispute ID
+  orderId     Int
+  plaintiff   String   @db.VarChar(66)
+  defendant   String   @db.VarChar(66)
+  status      String   @default("OPENED") @db.VarChar(50) // OPENED, VOTING, RESOLVED
+  txHash      String   @db.VarChar(66)
+  blockNumber Int
+  createdAt   DateTime @default(now())
+
+  @@index([disputeId])
+  @@index([orderId])
+  @@index([plaintiff])
+  @@index([defendant])
+  @@index([status])
+  @@index([createdAt])
+  @@map("blockchain_disputes")
+}
+
+// ==================== BAZARI REWARDS (BLOCKCHAIN GAMIFICATION) ====================
+
+model Mission {
+  id            String   @id @default(cuid())
+  missionId     Int      @unique // ID from blockchain
+  title         String
+  description   String   @db.Text
+  missionType   String // FirstPurchase, CompleteNOrders, SpendAmount, ReferFriend, DailyLogin
+  rewardAmount  String // ZARI amount (smallest unit, 12 decimals)
+  requiredCount Int // Target value to complete
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  userProgress UserMissionProgress[]
+
+  @@index([missionId])
+  @@index([missionType])
+  @@index([isActive])
+  @@map("missions")
+}
+
+model UserMissionProgress {
+  id           String    @id @default(cuid())
+  userId       String
+  missionId    Int
+  currentCount Int       @default(0)
+  isCompleted  Boolean   @default(false)
+  isClaimed    Boolean   @default(false)
+  completedAt  DateTime?
+  claimedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user    Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mission Mission @relation(fields: [missionId], references: [missionId], onDelete: Cascade)
+
+  @@unique([userId, missionId])
+  @@index([userId])
+  @@index([missionId])
+  @@index([isCompleted])
+  @@index([isClaimed])
+  @@map("user_mission_progress")
+}
+
+model CashbackGrant {
+  id             String   @id @default(cuid())
+  userId         String
+  orderAmount    String // BZR amount spent (smallest unit)
+  cashbackAmount String // ZARI amount granted (smallest unit, 12 decimals)
+  orderId        String? // Optional reference to order
+  grantedAt      DateTime @default(now())
+
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([grantedAt])
+  @@index([orderId])
+  @@map("cashback_grants")
+}
+
+// ==================== BAZARI VR MODELS ====================
+
+// VR Session tracking (multiplayer)
+model VRSession {
+  id        String    @id @default(cuid())
+  userId    String
+  worldZone String // "plaza", "avenue", "auditorium", "building"
+  enteredAt DateTime  @default(now())
+  leftAt    DateTime?
+
+  @@index([userId])
+  @@index([worldZone])
+  @@index([enteredAt])
+  @@map("vr_sessions")
+}
+
+// Auditorium events
+model AuditoriumEvent {
+  id          String   @id @default(cuid())
+  title       String
+  description String?  @db.Text
+  startAt     DateTime
+  endAt       DateTime
+  hostUserId  String
+  maxSeats    Int      @default(50)
+  status      String   @default("scheduled") // "scheduled", "live", "ended", "cancelled"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([startAt])
+  @@index([status])
+  @@index([hostUserId])
+  @@map("auditorium_events")
+}
+
+// Land NFT (terrenos virtuais)
+model Land {
+  id String @id @default(cuid())
+
+  // Endereçamento único
+  address   String @unique // "AVP-N-042", "PLC-C-001", etc.
+  zone      String // "AVP", "PLC", "BGT", "BTH", "PCL", "GFD"
+  sector    String // "N", "E", "S", "W", "A", "B", "C", "D"
+  lotNumber Int
+
+  // Posicionamento 3D
+  positionX Float
+  positionY Float
+  positionZ Float
+  rotation  Float @default(0) // Rotação em radianos
+
+  // Dimensões
+  width Float // Largura em metros
+  depth Float // Profundidade em metros
+  area  Float // width * depth (m²)
+
+  // Classificação
+  size String // "micro", "small", "medium", "large", "mega"
+  tier String // "S", "A", "B", "C", "D"
+
+  // NFT blockchain
+  nftId       String? @unique // Token ID on-chain
+  nftContract String? // Endereço do contrato ERC-721
+
+  // Propriedade
+  ownerId String? // User.id do proprietário
+
+  // Aluguel
+  isForRent   Boolean   @default(false)
+  rentPrice   Decimal?  @db.Decimal(20, 12) // Preço em BZR por mês
+  tenantId    String? // User.id do inquilino
+  rentStartAt DateTime?
+  rentEndsAt  DateTime?
+
+  // Loja construída (relação 1:1)
+  storeId String?        @unique // SellerProfile.id
+  store   SellerProfile? @relation(fields: [storeId], references: [id])
+
+  // Metadados
+  isAvailable Boolean @default(true) // Se está à venda
+  basePrice   Decimal @db.Decimal(20, 12) // Preço base de compra em BZR
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zone, sector, lotNumber])
+  @@index([ownerId])
+  @@index([tenantId])
+  @@index([isAvailable])
+  @@index([address])
+  @@map("lands")
+}
+
+// ========================================
+// VR Integration Models
+// ========================================
+
+model VRToken {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  token     String   @unique
+  used      Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([token, used])
+  @@index([userId, createdAt])
 }

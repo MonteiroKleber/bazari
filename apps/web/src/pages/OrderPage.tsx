@@ -13,6 +13,8 @@ import { apiHelpers } from '@/lib/api';
 import { deliveryApi } from '@/lib/api/delivery';
 import { DeliveryStatusTimeline } from '@/components/delivery';
 import type { DeliveryRequest } from '@/types/delivery';
+import { PaymentProtectionCard } from '@/components/escrow/PaymentProtectionCard';
+import { useBlockchainQuery } from '@/hooks/useBlockchainQuery';
 
 interface Order {
   id: string;
@@ -74,6 +76,12 @@ export function OrderPage() {
   // Delivery tracking
   const [delivery, setDelivery] = useState<DeliveryRequest | null>(null);
   const [isLoadingDelivery, setIsLoadingDelivery] = useState(false);
+
+  // Blockchain current block for escrow countdown
+  const { data: blockData } = useBlockchainQuery<{ currentBlock: number }>({
+    endpoint: '/api/blockchain/current-block',
+    refetchInterval: 6000, // Update every block (6s)
+  });
 
   const loadOrder = useCallback(async () => {
     if (!id) return;
@@ -396,6 +404,14 @@ export function OrderPage() {
 
         {/* Delivery Tracking */}
         {renderDeliveryTracking()}
+
+        {/* Payment Protection (Escrow) */}
+        {id && (
+          <PaymentProtectionCard
+            orderId={id}
+            currentBlock={blockData?.currentBlock ?? 0}
+          />
+        )}
 
         {/* Actions */}
         <Card>

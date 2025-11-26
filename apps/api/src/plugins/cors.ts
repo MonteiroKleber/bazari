@@ -9,8 +9,14 @@ export const corsPlugin = fp(async function (fastify) {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  const defaultOrigins = ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'];
-  const origins = parsed.length > 0 ? parsed : defaultOrigins;
+  const defaultOrigins = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://127.0.0.1:5173',
+    'https://bazari.libervia.xyz',
+    'https://bazari-vr.libervia.xyz'
+  ];
+  const origins = parsed.length > 0 ? [...parsed, ...defaultOrigins] : defaultOrigins;
 
   await fastify.register(cors, {
     origin: origins,

@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { User, ArrowLeft } from 'lucide-react';
 import {
   buildSiwsMessage,
-  decryptMnemonic,
+  decryptMnemonicFlexible,
   fetchNonce,
   fetchProfile,
   getActiveAccount,
@@ -19,6 +19,7 @@ import {
   loginSiws,
   refreshSession,
   useKeyring,
+  hashPin,
 } from '@/modules/auth';
 import {
   isLocked,
@@ -108,13 +109,30 @@ export function Unlock() {
         throw new Error(t('auth.errors.noStoredSeed'));
       }
 
-      const mnemonic = await decryptMnemonic(
-        selectedAccount.cipher,
-        selectedAccount.iv,
-        selectedAccount.salt,
-        pin,
-        selectedAccount.iterations
-      );
+      // Tenta primeiro com o PIN em texto (fluxo tradicional); se falhar, tenta com hashPin (fluxo social)
+      let mnemonic: string;
+      try {
+        mnemonic = await decryptMnemonicFlexible(
+          selectedAccount.cipher,
+          selectedAccount.iv,
+          selectedAccount.salt,
+          pin,
+          selectedAccount.iterations,
+          (selectedAccount as any).authTag
+        );
+      } catch (firstError) {
+        const hashedPin = await hashPin(pin);
+        mnemonic = await decryptMnemonicFlexible(
+          selectedAccount.cipher,
+          selectedAccount.iv,
+          selectedAccount.salt,
+          hashedPin,
+          selectedAccount.iterations,
+          (selectedAccount as any).authTag
+        ).catch(() => {
+          throw firstError;
+        });
+      }
 
       // Set this account as active
       await setActiveAccount(selectedAccount.address);

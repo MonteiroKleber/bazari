@@ -70,7 +70,7 @@ export function AccountsPage() {
         validate: async (pinTry: string) => {
           if (!acct) return t('wallet.accounts.messages.activeError', 'Conta não encontrada.');
           try {
-            await decryptMnemonic(acct.cipher, acct.iv, acct.salt, pinTry, acct.iterations);
+            await decryptMnemonic(acct.cipher, acct.iv, acct.salt, pinTry, acct.authTag, acct.iterations);
             return null;
           } catch (e) {
             return t('wallet.accounts.messages.pinAccountMismatch', 'PIN não pertence a esta conta.');
@@ -91,7 +91,7 @@ export function AccountsPage() {
     const acct = accounts.find((a) => a.address === address);
     if (!acct) { setPendingAddress(null); return; }
     try {
-      const mnemonic = await decryptMnemonic(acct.cipher, acct.iv, acct.salt, pin, acct.iterations);
+      const mnemonic = await decryptMnemonic(acct.cipher, acct.iv, acct.salt, pin, acct.authTag, acct.iterations);
       const nonce = await fetchNonce(address);
       const message = buildSiwsMessage(address, nonce);
       const signature = await signMessage(mnemonic, message);
@@ -684,7 +684,7 @@ function ExportAccountPanel({ account, onClose, onError }: ExportPanelProps) {
     }
     try {
       setLoading(true);
-      const secret = await decryptMnemonic(account.cipher, account.iv, account.salt, pin, account.iterations);
+      const secret = await decryptMnemonic(account.cipher, account.iv, account.salt, pin, account.authTag, account.iterations);
       setMnemonic(secret);
       setRevealed(true);
     } catch (error) {

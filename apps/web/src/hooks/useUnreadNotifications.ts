@@ -1,11 +1,16 @@
 import { useState, useEffect } from 'react';
 import { apiHelpers } from '@/lib/api';
+import { isSessionActive } from '@/modules/auth';
 
 export function useUnreadNotifications() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
   const loadUnreadCount = async () => {
+    if (!isSessionActive()) {
+      setUnreadCount(0);
+      return;
+    }
     try {
       setLoading(true);
       const res: any = await apiHelpers.getNotifications({ limit: 1, unreadOnly: true });
