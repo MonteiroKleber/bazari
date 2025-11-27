@@ -112,7 +112,8 @@ export function OrderPayPage() {
           if (active?.address) {
             const bal = await getNativeBalance(active.address);
             setFreeBalance(bal.free.toString());
-            const tx = api.tx.balances.transferKeepAlive(intentData.escrowAddress, intentData.amountBzr);
+            // Use bazariEscrow.lockFunds for fee estimation (real escrow transaction)
+            const tx = api.tx.bazariEscrow.lockFunds(id, orderData.sellerAddr, intentData.amountBzr);
             const info = await tx.paymentInfo(active.address);
             setEstimatedFee(info.partialFee.toString());
           }
@@ -137,7 +138,6 @@ export function OrderPayPage() {
 
     setPaying(true);
     setError(null);
-    setPinError(null);
 
     try {
       const api = await getApi();
@@ -148,10 +148,12 @@ export function OrderPayPage() {
       const pair = keyring.addFromMnemonic(mnemonic);
       mnemonic = '';
 
-      const tx = api.tx.balances.transferKeepAlive(paymentIntent.escrowAddress, paymentIntent.amountBzr);
+      // Use bazariEscrow.lockFunds instead of balances.transferKeepAlive
+      // This locks funds in escrow on-chain with proper protection
+      const tx = api.tx.bazariEscrow.lockFunds(order.id, order.sellerAddr, paymentIntent.amountBzr);
 
-      const unsubscribe = await tx.signAndSend(pair, (result) => {
-        const { status, dispatchError } = result as any;
+      const unsubscribe = await tx.signAndSend(pair, async (result) => {
+        const { status, dispatchError, txHash } = result as any;
 
         if (dispatchError) {
           let message = String(dispatchError);
@@ -167,6 +169,16 @@ export function OrderPayPage() {
 
         if (status?.isFinalized) {
           try { (unsubscribe as unknown as () => void)(); } catch {}
+
+          // Confirm escrow lock with backend to update DB state
+          try {
+            const blockNumber = status.asFinalized?.toString();
+            await ordersApi.confirmEscrowLock(order.id, txHash.toString(), blockNumber);
+          } catch (confirmError) {
+            console.error('Failed to confirm escrow lock with backend:', confirmError);
+            // Continue anyway - the on-chain state is the source of truth
+          }
+
           navigate(`/app/orders/${order.id}`);
         }
       });

@@ -363,26 +363,38 @@ Transformar Bazari de **28% on-chain** para **60% on-chain** através de 3 fases
 
 **Objetivo**: Features avançadas não-bloqueantes
 
-### Sprint 17-19: Delivery + Badges (Semanas 17-19)
+### Sprint 17-19: ~~Delivery + Badges~~ → **Hybrid Architecture + Badges** (Semanas 17-19)
 
-#### bazari-delivery (Semanas 17-18)
-- [ ] **S17.1**: Implementar Storage
-  - `DeliveryRequests<T>` - Tracking on-chain
-  - `DeliveryProofs<T>` - Provas de entrega (IPFS CID)
+#### ❌ bazari-delivery DESCONTINUADO - Substituído por Arquitetura Híbrida
 
-- [ ] **S17.2**: Implementar Extrinsics
-  - `create_delivery_request()` - Cria request
-  - `accept_delivery()` - Courier aceita
-  - `complete_delivery()` - Submete proof
+**Motivo**: GPS on-chain custaria $0.60-12/entrega + 12 KB blockchain bloat
 
-#### Badges NFTs (Semana 19)
-- [ ] **S19.1**: Implementar `bazari-gamification`
+**Solução Implementada em `bazari-fulfillment`**:
+
+- [x] **S17.1**: GPS Tracking Off-Chain (2 dias)
+  - PostgreSQL: `DeliveryWaypoint` table
+  - Service: `DeliveryTrackingService` (waypoints, ETA)
+  - API: `POST /api/deliveries/:id/waypoint`
+
+- [x] **S17.2**: Reviews Off-Chain + Merkle Root On-Chain (2 dias)
+  - PostgreSQL: `CourierReview` table
+  - Merkle tree: Atualiza a cada 100 reviews
+  - Worker: Cron horário para roots desatualizadas
+  - Extrinsic: `update_reviews_merkle_root()`
+
+- [x] **S17.3**: Documentation (1 dia)
+  - [GPS-TRACKING.md](../pallets/bazari-fulfillment/GPS-TRACKING.md)
+  - [REVIEWS-ARCHITECTURE.md](../pallets/bazari-fulfillment/REVIEWS-ARCHITECTURE.md)
+
+#### Badges NFTs (Semanas 18-19)
+- [ ] **S18.1**: Implementar `bazari-gamification` (1 semana)
   - Storage: `Badges<T>` - Badge definitions
   - Extrinsics: `mint_badge()` - Mintar badge NFT (via pallet-nfts)
 
-**Deliverable**: Delivery tracking + Badges NFTs
+**Deliverable**: Hybrid architecture (✅ implementada) + Badges NFTs
 
-**Estimativa**: 3 semanas, 1 dev Rust
+**Estimativa**: **1 semana** (vs 3 semanas original), 1 dev Backend
+**Economia**: -2 semanas, -95% custos GPS/reviews
 
 ---
 

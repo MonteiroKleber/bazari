@@ -293,6 +293,8 @@ model RefreshToken {
 enum OrderStatus {
   CREATED
   PENDING
+  PENDING_BLOCKCHAIN    // Order criada no DB, aguardando sync on-chain
+  BLOCKCHAIN_FAILED     // Falha ao criar on-chain (retry pendente)
   ESCROWED
   SHIPPED
   RELEASED
@@ -358,6 +360,8 @@ model Order {
   blockchainTxHash  String? // Transaction hash when created on-chain
   onChainStatus     String? // Cache of on-chain status (PENDING, CONFIRMED, etc)
   lastSyncedAt      DateTime? // Last time synced with blockchain
+  blockchainRetries Int       @default(0) // Number of retry attempts for blockchain sync
+  blockchainError   String?   // Last error message from blockchain sync attempt
 
   items          OrderItem[]
   paymentIntents PaymentIntent[]

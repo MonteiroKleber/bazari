@@ -118,6 +118,9 @@ import {
 // Vesting pages (FASE 9)
 import { VestingPage } from './modules/vesting';
 
+// Disputes pages (FASE 7)
+import { DisputeDetailPage, MyDisputesPage } from './modules/disputes';
+
 // Testnet access page
 import { TestnetAccessPage } from './pages/TestnetAccessPage';
 
@@ -474,6 +477,10 @@ function App() {
                       <Route path="governance/treasury/requests/:id" element={<TreasuryRequestDetailPage />} />
                       <Route path="governance/council" element={<CouncilPage />} />
                       <Route path="governance/multisig" element={<MultisigPage />} />
+
+                      {/* Disputes routes (FASE 7) */}
+                      <Route path="disputes" element={<MyDisputesPage />} />
+                      <Route path="disputes/:disputeId" element={<DisputeDetailPage />} />
 
                       {/* Rewards routes */}
                       <Route path="rewards/missions" element={<MissionsHubPage />} />

@@ -16,6 +16,9 @@ import type {
   OrderCreatedEvent,
   ProofSubmittedEvent,
   DisputeOpenedEvent,
+  EscrowLockedEvent,
+  FundsReleasedEvent,
+  BuyerRefundedEvent,
 } from '../services/blockchain/blockchain-events.service.js';
 
 export interface BlockchainSyncWorkerOptions {
@@ -29,6 +32,9 @@ export interface SyncStats {
   ordersCreated: number;
   proofsSubmitted: number;
   disputesOpened: number;
+  escrowsLocked: number;
+  fundsReleased: number;
+  buyersRefunded: number;
   errors: number;
   lastHeartbeat: Date | null;
   lastEvent: Date | null;
@@ -52,6 +58,9 @@ export class BlockchainSyncWorker {
     ordersCreated: 0,
     proofsSubmitted: 0,
     disputesOpened: 0,
+    escrowsLocked: 0,
+    fundsReleased: 0,
+    buyersRefunded: 0,
     errors: 0,
     lastHeartbeat: null,
     lastEvent: null,
@@ -88,6 +97,9 @@ export class BlockchainSyncWorker {
       onOrderCreated: this.handleOrderCreated.bind(this),
       onProofSubmitted: this.handleProofSubmitted.bind(this),
       onDisputeOpened: this.handleDisputeOpened.bind(this),
+      onEscrowLocked: this.handleEscrowLocked.bind(this),
+      onFundsReleased: this.handleFundsReleased.bind(this),
+      onBuyerRefunded: this.handleBuyerRefunded.bind(this),
       onError: this.handleError.bind(this),
     });
 
@@ -163,6 +175,9 @@ export class BlockchainSyncWorker {
             ordersCreated: this.stats.ordersCreated,
             proofsSubmitted: this.stats.proofsSubmitted,
             disputesOpened: this.stats.disputesOpened,
+            escrowsLocked: this.stats.escrowsLocked,
+            fundsReleased: this.stats.fundsReleased,
+            buyersRefunded: this.stats.buyersRefunded,
             errors: this.stats.errors,
           },
         });
@@ -361,6 +376,165 @@ export class BlockchainSyncWorker {
   }
 
   /**
+   * Handler: EscrowLocked
+   * Atualiza pedido com status ESCROWED e cria EscrowLog
+   */
+  private async handleEscrowLocked(event: EscrowLockedEvent): Promise<void> {
+    this.logger.info('[BlockchainSync] Processing EscrowLocked event:', {
+      orderId: event.orderId,
+      buyer: event.buyer,
+      seller: event.seller,
+      amount: event.amount,
+    });
+
+    this.stats.lastEvent = new Date();
+
+    try {
+      // Encontrar Order pelo externalOrderId (orderId da blockchain)
+      const order = await this.prisma.order.findFirst({
+        where: { externalOrderId: event.orderId },
+      });
+
+      if (order) {
+        // Atualizar status do pedido
+        await this.prisma.order.update({
+          where: { id: order.id },
+          data: { status: 'ESCROWED' },
+        });
+
+        // Criar EscrowLog
+        await this.prisma.escrowLog.create({
+          data: {
+            orderId: order.id,
+            kind: 'LOCK',
+            payloadJson: {
+              buyer: event.buyer,
+              seller: event.seller,
+              amount: event.amount,
+              txHash: event.txHash,
+              blockNumber: event.blockNumber,
+              timestamp: new Date().toISOString(),
+            },
+          },
+        });
+
+        this.stats.escrowsLocked++;
+        this.logger.info(`[BlockchainSync] ✅ Order ${order.id} updated to ESCROWED`);
+      } else {
+        // Pedido não encontrado no DB (pode estar em outra marketplace ou ser on-chain only)
+        this.logger.warn(`[BlockchainSync] Order with externalOrderId ${event.orderId} not found in database`);
+      }
+    } catch (error) {
+      this.stats.errors++;
+      this.logger.error('[BlockchainSync] Error processing EscrowLocked:', error);
+    }
+  }
+
+  /**
+   * Handler: FundsReleased
+   * Atualiza pedido com status RELEASED e cria EscrowLog
+   */
+  private async handleFundsReleased(event: FundsReleasedEvent): Promise<void> {
+    this.logger.info('[BlockchainSync] Processing FundsReleased event:', {
+      orderId: event.orderId,
+      seller: event.seller,
+      amount: event.amount,
+    });
+
+    this.stats.lastEvent = new Date();
+
+    try {
+      // Encontrar Order pelo externalOrderId
+      const order = await this.prisma.order.findFirst({
+        where: { externalOrderId: event.orderId },
+      });
+
+      if (order) {
+        // Atualizar status do pedido
+        await this.prisma.order.update({
+          where: { id: order.id },
+          data: { status: 'RELEASED' },
+        });
+
+        // Criar EscrowLog
+        await this.prisma.escrowLog.create({
+          data: {
+            orderId: order.id,
+            kind: 'RELEASE',
+            payloadJson: {
+              seller: event.seller,
+              amount: event.amount,
+              txHash: event.txHash,
+              blockNumber: event.blockNumber,
+              timestamp: new Date().toISOString(),
+            },
+          },
+        });
+
+        this.stats.fundsReleased++;
+        this.logger.info(`[BlockchainSync] ✅ Order ${order.id} updated to RELEASED`);
+      } else {
+        this.logger.warn(`[BlockchainSync] Order with externalOrderId ${event.orderId} not found in database`);
+      }
+    } catch (error) {
+      this.stats.errors++;
+      this.logger.error('[BlockchainSync] Error processing FundsReleased:', error);
+    }
+  }
+
+  /**
+   * Handler: BuyerRefunded
+   * Atualiza pedido com status REFUNDED e cria EscrowLog
+   */
+  private async handleBuyerRefunded(event: BuyerRefundedEvent): Promise<void> {
+    this.logger.info('[BlockchainSync] Processing BuyerRefunded event:', {
+      orderId: event.orderId,
+      buyer: event.buyer,
+      amount: event.amount,
+    });
+
+    this.stats.lastEvent = new Date();
+
+    try {
+      // Encontrar Order pelo externalOrderId
+      const order = await this.prisma.order.findFirst({
+        where: { externalOrderId: event.orderId },
+      });
+
+      if (order) {
+        // Atualizar status do pedido
+        await this.prisma.order.update({
+          where: { id: order.id },
+          data: { status: 'REFUNDED' },
+        });
+
+        // Criar EscrowLog
+        await this.prisma.escrowLog.create({
+          data: {
+            orderId: order.id,
+            kind: 'REFUND',
+            payloadJson: {
+              buyer: event.buyer,
+              amount: event.amount,
+              txHash: event.txHash,
+              blockNumber: event.blockNumber,
+              timestamp: new Date().toISOString(),
+            },
+          },
+        });
+
+        this.stats.buyersRefunded++;
+        this.logger.info(`[BlockchainSync] ✅ Order ${order.id} updated to REFUNDED`);
+      } else {
+        this.logger.warn(`[BlockchainSync] Order with externalOrderId ${event.orderId} not found in database`);
+      }
+    } catch (error) {
+      this.stats.errors++;
+      this.logger.error('[BlockchainSync] Error processing BuyerRefunded:', error);
+    }
+  }
+
+  /**
    * Handler: Erros
    */
   private handleError(error: Error): void {
@@ -382,6 +556,9 @@ export class BlockchainSyncWorker {
     this.stats.ordersCreated = 0;
     this.stats.proofsSubmitted = 0;
     this.stats.disputesOpened = 0;
+    this.stats.escrowsLocked = 0;
+    this.stats.fundsReleased = 0;
+    this.stats.buyersRefunded = 0;
     this.stats.errors = 0;
     this.logger.info('[BlockchainSync] Stats reset');
   }

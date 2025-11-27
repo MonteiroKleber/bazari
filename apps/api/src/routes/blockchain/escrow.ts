@@ -13,12 +13,389 @@ const orderIdParamsSchema = z.object({
   orderId: z.string().uuid(),
 });
 
+// Constants for auto-release calculation
+const AUTO_RELEASE_BLOCKS = 100_800; // 7 dias = 100,800 blocos (6s/block)
+
+// Helper to format BZR amount
+function formatBzr(planck: string): string {
+  const value = BigInt(planck);
+  const divisor = BigInt(10 ** 12);
+  const wholePart = value / divisor;
+  const fractionalPart = value % divisor;
+  return `${wholePart}.${fractionalPart.toString().padStart(12, '0').slice(0, 2)}`;
+}
+
+// Map blockchain status to frontend EscrowState
+function mapStatusToState(status: string): 'Active' | 'Released' | 'Refunded' | 'Disputed' {
+  switch (status) {
+    case 'Locked':
+      return 'Active';
+    case 'Released':
+      return 'Released';
+    case 'Refunded':
+    case 'PartialRefund':
+      return 'Refunded';
+    case 'Disputed':
+      return 'Disputed';
+    default:
+      return 'Active';
+  }
+}
+
 export async function escrowRoutes(
   app: FastifyInstance,
   options: FastifyPluginOptions & { prisma: PrismaClient }
 ) {
   const { prisma } = options;
   const blockchainService = BlockchainService.getInstance();
+
+  // ============================================================================
+  // POST /api/blockchain/escrow/:orderId/prepare-lock - Preparar transação para frontend assinar
+  // Retorna os dados da transação para o usuário assinar no frontend (OPÇÃO A)
+  // ============================================================================
+  app.post('/escrow/:orderId/prepare-lock', { preHandler: authOnRequest }, async (request, reply) => {
+    try {
+      const { orderId } = orderIdParamsSchema.parse(request.params);
+      const authUser = (request as any).authUser as { sub: string; address: string };
+
+      // 1. Buscar order
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: { paymentIntents: true },
+      });
+
+      if (!order) {
+        return reply.status(404).send({ error: 'Order not found' });
+      }
+
+      // 2. Validar buyer
+      if (order.buyerAddr !== authUser.address) {
+        return reply.status(403).send({ error: 'Unauthorized: not buyer' });
+      }
+
+      // 3. Verificar status da order
+      if (order.status !== 'CREATED') {
+        return reply.status(400).send({
+          error: 'Invalid order status',
+          message: `Order status is ${order.status}, expected CREATED`,
+        });
+      }
+
+      // 4. Verificar se já está locked
+      const api = await blockchainService.getApi();
+      const existing = await api.query.bazariEscrow.escrows(orderId);
+
+      if (existing.isSome) {
+        return reply.status(400).send({ error: 'Escrow already locked' });
+      }
+
+      // 5. Preparar call data para frontend assinar
+      const totalBzr = BigInt(order.totalBzr.toString());
+
+      const callData = api.tx.bazariEscrow.lockFunds(
+        orderId,
+        order.sellerAddr,
+        totalBzr
+      );
+
+      return {
+        orderId,
+        seller: order.sellerAddr,
+        buyer: order.buyerAddr,
+        amount: totalBzr.toString(),
+        callHex: callData.toHex(),
+        callHash: callData.hash.toHex(),
+        method: 'bazariEscrow.lockFunds',
+      };
+    } catch (error) {
+      app.log.error(error);
+      return reply.status(500).send({
+        error: 'Failed to prepare lock transaction',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // ============================================================================
+  // POST /api/blockchain/escrow/:orderId/prepare-release - Preparar release para frontend assinar
+  // NOVO (Fase 6) - Pattern prepare+sign para que o buyer assine a transação
+  // ============================================================================
+  app.post('/escrow/:orderId/prepare-release', { preHandler: authOnRequest }, async (request, reply) => {
+    try {
+      const { orderId } = orderIdParamsSchema.parse(request.params);
+      const authUser = (request as any).authUser as { sub: string; address: string };
+
+      // 1. Buscar order
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+      });
+
+      if (!order) {
+        return reply.status(404).send({ error: 'Order not found' });
+      }
+
+      // 2. Validar que caller é o buyer
+      if (order.buyerAddr !== authUser.address) {
+        return reply.status(403).send({ error: 'Unauthorized: only buyer can release' });
+      }
+
+      // 3. Verificar escrow on-chain
+      const api = await blockchainService.getApi();
+      const escrowData = await api.query.bazariEscrow.escrows(orderId);
+
+      if (escrowData.isNone) {
+        return reply.status(400).send({ error: 'Escrow not found on blockchain' });
+      }
+
+      const escrow = escrowData.unwrap();
+      const status = escrow.status.toString();
+
+      // 4. Verificar status é 'Locked' (não Disputed, Released, etc)
+      if (status !== 'Locked') {
+        return reply.status(400).send({
+          error: 'Invalid escrow status for release',
+          currentStatus: status,
+          message: status === 'Disputed'
+            ? 'Cannot release disputed escrow. Wait for dispute resolution.'
+            : `Escrow already ${status.toLowerCase()}`,
+        });
+      }
+
+      // 5. Verificar se não há disputa ativa no bazari-dispute
+      // (Mesmo que escrow status seja Locked, pode haver disputa pendente)
+      try {
+        const disputes = await api.query.bazariDispute.disputes.entries();
+        const activeDispute = disputes.find(([_, dispute]: [any, any]) => {
+          if (dispute.isNone) return false;
+          const d = dispute.unwrap();
+          // orderId no dispute é u64, converter para comparar
+          const disputeOrderId = d.orderId?.toString?.() || '';
+          const disputeStatus = d.status?.toString?.() || '';
+          return disputeOrderId === orderId && disputeStatus !== 'Resolved';
+        });
+
+        if (activeDispute) {
+          return reply.status(400).send({
+            error: 'Order has active dispute',
+            message: 'Cannot release funds while dispute is active. Wait for resolution.',
+          });
+        }
+      } catch (e) {
+        // Se pallet dispute não existe ou erro de query, continuar
+        app.log.warn('Could not check disputes:', e);
+      }
+
+      // 6. Preparar call data para frontend assinar
+      const callData = api.tx.bazariEscrow.releaseFunds(orderId);
+
+      return {
+        orderId,
+        buyer: escrow.buyer.toString(),
+        seller: escrow.seller.toString(),
+        amount: escrow.amountLocked.toString(),
+        callHex: callData.toHex(),
+        callHash: callData.hash.toHex(),
+        method: 'bazariEscrow.releaseFunds',
+        // Info adicional para UI
+        signerAddress: authUser.address, // Quem deve assinar
+        signerRole: 'buyer',
+      };
+    } catch (error) {
+      app.log.error(error);
+      return reply.status(500).send({
+        error: 'Failed to prepare release transaction',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // ============================================================================
+  // POST /api/blockchain/escrow/:orderId/prepare-refund - Preparar refund para DAO assinar
+  // NOVO (Fase 6) - Pattern prepare+sign para membros do Council/DAO
+  // ============================================================================
+  app.post('/escrow/:orderId/prepare-refund', { preHandler: authOnRequest }, async (request, reply) => {
+    try {
+      const { orderId } = orderIdParamsSchema.parse(request.params);
+      const authUser = (request as any).authUser as { sub: string; address: string };
+
+      // 1. Verificar se é membro do Council
+      const api = await blockchainService.getApi();
+
+      let isDAOMember = false;
+      try {
+        const members = await api.query.council.members();
+        const membersList = members.toJSON() as string[];
+        isDAOMember = membersList.includes(authUser.address);
+      } catch (error) {
+        app.log.warn('Failed to query council members:', error);
+      }
+
+      if (!isDAOMember) {
+        return reply.status(403).send({ error: 'Unauthorized: DAO members only' });
+      }
+
+      // 2. Buscar order
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+      });
+
+      if (!order) {
+        return reply.status(404).send({ error: 'Order not found' });
+      }
+
+      // 3. Verificar escrow on-chain
+      const escrowData = await api.query.bazariEscrow.escrows(orderId);
+
+      if (escrowData.isNone) {
+        return reply.status(400).send({ error: 'Escrow not found on blockchain' });
+      }
+
+      const escrow = escrowData.unwrap();
+      const status = escrow.status.toString();
+
+      // Refund permitido para: Locked ou Disputed
+      if (!['Locked', 'Disputed'].includes(status)) {
+        return reply.status(400).send({
+          error: 'Invalid escrow status for refund',
+          currentStatus: status,
+        });
+      }
+
+      // 4. Preparar call data
+      // NOTA: Refund requer DAOOrigin no pallet, então precisa de multisig ou sudo
+      const callData = api.tx.bazariEscrow.refund(orderId);
+
+      return {
+        orderId,
+        buyer: escrow.buyer.toString(),
+        seller: escrow.seller.toString(),
+        amount: escrow.amountLocked.toString(),
+        callHex: callData.toHex(),
+        callHash: callData.hash.toHex(),
+        method: 'bazariEscrow.refund',
+        // Info para multisig
+        requiresOrigin: 'DAO', // Precisa ser chamado via council/sudo
+        note: 'This call requires DAOOrigin. Use council multisig or sudo.',
+      };
+    } catch (error) {
+      app.log.error(error);
+      return reply.status(500).send({
+        error: 'Failed to prepare refund transaction',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // ============================================================================
+  // POST /api/blockchain/escrow/:orderId/confirm-lock - DEPRECATED
+  // Mantido por compatibilidade, mas recomenda-se usar o worker para atualizar DB
+  // ============================================================================
+  const confirmLockBodySchema = z.object({
+    txHash: z.string().min(1),
+    blockNumber: z.string().optional(),
+  });
+
+  app.post('/escrow/:orderId/confirm-lock', { preHandler: authOnRequest }, async (request, reply) => {
+    // Log deprecation warning
+    app.log.warn('[DEPRECATED] /confirm-lock endpoint called. Consider relying on blockchain-sync worker instead.');
+
+    try {
+      const { orderId } = orderIdParamsSchema.parse(request.params);
+      const { txHash, blockNumber } = confirmLockBodySchema.parse(request.body);
+      const authUser = (request as any).authUser as { sub: string; address: string };
+
+      // 1. Buscar order
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: { paymentIntents: true },
+      });
+
+      if (!order) {
+        return reply.status(404).send({ error: 'Order not found' });
+      }
+
+      // 2. Validar buyer
+      if (order.buyerAddr !== authUser.address) {
+        return reply.status(403).send({ error: 'Unauthorized: not buyer' });
+      }
+
+      // 3. Verificar se escrow existe on-chain
+      const api = await blockchainService.getApi();
+      const escrowData = await api.query.bazariEscrow.escrows(orderId);
+
+      if (escrowData.isNone) {
+        return reply.status(400).send({
+          error: 'Escrow not found on blockchain',
+          message: 'Transaction may not have been finalized yet. Please wait and try again.',
+        });
+      }
+
+      const escrow = escrowData.unwrap();
+      const escrowStatus = escrow.status.toString();
+
+      if (escrowStatus !== 'Locked') {
+        return reply.status(400).send({
+          error: 'Invalid escrow status',
+          currentStatus: escrowStatus,
+        });
+      }
+
+      // 4. Update PaymentIntent
+      const paymentIntent = order.paymentIntents?.[0];
+      if (paymentIntent) {
+        await prisma.paymentIntent.update({
+          where: { id: paymentIntent.id },
+          data: {
+            txHash: txHash,
+            status: 'FUNDS_IN',
+          },
+        });
+      }
+
+      // 5. Update Order status
+      await prisma.order.update({
+        where: { id: orderId },
+        data: { status: 'ESCROWED' },
+      });
+
+      // 6. Log event
+      await prisma.escrowLog.create({
+        data: {
+          orderId,
+          kind: 'LOCK',
+          payloadJson: {
+            txHash,
+            buyer: order.buyerAddr,
+            seller: order.sellerAddr,
+            amount: escrow.amountLocked.toString(),
+            blockNumber: blockNumber || escrow.lockedAt.toString(),
+            lockedAt: escrow.lockedAt.toNumber(),
+            timestamp: new Date().toISOString(),
+            source: 'user_signed',
+          },
+        },
+      });
+
+      return {
+        success: true,
+        orderId,
+        txHash,
+        status: 'ESCROWED',
+        escrow: {
+          buyer: escrow.buyer.toString(),
+          seller: escrow.seller.toString(),
+          amountLocked: escrow.amountLocked.toString(),
+          lockedAt: escrow.lockedAt.toNumber(),
+        },
+      };
+    } catch (error) {
+      app.log.error(error);
+      return reply.status(500).send({
+        error: 'Failed to confirm lock',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
 
   // ============================================================================
   // GET /api/blockchain/escrow/:orderId - Buscar status do escrow
@@ -59,16 +436,24 @@ export async function escrowRoutes(
 
       // 3. Parse escrow data
       const escrow = escrowData.unwrap();
+      const amountLocked = escrow.amountLocked.toString();
+      const lockedAt = escrow.lockedAt.toNumber();
+      const status = escrow.status.toString();
 
       return {
         exists: true,
         orderId,
         buyer: escrow.buyer.toString(),
         seller: escrow.seller.toString(),
-        amountLocked: escrow.amountLocked.toString(),
+        amount: amountLocked, // Raw amount (planck)
+        amountLocked, // Alias for compatibility
+        amountFormatted: formatBzr(amountLocked), // Human-readable BZR
         amountReleased: escrow.amountReleased.toString(),
-        status: escrow.status.toString(), // Locked, Released, Refunded, PartialRefund, Disputed
-        lockedAt: escrow.lockedAt.toNumber(),
+        status, // Raw status: Locked, Released, Refunded, PartialRefund, Disputed
+        state: mapStatusToState(status), // Frontend EscrowState: Active, Released, Refunded, Disputed
+        createdAt: lockedAt, // Block number when created
+        lockedAt, // Alias for compatibility
+        autoReleaseAt: lockedAt + AUTO_RELEASE_BLOCKS, // Block number for auto-release (createdAt + 7 days)
         updatedAt: escrow.updatedAt.toNumber(),
       };
     } catch (error) {
@@ -78,285 +463,42 @@ export async function escrowRoutes(
   });
 
   // ============================================================================
-  // POST /api/blockchain/escrow/:orderId/lock - Travar fundos
+  // POST /api/blockchain/escrow/:orderId/lock - DEPRECATED
+  // Use /prepare-lock instead. Frontend must sign the transaction.
   // ============================================================================
   app.post('/escrow/:orderId/lock', { preHandler: authOnRequest }, async (request, reply) => {
-    try {
-      const { orderId } = orderIdParamsSchema.parse(request.params);
-      const authUser = (request as any).authUser as { sub: string; address: string };
-
-      // 1. Buscar order
-      const order = await prisma.order.findUnique({
-        where: { id: orderId },
-        include: { paymentIntents: true },
-      });
-
-      if (!order) {
-        return reply.status(404).send({ error: 'Order not found' });
-      }
-
-      // 2. Validar buyer
-      if (order.buyerAddr !== authUser.address) {
-        return reply.status(403).send({ error: 'Unauthorized: not buyer' });
-      }
-
-      // 3. Verificar se já está locked
-      const api = await blockchainService.getApi();
-      const existing = await api.query.bazariEscrow.escrows(orderId);
-
-      if (existing.isSome) {
-        return reply.status(400).send({ error: 'Escrow already locked' });
-      }
-
-      // 4. Call pallet extrinsic
-      const serverKey = blockchainService.getEscrowAccount();
-      const totalBzr = BigInt(order.totalBzr.toString());
-
-      const tx = api.tx.bazariEscrow.lockFunds(
-        orderId,
-        order.sellerAddr,
-        totalBzr
-      );
-
-      // 5. Sign and send
-      const result = await blockchainService.signAndSend(tx, serverKey);
-
-      // 6. Update DB
-      const paymentIntent = order.paymentIntents?.[0];
-      if (paymentIntent) {
-        await prisma.paymentIntent.update({
-          where: { id: paymentIntent.id },
-          data: {
-            txHash: result.txHash,
-            status: 'FUNDS_IN', // Locked
-          },
-        });
-      }
-
-      // 7. Log event
-      await prisma.escrowLog.create({
-        data: {
-          orderId,
-          kind: 'LOCK',
-          payloadJson: {
-            txHash: result.txHash,
-            buyer: order.buyerAddr,
-            seller: order.sellerAddr,
-            amount: totalBzr.toString(),
-            blockNumber: result.blockNumber.toString(),
-            timestamp: new Date().toISOString(),
-          },
-        },
-      });
-
-      return {
-        success: true,
-        txHash: result.txHash,
-        orderId,
-        blockNumber: result.blockNumber.toString(),
-      };
-    } catch (error) {
-      app.log.error(error);
-      return reply.status(500).send({
-        error: 'Failed to lock funds',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
+    return reply.status(410).send({
+      error: 'Deprecated',
+      message: 'Use /prepare-lock instead. Frontend must sign the transaction.',
+      alternative: '/api/blockchain/escrow/:orderId/prepare-lock',
+      reason: 'Backend signing with server key fails pallet authorization check. The buyer must sign directly.',
+    });
   });
 
   // ============================================================================
-  // POST /api/blockchain/escrow/:orderId/release - Liberar fundos para seller
+  // POST /api/blockchain/escrow/:orderId/release - DEPRECATED
+  // Use /prepare-release instead. Frontend must sign the transaction.
   // ============================================================================
   app.post('/escrow/:orderId/release', { preHandler: authOnRequest }, async (request, reply) => {
-    try {
-      const { orderId } = orderIdParamsSchema.parse(request.params);
-      const authUser = (request as any).authUser as { sub: string; address: string };
-
-      // 1. Buscar order
-      const order = await prisma.order.findUnique({
-        where: { id: orderId },
-        include: { paymentIntents: true },
-      });
-
-      if (!order) {
-        return reply.status(404).send({ error: 'Order not found' });
-      }
-
-      // 2. Validar buyer (apenas buyer pode release)
-      if (order.buyerAddr !== authUser.address) {
-        return reply.status(403).send({ error: 'Unauthorized: only buyer can release' });
-      }
-
-      // 3. Verificar escrow existe e status
-      const api = await blockchainService.getApi();
-      const escrowData = await api.query.bazariEscrow.escrows(orderId);
-
-      if (escrowData.isNone) {
-        return reply.status(400).send({ error: 'Escrow not found on blockchain' });
-      }
-
-      const escrow = escrowData.unwrap();
-      if (escrow.status.toString() !== 'Locked') {
-        return reply.status(400).send({
-          error: 'Invalid escrow status',
-          currentStatus: escrow.status.toString(),
-        });
-      }
-
-      // 4. Call pallet extrinsic
-      const serverKey = blockchainService.getEscrowAccount();
-      const tx = api.tx.bazariEscrow.releaseFunds(orderId);
-
-      // 5. Sign and send
-      const result = await blockchainService.signAndSend(tx, serverKey);
-
-      // 6. Update DB
-      const paymentIntent = order.paymentIntents?.[0];
-      if (paymentIntent) {
-        await prisma.paymentIntent.update({
-          where: { id: paymentIntent.id },
-          data: {
-            txHashRelease: result.txHash,
-            status: 'RELEASED',
-          },
-        });
-      }
-
-      await prisma.order.update({
-        where: { id: orderId },
-        data: { status: 'DELIVERED' },
-      });
-
-      // 7. Log event
-      await prisma.escrowLog.create({
-        data: {
-          orderId,
-          kind: 'RELEASE',
-          payloadJson: {
-            txHash: result.txHash,
-            seller: order.sellerAddr,
-            amount: escrow.amountLocked.toString(),
-            blockNumber: result.blockNumber.toString(),
-            timestamp: new Date().toISOString(),
-          },
-        },
-      });
-
-      return {
-        success: true,
-        txHash: result.txHash,
-        orderId,
-        blockNumber: result.blockNumber.toString(),
-      };
-    } catch (error) {
-      app.log.error(error);
-      return reply.status(500).send({
-        error: 'Failed to release funds',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
+    return reply.status(410).send({
+      error: 'Deprecated',
+      message: 'Use /prepare-release instead. Frontend must sign the transaction.',
+      alternative: '/api/blockchain/escrow/:orderId/prepare-release',
+      reason: 'Backend signing with server key fails pallet authorization check. The buyer must sign directly.',
+    });
   });
 
   // ============================================================================
-  // POST /api/blockchain/escrow/:orderId/refund - Refund (DAO only)
+  // POST /api/blockchain/escrow/:orderId/refund - DEPRECATED
+  // Use /prepare-refund instead. DAO member must sign via multisig.
   // ============================================================================
   app.post('/escrow/:orderId/refund', { preHandler: authOnRequest }, async (request, reply) => {
-    try {
-      const { orderId } = orderIdParamsSchema.parse(request.params);
-      const authUser = (request as any).authUser as { sub: string; address: string };
-
-      // 1. Validar DAO member (Council member)
-      const api = await blockchainService.getApi();
-
-      let isDAOMember = false;
-      try {
-        const members = await api.query.council.members();
-        const membersList = members.toJSON() as string[];
-        isDAOMember = membersList.includes(authUser.address);
-      } catch (error) {
-        app.log.warn('Failed to query council members:', error);
-        isDAOMember = false;
-      }
-
-      if (!isDAOMember) {
-        return reply.status(403).send({ error: 'Unauthorized: DAO members only' });
-      }
-
-      // 2. Buscar order
-      const order = await prisma.order.findUnique({
-        where: { id: orderId },
-        include: { paymentIntents: true },
-      });
-
-      if (!order) {
-        return reply.status(404).send({ error: 'Order not found' });
-      }
-
-      // 3. Verificar escrow
-      const escrowData = await api.query.bazariEscrow.escrows(orderId);
-
-      if (escrowData.isNone) {
-        return reply.status(400).send({ error: 'Escrow not found' });
-      }
-
-      const escrow = escrowData.unwrap();
-      if (escrow.status.toString() !== 'Locked') {
-        return reply.status(400).send({ error: 'Invalid status for refund' });
-      }
-
-      // 4. Call pallet (DAO origin required)
-      const serverKey = blockchainService.getEscrowAccount();
-      const tx = api.tx.bazariEscrow.refund(orderId);
-
-      // 5. Sign and send
-      const result = await blockchainService.signAndSend(tx, serverKey);
-
-      // 6. Update DB
-      const paymentIntent = order.paymentIntents?.[0];
-      if (paymentIntent) {
-        await prisma.paymentIntent.update({
-          where: { id: paymentIntent.id },
-          data: {
-            txHashRefund: result.txHash,
-            status: 'REFUNDED',
-          },
-        });
-      }
-
-      await prisma.order.update({
-        where: { id: orderId },
-        data: { status: 'CANCELLED' },
-      });
-
-      // 7. Log event
-      await prisma.escrowLog.create({
-        data: {
-          orderId,
-          kind: 'REFUND',
-          payloadJson: {
-            txHash: result.txHash,
-            buyer: order.buyerAddr,
-            amount: escrow.amountLocked.toString(),
-            daoMember: authUser.address,
-            blockNumber: result.blockNumber.toString(),
-            timestamp: new Date().toISOString(),
-          },
-        },
-      });
-
-      return {
-        success: true,
-        txHash: result.txHash,
-        orderId,
-        blockNumber: result.blockNumber.toString(),
-      };
-    } catch (error) {
-      app.log.error(error);
-      return reply.status(500).send({
-        error: 'Failed to refund',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
+    return reply.status(410).send({
+      error: 'Deprecated',
+      message: 'Use /prepare-refund instead. DAO member must sign via multisig or sudo.',
+      alternative: '/api/blockchain/escrow/:orderId/prepare-refund',
+      reason: 'Backend signing with server key fails pallet DAOOrigin check. Requires council multisig.',
+    });
   });
 
   // ============================================================================
@@ -515,10 +657,7 @@ export async function escrowRoutes(
       const currentBlock = await blockchainService.getCurrentBlock();
       const currentBlockNum = Number(currentBlock);
 
-      // Auto-release após 7 dias = 100,800 blocos (6s/block)
-      // TODO: Pallet não tem auto-release hooks implementado ainda
-      // Este cálculo é manual e serve apenas para UI
-      const AUTO_RELEASE_BLOCKS = 100_800;
+      // Usar constante definida no topo do arquivo
       const URGENT_THRESHOLD = 2_400; // 24h = 14,400s / 6s = 2,400 blocos
 
       const orders = await prisma.order.findMany({

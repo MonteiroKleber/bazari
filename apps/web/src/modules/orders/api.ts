@@ -37,6 +37,29 @@ export interface CreateOrderResponse {
   }>;
 }
 
+export interface PrepareEscrowLockResponse {
+  orderId: string;
+  seller: string;
+  buyer: string;
+  amount: string;
+  callHex: string;
+  callHash: string;
+  method: string;
+}
+
+export interface ConfirmEscrowLockResponse {
+  success: boolean;
+  orderId: string;
+  txHash: string;
+  status: string;
+  escrow: {
+    buyer: string;
+    seller: string;
+    amountLocked: string;
+    lockedAt: number;
+  };
+}
+
 export const ordersApi = {
   create: async (data: CreateOrderRequest): Promise<CreateOrderResponse> => {
     // Generate a simple Idempotency-Key
@@ -51,4 +74,13 @@ export const ordersApi = {
   createPaymentIntent: (orderId: string) => apiHelpers.createPaymentIntent(orderId),
   confirmReceived: (orderId: string) => apiHelpers.confirmReceived(orderId),
   cancel: (orderId: string) => apiHelpers.cancelOrder(orderId),
+
+  // Escrow operations (Phase 1 - Escrow Real)
+  prepareEscrowLock: (orderId: string) =>
+    postJSON<PrepareEscrowLockResponse>(`/blockchain/escrow/${orderId}/prepare-lock`, {}),
+  confirmEscrowLock: (orderId: string, txHash: string, blockNumber?: string) =>
+    postJSON<ConfirmEscrowLockResponse>(`/blockchain/escrow/${orderId}/confirm-lock`, {
+      txHash,
+      blockNumber,
+    }),
 };

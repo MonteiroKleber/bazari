@@ -196,11 +196,17 @@ All **Priority 1 pallets** have **complete, production-ready documentation**:
 - ✅ 7 strategic documents (28% → 60% on-chain plan)
 - ✅ 3 complete P1 pallets (9 files, production-ready)
 - ✅ 5 complete P2 pallets (15 files, production-ready)
-- ✅ **31 files total** covering **100% of planned documentation**
+- ✅ 2 architecture guides (GPS + Reviews híbridas)
+- ✅ **33 files total** covering **100% of planned documentation**
 
-**Estimated value**: $30k-40k in technical documentation (based on $2k/day contractor rate × 15-20 days of work)
+**Architectural Decision** (❌ bazari-delivery descontinuado):
+- ✅ **GPS tracking off-chain** (custo: $0 vs $0.60-12/entrega)
+- ✅ **Reviews off-chain + Merkle root on-chain** (imutabilidade garantida)
+- ✅ **Economia**: 3 semanas desenvolvimento + 95% redução custos
 
-**Ready for**: Immediate implementation starting Week 1 (all pallets production-ready)
+**Estimated value**: $35k-45k in technical documentation (based on $2k/day contractor rate × 17-22 days of work)
+
+**Ready for**: Immediate implementation starting Week 1 (**8 pallets** production-ready, não 9)
 
 ---
 
@@ -227,7 +233,11 @@ All **Priority 1 pallets** have **complete, production-ready documentation**:
 
 ### P2 Pallets (Production Ready)
 - [bazari-attestation/](bazari-attestation/) - SPEC + IMPLEMENTATION + INTEGRATION
-- [bazari-fulfillment/](bazari-fulfillment/) - SPEC + IMPLEMENTATION + INTEGRATION
+- [bazari-fulfillment/](bazari-fulfillment/) - SPEC + IMPLEMENTATION + INTEGRATION + **GPS-TRACKING** + **REVIEWS-ARCHITECTURE**
 - [bazari-affiliate/](bazari-affiliate/) - SPEC + IMPLEMENTATION + INTEGRATION
 - [bazari-fee/](bazari-fee/) - SPEC + IMPLEMENTATION + INTEGRATION
 - [bazari-dispute/](bazari-dispute/) - SPEC + IMPLEMENTATION + INTEGRATION
+
+### Architecture Guides
+- [bazari-fulfillment/GPS-TRACKING.md](bazari-fulfillment/GPS-TRACKING.md) - Hybrid GPS architecture
+- [bazari-fulfillment/REVIEWS-ARCHITECTURE.md](bazari-fulfillment/REVIEWS-ARCHITECTURE.md) - Merkle tree reviews

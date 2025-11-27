@@ -29,6 +29,8 @@ import { startPaymentsTimeoutWorker } from './workers/paymentsTimeout.js';
 import { startP2PTimeoutWorker } from './workers/p2pTimeout.js';
 import { startReputationWorker } from './workers/reputation.worker.js';
 import { startGovernanceSyncWorker } from './workers/governance-sync.worker.js';
+import { startBlockchainOrderSyncWorker, BlockchainOrderSyncWorker } from './workers/blockchain-order-sync.worker.js';
+import { startEscrowAutoReleaseWorker, EscrowAutoReleaseWorker } from './workers/escrow-auto-release.worker.js';
 import { profilesRoutes } from './routes/profiles.js';
 import { sellersRoutes } from './routes/sellers.js';
 import { socialRoutes } from './routes/social.js';
@@ -77,6 +79,8 @@ import { escrowRoutes } from './routes/blockchain/escrow.js';
 import { governanceRoutes as blockchainGovernanceRoutes } from './routes/blockchain/governance.js';
 import { commerceRoutes } from './routes/blockchain/commerce.js';
 import { blockchainUtilsRoutes } from './routes/blockchain/utils.js';
+import { disputeRoutes } from './routes/blockchain/dispute.js';
+import { affiliateRoutes } from './routes/blockchain/affiliate.js';
 import { BlockchainService } from './services/blockchain/blockchain.service.js';
 import { vrStoresRoute } from './routes/vr/stores.js';
 import { vrEventsRoute } from './routes/vr/events.js';
@@ -237,11 +241,13 @@ async function buildApp() {
   await app.register(deliveryProfileRoutes, { prefix: '/api', prisma });
   await app.register(deliveryPartnerRoutes, { prefix: '/api', prisma });
 
-  // Blockchain routes (escrow, governance, commerce, utils)
+  // Blockchain routes (escrow, governance, commerce, utils, dispute)
   await app.register(escrowRoutes, { prefix: '/api/blockchain', prisma });
   await app.register(blockchainGovernanceRoutes, { prefix: '/api/blockchain' });
   await app.register(commerceRoutes, { prefix: '/api/blockchain' });
   await app.register(blockchainUtilsRoutes, { prefix: '/api/blockchain' });
+  await app.register(disputeRoutes, { prefix: '/api/blockchain', prisma });
+  await app.register(affiliateRoutes, { prefix: '/api/blockchain', prisma });
 
   // VR routes
   await app.register(vrStoresRoute, { prefix: '/api/vr', prisma });
@@ -283,6 +289,8 @@ async function buildApp() {
   let p2pTimeoutWorker: NodeJS.Timeout | null = null;
   let reputationWorker: NodeJS.Timeout | null = null;
   let governanceSyncWorker: any = null;
+  let orderSyncWorker: BlockchainOrderSyncWorker | null = null;
+  let autoReleaseWorker: EscrowAutoReleaseWorker | null = null;
   if (process.env.NODE_ENV !== 'production') {
     try {
       timeoutWorker = startPaymentsTimeoutWorker(prisma, {
@@ -320,6 +328,30 @@ async function buildApp() {
     app.log.warn({ err }, 'Falha ao iniciar worker de sincronização de governança');
   }
 
+  // Iniciar Blockchain Order Sync Worker (retry de orders com falha blockchain)
+  try {
+    orderSyncWorker = startBlockchainOrderSyncWorker(prisma, {
+      logger: app.log,
+      intervalMs: 5 * 60 * 1000, // 5 minutos
+      maxRetries: 5,
+    });
+    app.log.info('Worker de sincronização de orders blockchain iniciado');
+  } catch (err) {
+    app.log.warn({ err }, 'Falha ao iniciar worker de sincronização de orders blockchain');
+  }
+
+  // Iniciar Escrow Auto-Release Worker (libera escrows após 7 dias)
+  try {
+    autoReleaseWorker = startEscrowAutoReleaseWorker(prisma, {
+      logger: app.log,
+      intervalMs: 60 * 60 * 1000, // 1 hora
+      // dryRun: true, // Habilitar em ambiente de teste
+    });
+    app.log.info('Worker de auto-release de escrow iniciado');
+  } catch (err) {
+    app.log.warn({ err }, 'Falha ao iniciar worker de auto-release de escrow');
+  }
+
   // Limpar worker no graceful shutdown
   app.addHook('onClose', async () => {
     if (timeoutWorker) {
@@ -337,6 +369,14 @@ async function buildApp() {
     if (governanceSyncWorker) {
       await governanceSyncWorker.stop();
       app.log.info('Worker de sincronização de governança parado');
+    }
+    if (orderSyncWorker) {
+      orderSyncWorker.stop();
+      app.log.info('Worker de sincronização de orders blockchain parado');
+    }
+    if (autoReleaseWorker) {
+      autoReleaseWorker.stop();
+      app.log.info('Worker de auto-release de escrow parado');
     }
   });
 

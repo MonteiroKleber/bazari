@@ -132,17 +132,26 @@ Este diretório contém as especificações de todos os pallets Substrate necess
 
 ## 📦 Prioridade 3 - Enhancements (Semanas 17-24)
 
-### 9. [bazari-delivery](bazari-delivery/)
-**Status**: 🆕 New
-**Esforço**: 3 semanas
-**Depende de**: `bazari-fulfillment`
+### ~~9. bazari-delivery~~ ❌ **DESCONTINUADO**
 
-**Objetivo**: Tracking on-chain de entregas
-**Features**: DeliveryRequest, proof upload, ratings
+**Decisão Arquitetural**: Substituído por **arquitetura híbrida** em `bazari-fulfillment`
 
-**Arquivos**:
-- [SPEC.md](bazari-delivery/SPEC.md)
-- [IMPLEMENTATION.md](bazari-delivery/IMPLEMENTATION.md)
+**Motivo**:
+- GPS tracking on-chain custaria **$0.60-12.00 por entrega** 💸
+- Blockchain bloat: 12 KB por entrega (insustentável)
+- 80% da funcionalidade já existe em `bazari-fulfillment` + `bazari-attestation`
+
+**Solução Implementada**:
+- ✅ **GPS tracking off-chain** (PostgreSQL, custo zero)
+- ✅ **Provas GPS on-chain** (via `bazari-attestation`)
+- ✅ **Reviews off-chain** com **Merkle root on-chain** (imutabilidade garantida)
+- ✅ **Reputation score agregado** on-chain
+
+**Ver**:
+- [bazari-fulfillment/GPS-TRACKING.md](bazari-fulfillment/GPS-TRACKING.md)
+- [bazari-fulfillment/REVIEWS-ARCHITECTURE.md](bazari-fulfillment/REVIEWS-ARCHITECTURE.md)
+
+**Economia**: 3 semanas de desenvolvimento + 95% redução de custos on-chain
 
 ---
 
@@ -154,13 +163,15 @@ Este diretório contém as especificações de todos os pallets Substrate necess
 | bazari-escrow | P1 | ⚠️ Partial | 2 sem | Semana 4 |
 | bazari-rewards | P1 | ⚠️ MOCK | 2 sem | Semana 6 |
 | bazari-attestation | P2 | 🆕 New | 2-3 sem | Semana 9 |
-| bazari-fulfillment | P2 | 🆕 New | 1-2 sem | Semana 12 |
+| bazari-fulfillment | P2 | 🆕 New (+ Hybrid GPS/Reviews) | 1-2 sem | Semana 12 |
 | bazari-affiliate | P2 | 🆕 New | 1 sem | Semana 14 |
 | bazari-fee | P2 | 🆕 New | 3-5 dias | Semana 15 |
 | bazari-dispute | P2 | 🆕 New | 3-4 sem | Semana 16 |
-| bazari-delivery | P3 | 🆕 New | 3 sem | Semana 21 |
+| ~~bazari-delivery~~ | ~~P3~~ | ❌ **DESCONTINUADO** | ~~3 sem~~ | - |
 
-**Total**: 9 pallets, ~18-22 semanas de implementação
+**Total**: **8 pallets** (não 9), ~15-19 semanas de implementação
+
+**Economia vs plano original**: -3 semanas, -95% custos GPS/reviews
 
 ---
 

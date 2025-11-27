@@ -46,6 +46,7 @@ pub struct Courier<BlockNumber> {
     pub disputed_deliveries: u32,
     pub is_active: bool,
     pub registered_at: BlockNumber,
+    pub reviews_merkle_root: [u8; 32], // ✅ Merkle root of off-chain reviews
 }
 ```
 
@@ -247,6 +248,44 @@ pub fn slash_courier(
 
 ---
 
+### 5. update_reviews_merkle_root
+
+```rust
+#[pallet::call_index(4)]
+#[pallet::weight(T::WeightInfo::update_reviews_merkle_root())]
+pub fn update_reviews_merkle_root(
+    origin: OriginFor<T>,
+    courier: T::AccountId,
+    new_merkle_root: [u8; 32],
+) -> DispatchResult {
+    ensure_root(origin)?; // Only callable by system/backend worker
+
+    Couriers::<T>::try_mutate(&courier, |maybe_courier| {
+        let courier_data = maybe_courier.as_mut().ok_or(Error::<T>::CourierNotFound)?;
+
+        // Update Merkle root
+        courier_data.reviews_merkle_root = new_merkle_root;
+
+        Self::deposit_event(Event::ReviewsMerkleRootUpdated {
+            courier: courier.clone(),
+            merkle_root: new_merkle_root,
+        });
+
+        Ok(())
+    })
+}
+```
+
+**Purpose**: Update the Merkle root of off-chain reviews. Called periodically by backend worker after accumulating new reviews in PostgreSQL.
+
+**Flow**:
+1. Backend accumulates reviews in PostgreSQL (rating, comment, timestamp)
+2. Every 100 reviews (configurable), calculate Merkle root
+3. Call this extrinsic to anchor root on-chain
+4. Enables Merkle proof verification in disputes
+
+---
+
 ## 📢 Events
 
 ```rust
@@ -257,6 +296,7 @@ pub enum Event<T: Config> {
     CourierAssigned { order_id: OrderId, courier: T::AccountId },
     DeliveryCompleted { order_id: OrderId, courier: T::AccountId },
     CourierSlashed { courier: T::AccountId, amount: BalanceOf<T>, reason: BoundedVec<u8, ConstU32<128>> },
+    ReviewsMerkleRootUpdated { courier: T::AccountId, merkle_root: [u8; 32] },
 }
 ```
 
@@ -304,8 +344,35 @@ impl<T: Config> Pallet<T> {
 
 ---
 
+## 🔗 Hybrid Architecture
+
+This pallet implements a **hybrid on-chain/off-chain architecture** for optimal cost and UX:
+
+### On-Chain (This Pallet)
+- ✅ Courier registry + staking
+- ✅ Order assignment
+- ✅ Reputation score (aggregated)
+- ✅ **Merkle root of reviews** (anchor)
+
+### Off-Chain (PostgreSQL + Backend)
+- ✅ GPS tracking waypoints (real-time)
+- ✅ Individual reviews (rating 1-5, comments)
+- ✅ Delivery issues ("Traffic", "Address wrong")
+- ✅ Re-delivery scheduling
+
+### Integration Points
+- **GPS Proofs**: Off-chain tracking → Final proof via `bazari-attestation`
+- **Reviews**: PostgreSQL storage → Merkle root on-chain (this pallet)
+- **Disputes**: Merkle proof validates review authenticity
+
+**See**: [GPS-TRACKING.md](GPS-TRACKING.md) | [REVIEWS-ARCHITECTURE.md](REVIEWS-ARCHITECTURE.md)
+
+---
+
 ## 📚 References
 
 - [IMPLEMENTATION.md](IMPLEMENTATION.md)
 - [INTEGRATION.md](INTEGRATION.md)
+- [GPS-TRACKING.md](GPS-TRACKING.md) - GPS tracking architecture
+- [REVIEWS-ARCHITECTURE.md](REVIEWS-ARCHITECTURE.md) - Reviews Merkle tree
 - [Proof of Commerce](../../blockchain-integration/04-PROOF-OF-COMMERCE.md)

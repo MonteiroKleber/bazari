@@ -566,7 +566,7 @@ pub enum Error<T> {
 
 ### With pallet-assets
 - `grant_cashback()` calls `Assets::mint_into()` to mint ZARI tokens
-- Uses ZARI asset ID (configurable, default: 1000)
+- Uses ZARI asset ID (configurable, default: 1) - ZARI is AssetId 1 in genesis
 
 ### With bazari-identity
 - Mission completion updates user reputation

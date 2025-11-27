@@ -11,6 +11,7 @@ import { addressSchema } from '../lib/addressValidator.js';
 import { env } from '../env.js';
 import { authOnRequest } from '../lib/auth/middleware.js';
 import { afterOrderCreated, afterOrderCompleted } from '../services/gamification/order-hooks.js';
+import { BlockchainService } from '../services/blockchain/blockchain.service.js';
 
 const createPaymentIntentParamsSchema = z.object({
   id: z.string().uuid(),
@@ -159,7 +160,8 @@ export async function ordersRoutes(
       const shippingBzr = 10n * (10n ** 12n);
       const totalBzr = subtotalBzr + shippingBzr;
 
-      // Criar order com items
+      // Criar order com items - status inicial PENDING_BLOCKCHAIN
+      // Worker fará retry se blockchain falhar
       const order = await prisma.order.create({
         data: ({
           buyerAddr,
@@ -169,7 +171,7 @@ export async function ordersRoutes(
           subtotalBzr: subtotalBzr.toString(),
           shippingBzr: shippingBzr.toString(),
           totalBzr: totalBzr.toString(),
-          status: 'CREATED',
+          status: 'PENDING_BLOCKCHAIN', // Status intermediário até sync on-chain
           shippingAddress: (body.shippingAddress as any) ?? null,
           shippingOptionId: body.shippingOptionId || 'STD',
           notes: body.notes || null,
@@ -179,6 +181,74 @@ export async function ordersRoutes(
         } as any),
         include: { items: true },
       });
+
+      // ============================================
+      // Blockchain: Criar order on-chain (bazari-commerce)
+      // Estratégia: Tenta criar on-chain, se falhar marca para retry pelo worker
+      // ============================================
+      let blockchainSuccess = false;
+      try {
+        const blockchainService = BlockchainService.getInstance();
+
+        // Preparar items no formato do pallet
+        const blockchainItems = (order as any).items.map((item: any) => ({
+          listingId: item.listingId || null,
+          name: item.titleSnapshot || 'Item',
+          qty: item.qty,
+          price: decimalToPlanck(item.unitPriceBzrSnapshot),
+        }));
+
+        // Determinar marketplace ID (usar 0 para marketplace principal)
+        const marketplaceId = 0;
+
+        const escrowAccount = blockchainService.getEscrowAccount();
+
+        const blockchainResult = await blockchainService.createOrder(
+          order.buyerAddr,           // buyer
+          order.sellerAddr,          // seller
+          marketplaceId,             // marketplace
+          blockchainItems,           // items
+          decimalToPlanck(order.totalBzr), // totalAmount
+          escrowAccount              // signer (backend)
+        );
+
+        // Sucesso: Atualizar order com referência blockchain e status CREATED
+        await prisma.order.update({
+          where: { id: order.id },
+          data: {
+            status: 'CREATED', // Pronto para pagamento
+            blockchainOrderId: blockchainResult.orderId ? BigInt(blockchainResult.orderId) : null,
+            blockchainTxHash: blockchainResult.txHash,
+            lastSyncedAt: new Date(),
+            blockchainError: null,
+          },
+        });
+
+        blockchainSuccess = true;
+        app.log.info({
+          orderId: order.id,
+          blockchainOrderId: blockchainResult.orderId,
+          txHash: blockchainResult.txHash,
+        }, 'Order criada on-chain (bazari-commerce)');
+
+      } catch (blockchainError) {
+        // Falha: Marcar para retry pelo worker
+        const errorMessage = blockchainError instanceof Error ? blockchainError.message : 'Unknown blockchain error';
+
+        await prisma.order.update({
+          where: { id: order.id },
+          data: {
+            status: 'BLOCKCHAIN_FAILED',
+            blockchainRetries: 1,
+            blockchainError: errorMessage,
+          },
+        });
+
+        app.log.error({
+          err: blockchainError,
+          orderId: order.id,
+        }, 'Falha ao criar order on-chain - marcada para retry pelo worker');
+      }
 
       // ============================================
       // Auto-criar DeliveryRequest se tiver endereço
@@ -616,6 +686,56 @@ export async function ordersRoutes(
         });
       }
 
+      // ============================================
+      // Blockchain: Release funds from escrow on-chain
+      // ============================================
+      let blockchainTxHash: string | null = null;
+      let blockchainBlockNumber: string | null = null;
+
+      try {
+        const blockchainService = BlockchainService.getInstance();
+        const api = await blockchainService.getApi();
+
+        // Check if escrow exists on-chain
+        const escrowData = await api.query.bazariEscrow.escrows(id);
+
+        if (escrowData && !escrowData.isEmpty) {
+          const escrow = escrowData.unwrap ? escrowData.unwrap() : escrowData;
+          const escrowStatus = escrow.status?.toString?.() || '';
+
+          // Only release if escrow is in Locked status
+          if (escrowStatus === 'Locked') {
+            const serverKey = blockchainService.getEscrowAccount();
+            const tx = api.tx.bazariEscrow.releaseFunds(id);
+            const result = await blockchainService.signAndSend(tx, serverKey);
+
+            blockchainTxHash = result.txHash;
+            blockchainBlockNumber = result.blockNumber?.toString() || null;
+
+            app.log.info({
+              orderId: id,
+              txHash: blockchainTxHash,
+              blockNumber: blockchainBlockNumber,
+            }, 'Escrow released on-chain');
+          } else {
+            app.log.info({
+              orderId: id,
+              escrowStatus,
+            }, 'Escrow not in Locked status, skipping on-chain release');
+          }
+        } else {
+          app.log.info({
+            orderId: id,
+          }, 'No escrow found on-chain for this order, skipping blockchain release');
+        }
+      } catch (blockchainError) {
+        // Log error but continue with DB update - on-chain state may already be correct
+        app.log.error({
+          err: blockchainError,
+          orderId: id,
+        }, 'Failed to release escrow on-chain (continuing with DB update)');
+      }
+
       // Atualizar status para RELEASED
       const updated = await prisma.order.update({
         where: { id },
@@ -623,6 +743,17 @@ export async function ordersRoutes(
           status: 'RELEASED',
         },
       });
+
+      // Update PaymentIntent with release tx hash if available
+      if (blockchainTxHash && order.paymentIntents[0]) {
+        await prisma.paymentIntent.update({
+          where: { id: order.paymentIntents[0].id },
+          data: {
+            txHashRelease: blockchainTxHash,
+            status: 'RELEASED',
+          },
+        });
+      }
 
       // Criar log de release
       const config = getPaymentsConfig();
@@ -634,13 +765,17 @@ export async function ordersRoutes(
       await prisma.escrowLog.create({
         data: {
           orderId: order.id,
-          kind: 'RELEASE_REQUEST',
+          kind: blockchainTxHash ? 'RELEASE' : 'RELEASE_REQUEST',
           payloadJson: {
             intentId: activeIntent?.id || null,
             releaseToSeller: netAmount.toString(),
             feeToMarketplace: feeAmount.toString(),
             statusChangedAt: new Date().toISOString(),
             sellerAddress: order.sellerAddr,
+            // Blockchain info (if release was on-chain)
+            txHash: blockchainTxHash,
+            blockNumber: blockchainBlockNumber,
+            source: blockchainTxHash ? 'blockchain' : 'manual',
           },
         },
       });

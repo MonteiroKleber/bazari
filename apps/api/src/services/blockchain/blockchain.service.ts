@@ -220,10 +220,51 @@ export class BlockchainService {
       formattedItems
     );
 
-    const result = await this.signAndSend(tx, signer);
+    // Custom signAndSend to extract orderId from OrderCreated event
+    return new Promise((resolve, reject) => {
+      let blockNumber: bigint | null = null;
+      let orderId: number | undefined;
 
-    // TODO: Extract orderId from events
-    return result;
+      tx.signAndSend(signer, ({ status, events, txHash, dispatchError }) => {
+        console.log(`[Blockchain] CreateOrder TX status: ${status.type}`);
+
+        if (status.isInBlock) {
+          blockNumber = BigInt(status.asInBlock.toString());
+          console.log(`[Blockchain] TX included in block: ${status.asInBlock.toString()}`);
+
+          // Extract OrderCreated event to get orderId
+          events.forEach(({ event }) => {
+            if (api.events.bazariCommerce?.OrderCreated?.is(event)) {
+              const [eventOrderId] = event.data;
+              orderId = (eventOrderId as any).toNumber();
+              console.log(`[Blockchain] OrderCreated event: orderId=${orderId}`);
+            }
+          });
+        }
+
+        if (status.isFinalized) {
+          if (dispatchError) {
+            if (dispatchError.isModule) {
+              const decoded = api.registry.findMetaError(dispatchError.asModule);
+              const { docs, name, section } = decoded;
+              reject(new Error(`${section}.${name}: ${docs.join(' ')}`));
+            } else {
+              reject(new Error(dispatchError.toString()));
+            }
+          } else {
+            console.log(`[Blockchain] CreateOrder finalized: txHash=${txHash.toString()}, orderId=${orderId}`);
+            resolve({
+              txHash: txHash.toString(),
+              blockNumber: blockNumber || 0n,
+              orderId,
+            });
+          }
+        }
+      }).catch((error) => {
+        console.error('[Blockchain] CreateOrder error:', error);
+        reject(error);
+      });
+    });
   }
 
   /**

@@ -1,6 +1,7 @@
 import { useBlockchainQuery } from '../useBlockchainQuery';
 import { useBlockchainTx } from '../useBlockchainTx';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { useAuth } from '../../modules/auth/context';
 
 /**
  * useEscrow - Complete blockchain hooks for Bazari Escrow system
@@ -360,4 +361,300 @@ export function calculateAutoReleaseTimestamp(
   const remainingBlocks = calculateRemainingBlocks(escrow, currentBlock);
   const remainingSeconds = blocksToSeconds(remainingBlocks);
   return Date.now() + remainingSeconds * 1000;
+}
+
+// ============================================================================
+// FASE 6 - Novos hooks com pattern prepare+sign
+// ============================================================================
+
+/**
+ * Prepared call data returned by /prepare-release and /prepare-refund
+ */
+export interface PreparedCall {
+  orderId: string;
+  buyer: string;
+  seller: string;
+  amount: string;
+  callHex: string;
+  callHash: string;
+  method: string;
+  signerAddress: string;
+  signerRole: 'buyer' | 'seller' | 'dao';
+  requiresOrigin?: string;
+  note?: string;
+}
+
+/**
+ * Hook 9: Prepare release for frontend signing (FASE 6 - NEW)
+ *
+ * Fetches prepared transaction data from backend, then allows frontend
+ * to sign with polkadot-js extension.
+ *
+ * @example
+ * const { prepareRelease, signAndSend, callData, isLoading, error } = usePrepareRelease();
+ *
+ * const handleRelease = async () => {
+ *   const prepared = await prepareRelease(orderId);
+ *   if (prepared) {
+ *     const result = await signAndSend(prepared);
+ *     if (result.success) {
+ *       toast.success('Funds released!');
+ *     }
+ *   }
+ * };
+ */
+export function usePrepareRelease() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [isPreparing, setIsPreparing] = useState(false);
+  const [isSigning, setIsSigning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [callData, setCallData] = useState<PreparedCall | null>(null);
+  const { token } = useAuth();
+
+  const prepareRelease = useCallback(async (orderId: string): Promise<PreparedCall | null> => {
+    setIsPreparing(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/blockchain/escrow/${orderId}/prepare-release`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || data.error || 'Failed to prepare release');
+      }
+
+      const data = await response.json();
+      setCallData(data);
+      return data;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      setError(message);
+      return null;
+    } finally {
+      setIsPreparing(false);
+    }
+  }, [token]);
+
+  const signAndSend = useCallback(async (prepared: PreparedCall): Promise<{ success: boolean; txHash?: string; error?: string }> => {
+    setIsSigning(true);
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Dynamically import polkadot-js extension
+      const { web3Enable, web3FromAddress } = await import('@polkadot/extension-dapp');
+      const { ApiPromise, WsProvider } = await import('@polkadot/api');
+
+      // Enable extension
+      const extensions = await web3Enable('Bazari');
+      if (extensions.length === 0) {
+        throw new Error('No polkadot-js extension found. Please install it.');
+      }
+
+      // Get injector for signer address
+      const injector = await web3FromAddress(prepared.signerAddress);
+
+      // Connect to blockchain
+      const wsUrl = import.meta.env.VITE_CHAIN_WS_URL || 'ws://localhost:9944';
+      const provider = new WsProvider(wsUrl);
+      const api = await ApiPromise.create({ provider });
+
+      // Create transaction from callHex
+      const tx = api.tx(prepared.callHex);
+
+      // Sign and send
+      return new Promise((resolve, reject) => {
+        tx.signAndSend(
+          prepared.signerAddress,
+          { signer: injector.signer },
+          ({ status, events, dispatchError }) => {
+            if (status.isInBlock || status.isFinalized) {
+              // Check for dispatch error
+              if (dispatchError) {
+                let errorMessage = 'Transaction failed';
+                if (dispatchError.isModule) {
+                  const decoded = api.registry.findMetaError(dispatchError.asModule);
+                  errorMessage = `${decoded.section}.${decoded.name}: ${decoded.docs.join(' ')}`;
+                }
+                setError(errorMessage);
+                resolve({ success: false, error: errorMessage });
+              } else {
+                const txHash = tx.hash.toHex();
+                resolve({ success: true, txHash });
+              }
+            }
+          }
+        ).catch((err) => {
+          const message = err instanceof Error ? err.message : 'Transaction failed';
+          setError(message);
+          resolve({ success: false, error: message });
+        });
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      setError(message);
+      return { success: false, error: message };
+    } finally {
+      setIsSigning(false);
+      setIsLoading(false);
+    }
+  }, []);
+
+  return {
+    prepareRelease,
+    signAndSend,
+    callData,
+    isLoading,
+    isPreparing,
+    isSigning,
+    error,
+    clearError: () => setError(null),
+  };
+}
+
+/**
+ * Hook 10: Prepare refund for DAO signing (FASE 6 - NEW)
+ *
+ * Similar to usePrepareRelease but for DAO members initiating refunds.
+ * Note: Refund requires DAOOrigin, so this may need council multisig.
+ *
+ * @example
+ * const { prepareRefund, signAndSend, callData, isLoading, error } = usePrepareRefund();
+ *
+ * const handleRefund = async () => {
+ *   const prepared = await prepareRefund(orderId);
+ *   if (prepared) {
+ *     // Note: This call requires DAOOrigin
+ *     // May need to be wrapped in multisig or sudo
+ *     const result = await signAndSend(prepared);
+ *   }
+ * };
+ */
+export function usePrepareRefund() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [isPreparing, setIsPreparing] = useState(false);
+  const [isSigning, setIsSigning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [callData, setCallData] = useState<PreparedCall | null>(null);
+  const { token } = useAuth();
+
+  const prepareRefund = useCallback(async (orderId: string): Promise<PreparedCall | null> => {
+    setIsPreparing(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/blockchain/escrow/${orderId}/prepare-refund`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || data.error || 'Failed to prepare refund');
+      }
+
+      const data = await response.json();
+      setCallData(data);
+      return data;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      setError(message);
+      return null;
+    } finally {
+      setIsPreparing(false);
+    }
+  }, [token]);
+
+  const signAndSend = useCallback(async (prepared: PreparedCall): Promise<{ success: boolean; txHash?: string; error?: string }> => {
+    setIsSigning(true);
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Dynamically import polkadot-js extension
+      const { web3Enable, web3FromAddress } = await import('@polkadot/extension-dapp');
+      const { ApiPromise, WsProvider } = await import('@polkadot/api');
+
+      // Enable extension
+      const extensions = await web3Enable('Bazari');
+      if (extensions.length === 0) {
+        throw new Error('No polkadot-js extension found. Please install it.');
+      }
+
+      // Get injector for signer address
+      const injector = await web3FromAddress(prepared.signerAddress);
+
+      // Connect to blockchain
+      const wsUrl = import.meta.env.VITE_CHAIN_WS_URL || 'ws://localhost:9944';
+      const provider = new WsProvider(wsUrl);
+      const api = await ApiPromise.create({ provider });
+
+      // Create transaction from callHex
+      // Note: For refund, this may fail if not called with DAOOrigin
+      // Frontend might need to wrap this in a sudo or multisig call
+      const tx = api.tx(prepared.callHex);
+
+      // Sign and send
+      return new Promise((resolve, reject) => {
+        tx.signAndSend(
+          prepared.signerAddress,
+          { signer: injector.signer },
+          ({ status, events, dispatchError }) => {
+            if (status.isInBlock || status.isFinalized) {
+              // Check for dispatch error
+              if (dispatchError) {
+                let errorMessage = 'Transaction failed';
+                if (dispatchError.isModule) {
+                  const decoded = api.registry.findMetaError(dispatchError.asModule);
+                  errorMessage = `${decoded.section}.${decoded.name}: ${decoded.docs.join(' ')}`;
+                  // Check for BadOrigin specifically
+                  if (decoded.name === 'BadOrigin') {
+                    errorMessage = 'Refund requires DAOOrigin. Please use council multisig or sudo.';
+                  }
+                }
+                setError(errorMessage);
+                resolve({ success: false, error: errorMessage });
+              } else {
+                const txHash = tx.hash.toHex();
+                resolve({ success: true, txHash });
+              }
+            }
+          }
+        ).catch((err) => {
+          const message = err instanceof Error ? err.message : 'Transaction failed';
+          setError(message);
+          resolve({ success: false, error: message });
+        });
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      setError(message);
+      return { success: false, error: message };
+    } finally {
+      setIsSigning(false);
+      setIsLoading(false);
+    }
+  }, []);
+
+  return {
+    prepareRefund,
+    signAndSend,
+    callData,
+    isLoading,
+    isPreparing,
+    isSigning,
+    error,
+    clearError: () => setError(null),
+    // Additional info for UI
+    requiresDAOOrigin: true,
+  };
 }

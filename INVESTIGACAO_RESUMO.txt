@@ -1,0 +1,251 @@
+================================================================================
+          INVESTIGACAO COMPLETA - SISTEMA DE AUTENTICACAO BAZARI
+================================================================================
+
+DATA: 2025-11-14
+ANALISTA: Claude AI
+ARQUIVO PRINCIPAL: /root/bazari/apps/api/src/routes/orders.ts
+
+================================================================================
+                              PROBLEMAS IDENTIFICADOS
+================================================================================
+
+PROBLEMA 1: Linha 213 (POST /orders)
+  - Variavel: userId
+  - Valor Atual: buyerAddr = 'buyer-placeholder'
+  - Problema: userId recebe um string hardcoded invalido!
+  - Funcao Afetada: afterOrderCreated(prisma, userId, order.id)
+  - Severidade: ALTA - Rewards nao funcionando
+
+PROBLEMA 2: Linha 671 (POST /orders/:id/release)
+  - Variavel: buyerUserId
+  - Valor Atual: order.buyerAddr (wallet address)
+  - Problema: Passa wallet em vez de User.id (tipo errado!)
+  - Funcao Afetada: afterOrderCompleted(prisma, buyerUserId, ...)
+  - Severidade: ALTA - Rewards nao funcionando
+
+================================================================================
+                              SOLUCAO RESUMIDA
+================================================================================
+
+PARA LINHA 213:
+  Antes: const userId = buyerAddr;                    // ERRADO
+  Depois: const userId = authUser.sub;                // CORRETO
+
+PARA LINHA 671:
+  Antes: const buyerUserId = order.buyerAddr;         // ERRADO
+  Depois: const buyer = await prisma.user.findUnique({ where: { address: order.buyerAddr } });
+          const buyerUserId = buyer?.id;              // CORRETO
+
+ADICIONAR EM POST /orders (linha ~72):
+  - { preHandler: authOnRequest } no config
+  - Extract authUser do request
+  - Query para obter user.address real
+
+ADICIONAR EM POST /orders/:id/release (linha ~582):
+  - { preHandler: authOnRequest } no config
+  - Extract authUser do request
+  - Validacao de permissao (seller auth)
+
+================================================================================
+                            RELACOES NO BANCO
+================================================================================
+
+User {
+  id: UUID (ex: 550e8400-e29b-41d4...)     <- ISTO E O userId
+  address: SS58 (ex: 5GrwvaEF5zXb26Fz9...)  <- Wallet
+}
+
+Profile {
+  id: CUID
+  userId: UUID (FK para User.id)
+}
+
+Order {
+  id: UUID
+  buyerAddr: SS58 (NOT User.id!)  <- IMPORTANTE!
+  sellerAddr: SS58 (NOT User.id!) <- IMPORTANTE!
+}
+
+authUser Payload (JWT) {
+  sub: UUID (= User.id)
+  address: SS58 (= User.address)
+}
+
+RELACAO IMPORTANTE:
+  authUser.sub == User.id == Profile.userId
+  authUser.address == User.address
+  Order.buyerAddr == User.address (NEM SEMPRE, pode ser outro usuario!)
+
+================================================================================
+                            PADROES CORRETOS
+================================================================================
+
+PADRAO 1: Obter userId do JWT Token
+  const authUser = (request as any).authUser as { sub: string };
+  const userId = authUser.sub;  // <- CORRETO
+
+PADRAO 2: De userId para Wallet
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { address: true }
+  });
+  const wallet = user?.address;
+
+PADRAO 3: De Wallet para userId
+  const user = await prisma.user.findUnique({
+    where: { address: wallet },
+    select: { id: true }
+  });
+  const userId = user?.id;
+
+PADRAO 4: De userId para Profile
+  const profile = await prisma.profile.findUnique({
+    where: { userId: authUser.sub },
+    select: { id: true }
+  });
+
+VISTO EM ENDPOINTS CORRETOS:
+  - /social/follow (social.ts:13)
+  - /social/unfollow (social.ts:74)
+  - /posts (posts.ts:169)
+  - /posts/drafts (posts.ts:136)
+  - /posts/upload-image (posts.ts:71)
+
+================================================================================
+                        ARQUIVOS MODIFICADOS NECESSARIOS
+================================================================================
+
+arquivo: /root/bazari/apps/api/src/routes/orders.ts
+
+Mudancas:
+  1. Adicionar import: authOnRequest
+  2. Linha ~72: Adicionar { preHandler: authOnRequest }
+  3. Linha ~85: Remover buyerAddr = 'buyer-placeholder'
+  4. Linha ~85: Adicionar extract authUser
+  5. Linha ~90: Adicionar query user para obter address
+  6. Linha 213: Mudar userId = buyerAddr para userId = authUser.sub
+  7. Linha ~582: Adicionar { preHandler: authOnRequest }
+  8. Linha ~590: Adicionar extract authUser
+  9. Linha ~610: Adicionar validacao de permissao
+  10. Linha 671: Mudar buyerUserId = order.buyerAddr para query
+
+================================================================================
+                         DOCUMENTOS CRIADOS
+================================================================================
+
+1. /root/bazari/AUTH_SYSTEM_INVESTIGATION.md
+   - Investigacao completa em detalhes
+   - Seções 1-8 cobrindo todos os aspectos
+   - Checklist de implementacao
+   - Exemplos de conversao
+   - Tamanho: ~500 linhas
+
+2. /root/bazari/AUTH_IMPLEMENTATION_FIX.md
+   - Guia passo-a-passo para implementacao
+   - Codigo antes/depois para cada mudanca
+   - Tabela de resumo
+   - Testes recomendados
+   - Tamanho: ~300 linhas
+
+3. /root/bazari/AUTH_QUICK_REFERENCE.md
+   - Referencia rapida (lookup)
+   - Fluxos e diagrams
+   - Tabela de conversoes
+   - Padroes certos/errados
+   - Checklist final
+   - Tamanho: ~250 linhas
+
+4. /root/bazari/INVESTIGACAO_RESUMO.txt
+   - Este arquivo
+   - Sumario executivo
+   - Visao geral
+
+================================================================================
+                       PROXIMOS PASSOS RECOMENDADOS
+================================================================================
+
+1. Ler /root/bazari/AUTH_QUICK_REFERENCE.md (10 minutos)
+   - Entender fluxo de autenticacao
+   - Ver exemplos de padroes corretos/errados
+
+2. Ler /root/bazari/AUTH_SYSTEM_INVESTIGATION.md (20 minutos)
+   - Entender sistema em profundidade
+   - Ver como auth funciona atualmente
+   - Entender relacoes User/Profile/Order
+
+3. Implementar mudancas conforme /root/bazari/AUTH_IMPLEMENTATION_FIX.md
+   - Seguir passo-a-passo
+   - Usar codigo antes/depois como guia
+   - Total tempo: ~30 minutos
+
+4. Testar
+   - Chamar endpoints sem token (deve retornar 401)
+   - Chamar endpoints com token valido
+   - Verificar que rewards sao processados corretamente
+   - Total tempo: ~15 minutos
+
+================================================================================
+                         TEMPO TOTAL ESTIMADO
+================================================================================
+
+Leitura:      30 minutos (entender sistema)
+Implementacao: 30 minutos (2 endpoints)
+Testes:        15 minutos (validar mudancas)
+________________
+TOTAL:         75 minutos (~1.5 horas)
+
+================================================================================
+                        PERGUNTAS RESPONDIDAS
+================================================================================
+
+P1: Como o sistema de auth funciona atualmente?
+R1: JWT/SIWS middleware no Fastify. authOnRequest extrai Bearer token,
+    decodifica JWT e popula request.authUser com { sub: User.id, address: wallet }
+
+P2: Codigo exato de como obter userId do request?
+R2: const authUser = (request as any).authUser as { sub: string };
+    const userId = authUser.sub;  // <- User.id (UUID)
+
+P3: buyerAddr ja e o userId ou precisa conversao?
+R3: NEM UM NEM OUTRO. buyerAddr e a wallet (SS58), nao e User.id (UUID).
+    Precisa conversao via: prisma.user.findUnique({ where: { address } })
+
+P4: Codigo correto para substituir linhas 213 e 671?
+R4: Linha 213: userId = authUser.sub (em vez de buyerAddr)
+    Linha 671: Query user via wallet, extrair user.id
+
+P5: Precisa query adicional no banco?
+R5: SIM! Uma query para converter entre userId e wallet (bidirecional)
+
+================================================================================
+                       ARQUIVOS ANALISADOS
+================================================================================
+
+/root/bazari/apps/api/src/lib/auth/middleware.ts (167 linhas)
+/root/bazari/apps/api/src/lib/auth/jwt.ts (113 linhas)
+/root/bazari/apps/api/src/lib/auth/verifySiws.ts (136 linhas)
+/root/bazari/apps/api/src/routes/orders.ts (800+ linhas)
+/root/bazari/apps/api/src/routes/social.ts (112 linhas)
+/root/bazari/apps/api/src/routes/posts.ts (300+ linhas)
+/root/bazari/apps/api/src/routes/auth.ts (300+ linhas)
+/root/bazari/apps/api/src/routes/profiles.ts (200+ linhas)
+/root/bazari/apps/api/prisma/schema.prisma (1968 linhas)
+/root/bazari/knowledge/10-modules/auth/apis.md (473 linhas)
+
+TOTAL ANALISADO: ~4000+ linhas de codigo
+
+================================================================================
+                         CONCLUSION
+================================================================================
+
+Sistema de autenticacao esta implementado corretamente. Problema esta em
+2 linhas especificas em orders.ts onde o codigo ainda usa placeholders/valores
+incorretos. Solucao e simples: adicionar middleware authOnRequest e usar
+authUser.sub como userId em vez de buyerAddr.
+
+Severidade: MEDIA-ALTA (features de rewards nao funcionam)
+Complexidade da fix: BAIXA (mudancas simples e bem documentadas)
+Tempo de implementacao: ~30 minutos
+
+================================================================================

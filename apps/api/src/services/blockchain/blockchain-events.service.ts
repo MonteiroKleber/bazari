@@ -138,6 +138,32 @@ export interface CommissionRecordedEvent {
   txHash: string;
 }
 
+// Escrow Events
+export interface EscrowLockedEvent {
+  orderId: string;
+  buyer: string;
+  seller: string;
+  amount: string;
+  txHash: string;
+  blockNumber: number;
+}
+
+export interface FundsReleasedEvent {
+  orderId: string;
+  seller: string;
+  amount: string;
+  txHash: string;
+  blockNumber: number;
+}
+
+export interface BuyerRefundedEvent {
+  orderId: string;
+  buyer: string;
+  amount: string;
+  txHash: string;
+  blockNumber: number;
+}
+
 export type EventHandler<T> = (event: T) => Promise<void> | void;
 
 export interface EventHandlers {
@@ -159,6 +185,10 @@ export interface EventHandlers {
   onProofSubmitted?: EventHandler<ProofSubmittedEvent>;
   onDisputeOpened?: EventHandler<DisputeOpenedEvent>;
   onCommissionRecorded?: EventHandler<CommissionRecordedEvent>;
+  // Escrow Events
+  onEscrowLocked?: EventHandler<EscrowLockedEvent>;
+  onFundsReleased?: EventHandler<FundsReleasedEvent>;
+  onBuyerRefunded?: EventHandler<BuyerRefundedEvent>;
   onError?: (error: Error) => void;
 }
 
@@ -259,6 +289,14 @@ export class BlockchainEventsService {
 
               // Process commerce events (OrderCreated, ProofSubmitted, DisputeOpened)
               this.processCommerceEvents(
+                extrinsicEvents,
+                blockNumber,
+                txHash,
+                api
+              );
+
+              // Process escrow events (EscrowLocked, FundsReleased, BuyerRefunded)
+              this.processEscrowEvents(
                 extrinsicEvents,
                 blockNumber,
                 txHash,
@@ -841,6 +879,121 @@ export class BlockchainEventsService {
 
           default:
             // Ignore other commerce-related events
+            break;
+        }
+      } catch (error) {
+        console.error(`[BlockchainEvents] Error processing ${event.section}.${event.method} event:`, error);
+        if (this.handlers.onError) {
+          this.handlers.onError(error as Error);
+        }
+      }
+    });
+  }
+
+  /**
+   * Processar eventos de Escrow (EscrowLocked, FundsReleased, BuyerRefunded)
+   */
+  private processEscrowEvents(
+    events: EventRecord[],
+    blockNumber: number,
+    txHash: string,
+    api: ApiPromise
+  ): void {
+    events.forEach((record: EventRecord) => {
+      const { event } = record;
+
+      // Only process bazariEscrow events
+      if (event.section !== 'bazariEscrow') {
+        return;
+      }
+
+      try {
+        switch (event.method) {
+          case 'EscrowLocked': {
+            // Event: EscrowLocked(order_id, buyer, seller, amount)
+            const [orderId, buyer, seller, amount] = event.data as any;
+
+            const escrowLockedEvent: EscrowLockedEvent = {
+              orderId: orderId.toString(),
+              buyer: buyer.toString(),
+              seller: seller.toString(),
+              amount: amount.toString(),
+              txHash,
+              blockNumber,
+            };
+
+            if (this.handlers.onEscrowLocked) {
+              console.log('[BlockchainEvents] BazariEscrow.EscrowLocked:', {
+                orderId: escrowLockedEvent.orderId,
+                buyer: escrowLockedEvent.buyer.slice(0, 10) + '...',
+                seller: escrowLockedEvent.seller.slice(0, 10) + '...',
+                amount: (parseFloat(escrowLockedEvent.amount) / 1e12).toFixed(4) + ' BZR',
+                block: blockNumber,
+              });
+
+              Promise.resolve(this.handlers.onEscrowLocked(escrowLockedEvent)).catch((err: any) => {
+                console.error('[BlockchainEvents] Error in onEscrowLocked handler:', err);
+              });
+            }
+            break;
+          }
+
+          case 'FundsReleased': {
+            // Event: FundsReleased(order_id, seller, amount)
+            const [orderId, seller, amount] = event.data as any;
+
+            const fundsReleasedEvent: FundsReleasedEvent = {
+              orderId: orderId.toString(),
+              seller: seller.toString(),
+              amount: amount.toString(),
+              txHash,
+              blockNumber,
+            };
+
+            if (this.handlers.onFundsReleased) {
+              console.log('[BlockchainEvents] BazariEscrow.FundsReleased:', {
+                orderId: fundsReleasedEvent.orderId,
+                seller: fundsReleasedEvent.seller.slice(0, 10) + '...',
+                amount: (parseFloat(fundsReleasedEvent.amount) / 1e12).toFixed(4) + ' BZR',
+                block: blockNumber,
+              });
+
+              Promise.resolve(this.handlers.onFundsReleased(fundsReleasedEvent)).catch((err: any) => {
+                console.error('[BlockchainEvents] Error in onFundsReleased handler:', err);
+              });
+            }
+            break;
+          }
+
+          case 'BuyerRefunded': {
+            // Event: BuyerRefunded(order_id, buyer, amount)
+            const [orderId, buyer, amount] = event.data as any;
+
+            const buyerRefundedEvent: BuyerRefundedEvent = {
+              orderId: orderId.toString(),
+              buyer: buyer.toString(),
+              amount: amount.toString(),
+              txHash,
+              blockNumber,
+            };
+
+            if (this.handlers.onBuyerRefunded) {
+              console.log('[BlockchainEvents] BazariEscrow.BuyerRefunded:', {
+                orderId: buyerRefundedEvent.orderId,
+                buyer: buyerRefundedEvent.buyer.slice(0, 10) + '...',
+                amount: (parseFloat(buyerRefundedEvent.amount) / 1e12).toFixed(4) + ' BZR',
+                block: blockNumber,
+              });
+
+              Promise.resolve(this.handlers.onBuyerRefunded(buyerRefundedEvent)).catch((err: any) => {
+                console.error('[BlockchainEvents] Error in onBuyerRefunded handler:', err);
+              });
+            }
+            break;
+          }
+
+          default:
+            // Ignore other escrow events
             break;
         }
       } catch (error) {
