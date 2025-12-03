@@ -7,3 +7,4 @@ export { AppCategoryTabs } from './AppCategoryTabs';
 export { AppSearch } from './AppSearch';
 export { AppEmptyState } from './AppEmptyState';
 export { AppInstalledBadge } from './AppInstalledBadge';
+export { AppIframe } from './AppIframe';
