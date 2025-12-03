@@ -55,7 +55,8 @@ Permitir que usuários personalizem sua experiência instalando apenas os apps q
 │   ├── SDK-API-SPEC.md            # APIs disponíveis no SDK
 │   ├── SANDBOX-SPEC.md            # Segurança e isolamento
 │   ├── REGISTRY-SPEC.md           # Registry de apps
-│   └── REVIEW-PROCESS-SPEC.md     # Processo de review
+│   ├── REVIEW-PROCESS-SPEC.md     # Processo de review
+│   └── EXTERNAL-APPS.md           # Apps externos (VR, etc) ✨ NOVO
 │
 ├── 04-migration/                  # Guias de Migração
 │   ├── ZERO-REGRESSION.md         # ⚠️ POLÍTICA OBRIGATÓRIA - Leia primeiro!
@@ -208,6 +209,15 @@ Informações adicionais relevantes.
 ---
 
 ## Changelog
+
+### v1.1.0 (2024-12-03)
+- **Fase 1 Implementada:** Platform foundation (tipos, registry, store, hooks)
+- **Fase 2 Implementada:** 14 apps nativos registrados
+- **Novo:** Suporte a apps externos (`launchMode: 'external'`)
+- **Novo:** Serviço `app-launcher.ts` para lançamento de apps
+- **Novo:** Hook `useAppLauncher` para componentes React
+- **Novo:** Documentação `EXTERNAL-APPS.md` com especificação completa
+- **Fix:** VR app agora abre corretamente em nova aba com autenticação
 
 ### v1.0.0 (2024-12-03)
 - Documentação inicial criada

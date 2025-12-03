@@ -1,4 +1,3 @@
-import { lazy } from 'react';
 import type { BazariApp } from '@/platform/types';
 
 export const vrApp: BazariApp = {
@@ -14,8 +13,15 @@ export const vrApp: BazariApp = {
   category: 'entertainment',
   tags: ['vr', 'metaverso', '3d', 'realidade virtual'],
 
+  // App externo - abre em nova aba com autenticação VR token
+  launchMode: 'external',
+  externalUrl: 'https://bazari-vr.libervia.xyz',
+  authMethod: 'vr-token',
+
+  // entryPoint mantido para referência/fallback
   entryPoint: '/vr',
-  component: lazy(() => import('@/pages/ExplorePage')),
+  // component não necessário para apps externos
+  component: undefined,
 
   permissions: [
     { id: 'user.profile.read', reason: 'Criar avatar' },

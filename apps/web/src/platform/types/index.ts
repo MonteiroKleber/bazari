@@ -3,6 +3,8 @@ export type {
   BazariApp,
   AppCategory,
   AppStatus,
+  AppLaunchMode,
+  AppAuthMethod,
   AppRequiredRole,
   AppPermissionRequest,
   AppSummary,

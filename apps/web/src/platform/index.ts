@@ -8,4 +8,13 @@ export { appRegistry } from './registry';
 export { useUserAppsStore } from './store';
 
 // Hooks
-export { useApps, useInstalledApps, useAppInstall, useAppPermissions } from './hooks';
+export { useApps, useInstalledApps, useAppInstall, useAppPermissions, useAppLauncher } from './hooks';
+
+// Services
+export {
+  launchExternalApp,
+  getInternalAppUrl,
+  isExternalApp,
+  canLaunchApp,
+  type LaunchResult,
+} from './services';

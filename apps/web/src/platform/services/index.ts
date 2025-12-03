@@ -1,3 +1,8 @@
-// Services serão adicionados em fases futuras
-// Este arquivo serve como placeholder para a estrutura
-export {};
+// App Launcher Service
+export {
+  launchExternalApp,
+  getInternalAppUrl,
+  isExternalApp,
+  canLaunchApp,
+  type LaunchResult,
+} from './app-launcher';
