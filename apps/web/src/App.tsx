@@ -135,6 +135,11 @@ import CashbackDashboardPage from './pages/rewards/CashbackDashboardPage';
 import AdminMissionsManagementPage from './pages/rewards/AdminMissionsManagementPage';
 import TestRewardsHeader from './pages/TestRewardsHeader';
 
+// BazariOS App Store pages
+import AppHubPage from './pages/AppHubPage';
+import AppStorePage from './pages/AppStorePage';
+import AppDetailPage from './pages/AppDetailPage';
+
 function LandingPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -492,6 +497,11 @@ function App() {
                       <Route path="rewards/cashback" element={<CashbackDashboardPage />} />
                       <Route path="admin/missions" element={<AdminMissionsManagementPage />} />
                       <Route path="test-rewards-header" element={<TestRewardsHeader />} />
+
+                      {/* BazariOS App Store routes */}
+                      <Route path="hub" element={<AppHubPage />} />
+                      <Route path="store" element={<AppStorePage />} />
+                      <Route path="store/:appId" element={<AppDetailPage />} />
 
                       {/* Futuras rotas internas */}
                       {/* <Route path="dashboard" element={<Dashboard />} /> */}

@@ -1702,5 +1702,53 @@
       "pickupAddressRequired": "Configure the pickup address",
       "invalidDays": "Delivery time must be between 1 and 90 days"
     }
+  },
+  "appStore": {
+    "title": "App Store",
+    "subtitle": "Discover new apps for your Bazari",
+    "myApps": "My Apps",
+    "appsInstalled": "{{count}} apps installed",
+    "search": "Search apps...",
+    "searchInYourApps": "Search in your apps...",
+    "results": "Results",
+    "pinned": "Pinned",
+    "allApps": "All Apps",
+    "apps": "Apps",
+    "add": "Add",
+    "noAppsInstalled": "No apps installed",
+    "exploreAppStore": "Explore the App Store and install the apps you need.",
+    "noAppFound": "No app found",
+    "noAppInCategory": "No app found in this category",
+    "categories": {
+      "all": "All",
+      "finance": "Finance",
+      "social": "Social",
+      "commerce": "Commerce",
+      "tools": "Tools",
+      "governance": "Governance",
+      "entertainment": "Entertainment"
+    },
+    "featured": "Featured",
+    "install": "Install",
+    "installing": "Installing...",
+    "installed": "Installed",
+    "open": "Open App",
+    "uninstall": "Uninstall",
+    "about": "About",
+    "screenshots": "Screenshots",
+    "permissions": "Permissions",
+    "requiredPermissions": "Required permissions",
+    "optionalPermissions": "Optional permissions",
+    "tags": "Tags",
+    "appNotFound": "App not found",
+    "backToStore": "Back to App Store",
+    "riskWarning": "This app requests sensitive permissions. Make sure you trust the developer.",
+    "cancel": "Cancel",
+    "risk": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "critical": "Critical"
+    }
   }
 }

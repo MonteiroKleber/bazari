@@ -35,7 +35,7 @@ export default defineConfig({
         ]
       },
       workbox: {
-        maximumFileSizeToCacheInBytes: 5000000, // 5MB
+        maximumFileSizeToCacheInBytes: 6000000, // 6MB
         // Network-first strategy for API calls
         runtimeCaching: [
           {

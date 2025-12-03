@@ -1695,5 +1695,53 @@
       "pickupAddressRequired": "Configura la dirección de retiro",
       "invalidDays": "El plazo debe estar entre 1 y 90 días"
     }
+  },
+  "appStore": {
+    "title": "App Store",
+    "subtitle": "Descubre nuevas apps para tu Bazari",
+    "myApps": "Mis Apps",
+    "appsInstalled": "{{count}} apps instaladas",
+    "search": "Buscar apps...",
+    "searchInYourApps": "Buscar en tus apps...",
+    "results": "Resultados",
+    "pinned": "Fijadas",
+    "allApps": "Todas las Apps",
+    "apps": "Apps",
+    "add": "Agregar",
+    "noAppsInstalled": "Ninguna app instalada",
+    "exploreAppStore": "Explora la App Store e instala las apps que necesitas.",
+    "noAppFound": "Ninguna app encontrada",
+    "noAppInCategory": "Ninguna app encontrada en esta categoría",
+    "categories": {
+      "all": "Todas",
+      "finance": "Finanzas",
+      "social": "Social",
+      "commerce": "Comercio",
+      "tools": "Herramientas",
+      "governance": "Gobernanza",
+      "entertainment": "Entretenimiento"
+    },
+    "featured": "Destacadas",
+    "install": "Instalar",
+    "installing": "Instalando...",
+    "installed": "Instalada",
+    "open": "Abrir App",
+    "uninstall": "Desinstalar",
+    "about": "Acerca de",
+    "screenshots": "Capturas de pantalla",
+    "permissions": "Permisos",
+    "requiredPermissions": "Permisos necesarios",
+    "optionalPermissions": "Permisos opcionales",
+    "tags": "Etiquetas",
+    "appNotFound": "App no encontrada",
+    "backToStore": "Volver a App Store",
+    "riskWarning": "Esta app solicita permisos sensibles. Asegúrate de confiar en el desarrollador.",
+    "cancel": "Cancelar",
+    "risk": {
+      "low": "Bajo",
+      "medium": "Medio",
+      "high": "Alto",
+      "critical": "Crítico"
+    }
   }
 }
