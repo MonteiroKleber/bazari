@@ -140,6 +140,11 @@ import AppHubPage from './pages/AppHubPage';
 import AppStorePage from './pages/AppStorePage';
 import AppDetailPage from './pages/AppDetailPage';
 
+// Developer Portal pages
+import DevPortalDashboardPage from './pages/developer/DevPortalDashboardPage';
+import NewAppPage from './pages/developer/NewAppPage';
+import AppDetailDevPage from './pages/developer/AppDetailDevPage';
+
 function LandingPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -502,6 +507,11 @@ function App() {
                       <Route path="hub" element={<AppHubPage />} />
                       <Route path="store" element={<AppStorePage />} />
                       <Route path="store/:appId" element={<AppDetailPage />} />
+
+                      {/* Developer Portal routes */}
+                      <Route path="developer" element={<DevPortalDashboardPage />} />
+                      <Route path="developer/new" element={<NewAppPage />} />
+                      <Route path="developer/apps/:id" element={<AppDetailDevPage />} />
 
                       {/* Futuras rotas internas */}
                       {/* <Route path="dashboard" element={<Dashboard />} /> */}

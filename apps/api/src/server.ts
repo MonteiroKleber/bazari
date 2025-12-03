@@ -88,6 +88,7 @@ import { vrEventsRoute } from './routes/vr/events.js';
 import { vrSessionsRoute } from './routes/vr/sessions.js';
 import authSocialRoutes from './routes/auth-social.js';
 import { socialBackupRoutes } from './routes/social-backup.js';
+import { developerRoutes } from './routes/developer.js';
 
 // Import workers with side effects
 import './workers/affiliate-stats.worker.js';
@@ -194,6 +195,7 @@ async function buildApp() {
   await app.register(authSocialRoutes, { prefix: '/api', prisma });
   await app.register(socialBackupRoutes, { prefix: '/api' });
   await app.register(vrRoutes, { prefix: '/api', prisma });
+  await app.register(developerRoutes, { prefix: '/api', prisma });
   await app.register(ordersRoutes, { prefix: '/api', prisma });
   await app.register(profilesRoutes, { prefix: '/api', prisma });
   await app.register(sellersRoutes, { prefix: '/api', prisma });

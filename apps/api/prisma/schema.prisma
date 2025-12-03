@@ -237,6 +237,10 @@ model User {
 
   // VR Integration
   vrTokens VRToken[]
+
+  // BazariOS Developer Portal
+  developerApps ThirdPartyApp[] @relation("DeveloperApps")
+  appReviews    AppReview[]     @relation("AppReviews")
 }
 
 model SocialAccount {
@@ -2252,4 +2256,144 @@ model VRToken {
 
   @@index([token, used])
   @@index([userId, createdAt])
+}
+
+// ========================================
+// BazariOS App Store - Third Party Apps
+// ========================================
+
+model ThirdPartyApp {
+  id String @id @default(cuid())
+
+  // Identificação
+  appId String @unique // ex: "com.dev.myapp"
+  name  String
+  slug  String @unique
+
+  // Desenvolvedor
+  developerId String
+  developer   User   @relation("DeveloperApps", fields: [developerId], references: [id])
+
+  // Metadados
+  description     String
+  longDescription String?
+  category        String
+  tags            String[]
+  icon            String
+  color           String
+  screenshots     String[]
+
+  // Técnico
+  currentVersion String
+  sdkVersion     String
+  bundleUrl      String // URL do bundle (IPFS ou CDN)
+  bundleHash     String // Hash para verificação
+
+  // Permissões
+  permissions Json // Array de { id, reason, optional }
+
+  // Status
+  status   AppStatus @default(DRAFT)
+  featured Boolean   @default(false)
+
+  // Métricas
+  installCount Int    @default(0)
+  rating       Float?
+  ratingCount  Int    @default(0)
+
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  publishedAt DateTime?
+
+  // Relações
+  versions    AppVersion[]
+  reviews     AppReview[]
+  submissions AppSubmission[]
+
+  @@index([developerId])
+  @@index([category])
+  @@index([status])
+}
+
+model AppVersion {
+  id    String        @id @default(cuid())
+  appId String
+  app   ThirdPartyApp @relation(fields: [appId], references: [id], onDelete: Cascade)
+
+  version    String
+  changelog  String?
+  bundleUrl  String
+  bundleHash String
+
+  status VersionStatus @default(PENDING)
+
+  createdAt   DateTime  @default(now())
+  reviewedAt  DateTime?
+  reviewedBy  String?
+  reviewNotes String?
+
+  @@unique([appId, version])
+  @@index([appId])
+}
+
+model AppSubmission {
+  id    String        @id @default(cuid())
+  appId String
+  app   ThirdPartyApp @relation(fields: [appId], references: [id], onDelete: Cascade)
+
+  version String
+  notes   String?
+
+  status SubmissionStatus @default(PENDING)
+
+  submittedAt DateTime  @default(now())
+  reviewedAt  DateTime?
+  reviewedBy  String?
+  reviewNotes String?
+
+  @@index([appId])
+  @@index([status])
+}
+
+model AppReview {
+  id    String        @id @default(cuid())
+  appId String
+  app   ThirdPartyApp @relation(fields: [appId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation("AppReviews", fields: [userId], references: [id])
+
+  rating  Int // 1-5
+  comment String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([appId, userId])
+  @@index([appId])
+}
+
+enum AppStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  PUBLISHED
+  REJECTED
+  SUSPENDED
+  DEPRECATED
+}
+
+enum VersionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum SubmissionStatus {
+  PENDING
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  CANCELLED
 }
