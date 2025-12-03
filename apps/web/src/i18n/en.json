@@ -907,9 +907,40 @@
       "warning": "You can only purchase from one seller at a time. Do you want to clear the cart and add this item?",
       "cancel": "Cancel",
       "confirm": "Yes, Clear and Add"
+    },
+    "storeSubtotal": "Subtotal: {{amount}}"
+  },
+  "multiStore": {
+    "cart": {
+      "groupedBy": "Items grouped by store",
+      "storeCount": "{{count}} different stores",
+      "separateOrders": "{{count}} separate orders will be created (one per store)",
+      "estimatedShipping": "Estimated shipping"
+    },
+    "checkout": {
+      "selectShippingPerStore": "Choose shipping for each store",
+      "orderNumber": "Order #{{number}}",
+      "subtotalWithShipping": "Subtotal with shipping",
+      "escrowProtection": "Escrow protection: {{days}} days",
+      "paymentSummary": "Payment Summary",
+      "singleTransaction": "1 single transaction in your wallet",
+      "independentOrders": "{{count}} independent orders will be created",
+      "ownEscrow": "Each order has its own escrow and tracking",
+      "createOrders": "Create {{count}} Orders"
+    },
+    "payment": {
+      "batchPayment": "Pay {{amount}} BZR",
+      "creatingOrders": "Creating orders...",
+      "processingPayment": "Processing payment...",
+      "success": "Payment successful!",
+      "ordersCreated": "Your orders have been created"
+    },
+    "limits": {
+      "maxStores": "Maximum of {{max}} stores per checkout",
+      "removeItems": "Remove items from some stores to continue",
+      "limitReached": "Store limit reached"
     }
-  }
-  ,
+  },
   "pay": {
     "title": "Payment",
     "orderNumber": "Order #{{number}}",
@@ -921,17 +952,33 @@
     },
     "status": { "title": "Order Status" },
     "payment": {
-      "title": "Payment Details",
+      "title": "Order Payment",
       "description": "Confirm the details before making the payment.",
-      "amount": "Total amount",
-      "escrow": "Escrow address",
-      "fee": "Marketplace fee",
+      "amount": "Total to pay",
+      "fee": "Platform fee",
       "insufficient": "Insufficient balance to cover amount, fee and ED.",
       "addFunds": "Add funds",
       "connectWallet": "Connect your wallet to continue.",
       "payNow": "Pay Now",
-      "processing": "Processing payment...",
-      "escrowNote": "Funds will remain in escrow until delivery is confirmed."
+      "payWithEscrow": "Pay with Escrow",
+      "processing": "Processing payment..."
+    },
+    "escrow": {
+      "protection": "On-Chain Escrow Protection",
+      "step1": "Your funds are RESERVED in your own account",
+      "step2": "The seller only receives after you confirm delivery",
+      "step3": "In case of dispute, the DAO can mediate",
+      "note": "By paying, you will sign a transaction that reserves the funds in your wallet. The seller does NOT receive until you confirm receipt of the product."
+    },
+    "transaction": {
+      "details": "Transaction Details",
+      "yourWallet": "Your wallet (buyer)",
+      "seller": "Seller",
+      "method": "Method",
+      "escrowBlockchain": "Blockchain Escrow (BZR)",
+      "afterRelease": "(after release)",
+      "autoRelease": "Auto-release",
+      "autoReleaseTime": "7 days after shipping"
     },
     "summary": {
       "title": "Order Summary",
@@ -1526,6 +1573,134 @@
         "learn": "Learn More about Testnet"
       },
       "skip": "I already know this, continue without reading"
+    }
+  },
+  "shipping": {
+    "estimatedDeliveryDays": "Estimated Delivery Time",
+    "estimatedDeliveryDaysShort": "Estimated Time",
+    "estimatedDeliveryDaysPlaceholder": "E.g.: 7",
+    "estimatedDeliveryDaysHelp": "Business days after shipping",
+    "estimatedDeliveryDaysMin": "Minimum time for {{method}}: {{days}} days",
+    "estimatedDeliveryDaysSuffix": "business days after shipping",
+    "daysPlaceholder": "E.g.: 7",
+    "daysUnit": "business days",
+    "method": "Shipping Method",
+    "methodPlaceholder": "Select shipping method",
+    "weight": "Weight (kg)",
+    "weightPlaceholder": "E.g.: 0.5",
+    "dimensions": "Dimensions (cm)",
+    "length": "Length",
+    "width": "Width",
+    "height": "Height",
+    "methods": {
+      "SEDEX": "SEDEX (Express)",
+      "PAC": "PAC (Standard)",
+      "TRANSPORTADORA": "Carrier",
+      "MINI_ENVIOS": "Mini Envios",
+      "RETIRADA": "Store Pickup",
+      "INTERNACIONAL": "International",
+      "OUTRO": "Other"
+    },
+    "trackingCode": "Tracking Code",
+    "trackingCodePlaceholder": "E.g.: BR123456789BR",
+    "trackingCodeOptional": "Tracking Code (optional)",
+    "trackShipment": "Track Shipment",
+    "markAsShipped": "Mark as Shipped",
+    "markingAsShipped": "Marking as shipped...",
+    "shippedSuccess": "Order marked as shipped!",
+    "shippedAt": "Shipped at",
+    "shippedInfo": {
+      "title": "When marked as shipped:",
+      "buyerNotified": "The buyer will be notified",
+      "timerStarts": "The auto-release timer will start",
+      "noCancel": "You won't be able to cancel the order"
+    },
+    "autoRelease": {
+      "title": "Auto-Release",
+      "description": "Funds will be automatically released {{days}} days after shipping",
+      "daysRemaining": "{{days}} days ({{date}})",
+      "confirmEarly": "If you receive the product early, confirm delivery to release funds to the seller."
+    },
+    "checkout": {
+      "estimatedDelivery": "Estimated Delivery",
+      "deliveryRange": "{{min}}-{{max}} business days",
+      "deliveryDays": "{{days}} business days"
+    },
+    "section": {
+      "title": "Shipping Information",
+      "description": "Configure how you will ship this product"
+    },
+    "status": {
+      "SHIPPED": "Shipped"
+    },
+    "buyerView": {
+      "awaitingShipment": "Awaiting shipment from seller",
+      "trackYourOrder": "Track your order",
+      "orderShipped": "Your order has been shipped"
+    },
+    "sellerView": {
+      "readyToShip": "Ready to ship",
+      "shipNow": "Ship now",
+      "addTracking": "Add tracking code (optional)"
+    }
+  },
+  "escrowTimeline": {
+    "title": "Protection Timeline",
+    "delivery": "Estimated Delivery",
+    "deliveryCompact": "Delivery",
+    "protection": "Protected Until",
+    "protectionCompact": "Protection",
+    "days": "days",
+    "safetyInfo": "You have {{days}} days after the estimated delivery to confirm receipt or open a dispute."
+  },
+  "shippingOptions": {
+    "title": "Shipping Options",
+    "add": "Add Option",
+    "addFirst": "Add first option",
+    "edit": "Edit Option",
+    "delete": "Remove Option",
+    "confirmDelete": "Are you sure you want to remove this shipping option?",
+    "setDefault": "Set as default",
+    "isDefault": "Default",
+    "method": "Shipping Method",
+    "customLabel": "Custom Name",
+    "customLabelHint": "E.g.: \"Express Delivery\", \"Economy\"",
+    "empty": "No shipping options configured",
+    "recommended": "Recommended",
+    "modalDescription": "Configure the shipping option details",
+    "pricing": {
+      "title": "Shipping Price",
+      "fixed": "Fixed",
+      "free": "Free",
+      "freeAbove": "Free above",
+      "toArrange": "To arrange",
+      "normalPrice": "Normal price"
+    },
+    "delivery": {
+      "days": "business days",
+      "minRecommended": "Minimum recommended for {{method}}: {{days}} days"
+    },
+    "pickup": {
+      "title": "Pickup Location",
+      "useStore": "Use store address",
+      "useCustom": "Other pickup address",
+      "instructions": "Pickup instructions",
+      "instructionsHint": "E.g.: Next to the grocery store, gray building",
+      "noStoreAddress": "Store has no address configured"
+    },
+    "checkout": {
+      "title": "Shipping Options",
+      "choose": "Choose shipping method",
+      "noOptions": "No shipping options available",
+      "freeAboveHint": "Free for orders above {{amount}} BZR",
+      "maxDeliveryNote": "Delivery time considers the longest time among products"
+    },
+    "validation": {
+      "minOneOption": "Product must have at least 1 shipping option",
+      "priceRequired": "Price is required for fixed shipping",
+      "freeAboveRequired": "Enter the minimum value and normal price for conditional free shipping",
+      "pickupAddressRequired": "Configure the pickup address",
+      "invalidDays": "Delivery time must be between 1 and 90 days"
     }
   }
 }

@@ -18,10 +18,11 @@ import {
   XCircle,
   AlertTriangle,
   Loader2,
+  Wallet,
 } from 'lucide-react';
 import {
-  useReleaseFunds,
-  useRefundBuyer,
+  usePrepareRelease,
+  usePrepareRefund,
   useInitiateDispute,
   EscrowDetails,
   EscrowState,
@@ -78,12 +79,29 @@ export function EscrowActions({
   onSuccess,
   className,
 }: EscrowActionsProps) {
-  const { releaseFunds, isLoading: isReleasing } = useReleaseFunds();
-  const { refundBuyer, isLoading: isRefunding } = useRefundBuyer();
+  // Use new prepare+sign hooks for on-chain transactions
+  const {
+    prepareRelease,
+    signAndSend: signAndSendRelease,
+    isLoading: isReleasing,
+    isPreparing: isPreparingRelease,
+    isSigning: isSigningRelease,
+  } = usePrepareRelease();
+
+  const {
+    prepareRefund,
+    signAndSend: signAndSendRefund,
+    isLoading: isRefunding,
+    isPreparing: isPreparingRefund,
+    isSigning: isSigningRefund,
+  } = usePrepareRefund();
+
   const { initiateDispute, isLoading: isDisputing } = useInitiateDispute();
 
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeDialogOpen, setDisputeDialogOpen] = useState(false);
+  const [releaseDialogOpen, setReleaseDialogOpen] = useState(false);
+  const [refundDialogOpen, setRefundDialogOpen] = useState(false);
 
   const isBuyer = userAddress === escrow.buyer;
   const isSeller = userAddress === escrow.seller;
@@ -93,26 +111,62 @@ export function EscrowActions({
     (escrow.state === EscrowState.Active ||
       escrow.state === EscrowState.Disputed);
 
-  // Handle Release Funds
+  // Handle Release Funds with prepare+sign pattern
   const handleRelease = async () => {
     try {
-      await releaseFunds(escrow.orderId);
-      toast.success('Funds released to seller successfully!');
-      onSuccess?.();
+      // Step 1: Prepare transaction (get callHex from backend)
+      toast.info('Preparing transaction...', { id: 'release-prepare' });
+      const prepared = await prepareRelease(escrow.orderId);
+
+      if (!prepared) {
+        toast.error('Failed to prepare release transaction.', { id: 'release-prepare' });
+        return;
+      }
+
+      // Step 2: Sign with polkadot-js extension
+      toast.info('Please sign the transaction in your wallet...', { id: 'release-sign' });
+      const result = await signAndSendRelease(prepared);
+
+      if (result.success) {
+        toast.success(`Funds released to seller! TX: ${result.txHash?.slice(0, 10)}...`, { id: 'release-sign' });
+        setReleaseDialogOpen(false);
+        onSuccess?.();
+      } else {
+        toast.error(`Release failed: ${result.error}`, { id: 'release-sign' });
+      }
     } catch (error) {
-      toast.error('Failed to release funds. Please try again.');
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Failed to release funds: ${message}`);
       console.error('Release failed:', error);
     }
   };
 
-  // Handle Refund Buyer
+  // Handle Refund Buyer with prepare+sign pattern
   const handleRefund = async () => {
     try {
-      await refundBuyer(escrow.orderId);
-      toast.success('Buyer refunded successfully!');
-      onSuccess?.();
+      // Step 1: Prepare transaction
+      toast.info('Preparing refund transaction...', { id: 'refund-prepare' });
+      const prepared = await prepareRefund(escrow.orderId);
+
+      if (!prepared) {
+        toast.error('Failed to prepare refund transaction.', { id: 'refund-prepare' });
+        return;
+      }
+
+      // Step 2: Sign with polkadot-js extension
+      toast.info('Please sign the transaction in your wallet...', { id: 'refund-sign' });
+      const result = await signAndSendRefund(prepared);
+
+      if (result.success) {
+        toast.success(`Buyer refunded! TX: ${result.txHash?.slice(0, 10)}...`, { id: 'refund-sign' });
+        setRefundDialogOpen(false);
+        onSuccess?.();
+      } else {
+        toast.error(`Refund failed: ${result.error}`, { id: 'refund-sign' });
+      }
     } catch (error) {
-      toast.error('Failed to refund buyer. Please try again.');
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Failed to refund buyer: ${message}`);
       console.error('Refund failed:', error);
     }
   };
@@ -143,7 +197,7 @@ export function EscrowActions({
         {isBuyer && canAct && (
           <>
             {/* Release Funds */}
-            <AlertDialog>
+            <AlertDialog open={releaseDialogOpen} onOpenChange={setReleaseDialogOpen}>
               <AlertDialogTrigger asChild>
                 <Button
                   variant="default"
@@ -155,24 +209,42 @@ export function EscrowActions({
                   ) : (
                     <CheckCircle2 className="h-4 w-4 mr-2" />
                   )}
-                  Release Funds to Seller
+                  {isPreparingRelease
+                    ? 'Preparing...'
+                    : isSigningRelease
+                    ? 'Sign in Wallet...'
+                    : 'Release Funds to Seller'}
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Release Funds?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will transfer {escrow.amountFormatted} BZR to the seller.
-                    This action cannot be undone.
+                  <AlertDialogDescription className="space-y-2">
+                    <p>
+                      This will transfer <strong>{escrow.amountFormatted} BZR</strong> to the seller.
+                      This action cannot be undone.
+                    </p>
+                    <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Wallet className="h-4 w-4" />
+                      You will be asked to sign this transaction with your wallet.
+                    </p>
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogCancel disabled={isReleasing}>Cancel</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={handleRelease}
                     className="bg-green-600 hover:bg-green-700"
+                    disabled={isReleasing}
                   >
-                    Confirm Release
+                    {isReleasing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      'Confirm Release'
+                    )}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -288,7 +360,7 @@ export function EscrowActions({
 
         {/* DAO Actions */}
         {canRefund && (
-          <AlertDialog>
+          <AlertDialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
             <AlertDialogTrigger asChild>
               <Button
                 variant="outline"
@@ -300,25 +372,45 @@ export function EscrowActions({
                 ) : (
                   <XCircle className="h-4 w-4 mr-2" />
                 )}
-                Refund Buyer (DAO)
+                {isPreparingRefund
+                  ? 'Preparing...'
+                  : isSigningRefund
+                  ? 'Sign in Wallet...'
+                  : 'Refund Buyer (DAO)'}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Refund Buyer?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will return {escrow.amountFormatted} BZR to the buyer.
-                  This action cannot be undone. Use this only after reviewing the
-                  dispute.
+                <AlertDialogDescription className="space-y-2">
+                  <p>
+                    This will return <strong>{escrow.amountFormatted} BZR</strong> to the buyer.
+                    This action cannot be undone. Use this only after reviewing the dispute.
+                  </p>
+                  <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Wallet className="h-4 w-4" />
+                    You will be asked to sign this transaction with your wallet.
+                  </p>
+                  <p className="text-xs text-orange-600 bg-orange-50 dark:bg-orange-950/20 p-2 rounded">
+                    Note: This action requires DAO Origin. May need council multisig approval.
+                  </p>
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel disabled={isRefunding}>Cancel</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={handleRefund}
                   className="bg-orange-600 hover:bg-orange-700"
+                  disabled={isRefunding}
                 >
-                  Confirm Refund
+                  {isRefunding ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    'Confirm Refund'
+                  )}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

@@ -81,6 +81,7 @@ import { commerceRoutes } from './routes/blockchain/commerce.js';
 import { blockchainUtilsRoutes } from './routes/blockchain/utils.js';
 import { disputeRoutes } from './routes/blockchain/dispute.js';
 import { affiliateRoutes } from './routes/blockchain/affiliate.js';
+import { rewardsRoutes } from './routes/blockchain/rewards.js';
 import { BlockchainService } from './services/blockchain/blockchain.service.js';
 import { vrStoresRoute } from './routes/vr/stores.js';
 import { vrEventsRoute } from './routes/vr/events.js';
@@ -248,6 +249,7 @@ async function buildApp() {
   await app.register(blockchainUtilsRoutes, { prefix: '/api/blockchain' });
   await app.register(disputeRoutes, { prefix: '/api/blockchain', prisma });
   await app.register(affiliateRoutes, { prefix: '/api/blockchain', prisma });
+  await app.register(rewardsRoutes, { prefix: '/api/blockchain/rewards', prisma });
 
   // VR routes
   await app.register(vrStoresRoute, { prefix: '/api/vr', prisma });

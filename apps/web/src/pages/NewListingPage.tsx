@@ -11,7 +11,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Package, Briefcase, ArrowLeft, ArrowRight, CheckCircle, Upload, X } from 'lucide-react';
+import { Package, Briefcase, ArrowLeft, ArrowRight, CheckCircle, Upload, X, Truck } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
@@ -25,6 +25,7 @@ import { api } from '../lib/api';
 import { sellerApi } from '@/modules/seller/api';
 import { getSessionUser } from '@/modules/auth';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { ShippingOptionsEditor, type ShippingOption } from '@/components/shipping';
 
 interface UploadedFile {
   file: File;
@@ -41,6 +42,17 @@ export function NewListingPage() {
   // Helpers de log somente em DEV
   const log = (...args: any[]) => { if (import.meta.env.DEV) console.log(...args); };
   const logError = (...args: any[]) => { if (import.meta.env.DEV) console.error(...args); };
+
+  // Shipping methods (PROPOSAL-000)
+  const SHIPPING_METHODS = [
+    'SEDEX',
+    'PAC',
+    'TRANSPORTADORA',
+    'MINI_ENVIOS',
+    'RETIRADA',
+    'INTERNACIONAL',
+    'OUTRO'
+  ] as const;
   
   // Estados do wizard
   const [step, setStep] = useState(1);
@@ -53,6 +65,17 @@ export function NewListingPage() {
     price: '',
     daoId: ''
   });
+
+  // Shipping data (PROPOSAL-000 - legacy fields)
+  const [shippingData, setShippingData] = useState({
+    estimatedDeliveryDays: '',
+    shippingMethod: '',
+    weight: '',
+    dimensions: { length: '', width: '', height: '' }
+  });
+
+  // Shipping options (PROPOSAL-002 - multiple options)
+  const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
   const [attributes, setAttributes] = useState<any>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -270,6 +293,28 @@ export function NewListingPage() {
         return;
       }
 
+      // Build shipping data for payload (only for products)
+      const shippingPayload: Record<string, any> = {};
+      if (kind === 'product') {
+        if (shippingData.estimatedDeliveryDays) {
+          shippingPayload.estimatedDeliveryDays = parseInt(shippingData.estimatedDeliveryDays, 10);
+        }
+        if (shippingData.shippingMethod) {
+          shippingPayload.shippingMethod = shippingData.shippingMethod;
+        }
+        if (shippingData.weight) {
+          shippingPayload.weight = parseFloat(shippingData.weight);
+        }
+        const { length, width, height } = shippingData.dimensions;
+        if (length && width && height) {
+          shippingPayload.dimensions = {
+            length: parseFloat(length),
+            width: parseFloat(width),
+            height: parseFloat(height)
+          };
+        }
+      }
+
       const payload = {
         daoId: resolvedDaoId,
         title: basicData.title,
@@ -279,15 +324,41 @@ export function NewListingPage() {
         ...(kind === 'product' ? { priceBzr: basicData.price } : { basePriceBzr: basicData.price }),
         ...(mediaIds.length > 0 ? { mediaIds } : {}),
         ...(selectedStore ? { sellerStoreSlug: selectedStore } : {}),
+        ...shippingPayload,
       } as any;
 
       log('📤 Payload corrigido a ser enviado:', JSON.stringify(payload, null, 2));
-      
+
       const endpoint = kind === 'product' ? '/products' : '/services';
       log('📍 Endpoint:', endpoint);
-      
+
       const response = await api.post(endpoint, payload);
       log('✅ Resposta do servidor:', response);
+
+      // PROPOSAL-002: Criar shipping options após criar o produto
+      if (kind === 'product' && shippingOptions.length > 0 && response.id) {
+        log('📦 Criando opções de envio para o produto:', response.id);
+        for (const option of shippingOptions) {
+          try {
+            await api.post(`/products/${response.id}/shipping-options`, {
+              method: option.method,
+              label: option.label,
+              pricingType: option.pricingType,
+              priceBzr: option.priceBzr,
+              freeAboveBzr: option.freeAboveBzr,
+              estimatedDeliveryDays: option.estimatedDeliveryDays,
+              pickupAddressType: option.pickupAddressType,
+              pickupAddress: option.pickupAddress,
+              isDefault: option.isDefault,
+              sortOrder: option.sortOrder ?? 0,
+            });
+            log('✅ Opção de envio criada:', option.method);
+          } catch (optErr) {
+            logError('⚠️ Erro ao criar opção de envio:', optErr);
+            // Continua mesmo se uma opção falhar
+          }
+        }
+      }
 
       // Sucesso - mostrar card de sucesso
       setSuccessData(response);
@@ -308,7 +379,7 @@ export function NewListingPage() {
     log('➕ Cadastrar outro na mesma categoria');
     log('  - Mantendo categoryPath:', categoryPath);
     log('  - Mantendo categoryId:', categoryId);
-    
+
     // Limpar dados mas manter categoria
     setBasicData((prev) => ({
       title: '',
@@ -316,6 +387,13 @@ export function NewListingPage() {
       price: '',
       daoId: prev.daoId || getSessionUser()?.address || ''
     }));
+    setShippingData({
+      estimatedDeliveryDays: '',
+      shippingMethod: '',
+      weight: '',
+      dimensions: { length: '', width: '', height: '' }
+    });
+    setShippingOptions([]); // PROPOSAL-002: limpar opções de envio
     setAttributes({});
     setUploadedFiles([]);
     setSuccessData(null);
@@ -327,7 +405,7 @@ export function NewListingPage() {
   // Novo cadastro (reset completo)
   const handleNewListing = () => {
     log('🔄 Novo cadastro (reset completo)');
-    
+
     // Reset completo
     setStep(1);
     setKind(null);
@@ -339,6 +417,13 @@ export function NewListingPage() {
       price: '',
       daoId: prev.daoId || getSessionUser()?.address || ''
     }));
+    setShippingData({
+      estimatedDeliveryDays: '',
+      shippingMethod: '',
+      weight: '',
+      dimensions: { length: '', width: '', height: '' }
+    });
+    setShippingOptions([]); // PROPOSAL-002: limpar opções de envio
     setAttributes({});
     setUploadedFiles([]);
     setSuccessData(null);
@@ -492,6 +577,97 @@ export function NewListingPage() {
                   required
                 />
               </div>
+
+              {/* Shipping Section (only for products) - PROPOSAL-002 */}
+              {kind === 'product' && (
+                <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Truck className="w-5 h-5 text-primary" />
+                    <h3 className="font-semibold">{t('shipping.section.title')}</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {t('shipping.section.description')}
+                  </p>
+
+                  {/* PROPOSAL-002: Multiple shipping options editor */}
+                  <ShippingOptionsEditor
+                    options={shippingOptions}
+                    onChange={setShippingOptions}
+                  />
+
+                  {/* Weight and Dimensions (collapsed) */}
+                  <details className="mt-4">
+                    <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
+                      {t('shipping.weightDimensions', { defaultValue: 'Peso e Dimensões (opcional)' })}
+                    </summary>
+                    <div className="mt-3 space-y-3">
+                      {/* Weight */}
+                      <div>
+                        <Label htmlFor="weight">{t('shipping.weight')}</Label>
+                        <Input
+                          id="weight"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder={t('shipping.weightPlaceholder') as string}
+                          value={shippingData.weight}
+                          onChange={(e) => setShippingData({...shippingData, weight: e.target.value})}
+                          className="mt-1"
+                        />
+                      </div>
+
+                      {/* Dimensions */}
+                      <div>
+                        <Label>{t('shipping.dimensions')}</Label>
+                        <div className="grid grid-cols-3 gap-2 mt-1">
+                          <div>
+                            <Input
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              placeholder={t('shipping.length') as string}
+                              value={shippingData.dimensions.length}
+                              onChange={(e) => setShippingData({
+                                ...shippingData,
+                                dimensions: {...shippingData.dimensions, length: e.target.value}
+                              })}
+                            />
+                            <span className="text-xs text-muted-foreground">{t('shipping.length')}</span>
+                          </div>
+                          <div>
+                            <Input
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              placeholder={t('shipping.width') as string}
+                              value={shippingData.dimensions.width}
+                              onChange={(e) => setShippingData({
+                                ...shippingData,
+                                dimensions: {...shippingData.dimensions, width: e.target.value}
+                              })}
+                            />
+                            <span className="text-xs text-muted-foreground">{t('shipping.width')}</span>
+                          </div>
+                          <div>
+                            <Input
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              placeholder={t('shipping.height') as string}
+                              value={shippingData.dimensions.height}
+                              onChange={(e) => setShippingData({
+                                ...shippingData,
+                                dimensions: {...shippingData.dimensions, height: e.target.value}
+                              })}
+                            />
+                            <span className="text-xs text-muted-foreground">{t('shipping.height')}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </details>
+                </div>
+              )}
 
               {/* Upload de Fotos */}
               <div>

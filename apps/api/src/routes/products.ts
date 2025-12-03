@@ -26,6 +26,15 @@ const createProductSchema = z.object({
   categoryPath: z.array(z.string()).min(1),
   attributes: z.record(z.any()).optional(),
   mediaIds: z.array(z.string()).optional(),
+  // === Shipping fields (PROPOSAL-000) ===
+  estimatedDeliveryDays: z.number().int().min(1).max(90).optional(),
+  shippingMethod: z.enum(['SEDEX', 'PAC', 'TRANSPORTADORA', 'MINI_ENVIOS', 'RETIRADA', 'INTERNACIONAL', 'OUTRO']).optional(),
+  weight: z.number().positive().optional(), // kg
+  dimensions: z.object({
+    length: z.number().positive(),
+    width: z.number().positive(),
+    height: z.number().positive(),
+  }).optional(), // cm
 });
 
 // Schema para atualização
@@ -39,6 +48,15 @@ const updateProductSchema = z.object({
   mediaIds: z.array(z.string()).optional(),
   sellerStoreId: z.string().optional(),
   sellerStoreSlug: z.string().optional(),
+  // === Shipping fields (PROPOSAL-000) ===
+  estimatedDeliveryDays: z.number().int().min(1).max(90).optional(),
+  shippingMethod: z.enum(['SEDEX', 'PAC', 'TRANSPORTADORA', 'MINI_ENVIOS', 'RETIRADA', 'INTERNACIONAL', 'OUTRO']).optional(),
+  weight: z.number().positive().optional(),
+  dimensions: z.object({
+    length: z.number().positive(),
+    width: z.number().positive(),
+    height: z.number().positive(),
+  }).optional(),
 });
 
 function pruneUndefined<T extends Record<string, any>>(obj: T): T {
@@ -182,6 +200,11 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
           attributesSpecVersion: effectiveSpec.version, // CORREÇÃO: Campo obrigatório que faltava
           sellerStoreId: sellerStoreId ?? undefined,
           onChainStoreId: onChainStoreId ?? undefined,
+          // === Shipping fields (PROPOSAL-000) ===
+          estimatedDeliveryDays: body.estimatedDeliveryDays ?? 7,
+          shippingMethod: body.shippingMethod ?? null,
+          weight: body.weight ?? null,
+          dimensions: body.dimensions ?? null,
         },
         select: {
           id: true,
@@ -319,6 +342,12 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
       }
     }
 
+    // Buscar shipping options (PROPOSAL-002)
+    const shippingOptions = await prisma.productShippingOption.findMany({
+      where: { productId: product.id, isActive: true },
+      orderBy: { sortOrder: 'asc' },
+    });
+
     // Sanitizar decimais para JSON
     const safe = {
       id: product.id,
@@ -336,6 +365,24 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
       media,
       onChainStoreId,
       onChainReputation,
+      // Shipping legacy fields (PROPOSAL-000)
+      estimatedDeliveryDays: (product as any).estimatedDeliveryDays,
+      shippingMethod: (product as any).shippingMethod,
+      weight: (product as any).weight,
+      dimensions: (product as any).dimensions,
+      // Shipping options (PROPOSAL-002)
+      shippingOptions: shippingOptions.map(opt => ({
+        id: opt.id,
+        method: opt.method,
+        label: opt.label,
+        pricingType: opt.pricingType,
+        priceBzr: opt.priceBzr?.toString() ?? null,
+        freeAboveBzr: opt.freeAboveBzr?.toString() ?? null,
+        estimatedDeliveryDays: opt.estimatedDeliveryDays,
+        pickupAddressType: opt.pickupAddressType,
+        pickupAddress: opt.pickupAddress,
+        isDefault: opt.isDefault,
+      })),
     };
 
     return reply.send(safe as any);
@@ -512,6 +559,11 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
         categoryPath: categoryChanged ? catPathArr : undefined,
         attributesSpecVersion: categoryChanged ? specVersion : undefined,
         onChainStoreId: onChainStoreId,
+        // === Shipping fields (PROPOSAL-000) ===
+        estimatedDeliveryDays: body.estimatedDeliveryDays,
+        shippingMethod: body.shippingMethod,
+        weight: body.weight,
+        dimensions: body.dimensions,
       };
       const updateData = pruneUndefined(updateDataRaw) as Prisma.ProductUpdateInput;
 
@@ -629,4 +681,304 @@ export async function productsRoutes(app: FastifyInstance, options: { prisma: Pr
 
     return reply.status(204).send();
   });
+
+  // ============================================================
+  // PROPOSAL-002: Product Shipping Options CRUD
+  // ============================================================
+
+  const createShippingOptionSchema = z.object({
+    method: z.enum(['SEDEX', 'PAC', 'TRANSPORTADORA', 'MINI_ENVIOS', 'RETIRADA', 'INTERNACIONAL', 'OUTRO']),
+    label: z.string().optional(),
+    pricingType: z.enum(['FIXED', 'FREE', 'FREE_ABOVE', 'TO_ARRANGE']).default('FIXED'),
+    priceBzr: z.string().optional(),
+    freeAboveBzr: z.string().optional(),
+    estimatedDeliveryDays: z.number().int().min(1).max(90).default(7),
+    pickupAddressType: z.enum(['STORE', 'CUSTOM']).optional(),
+    pickupAddress: z.object({
+      street: z.string(),
+      number: z.string().optional(),
+      city: z.string(),
+      state: z.string(),
+      zipCode: z.string(),
+      instructions: z.string().optional(),
+    }).optional(),
+    isDefault: z.boolean().default(false),
+    sortOrder: z.number().int().default(0),
+  });
+
+  const updateShippingOptionSchema = createShippingOptionSchema.partial();
+
+  /**
+   * GET /products/:productId/shipping-options — Listar opções de envio do produto
+   */
+  app.get<{ Params: { productId: string } }>('/products/:productId/shipping-options', async (request, reply) => {
+    const { productId } = request.params;
+
+    // Verificar se produto existe
+    const product = await prisma.product.findUnique({ where: { id: productId } });
+    if (!product) {
+      return reply.status(404).send({ error: 'Produto não encontrado' });
+    }
+
+    const options = await prisma.productShippingOption.findMany({
+      where: { productId, isActive: true },
+      orderBy: { sortOrder: 'asc' },
+    });
+
+    // Se não há opções, criar uma a partir dos campos legacy (retrocompatibilidade)
+    if (options.length === 0 && product.shippingMethod) {
+      const legacyOption = {
+        id: 'legacy',
+        productId,
+        method: product.shippingMethod,
+        label: null,
+        pricingType: 'FIXED',
+        priceBzr: null, // Preço será calculado no checkout
+        freeAboveBzr: null,
+        estimatedDeliveryDays: product.estimatedDeliveryDays || 7,
+        pickupAddressType: product.shippingMethod === 'RETIRADA' ? 'STORE' : null,
+        pickupAddress: null,
+        isDefault: true,
+        isActive: true,
+        sortOrder: 0,
+        createdAt: product.createdAt,
+        updatedAt: product.updatedAt,
+      };
+      return reply.send({ items: [legacyOption], legacy: true });
+    }
+
+    return reply.send({
+      items: options.map(opt => ({
+        ...opt,
+        priceBzr: opt.priceBzr?.toString() ?? null,
+        freeAboveBzr: opt.freeAboveBzr?.toString() ?? null,
+      })),
+      legacy: false,
+    });
+  });
+
+  /**
+   * POST /products/:productId/shipping-options — Criar opção de envio
+   */
+  app.post<{ Params: { productId: string } }>('/products/:productId/shipping-options', async (request, reply) => {
+    try {
+      const { productId } = request.params;
+      const body = createShippingOptionSchema.parse(request.body);
+
+      // Verificar se produto existe
+      const product = await prisma.product.findUnique({ where: { id: productId } });
+      if (!product) {
+        return reply.status(404).send({ error: 'Produto não encontrado' });
+      }
+
+      // Validações de negócio
+      if (body.pricingType === 'FIXED' && !body.priceBzr) {
+        return reply.status(400).send({ error: 'Preço é obrigatório para frete fixo' });
+      }
+
+      if (body.pricingType === 'FREE_ABOVE' && (!body.freeAboveBzr || !body.priceBzr)) {
+        return reply.status(400).send({ error: 'Valor mínimo e preço normal são obrigatórios para frete grátis condicional' });
+      }
+
+      // Se for RETIRADA com STORE, verificar se loja tem endereço
+      if (body.method === 'RETIRADA' && body.pickupAddressType === 'STORE') {
+        const store = await prisma.sellerProfile.findUnique({
+          where: { id: product.sellerStoreId || '' },
+          select: { pickupAddress: true },
+        });
+        if (!store?.pickupAddress) {
+          return reply.status(400).send({
+            error: 'Loja não tem endereço de retirada configurado',
+            hint: 'Configure o endereço da loja ou use "Outro endereço"',
+          });
+        }
+      }
+
+      // Se isDefault = true, desmarcar outras opções
+      if (body.isDefault) {
+        await prisma.productShippingOption.updateMany({
+          where: { productId, isDefault: true },
+          data: { isDefault: false },
+        });
+      }
+
+      // Contar opções existentes para limitar a 10
+      const count = await prisma.productShippingOption.count({ where: { productId } });
+      if (count >= 10) {
+        return reply.status(400).send({ error: 'Máximo de 10 opções de envio por produto' });
+      }
+
+      const option = await prisma.productShippingOption.create({
+        data: {
+          productId,
+          method: body.method,
+          label: body.label,
+          pricingType: body.pricingType,
+          priceBzr: body.priceBzr?.replace(',', '.') || null,
+          freeAboveBzr: body.freeAboveBzr?.replace(',', '.') || null,
+          estimatedDeliveryDays: body.estimatedDeliveryDays,
+          pickupAddressType: body.pickupAddressType || (body.method === 'RETIRADA' ? 'STORE' : null),
+          pickupAddress: body.pickupAddress ?? undefined,
+          isDefault: body.isDefault,
+          sortOrder: body.sortOrder,
+        },
+      });
+
+      app.log.info(`Shipping option created: ${option.id} for product ${productId}`);
+
+      return reply.status(201).send({
+        ...option,
+        priceBzr: option.priceBzr?.toString() ?? null,
+        freeAboveBzr: option.freeAboveBzr?.toString() ?? null,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({ error: 'Dados inválidos', details: error.errors });
+      }
+      app.log.error({ err: error }, 'Erro ao criar opção de envio');
+      return reply.status(500).send({ error: 'Erro inesperado' });
+    }
+  });
+
+  /**
+   * PUT /products/:productId/shipping-options/:optionId — Atualizar opção de envio
+   */
+  app.put<{ Params: { productId: string; optionId: string } }>(
+    '/products/:productId/shipping-options/:optionId',
+    async (request, reply) => {
+      try {
+        const { productId, optionId } = request.params;
+        const body = updateShippingOptionSchema.parse(request.body);
+
+        // Verificar se opção existe
+        const existing = await prisma.productShippingOption.findFirst({
+          where: { id: optionId, productId },
+        });
+        if (!existing) {
+          return reply.status(404).send({ error: 'Opção de envio não encontrada' });
+        }
+
+        // Validações de negócio
+        const pricingType = body.pricingType ?? existing.pricingType;
+        const priceBzr = body.priceBzr ?? existing.priceBzr?.toString();
+        const freeAboveBzr = body.freeAboveBzr ?? existing.freeAboveBzr?.toString();
+
+        if (pricingType === 'FIXED' && !priceBzr) {
+          return reply.status(400).send({ error: 'Preço é obrigatório para frete fixo' });
+        }
+
+        if (pricingType === 'FREE_ABOVE' && (!freeAboveBzr || !priceBzr)) {
+          return reply.status(400).send({ error: 'Valor mínimo e preço normal são obrigatórios para frete grátis condicional' });
+        }
+
+        // Se isDefault = true, desmarcar outras opções
+        if (body.isDefault === true) {
+          await prisma.productShippingOption.updateMany({
+            where: { productId, isDefault: true, id: { not: optionId } },
+            data: { isDefault: false },
+          });
+        }
+
+        const updated = await prisma.productShippingOption.update({
+          where: { id: optionId },
+          data: pruneUndefined({
+            method: body.method,
+            label: body.label,
+            pricingType: body.pricingType,
+            priceBzr: body.priceBzr?.replace(',', '.'),
+            freeAboveBzr: body.freeAboveBzr?.replace(',', '.'),
+            estimatedDeliveryDays: body.estimatedDeliveryDays,
+            pickupAddressType: body.pickupAddressType,
+            pickupAddress: body.pickupAddress,
+            isDefault: body.isDefault,
+            sortOrder: body.sortOrder,
+          }),
+        });
+
+        return reply.send({
+          ...updated,
+          priceBzr: updated.priceBzr?.toString() ?? null,
+          freeAboveBzr: updated.freeAboveBzr?.toString() ?? null,
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return reply.status(400).send({ error: 'Dados inválidos', details: error.errors });
+        }
+        app.log.error({ err: error }, 'Erro ao atualizar opção de envio');
+        return reply.status(500).send({ error: 'Erro inesperado' });
+      }
+    }
+  );
+
+  /**
+   * DELETE /products/:productId/shipping-options/:optionId — Remover opção de envio
+   */
+  app.delete<{ Params: { productId: string; optionId: string } }>(
+    '/products/:productId/shipping-options/:optionId',
+    async (request, reply) => {
+      const { productId, optionId } = request.params;
+
+      const existing = await prisma.productShippingOption.findFirst({
+        where: { id: optionId, productId },
+      });
+      if (!existing) {
+        return reply.status(404).send({ error: 'Opção de envio não encontrada' });
+      }
+
+      // Verificar se é a última opção ativa
+      const activeCount = await prisma.productShippingOption.count({
+        where: { productId, isActive: true },
+      });
+      if (activeCount <= 1) {
+        return reply.status(400).send({ error: 'Produto deve ter pelo menos 1 opção de envio' });
+      }
+
+      await prisma.productShippingOption.delete({ where: { id: optionId } });
+
+      // Se era default, definir outra como default
+      if (existing.isDefault) {
+        const firstOption = await prisma.productShippingOption.findFirst({
+          where: { productId, isActive: true },
+          orderBy: { sortOrder: 'asc' },
+        });
+        if (firstOption) {
+          await prisma.productShippingOption.update({
+            where: { id: firstOption.id },
+            data: { isDefault: true },
+          });
+        }
+      }
+
+      return reply.status(204).send();
+    }
+  );
+
+  /**
+   * PATCH /products/:productId/shipping-options/reorder — Reordenar opções de envio
+   */
+  app.patch<{ Params: { productId: string } }>(
+    '/products/:productId/shipping-options/reorder',
+    async (request, reply) => {
+      const { productId } = request.params;
+      const body = z.object({ order: z.array(z.string()) }).parse(request.body);
+
+      // Verificar se produto existe
+      const product = await prisma.product.findUnique({ where: { id: productId } });
+      if (!product) {
+        return reply.status(404).send({ error: 'Produto não encontrado' });
+      }
+
+      // Atualizar sortOrder de cada opção
+      await Promise.all(
+        body.order.map((optionId, index) =>
+          prisma.productShippingOption.updateMany({
+            where: { id: optionId, productId },
+            data: { sortOrder: index },
+          })
+        )
+      );
+
+      return reply.send({ success: true });
+    }
+  );
 }

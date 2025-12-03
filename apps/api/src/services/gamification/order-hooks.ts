@@ -37,9 +37,20 @@ export async function afterOrderCreated(
   try {
     const gamification = new GamificationService(prisma);
 
-    // Contar orders anteriores do user
+    // Buscar wallet address do user para contar orders
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { address: true },
+    });
+
+    if (!user?.address) {
+      console.log(`[OrderHooks] User ${userId} has no wallet address, skipping`);
+      return;
+    }
+
+    // Contar orders anteriores do user (usando buyerAddr)
     const orderCount = await prisma.order.count({
-      where: { userId },
+      where: { buyerAddr: user.address },
     });
 
     // Se é primeira order, progredir FirstPurchase mission

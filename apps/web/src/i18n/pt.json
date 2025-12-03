@@ -1008,17 +1008,33 @@
       "title": "Status do Pedido"
     },
     "payment": {
-      "title": "Detalhes do Pagamento",
+      "title": "Pagamento do Pedido",
       "description": "Confirme os detalhes antes de efetuar o pagamento.",
-      "amount": "Valor total",
-      "escrow": "Endereço escrow",
-      "fee": "Taxa do marketplace",
+      "amount": "Total a pagar",
+      "fee": "Taxa da plataforma",
       "insufficient": "Saldo insuficiente para cobrir valor, taxa e ED.",
       "addFunds": "Adicionar fundos",
       "connectWallet": "Conecte sua carteira para continuar.",
       "payNow": "Pagar Agora",
-      "processing": "Processando pagamento...",
-      "escrowNote": "Os fundos ficarão em garantia até a confirmação da entrega."
+      "payWithEscrow": "Pagar com Escrow",
+      "processing": "Processando pagamento..."
+    },
+    "escrow": {
+      "protection": "Proteção do Escrow On-Chain",
+      "step1": "Seus fundos ficam RESERVADOS na sua própria conta",
+      "step2": "O vendedor só recebe após você confirmar a entrega",
+      "step3": "Em caso de disputa, a DAO pode mediar",
+      "note": "Ao pagar, você assinará uma transação que reserva os fundos na sua carteira. O vendedor NÃO recebe até você confirmar o recebimento do produto."
+    },
+    "transaction": {
+      "details": "Detalhes da Transação",
+      "yourWallet": "Sua carteira (comprador)",
+      "seller": "Vendedor",
+      "method": "Método",
+      "escrowBlockchain": "Escrow Blockchain (BZR)",
+      "afterRelease": "(após liberação)",
+      "autoRelease": "Auto-liberação",
+      "autoReleaseTime": "7 dias após envio"
     },
     "summary": {
       "title": "Resumo do Pedido",
@@ -1078,6 +1094,38 @@
       "warning": "Só é possível comprar de um vendedor por vez. Deseja limpar o carrinho e adicionar este item?",
       "cancel": "Cancelar",
       "confirm": "Sim, Limpar e Adicionar"
+    },
+    "storeSubtotal": "Subtotal: {{amount}}"
+  },
+  "multiStore": {
+    "cart": {
+      "groupedBy": "Itens agrupados por loja",
+      "storeCount": "{{count}} lojas diferentes",
+      "separateOrders": "Serão criados {{count}} pedidos separados (um por loja)",
+      "estimatedShipping": "Frete estimado"
+    },
+    "checkout": {
+      "selectShippingPerStore": "Escolha o frete para cada loja",
+      "orderNumber": "Pedido #{{number}}",
+      "subtotalWithShipping": "Subtotal com frete",
+      "escrowProtection": "Proteção do escrow: {{days}} dias",
+      "paymentSummary": "Resumo do Pagamento",
+      "singleTransaction": "1 transação única na sua wallet",
+      "independentOrders": "{{count}} pedidos independentes serão criados",
+      "ownEscrow": "Cada pedido tem seu próprio escrow e rastreamento",
+      "createOrders": "Criar {{count}} Pedidos"
+    },
+    "payment": {
+      "batchPayment": "Pagar {{amount}} BZR",
+      "creatingOrders": "Criando pedidos...",
+      "processingPayment": "Processando pagamento...",
+      "success": "Pagamento realizado com sucesso!",
+      "ordersCreated": "Seus pedidos foram criados"
+    },
+    "limits": {
+      "maxStores": "Máximo de {{max}} lojas por checkout",
+      "removeItems": "Remova itens de algumas lojas para continuar",
+      "limitReached": "Limite de lojas atingido"
     }
   },
   "orderStatus": {
@@ -1660,6 +1708,134 @@
         "learn": "Saiba Mais sobre Testnet"
       },
       "skip": "Já sei disso, continuar sem ler"
+    }
+  },
+  "shipping": {
+    "estimatedDeliveryDays": "Prazo de Entrega Estimado",
+    "estimatedDeliveryDaysShort": "Prazo Estimado",
+    "estimatedDeliveryDaysPlaceholder": "Ex: 7",
+    "estimatedDeliveryDaysHelp": "Prazo em dias úteis após o envio do produto",
+    "estimatedDeliveryDaysMin": "Prazo mínimo para {{method}}: {{days}} dias",
+    "estimatedDeliveryDaysSuffix": "dias úteis após o envio",
+    "daysPlaceholder": "Ex: 7",
+    "daysUnit": "dias úteis",
+    "method": "Método de Envio",
+    "methodPlaceholder": "Selecione o método de envio",
+    "weight": "Peso (kg)",
+    "weightPlaceholder": "Ex: 0.5",
+    "dimensions": "Dimensões (cm)",
+    "length": "Comprimento",
+    "width": "Largura",
+    "height": "Altura",
+    "methods": {
+      "SEDEX": "SEDEX (Correios)",
+      "PAC": "PAC (Correios)",
+      "TRANSPORTADORA": "Transportadora",
+      "MINI_ENVIOS": "Mini Envios (Correios)",
+      "RETIRADA": "Retirada em Loja",
+      "INTERNACIONAL": "Internacional",
+      "OUTRO": "Outro"
+    },
+    "trackingCode": "Código de Rastreamento",
+    "trackingCodePlaceholder": "Ex: BR123456789BR",
+    "trackingCodeOptional": "Código de Rastreamento (opcional)",
+    "trackShipment": "Rastrear nos Correios",
+    "markAsShipped": "Marcar como Enviado",
+    "markingAsShipped": "Marcando como enviado...",
+    "shippedSuccess": "Pedido marcado como enviado!",
+    "shippedAt": "Enviado em",
+    "shippedInfo": {
+      "title": "Ao marcar como enviado:",
+      "buyerNotified": "O comprador será notificado",
+      "timerStarts": "O prazo de liberação automática começará a contar",
+      "noCancel": "Você não poderá cancelar o pedido"
+    },
+    "autoRelease": {
+      "title": "Liberação Automática",
+      "description": "Os fundos serão liberados automaticamente em {{days}} dias após o envio",
+      "daysRemaining": "{{days}} dias ({{date}})",
+      "confirmEarly": "Se você receber o produto antes, confirme a entrega para liberar os fundos ao vendedor."
+    },
+    "checkout": {
+      "estimatedDelivery": "Prazo de Entrega Estimado",
+      "deliveryRange": "{{min}}-{{max}} dias úteis",
+      "deliveryDays": "{{days}} dias úteis"
+    },
+    "section": {
+      "title": "Informações de Envio",
+      "description": "Configure como você irá enviar este produto"
+    },
+    "status": {
+      "SHIPPED": "Enviado"
+    },
+    "buyerView": {
+      "awaitingShipment": "Aguardando envio pelo vendedor",
+      "trackYourOrder": "Rastreie seu pedido",
+      "orderShipped": "Seu pedido foi enviado"
+    },
+    "sellerView": {
+      "readyToShip": "Pronto para enviar",
+      "shipNow": "Enviar agora",
+      "addTracking": "Adicionar código de rastreamento (opcional)"
+    }
+  },
+  "escrowTimeline": {
+    "title": "Cronograma de Proteção",
+    "delivery": "Entrega Estimada",
+    "deliveryCompact": "Entrega",
+    "protection": "Proteção até",
+    "protectionCompact": "Proteção",
+    "days": "dias",
+    "safetyInfo": "Você tem {{days}} dias após a entrega estimada para confirmar o recebimento ou abrir uma disputa."
+  },
+  "shippingOptions": {
+    "title": "Opções de Envio",
+    "add": "Adicionar Opção",
+    "addFirst": "Adicionar primeira opção",
+    "edit": "Editar Opção",
+    "delete": "Remover Opção",
+    "confirmDelete": "Tem certeza que deseja remover esta opção de envio?",
+    "setDefault": "Definir como padrão",
+    "isDefault": "Padrão",
+    "method": "Método de Envio",
+    "customLabel": "Nome Personalizado",
+    "customLabelHint": "Ex: \"Entrega Expressa\", \"Econômico\"",
+    "empty": "Nenhuma opção de envio configurada",
+    "recommended": "Recomendado",
+    "modalDescription": "Configure os detalhes da opção de envio",
+    "pricing": {
+      "title": "Preço do Frete",
+      "fixed": "Fixo",
+      "free": "Grátis",
+      "freeAbove": "Grátis acima de",
+      "toArrange": "A combinar",
+      "normalPrice": "Valor normal"
+    },
+    "delivery": {
+      "days": "dias úteis",
+      "minRecommended": "Prazo mínimo recomendado para {{method}}: {{days}} dias"
+    },
+    "pickup": {
+      "title": "Local de Retirada",
+      "useStore": "Usar endereço da loja",
+      "useCustom": "Outro endereço de retirada",
+      "instructions": "Instruções para retirada",
+      "instructionsHint": "Ex: Ao lado do mercado, prédio cinza",
+      "noStoreAddress": "Loja sem endereço configurado"
+    },
+    "checkout": {
+      "title": "Opções de Envio",
+      "choose": "Escolha a forma de envio",
+      "noOptions": "Nenhuma opção de envio disponível",
+      "freeAboveHint": "Grátis em compras acima de {{amount}} BZR",
+      "maxDeliveryNote": "Prazo considera o maior prazo entre os produtos"
+    },
+    "validation": {
+      "minOneOption": "Produto deve ter pelo menos 1 opção de envio",
+      "priceRequired": "Preço é obrigatório para frete fixo",
+      "freeAboveRequired": "Informe o valor mínimo e o preço normal para frete grátis condicional",
+      "pickupAddressRequired": "Configure o endereço de retirada",
+      "invalidDays": "Prazo deve ser entre 1 e 90 dias"
     }
   }
 }

@@ -1,8 +1,10 @@
 // path: apps/web/src/modules/cart/cart.store.ts
+// PROPOSAL-003: Multi-Store Checkout - Suporte a múltiplos vendedores
 
+import { useState, useEffect } from 'react';
 import { create } from 'zustand';
-import { persist, subscribeWithSelector } from 'zustand/middleware';
-import { getActiveAccount } from '@/modules/auth';
+import { persist, subscribeWithSelector, type PersistStorage, type StorageValue } from 'zustand/middleware';
+import { getSessionUser, subscribeSession } from '@/modules/auth';
 
 export interface CartItem {
   listingId: string;
@@ -10,8 +12,17 @@ export interface CartItem {
   priceBzrSnapshot: string; // planck
   titleSnapshot: string;
   sellerId: string;
+  sellerName?: string; // PROPOSAL-003: Nome da loja para agrupamento
   kind: 'product' | 'service';
   addedAt: number; // timestamp
+}
+
+// PROPOSAL-003: Itens agrupados por vendedor
+export interface CartStoreGroup {
+  sellerId: string;
+  sellerName: string;
+  items: CartItem[];
+  subtotalBzr: string;
 }
 
 interface CartState {
@@ -21,10 +32,54 @@ interface CartState {
   removeItem: (listingId: string) => void;
   updateQty: (listingId: string, qty: number) => void;
   clear: () => void;
-  // Computed
-  subtotalBzr: string;
-  count: number;
-  currentSellerId: string | null;
+  _rehydrate: () => void; // Internal: recarrega do localStorage quando sessão muda
+}
+
+// ============================================================================
+// Seletores (funções puras para derivar dados do state)
+// ============================================================================
+
+export function selectSubtotalBzr(state: CartState): string {
+  return calculateSubtotal(state.items);
+}
+
+export function selectCount(state: CartState): number {
+  return state.items.reduce((sum, item) => sum + item.qty, 0);
+}
+
+export function selectCurrentSellerId(state: CartState): string | null {
+  return state.items.length > 0 ? state.items[0].sellerId : null;
+}
+
+export function selectSellerIds(state: CartState): string[] {
+  return [...new Set(state.items.map(i => i.sellerId))];
+}
+
+export function selectStoreCount(state: CartState): number {
+  return selectSellerIds(state).length;
+}
+
+export function selectItemsByStore(state: CartState): CartStoreGroup[] {
+  const groups: Record<string, CartStoreGroup> = {};
+
+  for (const item of state.items) {
+    if (!groups[item.sellerId]) {
+      groups[item.sellerId] = {
+        sellerId: item.sellerId,
+        sellerName: item.sellerName || item.sellerId,
+        items: [],
+        subtotalBzr: '0',
+      };
+    }
+    groups[item.sellerId].items.push(item);
+  }
+
+  // Calcular subtotal por loja
+  for (const group of Object.values(groups)) {
+    group.subtotalBzr = calculateSubtotal(group.items);
+  }
+
+  return Object.values(groups);
 }
 
 // Função para calcular subtotal
@@ -43,11 +98,42 @@ function calculateSubtotal(items: CartItem[]): string {
 }
 
 // Função para obter chave do localStorage baseada no usuário ativo
+// Nota: usa getSessionUser() que é síncrona, não getActiveAccount() que é async
 function getStorageKey(): string {
-  const activeAccount = getActiveAccount();
-  const userIdentifier = activeAccount?.address || 'anonymous';
+  const sessionUser = getSessionUser();
+  const userIdentifier = sessionUser?.address || 'anonymous';
   return `bazari_cart_${userIdentifier}`;
 }
+
+// Custom storage que usa chave dinâmica baseada na sessão
+type PersistedCartState = { items: CartItem[] };
+
+const dynamicStorage: PersistStorage<PersistedCartState> = {
+  getItem: (name: string): StorageValue<PersistedCartState> | null => {
+    const key = getStorageKey();
+    const item = localStorage.getItem(key);
+    console.log('[cart.store] getItem called, key:', key, 'item:', item?.substring(0, 100));
+    if (!item) return null;
+    try {
+      return JSON.parse(item) as StorageValue<PersistedCartState>;
+    } catch {
+      return null;
+    }
+  },
+  setItem: (name: string, value: StorageValue<PersistedCartState>): void => {
+    const key = getStorageKey();
+    console.log('[cart.store] setItem called, key:', key, 'items count:', value?.state?.items?.length);
+    localStorage.setItem(key, JSON.stringify(value));
+  },
+  removeItem: (name: string): void => {
+    const key = getStorageKey();
+    console.log('[cart.store] removeItem called, key:', key);
+    localStorage.removeItem(key);
+  },
+};
+
+// Flag para indicar se o store já foi hidratado
+let hasHydrated = false;
 
 export const useCart = create<CartState>()(
   subscribeWithSelector(
@@ -57,11 +143,11 @@ export const useCart = create<CartState>()(
 
         addItem: async (newItem) => {
           const { items } = get();
-          const currentSellerId = items.length > 0 ? items[0].sellerId : null;
 
-          // Verificar regra MVP: 1 vendedor por carrinho
-          if (currentSellerId && currentSellerId !== newItem.sellerId) {
-            // Retornar false para indicar que precisa de confirmação
+          // PROPOSAL-003: Limite de 5 lojas por checkout
+          const uniqueSellers = new Set(items.map(i => i.sellerId));
+          if (!uniqueSellers.has(newItem.sellerId) && uniqueSellers.size >= 5) {
+            // Retornar false para indicar limite atingido
             return false;
           }
 
@@ -76,6 +162,7 @@ export const useCart = create<CartState>()(
               qty: updatedItems[existingItemIndex].qty + newItem.qty,
               priceBzrSnapshot: newItem.priceBzrSnapshot, // Atualizar preço
               titleSnapshot: newItem.titleSnapshot, // Atualizar título
+              sellerName: newItem.sellerName || updatedItems[existingItemIndex].sellerName,
             };
 
             set({ items: updatedItems });
@@ -115,44 +202,114 @@ export const useCart = create<CartState>()(
           set({ items: [] });
         },
 
-        // Computed values
-        get subtotalBzr() {
-          return calculateSubtotal(get().items);
-        },
-
-        get count() {
-          return get().items.reduce((sum, item) => sum + item.qty, 0);
-        },
-
-        get currentSellerId() {
-          const { items } = get();
-          return items.length > 0 ? items[0].sellerId : null;
+        _rehydrate: () => {
+          // Recarrega os itens do localStorage para o usuário atual
+          const stored = dynamicStorage.getItem('cart');
+          const items = stored?.state?.items || [];
+          set({ items });
         },
       }),
       {
-        name: getStorageKey(),
-        // Recomputar a chave quando o usuário ativo mudar
+        name: 'cart', // Nome fixo, a chave real é computada pelo dynamicStorage
+        storage: dynamicStorage,
         partialize: (state) => ({ items: state.items }),
         version: 1,
+        onRehydrateStorage: () => {
+          console.log('[cart.store] Starting rehydration...');
+          return (state, error) => {
+            if (error) {
+              console.error('[cart.store] Rehydration error:', error);
+            } else {
+              console.log('[cart.store] Rehydration complete, items:', state?.items?.length || 0);
+              hasHydrated = true;
+            }
+          };
+        },
       }
     )
   )
 );
 
-// Hook para modal de confirmação de mudança de vendedor
-export function useCartSellerConflict() {
-  const cart = useCart();
+// Hook para verificar se o store já foi hidratado
+export function useCartHydrated() {
+  const [hydrated, setHydrated] = useState(hasHydrated);
 
-  const addItemWithConflictCheck = async (item: Omit<CartItem, 'addedAt'>) => {
-    const success = await cart.addItem(item);
+  useEffect(() => {
+    // Se já hidratou, não precisa fazer nada
+    if (hasHydrated) {
+      setHydrated(true);
+      return;
+    }
+
+    // Se não, verificar a cada 50ms até hidratar (máx 2s)
+    let attempts = 0;
+    const maxAttempts = 40;
+    const interval = setInterval(() => {
+      attempts++;
+      if (hasHydrated || attempts >= maxAttempts) {
+        setHydrated(hasHydrated);
+        clearInterval(interval);
+      }
+    }, 50);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return hydrated;
+}
+
+// PROPOSAL-003: Hook para verificar limite de lojas
+export function useCartStoreLimit() {
+  const items = useCart(state => state.items);
+  const addItem = useCart(state => state.addItem);
+  const MAX_STORES = 5;
+  const storeCount = selectStoreCount({ items } as CartState);
+
+  const addItemWithLimitCheck = async (item: Omit<CartItem, 'addedAt'>) => {
+    const success = await addItem(item);
 
     if (!success) {
-      // Retornar dados para o modal de confirmação
+      // Retornar dados para o modal de limite atingido
+      return {
+        limitReached: true,
+        currentStoreCount: storeCount,
+        maxStores: MAX_STORES,
+        newItem: item,
+      };
+    }
+
+    return { limitReached: false };
+  };
+
+  return {
+    addItemWithLimitCheck,
+    storeCount,
+    maxStores: MAX_STORES,
+    isAtLimit: storeCount >= MAX_STORES,
+  };
+}
+
+// Manter hook antigo para compatibilidade (deprecado)
+/** @deprecated Use useCartStoreLimit instead */
+export function useCartSellerConflict() {
+  const items = useCart(state => state.items);
+  const clear = useCart(state => state.clear);
+  const addItemStore = useCart(state => state.addItem);
+  const { addItemWithLimitCheck, storeCount: currentStoreCount } = useCartStoreLimit();
+  const currentSellerId = selectCurrentSellerId({ items } as CartState);
+
+  const addItemWithConflictCheck = async (item: Omit<CartItem, 'addedAt'>) => {
+    const result = await addItemWithLimitCheck(item);
+
+    if (result.limitReached) {
       return {
         needsConfirmation: true,
-        currentSeller: cart.currentSellerId,
+        currentSeller: currentSellerId,
         newSeller: item.sellerId,
         newItem: item,
+        // PROPOSAL-003: Novo campo
+        limitReached: true,
+        storeCount: currentStoreCount,
       };
     }
 
@@ -160,12 +317,72 @@ export function useCartSellerConflict() {
   };
 
   const confirmAndReplaceCart = (item: Omit<CartItem, 'addedAt'>) => {
-    cart.clear();
-    return cart.addItem(item);
+    clear();
+    return addItemStore(item);
   };
 
   return {
     addItemWithConflictCheck,
     confirmAndReplaceCart,
   };
+}
+
+// Migrar dados do formato antigo (chave fixa "cart") para o novo formato
+function migrateOldCartData() {
+  try {
+    // Verificar se existe dados no formato antigo (chave fixa "cart")
+    const oldData = localStorage.getItem('cart');
+    if (oldData) {
+      console.log('[cart.store] Found old cart data, migrating...');
+      const parsed = JSON.parse(oldData);
+      if (parsed?.state?.items && parsed.state.items.length > 0) {
+        // Migrar para a nova chave do usuário atual
+        const newKey = getStorageKey();
+        // Verificar se a nova chave já tem dados
+        const existingNew = localStorage.getItem(newKey);
+        if (!existingNew) {
+          localStorage.setItem(newKey, oldData);
+          console.log('[cart.store] Migrated', parsed.state.items.length, 'items to', newKey);
+        }
+        // Remover dados antigos
+        localStorage.removeItem('cart');
+      }
+    }
+  } catch (e) {
+    console.error('[cart.store] Migration error:', e);
+  }
+}
+
+// Subscrever mudanças de sessão para recarregar carrinho do usuário correto
+// Isso é executado quando o módulo é carregado
+if (typeof window !== 'undefined') {
+  // Migrar dados antigos primeiro
+  migrateOldCartData();
+
+  // Recarregar quando sessão expira ou é limpa
+  subscribeSession(() => {
+    useCart.getState()._rehydrate();
+  });
+
+  // Também escutar storage events para detectar login (cross-tab sync e setSession)
+  let lastStorageKey = getStorageKey();
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'bazari_session') {
+      const newKey = getStorageKey();
+      if (newKey !== lastStorageKey) {
+        lastStorageKey = newKey;
+        useCart.getState()._rehydrate();
+      }
+    }
+  });
+
+  // Verificar periodicamente se a sessão mudou (para capturar login na mesma aba)
+  // Isso é necessário porque setSession não dispara storage event na mesma aba
+  setInterval(() => {
+    const newKey = getStorageKey();
+    if (newKey !== lastStorageKey) {
+      lastStorageKey = newKey;
+      useCart.getState()._rehydrate();
+    }
+  }, 1000);
 }

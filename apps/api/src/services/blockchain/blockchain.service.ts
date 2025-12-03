@@ -205,12 +205,36 @@ export class BlockchainService {
     const api = await this.getApi();
 
     // Format items for pallet call
-    const formattedItems = items.map((item) => [
-      item.listingId ? { some: item.listingId } : { none: null },
-      item.name,
-      item.qty,
-      item.price.toString(),
-    ]);
+    // Note: listingId must be a numeric u64. UUIDs are not supported by the pallet,
+    // so we convert numeric IDs and pass null for UUID strings.
+    // Item name is truncated to 128 chars (MaxItemNameLen in pallet).
+    const MAX_ITEM_NAME_LEN = 128;
+    const formattedItems = items.map((item) => {
+      let listingIdOption = { none: null } as any;
+      if (item.listingId !== null) {
+        const numId = Number(item.listingId);
+        if (!isNaN(numId) && Number.isInteger(numId) && numId >= 0) {
+          listingIdOption = { some: numId };
+        }
+      }
+      // Truncate item name to avoid ItemNameTooLong error (128 bytes max)
+      let truncatedName = item.name;
+      const nameBytes = Buffer.from(item.name, 'utf8');
+      if (nameBytes.length > MAX_ITEM_NAME_LEN) {
+        // Truncate to fit within 128 bytes (accounting for "..." suffix)
+        let byteLen = MAX_ITEM_NAME_LEN - 3;
+        while (byteLen > 0 && Buffer.from(item.name.slice(0, byteLen), 'utf8').length > MAX_ITEM_NAME_LEN - 3) {
+          byteLen--;
+        }
+        truncatedName = item.name.slice(0, byteLen) + '...';
+      }
+      return [
+        listingIdOption,
+        truncatedName,
+        item.qty,
+        item.price.toString(),
+      ];
+    });
 
     const tx = api.tx.bazariCommerce.createOrder(
       marketplace,

@@ -3,21 +3,23 @@
  * Escrow Auto-Release Worker
  *
  * Executa a cada 1 hora e libera automaticamente escrows que passaram
- * do período de 7 dias (100,800 blocos).
+ * do período configurado (PROPOSAL-001: prazo dinâmico baseado em entrega).
  *
  * Estratégia:
  * - Busca orders com status que podem ter escrow ativo (ESCROWED, SHIPPED)
  * - Query escrow no blockchain para verificar status 'Locked'
- * - Calcula blocos restantes até auto-release
+ * - Calcula blocos restantes até auto-release (PROPOSAL-001: usa autoReleaseBlocks da order)
  * - VERIFICA SE HÁ DISPUTA ATIVA ANTES DE LIBERAR (Fase 6 - Correção Crítica)
  * - Se blocos <= 0 e sem disputa, chama releaseFunds no pallet
  * - Atualiza DB com status RELEASED
  */
 import { PrismaClient } from '@prisma/client';
 import { BlockchainService } from '../services/blockchain/blockchain.service.js';
+import { getEscrowCalculator } from '../services/escrow/escrow-calculator.service.js';
 import type { ApiPromise } from '@polkadot/api';
 
-const AUTO_RELEASE_BLOCKS = 100_800; // 7 dias = 100,800 blocos (6s/block)
+// Default auto-release (7 days) - used as fallback
+const DEFAULT_AUTO_RELEASE_BLOCKS = 100_800; // 7 dias = 100,800 blocos (6s/block)
 
 export interface AutoReleaseWorkerOptions {
   logger?: any;
@@ -81,18 +83,27 @@ export class EscrowAutoReleaseWorker {
       this.logger.info({ currentBlock: currentBlockNum }, '[AutoRelease] Current block');
 
       // 1. Buscar orders com status que podem ter escrow ativo
+      // Nota: blockchainOrderId é o ID usado no pallet (u64), não o UUID
       const pendingOrders = await this.prisma.order.findMany({
         where: {
           status: {
             in: ['ESCROWED', 'SHIPPED'],
           },
+          blockchainOrderId: {
+            not: null, // Somente orders que já estão registradas on-chain
+          },
         },
         select: {
           id: true,
+          blockchainOrderId: true,
           buyerAddr: true,
           sellerAddr: true,
           totalBzr: true,
           status: true,
+          // PROPOSAL-001: Include delivery-aware escrow fields
+          autoReleaseBlocks: true,
+          estimatedDeliveryDays: true,
+          shippingMethod: true,
         },
       });
 
@@ -102,8 +113,9 @@ export class EscrowAutoReleaseWorker {
         this.stats.checked++;
 
         try {
-          // 2. Query escrow no blockchain
-          const escrowData = await api.query.bazariEscrow.escrows(order.id);
+          // 2. Query escrow no blockchain usando blockchainOrderId (u64)
+          const blockchainOrderId = order.blockchainOrderId!.toString();
+          const escrowData = await api.query.bazariEscrow.escrows(blockchainOrderId);
 
           if (!escrowData || escrowData.isNone) {
             // Escrow não existe on-chain, pular
@@ -130,9 +142,9 @@ export class EscrowAutoReleaseWorker {
           // FASE 6 - Verificar disputa ativa no pallet bazari-dispute
           // Mesmo que escrow status seja Locked, pode haver disputa pendente
           try {
-            const hasActiveDispute = await this.checkActiveDispute(api, order.id);
+            const hasActiveDispute = await this.checkActiveDispute(api, blockchainOrderId);
             if (hasActiveDispute) {
-              this.logger.info({ orderId: order.id }, '[AutoRelease] Skipping - active dispute found in bazari-dispute pallet');
+              this.logger.info({ orderId: order.id, blockchainOrderId }, '[AutoRelease] Skipping - active dispute found in bazari-dispute pallet');
               this.stats.skipped++;
               continue;
             }
@@ -140,6 +152,7 @@ export class EscrowAutoReleaseWorker {
             // Se não conseguir verificar, é mais seguro NÃO liberar (fail-safe)
             this.logger.warn({
               orderId: order.id,
+              blockchainOrderId,
               error: disputeCheckError instanceof Error ? disputeCheckError.message : 'Unknown error',
             }, '[AutoRelease] Could not check dispute status, skipping for safety');
             this.stats.skipped++;
@@ -148,33 +161,45 @@ export class EscrowAutoReleaseWorker {
 
           const lockedAt = escrow.lockedAt?.toNumber?.() || 0;
           const blocksElapsed = currentBlockNum - lockedAt;
-          const blocksUntilRelease = AUTO_RELEASE_BLOCKS - blocksElapsed;
+
+          // PROPOSAL-001: Use order's dynamic auto-release blocks or calculate
+          const escrowCalculator = getEscrowCalculator();
+          const orderAny = order as any;
+          const orderAutoReleaseBlocks = orderAny.autoReleaseBlocks
+            || escrowCalculator.calculateAutoReleaseBlocks(
+                orderAny.estimatedDeliveryDays,
+                orderAny.shippingMethod
+              );
+
+          const blocksUntilRelease = orderAutoReleaseBlocks - blocksElapsed;
 
           this.logger.info({
             orderId: order.id,
             lockedAt,
             blocksElapsed,
             blocksUntilRelease,
+            autoReleaseBlocks: orderAutoReleaseBlocks, // PROPOSAL-001
           }, '[AutoRelease] Order escrow status');
 
           // 3. Se passou o período, fazer auto-release
           if (blocksUntilRelease <= 0) {
-            this.logger.info({ orderId: order.id }, '[AutoRelease] Order passed auto-release threshold');
+            this.logger.info({ orderId: order.id, blockchainOrderId }, '[AutoRelease] Order passed auto-release threshold');
 
             if (this.dryRun) {
-              this.logger.info({ orderId: order.id }, '[AutoRelease] DRY RUN - Would release order');
+              this.logger.info({ orderId: order.id, blockchainOrderId }, '[AutoRelease] DRY RUN - Would release order');
               continue;
             }
 
-            // 4. Chamar releaseFunds no pallet
+            // 4. Chamar releaseFunds no pallet usando blockchainOrderId
             const serverKey = this.blockchainService.getEscrowAccount();
-            const tx = api.tx.bazariEscrow.releaseFunds(order.id);
+            const tx = api.tx.bazariEscrow.releaseFunds(blockchainOrderId);
 
             try {
               const result = await this.blockchainService.signAndSend(tx, serverKey);
 
               this.logger.info({
                 orderId: order.id,
+                blockchainOrderId,
                 txHash: result.txHash,
               }, '[AutoRelease] Released order successfully');
 
@@ -201,17 +226,22 @@ export class EscrowAutoReleaseWorker {
               }
 
               // 7. Criar log de auto-release
+              // PROPOSAL-001: Include auto-release blocks info
+              const autoReleaseDays = Math.ceil(orderAutoReleaseBlocks / 14_400);
               await this.prisma.escrowLog.create({
                 data: {
                   orderId: order.id,
                   kind: 'AUTO_RELEASE',
                   payloadJson: {
+                    blockchainOrderId,
                     txHash: result.txHash,
                     blockNumber: result.blockNumber?.toString() || currentBlockNum.toString(),
                     lockedAt: lockedAt,
                     releasedAt: currentBlockNum,
                     blocksElapsed: blocksElapsed,
-                    reason: 'Automatic release after 7 days',
+                    autoReleaseBlocks: orderAutoReleaseBlocks, // PROPOSAL-001
+                    autoReleaseDays, // PROPOSAL-001
+                    reason: `Automatic release after ${autoReleaseDays} days (delivery-aware escrow)`,
                     timestamp: new Date().toISOString(),
                   },
                 },
@@ -222,6 +252,7 @@ export class EscrowAutoReleaseWorker {
               this.logger.error({
                 err: releaseError,
                 orderId: order.id,
+                blockchainOrderId,
               }, '[AutoRelease] Failed to release order');
               this.stats.errors++;
 
@@ -231,6 +262,7 @@ export class EscrowAutoReleaseWorker {
                   orderId: order.id,
                   kind: 'AUTO_RELEASE_ERROR',
                   payloadJson: {
+                    blockchainOrderId,
                     error: releaseError instanceof Error ? releaseError.message : 'Unknown error',
                     blocksElapsed: blocksElapsed,
                     timestamp: new Date().toISOString(),
@@ -243,6 +275,7 @@ export class EscrowAutoReleaseWorker {
           this.logger.error({
             err: orderError,
             orderId: order.id,
+            blockchainOrderId: order.blockchainOrderId,
           }, '[AutoRelease] Error processing order');
           this.stats.errors++;
         }

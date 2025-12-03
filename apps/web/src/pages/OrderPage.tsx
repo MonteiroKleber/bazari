@@ -8,13 +8,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
-import { Truck } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Truck, Package, ExternalLink, Clock, CheckCircle2 } from 'lucide-react';
 import { apiHelpers } from '@/lib/api';
+import { ordersApi } from '@/modules/orders/api';
 import { deliveryApi } from '@/lib/api/delivery';
 import { DeliveryStatusTimeline } from '@/components/delivery';
 import type { DeliveryRequest } from '@/types/delivery';
 import { PaymentProtectionCard } from '@/components/escrow/PaymentProtectionCard';
 import { useBlockchainQuery } from '@/hooks/useBlockchainQuery';
+import { getSessionUser } from '@/modules/auth';
 
 interface Order {
   id: string;
@@ -24,20 +29,16 @@ interface Order {
   status: string;
   createdAt: string;
   updatedAt: string;
-  paymentIntents: PaymentIntent[];
   escrowLogs: EscrowLog[];
   deliveryRequestId?: string;
-}
-
-interface PaymentIntent {
-  id: string;
-  amountBzr: string;
-  escrowAddress: string;
-  status: string;
-  txHashIn: string | null;
-  txHashRelease: string | null;
-  txHashRefund: string | null;
-  createdAt: string;
+  // Shipping fields (PROPOSAL-000)
+  estimatedDeliveryDays?: number;
+  shippingMethod?: string;
+  shippedAt?: string;
+  trackingCode?: string;
+  // Delivery-Aware Escrow (PROPOSAL-001)
+  autoReleaseBlocks?: number;
+  estimatedDeliveryDate?: string;
 }
 
 interface EscrowLog {
@@ -76,6 +77,15 @@ export function OrderPage() {
   // Delivery tracking
   const [delivery, setDelivery] = useState<DeliveryRequest | null>(null);
   const [isLoadingDelivery, setIsLoadingDelivery] = useState(false);
+
+  // Shipping state (PROPOSAL-000)
+  const [trackingCodeInput, setTrackingCodeInput] = useState('');
+  const [shippingLoading, setShippingLoading] = useState(false);
+  const [shippingError, setShippingError] = useState<string | null>(null);
+  const [shippingSuccess, setShippingSuccess] = useState(false);
+
+  // Current user
+  const currentUser = getSessionUser();
 
   // Blockchain current block for escrow countdown
   const { data: blockData } = useBlockchainQuery<{ currentBlock: number }>({
@@ -122,21 +132,28 @@ export function OrderPage() {
     }
   };
 
-  const handleConfirmReceived = useCallback(async () => {
+  // Mark order as shipped (PROPOSAL-000)
+  const handleMarkAsShipped = useCallback(async () => {
     if (!id) return;
 
     try {
-      setActionLoading('confirm');
-      setActionResponse(null);
-      const response = await apiHelpers.confirmReceived(id) as ActionResponse;
-      setActionResponse(response);
-      await loadOrder(); // Recarregar order
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('order.error.confirmFailed'));
+      setShippingLoading(true);
+      setShippingError(null);
+      setShippingSuccess(false);
+
+      await ordersApi.markAsShipped(id, {
+        trackingCode: trackingCodeInput.trim() || undefined
+      });
+
+      setShippingSuccess(true);
+      await loadOrder(); // Reload order to get updated status
+    } catch (err: any) {
+      const message = err?.response?.data?.error || err?.message || t('errors.generic');
+      setShippingError(message);
     } finally {
-      setActionLoading(null);
+      setShippingLoading(false);
     }
-  }, [id, t, loadOrder]);
+  }, [id, trackingCodeInput, loadOrder, t]);
 
   const handleCancel = useCallback(async () => {
     if (!id) return;
@@ -321,11 +338,163 @@ export function OrderPage() {
     );
   };
 
-  const canConfirmReceived = order?.status === 'SHIPPED' ||
-    order?.paymentIntents.some(intent => intent.status === 'FUNDS_IN');
-
   const canCancel = order?.status &&
     !['RELEASED', 'REFUNDED', 'CANCELLED', 'TIMEOUT'].includes(order.status);
+
+  // Check if current user is the seller (PROPOSAL-000)
+  const isSeller = currentUser?.address && order?.sellerAddr &&
+    currentUser.address.toLowerCase() === order.sellerAddr.toLowerCase();
+
+  // Check if current user is the buyer
+  const isBuyer = currentUser?.address && order?.buyerAddr &&
+    currentUser.address.toLowerCase() === order.buyerAddr.toLowerCase();
+
+  // Seller can mark as shipped when order is ESCROWED
+  const canMarkAsShipped = isSeller && order?.status === 'ESCROWED';
+
+  // Render shipping section for seller (mark as shipped)
+  const renderSellerShippingSection = () => {
+    if (!canMarkAsShipped) return null;
+
+    return (
+      <Card className="border-primary/50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Package className="h-5 w-5 text-primary" />
+            {t('shipping.sellerView.readyToShip')}
+          </CardTitle>
+          <CardDescription>
+            {t('shipping.shippedInfo.timerStarts')}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Tracking Code Input */}
+          <div>
+            <Label htmlFor="trackingCode">{t('shipping.sellerView.addTracking')}</Label>
+            <Input
+              id="trackingCode"
+              type="text"
+              placeholder={t('shipping.trackingCodePlaceholder') as string}
+              value={trackingCodeInput}
+              onChange={(e) => setTrackingCodeInput(e.target.value)}
+              className="mt-1"
+            />
+          </div>
+
+          {/* Auto-release info - PROPOSAL-001: Dynamic days */}
+          <Alert>
+            <Clock className="h-4 w-4" />
+            <AlertDescription>
+              {t('shipping.autoRelease.description', {
+                days: order?.autoReleaseBlocks
+                  ? Math.ceil(order.autoReleaseBlocks / 14_400) // Convert blocks to days
+                  : (order?.estimatedDeliveryDays || 7) + 7 // delivery + 7 day margin
+              })}
+            </AlertDescription>
+          </Alert>
+
+          {/* Error message */}
+          {shippingError && (
+            <Alert variant="destructive">
+              <AlertDescription>{shippingError}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* Success message */}
+          {shippingSuccess && (
+            <Alert className="border-green-500 bg-green-50 dark:bg-green-950/20">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-700 dark:text-green-400">
+                {t('shipping.shippedInfo.title')}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Ship button */}
+          <Button
+            onClick={handleMarkAsShipped}
+            disabled={shippingLoading}
+            className="w-full"
+          >
+            <Truck className="h-4 w-4 mr-2" />
+            {shippingLoading ? t('shipping.markingAsShipped') : t('shipping.markAsShipped')}
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  // Render shipping info for buyer (tracking, shipped status)
+  const renderBuyerShippingInfo = () => {
+    // Show only if order has been shipped
+    if (!order?.shippedAt) return null;
+
+    return (
+      <Card className="border-green-500/50 bg-green-50/30 dark:bg-green-950/10">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Truck className="h-5 w-5 text-green-600" />
+              {t('shipping.buyerView.orderShipped')}
+            </CardTitle>
+            <Badge className="bg-green-600">{t('shipping.status.SHIPPED')}</Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            {/* Shipped at */}
+            <div>
+              <p className="text-sm text-muted-foreground">{t('shipping.shippedAt')}</p>
+              <p className="font-medium">{formatDate(order.shippedAt)}</p>
+            </div>
+
+            {/* Shipping method */}
+            {order.shippingMethod && (
+              <div>
+                <p className="text-sm text-muted-foreground">{t('shipping.method')}</p>
+                <p className="font-medium">{t(`shipping.methods.${order.shippingMethod}`)}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Tracking code */}
+          {order.trackingCode && (
+            <div className="border-t pt-4">
+              <p className="text-sm text-muted-foreground mb-1">{t('shipping.trackingCode')}</p>
+              <div className="flex items-center gap-2">
+                <code className="bg-muted px-2 py-1 rounded text-sm font-mono">
+                  {order.trackingCode}
+                </code>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    // Try to open tracking URL based on shipping method
+                    const trackingUrls: Record<string, string> = {
+                      SEDEX: `https://www.linkcorreios.com.br/${order.trackingCode}`,
+                      PAC: `https://www.linkcorreios.com.br/${order.trackingCode}`,
+                    };
+                    const url = trackingUrls[order.shippingMethod || ''];
+                    if (url) window.open(url, '_blank');
+                  }}
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Auto-release countdown info */}
+          <Alert>
+            <Clock className="h-4 w-4" />
+            <AlertDescription>
+              {t('shipping.autoRelease.confirmEarly')}
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  };
 
   if (!id) {
     return (
@@ -402,14 +571,22 @@ export function OrderPage() {
           </CardContent>
         </Card>
 
+        {/* Shipping Section - Seller can mark as shipped (PROPOSAL-000) */}
+        {renderSellerShippingSection()}
+
+        {/* Shipping Info - Buyer sees tracking info (PROPOSAL-000) */}
+        {renderBuyerShippingInfo()}
+
         {/* Delivery Tracking */}
         {renderDeliveryTracking()}
 
-        {/* Payment Protection (Escrow) */}
+        {/* Payment Protection (Escrow) - PROPOSAL-001: Now with Timeline */}
         {id && (
           <PaymentProtectionCard
             orderId={id}
             currentBlock={blockData?.currentBlock ?? 0}
+            orderCreatedAt={order.createdAt}
+            estimatedDeliveryDays={order.estimatedDeliveryDays}
           />
         )}
 
@@ -421,14 +598,6 @@ export function OrderPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex gap-2">
-              <Button
-                onClick={handleConfirmReceived}
-                disabled={!canConfirmReceived || actionLoading === 'confirm'}
-                variant="default"
-              >
-                {actionLoading === 'confirm' ? t('order.actions.confirming') : t('order.actions.confirmReceived')}
-              </Button>
-
               <Button
                 onClick={handleCancel}
                 disabled={!canCancel || actionLoading === 'cancel'}
@@ -455,40 +624,6 @@ export function OrderPage() {
             )}
           </CardContent>
         </Card>
-
-        {/* Payment Intents */}
-        {order.paymentIntents.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('order.intents.title')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {order.paymentIntents.map((intent) => (
-                  <div key={intent.id} className="border rounded-md p-3">
-                    <div className="flex justify-between items-start mb-2">
-                      <Badge variant={getStatusVariant(intent.status)}>{intent.status}</Badge>
-                      <span className="text-sm text-muted-foreground">{formatDate(intent.createdAt)}</span>
-                    </div>
-                    <div className="space-y-1 text-sm">
-                      <p><span className="text-muted-foreground">{t('order.amount')}:</span> {formatBzr(intent.amountBzr)}</p>
-                      <p><span className="text-muted-foreground">{t('order.escrow')}:</span> <span className="font-mono text-xs">{intent.escrowAddress}</span></p>
-                      {intent.txHashIn && (
-                        <p><span className="text-muted-foreground">{t('order.txHashIn')}:</span> <span className="font-mono text-xs">{intent.txHashIn}</span></p>
-                      )}
-                      {intent.txHashRelease && (
-                        <p><span className="text-muted-foreground">{t('order.txHashRelease')}:</span> <span className="font-mono text-xs">{intent.txHashRelease}</span></p>
-                      )}
-                      {intent.txHashRefund && (
-                        <p><span className="text-muted-foreground">{t('order.txHashRefund')}:</span> <span className="font-mono text-xs">{intent.txHashRefund}</span></p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Escrow Logs */}
         {order.escrowLogs.length > 0 && (

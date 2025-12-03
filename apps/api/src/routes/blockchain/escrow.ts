@@ -8,13 +8,14 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { authOnRequest } from '../../lib/auth/middleware.js';
 import { BlockchainService } from '../../services/blockchain/blockchain.service.js';
+import { getEscrowCalculator } from '../../services/escrow/escrow-calculator.service.js';
 
 const orderIdParamsSchema = z.object({
   orderId: z.string().uuid(),
 });
 
-// Constants for auto-release calculation
-const AUTO_RELEASE_BLOCKS = 100_800; // 7 dias = 100,800 blocos (6s/block)
+// Default auto-release (7 days) - used as fallback when order doesn't have dynamic value
+const DEFAULT_AUTO_RELEASE_BLOCKS = 100_800; // 7 dias = 100,800 blocos (6s/block)
 
 // Helper to format BZR amount
 function formatBzr(planck: string): string {
@@ -81,28 +82,53 @@ export async function escrowRoutes(
         });
       }
 
-      // 4. Verificar se já está locked
+      // 4. Verificar se tem blockchainOrderId (order foi sincronizada com blockchain)
+      if (!order.blockchainOrderId) {
+        return reply.status(400).send({
+          error: 'Order not synced with blockchain',
+          message: 'Order does not have a blockchainOrderId yet. Please wait for blockchain sync.',
+        });
+      }
+
+      const blockchainOrderId = order.blockchainOrderId.toString();
+
+      // 5. Verificar se já está locked
       const api = await blockchainService.getApi();
-      const existing = await api.query.bazariEscrow.escrows(orderId);
+      const existing = await api.query.bazariEscrow.escrows(blockchainOrderId);
 
       if (existing.isSome) {
         return reply.status(400).send({ error: 'Escrow already locked' });
       }
 
-      // 5. Preparar call data para frontend assinar
+      // 6. Preparar call data para frontend assinar
       const totalBzr = BigInt(order.totalBzr.toString());
 
+      // PROPOSAL-001: Calculate dynamic auto-release blocks based on delivery estimate
+      const escrowCalculator = getEscrowCalculator();
+      const orderAny = order as any;
+      const autoReleaseBlocks = orderAny.autoReleaseBlocks
+        || escrowCalculator.calculateAutoReleaseBlocks(
+            orderAny.estimatedDeliveryDays,
+            orderAny.shippingMethod
+          );
+
+      // Pass auto_release_blocks to pallet (Option<BlockNumber>)
       const callData = api.tx.bazariEscrow.lockFunds(
-        orderId,
+        blockchainOrderId,
         order.sellerAddr,
-        totalBzr
+        totalBzr,
+        null,              // asset_id: Option<AssetId> = None (use native token)
+        autoReleaseBlocks, // auto_release_blocks: Option<BlockNumber> = dynamic value
+        null               // arbiter: Option<AccountId> = None
       );
 
       return {
         orderId,
+        blockchainOrderId,
         seller: order.sellerAddr,
         buyer: order.buyerAddr,
         amount: totalBzr.toString(),
+        autoReleaseBlocks, // PROPOSAL-001: Include in response
         callHex: callData.toHex(),
         callHash: callData.hash.toHex(),
         method: 'bazariEscrow.lockFunds',
@@ -139,9 +165,19 @@ export async function escrowRoutes(
         return reply.status(403).send({ error: 'Unauthorized: only buyer can release' });
       }
 
-      // 3. Verificar escrow on-chain
+      // 3. Verificar se tem blockchainOrderId
+      if (!order.blockchainOrderId) {
+        return reply.status(400).send({
+          error: 'Order not synced with blockchain',
+          message: 'Order does not have a blockchainOrderId yet.',
+        });
+      }
+
+      const blockchainOrderId = order.blockchainOrderId.toString();
+
+      // 4. Verificar escrow on-chain
       const api = await blockchainService.getApi();
-      const escrowData = await api.query.bazariEscrow.escrows(orderId);
+      const escrowData = await api.query.bazariEscrow.escrows(blockchainOrderId);
 
       if (escrowData.isNone) {
         return reply.status(400).send({ error: 'Escrow not found on blockchain' });
@@ -150,7 +186,7 @@ export async function escrowRoutes(
       const escrow = escrowData.unwrap();
       const status = escrow.status.toString();
 
-      // 4. Verificar status é 'Locked' (não Disputed, Released, etc)
+      // 5. Verificar status é 'Locked' (não Disputed, Released, etc)
       if (status !== 'Locked') {
         return reply.status(400).send({
           error: 'Invalid escrow status for release',
@@ -161,7 +197,7 @@ export async function escrowRoutes(
         });
       }
 
-      // 5. Verificar se não há disputa ativa no bazari-dispute
+      // 6. Verificar se não há disputa ativa no bazari-dispute
       // (Mesmo que escrow status seja Locked, pode haver disputa pendente)
       try {
         const disputes = await api.query.bazariDispute.disputes.entries();
@@ -171,7 +207,7 @@ export async function escrowRoutes(
           // orderId no dispute é u64, converter para comparar
           const disputeOrderId = d.orderId?.toString?.() || '';
           const disputeStatus = d.status?.toString?.() || '';
-          return disputeOrderId === orderId && disputeStatus !== 'Resolved';
+          return disputeOrderId === blockchainOrderId && disputeStatus !== 'Resolved';
         });
 
         if (activeDispute) {
@@ -185,11 +221,12 @@ export async function escrowRoutes(
         app.log.warn('Could not check disputes:', e);
       }
 
-      // 6. Preparar call data para frontend assinar
-      const callData = api.tx.bazariEscrow.releaseFunds(orderId);
+      // 7. Preparar call data para frontend assinar
+      const callData = api.tx.bazariEscrow.releaseFunds(blockchainOrderId);
 
       return {
         orderId,
+        blockchainOrderId,
         buyer: escrow.buyer.toString(),
         seller: escrow.seller.toString(),
         amount: escrow.amountLocked.toString(),
@@ -243,8 +280,18 @@ export async function escrowRoutes(
         return reply.status(404).send({ error: 'Order not found' });
       }
 
-      // 3. Verificar escrow on-chain
-      const escrowData = await api.query.bazariEscrow.escrows(orderId);
+      // 3. Verificar se tem blockchainOrderId
+      if (!order.blockchainOrderId) {
+        return reply.status(400).send({
+          error: 'Order not synced with blockchain',
+          message: 'Order does not have a blockchainOrderId yet.',
+        });
+      }
+
+      const blockchainOrderId = order.blockchainOrderId.toString();
+
+      // 4. Verificar escrow on-chain
+      const escrowData = await api.query.bazariEscrow.escrows(blockchainOrderId);
 
       if (escrowData.isNone) {
         return reply.status(400).send({ error: 'Escrow not found on blockchain' });
@@ -261,12 +308,13 @@ export async function escrowRoutes(
         });
       }
 
-      // 4. Preparar call data
+      // 5. Preparar call data
       // NOTA: Refund requer DAOOrigin no pallet, então precisa de multisig ou sudo
-      const callData = api.tx.bazariEscrow.refund(orderId);
+      const callData = api.tx.bazariEscrow.refund(blockchainOrderId);
 
       return {
         orderId,
+        blockchainOrderId,
         buyer: escrow.buyer.toString(),
         seller: escrow.seller.toString(),
         amount: escrow.amountLocked.toString(),
@@ -319,9 +367,19 @@ export async function escrowRoutes(
         return reply.status(403).send({ error: 'Unauthorized: not buyer' });
       }
 
-      // 3. Verificar se escrow existe on-chain
+      // 3. Verificar se tem blockchainOrderId
+      if (!order.blockchainOrderId) {
+        return reply.status(400).send({
+          error: 'Order not synced with blockchain',
+          message: 'Order does not have a blockchainOrderId yet. Please wait for blockchain sync.',
+        });
+      }
+
+      const blockchainOrderId = order.blockchainOrderId.toString();
+
+      // 4. Verificar se escrow existe on-chain
       const api = await blockchainService.getApi();
-      const escrowData = await api.query.bazariEscrow.escrows(orderId);
+      const escrowData = await api.query.bazariEscrow.escrows(blockchainOrderId);
 
       if (escrowData.isNone) {
         return reply.status(400).send({
@@ -409,6 +467,7 @@ export async function escrowRoutes(
         where: { id: orderId },
         select: {
           id: true,
+          blockchainOrderId: true,
           buyerAddr: true,
           sellerAddr: true,
           totalBzr: true,
@@ -421,9 +480,19 @@ export async function escrowRoutes(
         return reply.status(404).send({ error: 'Order not found' });
       }
 
-      // 2. Buscar escrow no blockchain
+      // 2. Verificar se tem blockchainOrderId
+      if (!order.blockchainOrderId) {
+        return {
+          exists: false,
+          orderId,
+          status: 'NOT_SYNCED',
+          message: 'Order not yet synced with blockchain',
+        };
+      }
+
+      // 3. Buscar escrow no blockchain usando blockchainOrderId (u64)
       const api = await blockchainService.getApi();
-      const escrowData = await api.query.bazariEscrow.escrows(orderId);
+      const escrowData = await api.query.bazariEscrow.escrows(order.blockchainOrderId.toString());
 
       if (escrowData.isNone) {
         // Escrow não existe on-chain ainda
@@ -440,6 +509,14 @@ export async function escrowRoutes(
       const lockedAt = escrow.lockedAt.toNumber();
       const status = escrow.status.toString();
 
+      // PROPOSAL-001: Use dynamic auto-release blocks from order or calculate
+      const escrowCalculator = getEscrowCalculator();
+      const orderAutoReleaseBlocks = (order as any).autoReleaseBlocks
+        || escrowCalculator.calculateAutoReleaseBlocks(
+            (order as any).estimatedDeliveryDays,
+            (order as any).shippingMethod
+          );
+
       return {
         exists: true,
         orderId,
@@ -453,8 +530,12 @@ export async function escrowRoutes(
         state: mapStatusToState(status), // Frontend EscrowState: Active, Released, Refunded, Disputed
         createdAt: lockedAt, // Block number when created
         lockedAt, // Alias for compatibility
-        autoReleaseAt: lockedAt + AUTO_RELEASE_BLOCKS, // Block number for auto-release (createdAt + 7 days)
+        autoReleaseAt: lockedAt + orderAutoReleaseBlocks, // PROPOSAL-001: Dynamic auto-release
+        autoReleaseBlocks: orderAutoReleaseBlocks, // PROPOSAL-001: Include for frontend
         updatedAt: escrow.updatedAt.toNumber(),
+        // PROPOSAL-001: Include delivery info
+        estimatedDeliveryDays: (order as any).estimatedDeliveryDays,
+        shippingMethod: (order as any).shippingMethod,
       };
     } catch (error) {
       app.log.error(error);
@@ -603,13 +684,17 @@ export async function escrowRoutes(
       const activeEscrows = [];
 
       for (const order of orders) {
-        const escrowData = await api.query.bazariEscrow.escrows(order.id);
+        // Pular orders sem blockchainOrderId
+        if (!order.blockchainOrderId) continue;
+
+        const escrowData = await api.query.bazariEscrow.escrows(order.blockchainOrderId.toString());
 
         if (escrowData.isSome) {
           const escrow = escrowData.unwrap();
           if (escrow.status.toString() === 'Locked') {
             activeEscrows.push({
               orderId: order.id,
+              blockchainOrderId: order.blockchainOrderId.toString(),
               buyer: escrow.buyer.toString(),
               seller: escrow.seller.toString(),
               amountLocked: escrow.amountLocked.toString(),
@@ -627,6 +712,262 @@ export async function escrowRoutes(
     } catch (error) {
       app.log.error(error);
       return reply.status(500).send({ error: 'Failed to fetch active escrows' });
+    }
+  });
+
+  // ============================================================================
+  // PROPOSAL-003: Batch Escrow Lock for Multi-Store Checkout
+  // ============================================================================
+
+  const batchPrepareSchema = z.object({
+    checkoutSessionId: z.string().min(1),
+  });
+
+  // POST /api/blockchain/escrow/batch/prepare-lock - Prepare batch lock for all orders in session
+  app.post('/escrow/batch/prepare-lock', { preHandler: authOnRequest }, async (request, reply) => {
+    try {
+      const { checkoutSessionId } = batchPrepareSchema.parse(request.body);
+      const authUser = (request as any).authUser as { sub: string; address: string };
+
+      // 1. Buscar CheckoutSession com orders
+      const session = await prisma.checkoutSession.findUnique({
+        where: { id: checkoutSessionId },
+        include: {
+          orders: {
+            include: { paymentIntents: true },
+          },
+        },
+      });
+
+      if (!session) {
+        return reply.status(404).send({ error: 'Checkout session not found' });
+      }
+
+      // 2. Validar buyer
+      if (session.buyerAddr !== authUser.address) {
+        return reply.status(403).send({ error: 'Unauthorized: not buyer' });
+      }
+
+      // 3. Verificar status da sessão
+      if (session.status !== 'PENDING') {
+        return reply.status(400).send({
+          error: 'Invalid session status',
+          message: `Session status is ${session.status}, expected PENDING`,
+        });
+      }
+
+      // 4. Verificar se não expirou
+      if (new Date() > session.expiresAt) {
+        await prisma.checkoutSession.update({
+          where: { id: checkoutSessionId },
+          data: { status: 'EXPIRED' },
+        });
+        return reply.status(400).send({
+          error: 'Session expired',
+          message: 'Checkout session has expired. Please create a new checkout.',
+        });
+      }
+
+      // 5. Preparar calls para cada order
+      const api = await blockchainService.getApi();
+      const escrowCalculator = getEscrowCalculator();
+      const lockCalls = [];
+      const orderData = [];
+      let totalAmount = BigInt(0);
+
+      for (const order of session.orders) {
+        // Verificar se order está em status CREATED
+        if (order.status !== 'CREATED') {
+          return reply.status(400).send({
+            error: 'Invalid order status',
+            message: `Order ${order.id} has status ${order.status}, expected CREATED`,
+          });
+        }
+
+        // Verificar se tem blockchainOrderId
+        if (!order.blockchainOrderId) {
+          return reply.status(400).send({
+            error: 'Order not synced with blockchain',
+            message: `Order ${order.id} does not have a blockchainOrderId yet. Please wait for blockchain sync.`,
+          });
+        }
+
+        // Verificar se já está locked
+        const existing = await api.query.bazariEscrow.escrows(order.blockchainOrderId.toString());
+        if (existing.isSome) {
+          return reply.status(400).send({
+            error: 'Escrow already locked',
+            message: `Order ${order.id} escrow is already locked`,
+          });
+        }
+
+        const orderTotalBzr = BigInt(order.totalBzr.toString());
+        totalAmount += orderTotalBzr;
+
+        // Calculate auto-release blocks
+        const orderAny = order as any;
+        const autoReleaseBlocks = orderAny.autoReleaseBlocks
+          || escrowCalculator.calculateAutoReleaseBlocks(
+              orderAny.estimatedDeliveryDays,
+              orderAny.shippingMethod
+            );
+
+        // Prepare lock call
+        const lockCall = api.tx.bazariEscrow.lockFunds(
+          order.blockchainOrderId.toString(),
+          order.sellerAddr,
+          orderTotalBzr,
+          null,              // asset_id
+          autoReleaseBlocks, // auto_release_blocks
+          null               // arbiter
+        );
+
+        lockCalls.push(lockCall);
+        orderData.push({
+          orderId: order.id,
+          blockchainOrderId: order.blockchainOrderId.toString(),
+          seller: order.sellerAddr,
+          amount: orderTotalBzr.toString(),
+          callHex: lockCall.toHex(),
+        });
+      }
+
+      // 6. Create batchAll call
+      const batchCall = api.tx.utility.batchAll(lockCalls);
+
+      return {
+        checkoutSessionId,
+        orders: orderData,
+        batchCallHex: batchCall.toHex(),
+        batchCallHash: batchCall.hash.toHex(),
+        totalAmount: totalAmount.toString(),
+        buyer: session.buyerAddr,
+        orderCount: session.orders.length,
+      };
+    } catch (error) {
+      app.log.error(error);
+      return reply.status(500).send({
+        error: 'Failed to prepare batch lock',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  });
+
+  // POST /api/blockchain/escrow/batch/confirm-lock - Confirm batch lock after frontend signs
+  const batchConfirmSchema = z.object({
+    checkoutSessionId: z.string().min(1),
+    txHash: z.string().min(1),
+    blockNumber: z.string().optional(),
+  });
+
+  app.post('/escrow/batch/confirm-lock', { preHandler: authOnRequest }, async (request, reply) => {
+    try {
+      const { checkoutSessionId, txHash, blockNumber } = batchConfirmSchema.parse(request.body);
+      const authUser = (request as any).authUser as { sub: string; address: string };
+
+      // 1. Buscar CheckoutSession
+      const session = await prisma.checkoutSession.findUnique({
+        where: { id: checkoutSessionId },
+        include: { orders: true },
+      });
+
+      if (!session) {
+        return reply.status(404).send({ error: 'Checkout session not found' });
+      }
+
+      // 2. Validar buyer
+      if (session.buyerAddr !== authUser.address) {
+        return reply.status(403).send({ error: 'Unauthorized: not buyer' });
+      }
+
+      // 3. Verificar cada order on-chain
+      const api = await blockchainService.getApi();
+      const confirmedOrders = [];
+      const failedOrders = [];
+
+      for (const order of session.orders) {
+        if (!order.blockchainOrderId) {
+          failedOrders.push({ orderId: order.id, reason: 'No blockchainOrderId' });
+          continue;
+        }
+
+        const escrowData = await api.query.bazariEscrow.escrows(order.blockchainOrderId.toString());
+
+        if (escrowData.isNone) {
+          failedOrders.push({ orderId: order.id, reason: 'Escrow not found on-chain' });
+          continue;
+        }
+
+        const escrow = escrowData.unwrap();
+        if (escrow.status.toString() !== 'Locked') {
+          failedOrders.push({ orderId: order.id, reason: `Invalid status: ${escrow.status.toString()}` });
+          continue;
+        }
+
+        // Update order status
+        await prisma.order.update({
+          where: { id: order.id },
+          data: { status: 'ESCROWED' },
+        });
+
+        // Log escrow event
+        await prisma.escrowLog.create({
+          data: {
+            orderId: order.id,
+            kind: 'LOCK',
+            payloadJson: {
+              txHash,
+              buyer: escrow.buyer.toString(),
+              seller: escrow.seller.toString(),
+              amount: escrow.amountLocked.toString(),
+              blockNumber: blockNumber || escrow.lockedAt.toString(),
+              lockedAt: escrow.lockedAt.toNumber(),
+              timestamp: new Date().toISOString(),
+              source: 'batch_lock',
+              checkoutSessionId,
+            },
+          },
+        });
+
+        confirmedOrders.push({
+          orderId: order.id,
+          blockchainOrderId: order.blockchainOrderId.toString(),
+          escrow: {
+            buyer: escrow.buyer.toString(),
+            seller: escrow.seller.toString(),
+            amountLocked: escrow.amountLocked.toString(),
+            lockedAt: escrow.lockedAt.toNumber(),
+          },
+        });
+      }
+
+      // 4. Update session status
+      const allConfirmed = failedOrders.length === 0 && confirmedOrders.length === session.orders.length;
+      await prisma.checkoutSession.update({
+        where: { id: checkoutSessionId },
+        data: {
+          status: allConfirmed ? 'PAID' : 'FAILED',
+          batchTxHash: txHash,
+          paidAt: allConfirmed ? new Date() : null,
+        },
+      });
+
+      return {
+        success: allConfirmed,
+        checkoutSessionId,
+        txHash,
+        confirmedOrders,
+        failedOrders,
+        message: allConfirmed
+          ? `All ${confirmedOrders.length} orders confirmed`
+          : `${confirmedOrders.length} orders confirmed, ${failedOrders.length} failed`,
+      };
+    } catch (error) {
+      app.log.error(error);
+      return reply.status(500).send({
+        error: 'Failed to confirm batch lock',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
     }
   });
 
@@ -670,25 +1011,42 @@ export async function escrowRoutes(
 
       const urgentEscrows = [];
 
+      // PROPOSAL-001: Use EscrowCalculator for dynamic timeouts
+      const escrowCalculator = getEscrowCalculator();
+
       for (const order of orders) {
-        const escrowData = await api.query.bazariEscrow.escrows(order.id);
+        // Pular orders sem blockchainOrderId
+        if (!order.blockchainOrderId) continue;
+
+        const escrowData = await api.query.bazariEscrow.escrows(order.blockchainOrderId.toString());
 
         if (escrowData.isSome) {
           const escrow = escrowData.unwrap();
           if (escrow.status.toString() === 'Locked') {
             const lockedAt = escrow.lockedAt.toNumber();
             const blocksElapsed = currentBlockNum - lockedAt;
-            const blocksUntilRelease = AUTO_RELEASE_BLOCKS - blocksElapsed;
+
+            // PROPOSAL-001: Use order's dynamic auto-release blocks
+            const orderAny = order as any;
+            const orderAutoReleaseBlocks = orderAny.autoReleaseBlocks
+              || escrowCalculator.calculateAutoReleaseBlocks(
+                  orderAny.estimatedDeliveryDays,
+                  orderAny.shippingMethod
+                );
+
+            const blocksUntilRelease = orderAutoReleaseBlocks - blocksElapsed;
 
             if (blocksUntilRelease > 0 && blocksUntilRelease <= URGENT_THRESHOLD) {
               urgentEscrows.push({
                 orderId: order.id,
+                blockchainOrderId: order.blockchainOrderId.toString(),
                 buyer: escrow.buyer.toString(),
                 seller: escrow.seller.toString(),
                 amountLocked: escrow.amountLocked.toString(),
                 lockedAt,
                 blocksUntilRelease,
                 hoursUntilRelease: Math.floor((blocksUntilRelease * 6) / 3600),
+                autoReleaseBlocks: orderAutoReleaseBlocks, // PROPOSAL-001
               });
             }
           }

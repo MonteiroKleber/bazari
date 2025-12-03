@@ -85,6 +85,15 @@ model Product {
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
+  // === Shipping & Delivery (PROPOSAL-000) ===
+  estimatedDeliveryDays Int?    @default(7) // Prazo estimado em dias úteis (legacy, usar shippingOptions)
+  shippingMethod        String? // SEDEX | PAC | ... (legacy, usar shippingOptions)
+  weight                Float?  @db.Real // Peso em kg
+  dimensions            Json? // { length, width, height } em cm
+
+  // === Multiple Shipping Options (PROPOSAL-002) ===
+  shippingOptions ProductShippingOption[]
+
   category    Category       @relation(fields: [categoryId], references: [id])
   sellerStore SellerProfile? @relation(fields: [sellerStoreId], references: [id])
 
@@ -100,6 +109,41 @@ model Product {
   @@index([status])
   @@index([sellerStoreId])
   @@index([onChainStoreId])
+  @@index([shippingMethod])
+}
+
+// === PROPOSAL-002: Multiple Shipping Options per Product ===
+model ProductShippingOption {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // Método de envio
+  method String // SEDEX | PAC | TRANSPORTADORA | MINI_ENVIOS | RETIRADA | INTERNACIONAL | OUTRO
+  label  String? // Nome customizado (ex: "Entrega Expressa")
+
+  // Preço do frete
+  pricingType  String   @default("FIXED") // FIXED | FREE | FREE_ABOVE | TO_ARRANGE
+  priceBzr     Decimal? @db.Decimal(20, 12) // Valor fixo (quando FIXED ou FREE_ABOVE)
+  freeAboveBzr Decimal? @db.Decimal(20, 12) // Grátis acima de X (quando FREE_ABOVE)
+
+  // Prazo
+  estimatedDeliveryDays Int @default(7)
+
+  // Retirada em loja (quando method = RETIRADA)
+  pickupAddressType String? @default("STORE") // STORE | CUSTOM
+  pickupAddress     Json? // Se CUSTOM: { street, number, city, state, zipCode, instructions? }
+
+  // Ordenação e status
+  isDefault Boolean @default(false) // Opção padrão selecionada no checkout
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId, isActive])
+  @@index([productId, sortOrder])
 }
 
 model ServiceOffering {
@@ -339,6 +383,33 @@ enum NotificationType {
   GROUP_JOIN_REQUEST
 }
 
+// === PROPOSAL-003: Multi-Store Checkout Session ===
+model CheckoutSession {
+  id        String                @id @default(cuid())
+  buyerAddr String
+  status    CheckoutSessionStatus @default(PENDING)
+  orders    Order[]               @relation("CheckoutSessionOrders")
+
+  // Batch transaction info
+  batchTxHash String?
+  totalBzr    Decimal @db.Decimal(30, 0)
+
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  paidAt    DateTime?
+
+  @@index([buyerAddr, status])
+  @@index([batchTxHash])
+  @@index([expiresAt])
+}
+
+enum CheckoutSessionStatus {
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
+}
+
 model Order {
   id               String      @id @default(uuid())
   buyerAddr        String
@@ -354,6 +425,20 @@ model Order {
   notes            String? // observações do pedido
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
+
+  // === Shipping & Delivery (PROPOSAL-000) ===
+  estimatedDeliveryDays Int?      @default(7) // Prazo estimado (copiado do produto ou informado)
+  shippingMethod        String? // Método de envio selecionado
+  shippedAt             DateTime? // Quando foi marcado como enviado
+  trackingCode          String? // Código de rastreamento
+
+  // === Delivery-Aware Escrow (PROPOSAL-001) ===
+  autoReleaseBlocks     Int       @default(100800) // Blocos para auto-release (default 7 dias = 100,800)
+  estimatedDeliveryDate DateTime? // Data estimada de entrega calculada
+
+  // === PROPOSAL-003: Multi-Store Checkout ===
+  checkoutSessionId String?
+  checkoutSession   CheckoutSession? @relation("CheckoutSessionOrders", fields: [checkoutSessionId], references: [id])
 
   // ✅ NEW: Blockchain reference (bazari-commerce pallet)
   blockchainOrderId BigInt?   @db.BigInt // On-chain OrderId (u64)
@@ -377,6 +462,8 @@ model Order {
   @@index([status])
   @@index([createdAt])
   @@index([blockchainOrderId])
+  @@index([shippedAt])
+  @@index([checkoutSessionId])
 }
 
 model OrderItem {
@@ -389,6 +476,12 @@ model OrderItem {
   titleSnapshot        String // título no momento do pedido
   lineTotalBzr         Decimal  @db.Decimal(30, 0) // qty * unitPrice em planck
   createdAt            DateTime @default(now())
+
+  // === PROPOSAL-002: Snapshot da opção de envio selecionada ===
+  shippingOptionId             String? // ID da ProductShippingOption selecionada
+  shippingMethodSnapshot       String? // Método no momento do pedido
+  shippingPriceBzrSnapshot     Decimal? @db.Decimal(30, 0) // Preço do frete em planck
+  estimatedDeliveryDaysSnapshot Int? // Prazo no momento do pedido
 
   order Order @relation(fields: [orderId], references: [id])
 

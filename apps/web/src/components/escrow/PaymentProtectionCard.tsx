@@ -12,6 +12,7 @@ import {
 import { Link } from 'react-router-dom';
 import { useEscrowDetails, EscrowState } from '@/hooks/blockchain/useEscrow';
 import { CountdownTimer } from '@/components/blockchain/CountdownTimer';
+import { EscrowTimeline } from './EscrowTimeline';
 import { cn } from '@/lib/utils';
 
 /**
@@ -37,12 +38,20 @@ interface PaymentProtectionCardProps {
 
   /** Custom className */
   className?: string;
+
+  /** Order creation date (for timeline) */
+  orderCreatedAt?: string | Date;
+
+  /** Estimated delivery days from order (for timeline) */
+  estimatedDeliveryDays?: number;
 }
 
 export function PaymentProtectionCard({
   orderId,
   currentBlock,
   className,
+  orderCreatedAt,
+  estimatedDeliveryDays,
 }: PaymentProtectionCardProps) {
   const { data: escrow, isLoading, error } = useEscrowDetails(orderId);
 
@@ -119,19 +128,32 @@ export function PaymentProtectionCard({
           </span>
         </div>
 
-        {/* Compact Countdown (Active only) */}
+        {/* PROPOSAL-001: Escrow Timeline showing delivery + protection dates */}
         {escrow.state === EscrowState.Active && (
-          <div className="flex items-center gap-2 text-sm">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Auto-release in:</span>
-            <CountdownTimer
-              targetTimestamp={
-                Date.now() +
-                (escrow.autoReleaseAt - currentBlock) * 6 * 1000
-              }
-              compact={true}
-            />
-          </div>
+          <>
+            {/* Show full timeline if we have delivery info */}
+            {(estimatedDeliveryDays || escrow.estimatedDeliveryDays) && escrow.autoReleaseBlocks ? (
+              <EscrowTimeline
+                createdAt={orderCreatedAt || new Date()}
+                estimatedDeliveryDays={estimatedDeliveryDays || escrow.estimatedDeliveryDays || 7}
+                autoReleaseBlocks={escrow.autoReleaseBlocks}
+                compact={true}
+              />
+            ) : (
+              /* Fallback: Simple countdown if no delivery info */
+              <div className="flex items-center gap-2 text-sm">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Auto-release in:</span>
+                <CountdownTimer
+                  targetTimestamp={
+                    Date.now() +
+                    (escrow.autoReleaseAt - currentBlock) * 6 * 1000
+                  }
+                  compact={true}
+                />
+              </div>
+            )}
+          </>
         )}
 
         {/* State Messages */}

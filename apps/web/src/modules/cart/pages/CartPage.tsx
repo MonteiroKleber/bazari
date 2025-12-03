@@ -1,20 +1,59 @@
 // path: apps/web/src/modules/cart/pages/CartPage.tsx
+// PROPOSAL-003: Multi-Store Checkout - Agrupamento por vendedor
 
 import { useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Trash2, Plus, Minus, ShoppingCart, ArrowLeft } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingCart, ArrowLeft, Store, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
-import { useCart } from '../cart.store';
+import {
+  useCart,
+  useCartHydrated,
+  selectSubtotalBzr,
+  selectCount,
+  selectStoreCount,
+  selectItemsByStore,
+  type CartStoreGroup
+} from '../cart.store';
 import { BZR } from '@/utils/bzr';
 
 export function CartPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { items, subtotalBzr, count, removeItem, updateQty, clear } = useCart();
+
+  // Usar seletores para estado derivado
+  const items = useCart(state => state.items);
+  const removeItem = useCart(state => state.removeItem);
+  const updateQty = useCart(state => state.updateQty);
+  const clear = useCart(state => state.clear);
+  const isHydrated = useCartHydrated();
+
+  // Derivar valores computados usando seletores
+  const state = { items } as any;
+  const subtotalBzr = selectSubtotalBzr(state);
+  const count = selectCount(state);
+  const storeCount = selectStoreCount(state);
+  const itemsByStore = selectItemsByStore(state);
+
+  // Debug log
+  console.log('[CartPage] Rendering - hydrated:', isHydrated, 'items:', items.length, 'itemsByStore:', itemsByStore.length);
+
+  // Mostrar loading enquanto não hidratou
+  if (!isHydrated) {
+    return (
+      <div className="container mx-auto px-4 py-2 md:py-3">
+        <div className="max-w-2xl mx-auto">
+          <div className="flex items-center justify-center py-16">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const formatBzr = useCallback((value: string) => {
     const locale = BZR.normalizeLocale((typeof navigator !== 'undefined' ? navigator.language : 'en-US'));
@@ -94,7 +133,7 @@ export function CartPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Items List */}
+          {/* Items List - PROPOSAL-003: Agrupado por loja */}
           <div className="lg:col-span-2 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold">{t('cart.items.title')}</h2>
@@ -109,66 +148,97 @@ export function CartPage() {
               </Button>
             </div>
 
-            {items.map((item) => (
-              <Card key={item.listingId}>
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-medium">{item.titleSnapshot}</h3>
-                        <Badge variant="outline" className="text-xs">
-                          {t(`cart.kind.${item.kind}`)}
-                        </Badge>
-                      </div>
+            {/* PROPOSAL-003: Info sobre múltiplas lojas */}
+            {storeCount > 1 && (
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  {t('multiStore.cart.separateOrders', {
+                    count: storeCount,
+                    defaultValue: `Serão criados ${storeCount} pedidos separados (um por loja)`,
+                  })}
+                </AlertDescription>
+              </Alert>
+            )}
 
-                      <p className="text-sm text-muted-foreground mb-3">
-                        {t('cart.unitPrice')}: {formatBzr(item.priceBzrSnapshot)}
-                      </p>
+            {/* PROPOSAL-003: Itens agrupados por loja */}
+            {itemsByStore.map((storeGroup: CartStoreGroup) => (
+              <Card key={storeGroup.sellerId} className="overflow-hidden">
+                {/* Store Header */}
+                <div className="bg-muted/50 px-4 py-3 border-b flex items-center gap-2">
+                  <Store className="h-4 w-4 text-primary" />
+                  <span className="font-medium">{storeGroup.sellerName}</span>
+                  <Badge variant="secondary" className="ml-auto text-xs">
+                    {t('cart.storeSubtotal', {
+                      amount: formatBzr(storeGroup.subtotalBzr),
+                      defaultValue: `Subtotal: ${formatBzr(storeGroup.subtotalBzr)}`,
+                    })}
+                  </Badge>
+                </div>
 
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleQtyDecrease(item.listingId, item.qty)}
-                            disabled={item.qty <= 1}
-                            aria-label={t('cart.decreaseQty')}
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
+                {/* Store Items */}
+                <CardContent className="p-0 divide-y">
+                  {storeGroup.items.map((item) => (
+                    <div key={item.listingId} className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="font-medium">{item.titleSnapshot}</h3>
+                            <Badge variant="outline" className="text-xs">
+                              {t(`cart.kind.${item.kind}`)}
+                            </Badge>
+                          </div>
 
-                          <span className="w-12 text-center text-sm font-medium">
-                            {item.qty}
-                          </span>
+                          <p className="text-sm text-muted-foreground mb-3">
+                            {t('cart.unitPrice')}: {formatBzr(item.priceBzrSnapshot)}
+                          </p>
 
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleQtyIncrease(item.listingId, item.qty)}
-                            aria-label={t('cart.increaseQty')}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleQtyDecrease(item.listingId, item.qty)}
+                                disabled={item.qty <= 1}
+                                aria-label={t('cart.decreaseQty')}
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+
+                              <span className="w-12 text-center text-sm font-medium">
+                                {item.qty}
+                              </span>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleQtyIncrease(item.listingId, item.qty)}
+                                aria-label={t('cart.increaseQty')}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveItem(item.listingId)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              {t('cart.remove')}
+                            </Button>
+                          </div>
                         </div>
 
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveItem(item.listingId)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4 mr-1" />
-                          {t('cart.remove')}
-                        </Button>
+                        <div className="text-right">
+                          <p className="font-semibold">
+                            {formatBzr((Number(String(item.priceBzrSnapshot).replace(',', '.')) * item.qty).toString())}
+                          </p>
+                        </div>
                       </div>
                     </div>
-
-                    <div className="text-right">
-                      <p className="font-semibold">
-                        {formatBzr((Number(String(item.priceBzrSnapshot).replace(',', '.')) * item.qty).toString())}
-                      </p>
-                    </div>
-                  </div>
+                  ))}
                 </CardContent>
               </Card>
             ))}
@@ -182,6 +252,20 @@ export function CartPage() {
                 <CardDescription>{t('cart.summary.description')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* PROPOSAL-003: Breakdown por loja */}
+                {storeCount > 1 && (
+                  <div className="space-y-2 pb-3 border-b">
+                    {itemsByStore.map((storeGroup: CartStoreGroup) => (
+                      <div key={storeGroup.sellerId} className="flex justify-between text-sm">
+                        <span className="text-muted-foreground truncate max-w-[150px]">
+                          {storeGroup.sellerName}
+                        </span>
+                        <span>{formatBzr(storeGroup.subtotalBzr)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">{t('cart.summary.subtotal')}</span>
                   <span className="font-medium">{formatBzr(subtotalBzr)}</span>
@@ -204,6 +288,16 @@ export function CartPage() {
                 >
                   {t('cart.proceedToCheckout')}
                 </Button>
+
+                {/* PROPOSAL-003: Info sobre pedidos separados */}
+                {storeCount > 1 && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    {t('multiStore.checkout.independentOrders', {
+                      count: storeCount,
+                      defaultValue: `${storeCount} pedidos independentes serão criados`,
+                    })}
+                  </p>
+                )}
 
                 <Button asChild variant="outline" className="w-full">
                   <Link to="/search">{t('cart.continueShopping')}</Link>

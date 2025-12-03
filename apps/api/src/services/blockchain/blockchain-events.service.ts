@@ -769,14 +769,37 @@ export class BlockchainEventsService {
         switch (event.section) {
           case 'bazariCommerce': {
             if (event.method === 'OrderCreated') {
-              const [orderId, buyer, seller, marketplace, totalAmount] = event.data as any;
+              const eventData = event.data as any;
 
+              // Safely extract event data with validation
+              const orderId = eventData?.[0];
+              const buyer = eventData?.[1];
+              const seller = eventData?.[2];
+              const marketplace = eventData?.[3];
+              const totalAmount = eventData?.[4];
+
+              // Validate required fields exist
+              if (!orderId || !buyer || !seller) {
+                console.warn('[BlockchainEvents] OrderCreated event missing required fields:', {
+                  hasOrderId: !!orderId,
+                  hasBuyer: !!buyer,
+                  hasSeller: !!seller,
+                  dataLength: eventData?.length,
+                });
+                return;
+              }
+
+              // Use toString() for large numbers (u128) to avoid overflow
               const orderCreatedEvent: OrderCreatedEvent = {
-                orderId: orderId.toNumber(),
-                buyer: buyer.toString(),
-                seller: seller.toString(),
-                marketplace: marketplace.toNumber(),
-                totalAmount: totalAmount.toString(),
+                orderId: typeof orderId?.toNumber === 'function' && orderId?.lte?.(Number.MAX_SAFE_INTEGER)
+                  ? orderId.toNumber()
+                  : Number(orderId?.toString?.() ?? '0'),
+                buyer: buyer?.toString?.() ?? '',
+                seller: seller?.toString?.() ?? '',
+                marketplace: typeof marketplace?.toNumber === 'function' && marketplace?.lte?.(Number.MAX_SAFE_INTEGER)
+                  ? marketplace.toNumber()
+                  : Number(marketplace?.toString?.() ?? '0'),
+                totalAmount: totalAmount?.toString?.() ?? '0',
                 blockNumber,
                 txHash,
               };

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, AlertCircle, CheckCircle, Clock, CreditCard, Info } from 'lucide-react';
+import { ArrowLeft, AlertCircle, CheckCircle, Clock, CreditCard, Info, Shield, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +29,9 @@ interface OrderDetails {
   totalBzr: string;
   status: string;
   shippingAddress: any;
+  // Blockchain reference for escrow operations
+  blockchainOrderId: string | null;
+  blockchainTxHash: string | null;
   items: Array<{
     listingId: string;
     kind: string;
@@ -80,6 +83,7 @@ export function OrderPayPage() {
   const [estimatedFee, setEstimatedFee] = useState<string | null>(null);
   const [ed, setEd] = useState<string | null>(null);
   const [freeBalance, setFreeBalance] = useState<string | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
   // PIN handled via global PinService
 
   const formatBzr = useCallback((value: string | number) => {
@@ -109,11 +113,12 @@ export function OrderPayPage() {
 
           // Balance + fee estimate
           const active = await getActiveAccount();
-          if (active?.address) {
+          if (active?.address && orderData.blockchainOrderId) {
             const bal = await getNativeBalance(active.address);
             setFreeBalance(bal.free.toString());
             // Use bazariEscrow.lockFunds for fee estimation (real escrow transaction)
-            const tx = api.tx.bazariEscrow.lockFunds(id, orderData.sellerAddr, intentData.amountBzr);
+            // IMPORTANT: Use blockchainOrderId (u64) instead of order.id (UUID)
+            const tx = api.tx.bazariEscrow.lockFunds(orderData.blockchainOrderId, orderData.sellerAddr, intentData.amountBzr);
             const info = await tx.paymentInfo(active.address);
             setEstimatedFee(info.partialFee.toString());
           }
@@ -150,7 +155,11 @@ export function OrderPayPage() {
 
       // Use bazariEscrow.lockFunds instead of balances.transferKeepAlive
       // This locks funds in escrow on-chain with proper protection
-      const tx = api.tx.bazariEscrow.lockFunds(order.id, order.sellerAddr, paymentIntent.amountBzr);
+      // IMPORTANT: Use blockchainOrderId (u64) instead of order.id (UUID)
+      if (!order.blockchainOrderId) {
+        throw new Error('Order não tem blockchainOrderId. Tente novamente mais tarde.');
+      }
+      const tx = api.tx.bazariEscrow.lockFunds(order.blockchainOrderId, order.sellerAddr, paymentIntent.amountBzr);
 
       const unsubscribe = await tx.signAndSend(pair, async (result) => {
         const { status, dispatchError, txHash } = result as any;
@@ -266,6 +275,23 @@ export function OrderPayPage() {
   const canPay = order.status === 'CREATED' && Boolean(paymentIntent);
   const isPaid = ['ESCROWED', 'SHIPPED', 'RELEASED'].includes(order.status);
 
+  // Helper to truncate address for display
+  const truncateAddress = (addr: string) => {
+    if (!addr || addr.length < 20) return addr;
+    return `${addr.slice(0, 8)}...${addr.slice(-8)}`;
+  };
+
+  // Copy to clipboard with feedback
+  const copyToClipboard = async (text: string, field: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-2 md:py-3">
       <div className="max-w-2xl mx-auto">
@@ -301,7 +327,7 @@ export function OrderPayPage() {
             </CardContent>
           </Card>
 
-          {/* Payment Details */}
+          {/* Payment Details - Nova UX com Escrow On-Chain */}
           {canPay && (
             <Card>
               <CardHeader>
@@ -311,19 +337,16 @@ export function OrderPayPage() {
                 </CardTitle>
                 <CardDescription>{t('pay.payment.description')}</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-5">
+                {/* Resumo de Valores */}
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{t('pay.payment.amount')}</span>
-                    <span className="font-mono">{formatBzr(paymentIntent.amountBzr)}</span>
+                    <span className="text-muted-foreground">{t('pay.summary.subtotal')}</span>
+                    <span className="font-mono">{formatBzr(order.subtotalBzr)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{t('pay.payment.escrow')}</span>
-                    <span className="font-mono text-xs">{paymentIntent.escrowAddress}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{t('pay.payment.fee')}</span>
-                    <span>{paymentIntent.feeBps / 100}%</span>
+                    <span className="text-muted-foreground">{t('pay.summary.shipping')}</span>
+                    <span className="font-mono">{formatBzr(order.shippingBzr)}</span>
                   </div>
                   {estimatedFee && (
                     <div className="flex justify-between text-sm">
@@ -331,8 +354,107 @@ export function OrderPayPage() {
                       <span className="font-mono">{formatBzr(estimatedFee)}</span>
                     </div>
                   )}
+                  <Separator />
+                  <div className="flex justify-between font-semibold">
+                    <span>{t('pay.payment.amount')}</span>
+                    <span className="font-mono text-lg">{formatBzr(paymentIntent.amountBzr)}</span>
+                  </div>
                 </div>
 
+                <Separator />
+
+                {/* Proteção do Escrow On-Chain */}
+                <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Shield className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                    <span className="font-semibold text-emerald-700 dark:text-emerald-300">
+                      {t('pay.escrow.protection', 'Proteção do Escrow On-Chain')}
+                    </span>
+                  </div>
+                  <div className="space-y-2 text-sm text-emerald-700 dark:text-emerald-300">
+                    <div className="flex items-start gap-2">
+                      <span className="font-medium">1.</span>
+                      <span>{t('pay.escrow.step1', 'Seus fundos ficam RESERVADOS na sua própria conta')}</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="font-medium">2.</span>
+                      <span>{t('pay.escrow.step2', 'O vendedor só recebe após você confirmar a entrega')}</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="font-medium">3.</span>
+                      <span>{t('pay.escrow.step3', 'Em caso de disputa, a DAO pode mediar')}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Detalhes da Transação */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium text-muted-foreground">
+                    {t('pay.transaction.details', 'Detalhes da Transação')}
+                  </h4>
+
+                  {/* Sua carteira */}
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">{t('pay.transaction.yourWallet', 'Sua carteira')}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs">{truncateAddress(order.buyerAddr)}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={() => copyToClipboard(order.buyerAddr, 'buyer')}
+                      >
+                        {copiedField === 'buyer' ? (
+                          <Check className="h-3 w-3 text-green-500" />
+                        ) : (
+                          <Copy className="h-3 w-3" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Vendedor */}
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">{t('pay.transaction.seller', 'Vendedor')}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs">{truncateAddress(order.sellerAddr)}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={() => copyToClipboard(order.sellerAddr, 'seller')}
+                      >
+                        {copiedField === 'seller' ? (
+                          <Check className="h-3 w-3 text-green-500" />
+                        ) : (
+                          <Copy className="h-3 w-3" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Método */}
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">{t('pay.transaction.method', 'Método')}</span>
+                    <span>{t('pay.transaction.escrowBlockchain', 'Escrow Blockchain (BZR)')}</span>
+                  </div>
+
+                  {/* Taxa da plataforma */}
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">{t('pay.payment.fee')}</span>
+                    <span>{paymentIntent.feeBps / 100}% {t('pay.transaction.afterRelease', '(após liberação)')}</span>
+                  </div>
+
+                  {/* Auto-liberação */}
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">{t('pay.transaction.autoRelease', 'Auto-liberação')}</span>
+                    <span>{t('pay.transaction.autoReleaseTime', '7 dias após envio')}</span>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Alertas e Erros */}
                 {!account && (
                   <div className="p-4 rounded-md bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-900/50">
                     <p className="text-orange-800 dark:text-orange-200 text-sm">
@@ -367,18 +489,26 @@ export function OrderPayPage() {
                   </div>
                 )}
 
+                {/* Nota explicativa */}
+                <div className="p-3 rounded-md bg-muted/50 border">
+                  <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                    <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                    <p>
+                      {t('pay.escrow.note', 'Ao pagar, você assinará uma transação que reserva os fundos na sua carteira. O vendedor NÃO recebe até você confirmar o recebimento do produto.')}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Botão de Pagamento */}
                 <Button
                   onClick={handlePayment}
                   disabled={!account || paying || !hasFunds}
                   className="w-full"
                   size="lg"
                 >
-                  {paying ? t('pay.payment.processing') : t('pay.payment.payNow')}
+                  <Shield className="h-4 w-4 mr-2" />
+                  {paying ? t('pay.payment.processing') : t('pay.payment.payWithEscrow', `Pagar com Escrow (${formatBzr(paymentIntent.amountBzr)})`)}
                 </Button>
-
-                <p className="text-xs text-muted-foreground text-center">
-                  {t('pay.payment.escrowNote')}
-                </p>
               </CardContent>
             </Card>
           )}

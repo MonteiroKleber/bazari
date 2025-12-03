@@ -52,14 +52,17 @@ export function EscrowCard({
   showCountdown = true,
   compact = false,
 }: EscrowCardProps) {
-  const { state, buyer, seller, amountFormatted, createdAt, autoReleaseAt } =
+  const { state, buyer, seller, amountFormatted, createdAt, autoReleaseAt, autoReleaseBlocks } =
     escrow;
 
   // Calculate auto-release timestamp
   const blocksUntilRelease = autoReleaseAt - currentBlock;
   const secondsUntilRelease = blocksUntilRelease * 6; // 6s per block
   const autoReleaseTimestamp = Date.now() + secondsUntilRelease * 1000;
-  const totalDuration = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+  // PROPOSAL-001: Use dynamic duration based on autoReleaseBlocks
+  const dynamicBlocks = autoReleaseBlocks || 100_800; // fallback to 7 days
+  const totalDuration = dynamicBlocks * 6 * 1000; // Convert blocks to milliseconds
 
   return (
     <Card className={cn('overflow-hidden', className)}>
