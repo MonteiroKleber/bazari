@@ -3,6 +3,10 @@
 
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, Navigate, useLocation } from 'react-router-dom';
+
+// Initialize BazariOS App Registry
+import { initializeAppRegistry } from '@/platform/registry';
+initializeAppRegistry();
 import { useTranslation } from 'react-i18next';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { Header } from './components/Header';
