@@ -1,16 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import type { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { env } from '../env.js';
-import { fetchIpfsJson } from '../lib/ipfs.js';
 import {
   getStore,
   listStoresOwned,
   listStoresOperated,
-  resolveStoreCidWithSource,
 } from '../lib/storesChain.js';
 import { cryptoWaitReady, decodeAddress } from '@polkadot/util-crypto';
-import { calculateJsonHash } from '../lib/publishPipeline.js';
 
 const storeIdSchema = z.object({
   id: z.string().regex(/^\d+$/, 'storeId deve ser um número inteiro positivo'),
@@ -23,25 +19,19 @@ const addressSchema = z.object({
 export async function storesRoutes(app: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
-  // GET /stores/:slug - New endpoint with IPFS fallback and hash validation
+  // GET /stores/:slug - Busca dados da loja diretamente do PostgreSQL
   app.get<{ Params: { slug: string } }>('/stores/by-slug/:slug', async (request, reply) => {
     const slug = request.params.slug;
 
-    // 1. Resolver slug → storeId
+    // 1. Buscar dados do PostgreSQL (source of truth para catálogo)
     const sellerProfile = await prisma.sellerProfile.findUnique({
       where: { shopSlug: slug },
-      select: {
-        id: true,
-        shopName: true,
-        shopSlug: true,
-        onChainStoreId: true,
-        version: true,
-        metadataCid: true,
-        categoriesCid: true,
-        categoriesHash: true,
-        productsCid: true,
-        productsHash: true,
-        syncStatus: true,
+      include: {
+        products: {
+          where: { status: 'PUBLISHED' },
+          orderBy: { createdAt: 'desc' },
+          include: { category: true },
+        },
       },
     });
 
@@ -55,111 +45,70 @@ export async function storesRoutes(app: FastifyInstance, options: { prisma: Pris
       return reply.status(404).send({ error: 'Loja on-chain não encontrada' });
     }
 
-    // 3. Tentar fetch IPFS + validação
-    let source: 'ipfs' | 'postgres' = 'ipfs';
-    let storeData: any;
-    let categoriesData: any[] = [];
-    let productsData: any[] = [];
-
-    try {
-      // Fetch store.json
-      const storeIpfs = await fetchIpfsJson(sellerProfile.metadataCid!, 'stores');
-
-      // Note: We validate categories/products hash but not store hash
-      // because store.json doesn't have a dedicated hash field yet
-      storeData = storeIpfs.metadata;
-
-      // Fetch categories.json
-      if (sellerProfile.categoriesCid) {
-        const categoriesIpfs = await fetchIpfsJson(sellerProfile.categoriesCid, 'stores');
-        const categoriesHashLocal = calculateJsonHash(categoriesIpfs.metadata as object);
-
-        if (categoriesHashLocal !== sellerProfile.categoriesHash) {
-          app.log.warn({ storeId: sellerProfile.id }, 'Hash de categorias divergente');
-          await prisma.sellerProfile.update({
-            where: { id: sellerProfile.id },
-            data: { syncStatus: 'diverged' },
-          });
-          throw new Error('Hash de categorias divergente');
-        }
-
-        const metadata = categoriesIpfs.metadata as { categories?: any[] };
-        categoriesData = metadata?.categories || [];
+    // 3. Extrair categorias únicas dos produtos
+    const categoriesMap = new Map<string, { id: string; name: string }>();
+    for (const product of sellerProfile.products) {
+      if (product.category) {
+        categoriesMap.set(product.category.id, {
+          id: product.category.id,
+          name: product.category.namePt,
+        });
       }
-
-      // Fetch products.json
-      if (sellerProfile.productsCid) {
-        const productsIpfs = await fetchIpfsJson(sellerProfile.productsCid, 'stores');
-        const productsHashLocal = calculateJsonHash(productsIpfs.metadata as object);
-
-        if (productsHashLocal !== sellerProfile.productsHash) {
-          app.log.warn({ storeId: sellerProfile.id }, 'Hash de produtos divergente');
-          await prisma.sellerProfile.update({
-            where: { id: sellerProfile.id },
-            data: { syncStatus: 'diverged' },
-          });
-          throw new Error('Hash de produtos divergente');
-        }
-
-        const metadata = productsIpfs.metadata as { items?: any[] };
-        productsData = metadata?.items || [];
-      }
-
-    } catch (error) {
-      // Fallback para snapshot Postgres
-      app.log.warn({ err: error, storeId: sellerProfile.id }, 'IPFS fetch falhou, usando cache');
-
-      const snapshot = await prisma.storeSnapshot.findFirst({
-        where: { storeId: sellerProfile.id },
-        orderBy: { version: 'desc' },
-      });
-
-      if (!snapshot) {
-        return reply.status(503).send({ error: 'IPFS indisponível e sem cache' });
-      }
-
-      source = 'postgres';
-      storeData = snapshot.storeJson;
-      categoriesData = (snapshot.categoriesJson as any)?.categories || [];
-      productsData = (snapshot.productsJson as any)?.items || [];
-
-      // Atualizar status para fallback
-      await prisma.sellerProfile.update({
-        where: { id: sellerProfile.id },
-        data: { syncStatus: 'fallback' },
-      });
     }
+    const categories = Array.from(categoriesMap.values());
 
-    // 4. Montar resposta
+    // 4. Formatar produtos
+    const products = sellerProfile.products.map(product => ({
+      sku: product.id,
+      title: product.title,
+      description: product.description || undefined,
+      price: {
+        amount: product.priceBzr.toString(),
+        currency: 'BZR',
+      },
+      categoryId: product.categoryId || undefined,
+      attributes: product.attributes as Record<string, any> || undefined,
+    }));
+
+    // 5. Extrair tema/policies
+    const policies = sellerProfile.policies as any;
+    const theme = policies?.theme;
+
+    // 6. Montar resposta
     return reply.send({
       id: sellerProfile.onChainStoreId.toString(),
       slug: sellerProfile.shopSlug,
       onChain: {
-        classId: 10, // TODO: pegar do config
+        classId: 10,
         instanceId: sellerProfile.onChainStoreId.toString(),
         owner: onChainStore.owner,
-        metadataCid: sellerProfile.metadataCid,
-        attributes: {
-          store_cid: sellerProfile.metadataCid,
-          categories_cid: sellerProfile.categoriesCid,
-          categories_hash: sellerProfile.categoriesHash,
-          products_cid: sellerProfile.productsCid,
-          products_hash: sellerProfile.productsHash,
-        },
+        operators: onChainStore.operators,
+        reputation: onChainStore.reputation,
       },
-      theme: (storeData as any)?.theme || null,
+      theme: theme || null,
       sync: {
         status: sellerProfile.syncStatus,
-        source,
-        lastCheckedAt: new Date().toISOString(),
+        version: sellerProfile.version,
       },
-      store: storeData,
-      categories: categoriesData,
-      products: productsData,
+      store: {
+        name: sellerProfile.shopName,
+        description: sellerProfile.about,
+        theme: theme ? {
+          layoutVariant: theme.layoutVariant,
+          palette: theme.palette,
+          logoUrl: sellerProfile.avatarUrl || undefined,
+        } : undefined,
+        policies: {
+          returns: policies?.returns,
+          shipping: policies?.shipping,
+        },
+      },
+      categories,
+      products,
     });
   });
 
-  // GET /stores/:id - Original endpoint (kept for backwards compatibility)
+  // GET /stores/:id - Busca dados da loja por storeId on-chain
   app.get<{ Params: { id: string } }>('/stores/:id', async (request, reply) => {
     const parse = storeIdSchema.safeParse(request.params);
     if (!parse.success) {
@@ -172,20 +121,36 @@ export async function storesRoutes(app: FastifyInstance, options: { prisma: Pris
         return reply.status(404).send({ error: 'Loja on-chain não encontrada' });
       }
 
-      const { cid, source: cidSource } = await resolveStoreCidWithSource(parse.data.id);
-      const metadataResult =
-        cidSource === 'placeholder'
-          ? { metadata: null, source: 'placeholder' as const }
-          : await fetchIpfsJson(cid, cidSource);
+      // Buscar dados complementares do PostgreSQL
+      const sellerProfile = await prisma.sellerProfile.findFirst({
+        where: { onChainStoreId: BigInt(parse.data.id) },
+        select: {
+          shopName: true,
+          shopSlug: true,
+          about: true,
+          policies: true,
+          avatarUrl: true,
+          version: true,
+          syncStatus: true,
+        },
+      });
 
       return reply.send({
         storeId: store.storeId,
         owner: store.owner,
         operators: store.operators,
         reputation: store.reputation,
-        cid,
-        metadata: metadataResult.metadata,
-        source: metadataResult.source,
+        metadata: sellerProfile ? {
+          name: sellerProfile.shopName,
+          slug: sellerProfile.shopSlug,
+          description: sellerProfile.about,
+          logoUrl: sellerProfile.avatarUrl,
+          policies: sellerProfile.policies,
+        } : null,
+        sync: sellerProfile ? {
+          status: sellerProfile.syncStatus,
+          version: sellerProfile.version,
+        } : null,
       });
     } catch (error) {
       request.log.error({ err: error }, 'Erro ao consultar loja on-chain');

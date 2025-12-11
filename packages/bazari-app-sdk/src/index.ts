@@ -8,6 +8,9 @@ export { WalletClient } from './client/wallet';
 export { StorageClient } from './client/storage';
 export { UIClient } from './client/ui';
 export { EventsClient } from './client/events';
+export { ContractsClient } from './client/contracts';
+export { LocationClient } from './client/location';
+export { MapsClient } from './client/maps';
 export type { BazariEvent } from './client/events';
 
 // Types
@@ -27,5 +30,26 @@ export type {
   HostEvent,
 } from './types/messages';
 
+// Contract types
+export type {
+  LoyaltyConfig,
+  EscrowConfig,
+  RevenueShareConfig,
+  DeployedContract,
+  LoyaltyTier,
+  LoyaltyInfo,
+  EscrowInfo,
+  ParticipantInfo,
+} from './client/contracts';
+
+// Location types
+export type {
+  Position,
+  Coordinates,
+  DistanceResult,
+  WatchOptions,
+  PositionError,
+} from './client/location';
+
 // Utils
-export { isInsideBazari } from './utils/bridge';
+export { isInsideBazari, getSDKVersion, getAllowedOrigins } from './utils/bridge';

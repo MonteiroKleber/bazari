@@ -201,11 +201,11 @@ export function CheckoutPage() {
         // Limpar carrinho
         clear();
 
-        // Para multi-store, redirecionar para página de pagamento da sessão
-        // Por agora, redirecionar para o primeiro pedido
+        // Para multi-store, redirecionar para página de pagamento batch
+        // O OrderPayPage detecta isMultiStore e usa useBatchEscrowLock()
         const firstOrderId = multiResponse.orders[0]?.orderId;
         if (firstOrderId) {
-          // TODO: Criar página de pagamento batch /app/checkout-session/:id/pay
+          // PROPOSAL-003: Batch payment implemented in OrderPayPage
           navigate(`/app/orders/${firstOrderId}/pay`, {
             state: {
               checkoutSessionId: multiResponse.checkoutSessionId,

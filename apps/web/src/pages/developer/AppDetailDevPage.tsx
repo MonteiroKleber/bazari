@@ -14,6 +14,10 @@ import {
   ExternalLink,
   Copy,
   Check,
+  DollarSign,
+  Plus,
+  Trash2,
+  TrendingUp,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -88,6 +92,24 @@ interface DeveloperApp {
   publishedAt: string | null;
   versions: AppVersion[];
   reviews: AppReview[];
+  // Monetization fields
+  monetizationType: 'FREE' | 'PAID' | 'FREEMIUM' | 'SUBSCRIPTION';
+  price: string | null;
+  currency: string;
+  totalRevenue: string;
+  developerRevenue: string;
+  platformRevenue: string;
+}
+
+interface InAppPurchase {
+  id: string;
+  productId: string;
+  name: string;
+  description: string | null;
+  price: string;
+  type: 'CONSUMABLE' | 'NON_CONSUMABLE' | 'SUBSCRIPTION';
+  active: boolean;
+  _count?: { purchases: number };
 }
 
 interface Analytics {
@@ -140,8 +162,8 @@ export default function AppDetailDevPage() {
   const fetchApp = useCallback(async () => {
     if (!id) return;
     try {
-      const response = await api.get(`/developer/apps/${id}`);
-      setApp(response.data.app);
+      const response = await api.get<{ app: DeveloperApp }>(`/developer/apps/${id}`);
+      setApp(response.app);
       setError(null);
     } catch (err) {
       setError('Erro ao carregar app');
@@ -159,8 +181,8 @@ export default function AppDetailDevPage() {
     const fetchAnalytics = async () => {
       if (!id || activeTab !== 'analytics') return;
       try {
-        const response = await api.get(`/developer/apps/${id}/analytics`);
-        setAnalytics(response.data.analytics);
+        const response = await api.get<{ analytics: Analytics }>(`/developer/apps/${id}/analytics`);
+        setAnalytics(response.analytics);
       } catch (err) {
         console.error('Error fetching analytics:', err);
       }
@@ -362,6 +384,10 @@ export default function AppDetailDevPage() {
           <TabsTrigger value="reviews">
             <MessageSquare className="w-4 h-4 mr-2" />
             Reviews
+          </TabsTrigger>
+          <TabsTrigger value="monetization">
+            <DollarSign className="w-4 h-4 mr-2" />
+            Monetização
           </TabsTrigger>
           <TabsTrigger value="settings">
             <Settings className="w-4 h-4 mr-2" />
@@ -745,6 +771,11 @@ export default function AppDetailDevPage() {
           </Card>
         </TabsContent>
 
+        {/* Monetization Tab */}
+        <TabsContent value="monetization">
+          <MonetizationTab app={app} onRefresh={fetchApp} />
+        </TabsContent>
+
         {/* Settings Tab */}
         <TabsContent value="settings">
           <SettingsForm app={app} onSave={handleUpdateApp} isSaving={isSaving} />
@@ -1039,5 +1070,369 @@ function SettingsForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+// Monetization Tab Component
+function MonetizationTab({
+  app,
+  onRefresh,
+}: {
+  app: DeveloperApp;
+  onRefresh: () => void;
+}) {
+  const [monetizationType, setMonetizationType] = useState(app.monetizationType || 'FREE');
+  const [price, setPrice] = useState(app.price || '');
+  const [isSaving, setIsSaving] = useState(false);
+  const [iaps, setIaps] = useState<InAppPurchase[]>([]);
+  const [isLoadingIaps, setIsLoadingIaps] = useState(true);
+  const [showNewIapForm, setShowNewIapForm] = useState(false);
+  const [newIap, setNewIap] = useState({
+    productId: '',
+    name: '',
+    description: '',
+    price: '',
+    type: 'NON_CONSUMABLE' as 'CONSUMABLE' | 'NON_CONSUMABLE' | 'SUBSCRIPTION',
+  });
+  const [isCreatingIap, setIsCreatingIap] = useState(false);
+
+  useEffect(() => {
+    const fetchIaps = async () => {
+      try {
+        const response = await api.get<{ iaps: InAppPurchase[] }>(`/developer/apps/${app.id}/iaps`);
+        setIaps(response.iaps || []);
+      } catch (err) {
+        console.error('Error fetching IAPs:', err);
+      } finally {
+        setIsLoadingIaps(false);
+      }
+    };
+    fetchIaps();
+  }, [app.id]);
+
+  const handleSaveMonetization = async () => {
+    setIsSaving(true);
+    try {
+      await api.put(`/developer/apps/${app.id}`, {
+        monetizationType,
+        price: monetizationType === 'PAID' || monetizationType === 'SUBSCRIPTION' ? price : null,
+      });
+      toast.success('Monetização atualizada!');
+      onRefresh();
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } };
+      toast.error('Erro ao salvar', {
+        description: error.response?.data?.error || 'Tente novamente',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCreateIap = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsCreatingIap(true);
+    try {
+      const response = await api.post<{ iap: InAppPurchase }>(`/developer/apps/${app.id}/iaps`, newIap);
+      setIaps([response.iap, ...iaps]);
+      setShowNewIapForm(false);
+      setNewIap({ productId: '', name: '', description: '', price: '', type: 'NON_CONSUMABLE' });
+      toast.success('In-App Purchase criado!');
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      toast.error('Erro ao criar IAP', {
+        description: error.message || 'Tente novamente',
+      });
+    } finally {
+      setIsCreatingIap(false);
+    }
+  };
+
+  const handleDeleteIap = async (iapId: string) => {
+    if (!confirm('Desativar este In-App Purchase?')) return;
+    try {
+      await api.delete(`/developer/apps/${app.id}/iaps/${iapId}`);
+      setIaps(iaps.filter((i) => i.id !== iapId));
+      toast.success('IAP desativado');
+    } catch (err) {
+      toast.error('Erro ao desativar IAP');
+    }
+  };
+
+  const totalRevenue = parseFloat(app.totalRevenue || '0');
+  const developerRevenue = parseFloat(app.developerRevenue || '0');
+
+  return (
+    <div className="grid grid-cols-3 gap-6">
+      <div className="col-span-2 space-y-6">
+        {/* Revenue Summary */}
+        <div className="grid grid-cols-3 gap-4">
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+                <DollarSign className="w-4 h-4" />
+                Receita Total
+              </div>
+              <div className="text-2xl font-bold">{totalRevenue.toFixed(2)} BZR</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+                <TrendingUp className="w-4 h-4" />
+                Sua Receita (75%)
+              </div>
+              <div className="text-2xl font-bold text-green-600">{developerRevenue.toFixed(2)} BZR</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+                <Package className="w-4 h-4" />
+                Taxa Plataforma (25%)
+              </div>
+              <div className="text-2xl font-bold text-muted-foreground">
+                {(totalRevenue - developerRevenue).toFixed(2)} BZR
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* In-App Purchases */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>In-App Purchases</CardTitle>
+              <CardDescription>
+                Produtos e assinaturas dentro do seu app
+              </CardDescription>
+            </div>
+            <Button onClick={() => setShowNewIapForm(true)} disabled={showNewIapForm}>
+              <Plus className="w-4 h-4 mr-2" />
+              Novo IAP
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {showNewIapForm && (
+              <form onSubmit={handleCreateIap} className="mb-6 p-4 rounded-lg border bg-muted/30 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="iap-productId">Product ID *</Label>
+                    <Input
+                      id="iap-productId"
+                      value={newIap.productId}
+                      onChange={(e) => setNewIap({ ...newIap, productId: e.target.value })}
+                      placeholder="premium_upgrade"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="iap-name">Nome *</Label>
+                    <Input
+                      id="iap-name"
+                      value={newIap.name}
+                      onChange={(e) => setNewIap({ ...newIap, name: e.target.value })}
+                      placeholder="Upgrade Premium"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="iap-description">Descrição</Label>
+                  <Input
+                    id="iap-description"
+                    value={newIap.description}
+                    onChange={(e) => setNewIap({ ...newIap, description: e.target.value })}
+                    placeholder="Desbloqueie todos os recursos premium"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="iap-price">Preço (BZR) *</Label>
+                    <Input
+                      id="iap-price"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={newIap.price}
+                      onChange={(e) => setNewIap({ ...newIap, price: e.target.value })}
+                      placeholder="10.00"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="iap-type">Tipo *</Label>
+                    <Select
+                      value={newIap.type}
+                      onValueChange={(v) => setNewIap({ ...newIap, type: v as typeof newIap.type })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="NON_CONSUMABLE">Permanente (Compra única)</SelectItem>
+                        <SelectItem value="CONSUMABLE">Consumível (Múltiplas compras)</SelectItem>
+                        <SelectItem value="SUBSCRIPTION">Assinatura</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button type="button" variant="outline" onClick={() => setShowNewIapForm(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={isCreatingIap}>
+                    {isCreatingIap ? 'Criando...' : 'Criar IAP'}
+                  </Button>
+                </div>
+              </form>
+            )}
+
+            {isLoadingIaps ? (
+              <div className="text-center py-8 text-muted-foreground">Carregando...</div>
+            ) : iaps.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>Nenhum In-App Purchase configurado</p>
+                <p className="text-sm mt-2">
+                  Crie produtos para vender dentro do seu app
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {iaps.map((iap) => (
+                  <div
+                    key={iap.id}
+                    className={`flex items-center justify-between p-4 rounded-lg border ${!iap.active ? 'opacity-50' : ''}`}
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">{iap.name}</span>
+                        <Badge variant="outline">{iap.type}</Badge>
+                        {!iap.active && <Badge variant="destructive">Inativo</Badge>}
+                      </div>
+                      <code className="text-xs text-muted-foreground">{iap.productId}</code>
+                      {iap.description && (
+                        <p className="text-sm text-muted-foreground mt-1">{iap.description}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <div className="font-bold">{parseFloat(iap.price).toFixed(2)} BZR</div>
+                        <div className="text-xs text-muted-foreground">
+                          {iap._count?.purchases || 0} vendas
+                        </div>
+                      </div>
+                      {iap.active && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive"
+                          onClick={() => handleDeleteIap(iap.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Monetization Settings */}
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Modelo de Monetização</CardTitle>
+            <CardDescription>
+              Configure como seu app será monetizado
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Tipo</Label>
+              <Select
+                value={monetizationType}
+                onValueChange={(v) => setMonetizationType(v as typeof monetizationType)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="FREE">Gratuito</SelectItem>
+                  <SelectItem value="PAID">Pago (Compra única)</SelectItem>
+                  <SelectItem value="FREEMIUM">Freemium (Gratuito + IAPs)</SelectItem>
+                  <SelectItem value="SUBSCRIPTION">Assinatura</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {(monetizationType === 'PAID' || monetizationType === 'SUBSCRIPTION') && (
+              <div className="space-y-2">
+                <Label htmlFor="app-price">Preço (BZR)</Label>
+                <Input
+                  id="app-price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  placeholder="10.00"
+                />
+              </div>
+            )}
+
+            <Button
+              className="w-full"
+              onClick={handleSaveMonetization}
+              disabled={isSaving}
+            >
+              {isSaving ? 'Salvando...' : 'Salvar Configurações'}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Revenue Share</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Desenvolvedor</span>
+                <span className="font-bold text-green-600">75%</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Plataforma Bazari</span>
+                <span className="font-bold">25%</span>
+              </div>
+              <div className="h-3 rounded-full overflow-hidden bg-muted flex">
+                <div className="w-3/4 bg-green-500" />
+                <div className="w-1/4 bg-primary" />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Você recebe 75% de todas as vendas do seu app e In-App Purchases.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-dashed">
+          <CardContent className="pt-6 text-center">
+            <TrendingUp className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
+            <h4 className="font-semibold mb-2">Dashboard de Receita</h4>
+            <p className="text-sm text-muted-foreground mb-4">
+              Veja análises detalhadas de suas vendas
+            </p>
+            <Button variant="outline" asChild>
+              <Link to="/app/developer/revenue">Ver Dashboard</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }

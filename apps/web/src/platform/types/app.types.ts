@@ -17,6 +17,11 @@ export type AppCategory =
 export type AppStatus = 'stable' | 'beta' | 'alpha' | 'deprecated';
 
 /**
+ * Tipo de monetização de um app
+ */
+export type AppMonetizationType = 'FREE' | 'PAID' | 'FREEMIUM' | 'SUBSCRIPTION';
+
+/**
  * Modo de lançamento do app
  * - internal: Rota SPA interna (padrão)
  * - external: Abre URL externa em nova aba
@@ -81,6 +86,12 @@ export interface BazariApp {
   /** URL externa - obrigatório se launchMode: 'external' */
   externalUrl?: string;
 
+  /** URL do bundle IPFS - usado para launchMode: 'iframe' (apps de terceiros) */
+  bundleUrl?: string;
+
+  /** Hash do bundle para verificação de integridade */
+  bundleHash?: string;
+
   /** Método de autenticação para apps externos (default: 'session') */
   authMethod?: AppAuthMethod;
 
@@ -116,6 +127,15 @@ export interface BazariApp {
 
   /** Se vem pré-instalado */
   preInstalled?: boolean;
+
+  /** Tipo de monetização (default: 'FREE') */
+  monetizationType?: AppMonetizationType;
+
+  /** Preço (se pago) */
+  price?: number;
+
+  /** Moeda (default: 'BZR') */
+  currency?: string;
 }
 
 /**

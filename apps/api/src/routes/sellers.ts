@@ -7,13 +7,6 @@ import { decodeCursor, encodeCursor } from '../lib/cursor.js';
 import { env } from '../env.js';
 import { getStore } from '../lib/storesChain.js';
 import { buildCatalogForStore } from '../lib/catalogBuilder.js';
-import {
-  buildStoreJson,
-  buildCategoriesJson,
-  buildProductsJson,
-  uploadJsonToIpfs,
-  calculateJsonHash
-} from '../lib/publishPipeline.js';
 
 /**
  * @deprecated This file contains legacy single-store routes.
@@ -334,7 +327,7 @@ export async function sellersRoutes(app: FastifyInstance, options: { prisma: Pri
     return reply.send({ items, nextCursor });
   });
 
-  // POST /me/sellers/:idOrSlug/sync-catalog — sincronizar catálogo para IPFS
+  // POST /me/sellers/:idOrSlug/sync-catalog — sincronizar catálogo (incrementar versão)
   app.post<{ Params: { idOrSlug: string } }>('/me/sellers/:idOrSlug/sync-catalog', { preHandler: authOnRequest }, async (request, reply) => {
     const authUser = (request as any).authUser as { sub: string } | undefined;
     if (!authUser) return reply.status(401).send({ error: 'Token inválido.' });
@@ -356,67 +349,17 @@ export async function sellersRoutes(app: FastifyInstance, options: { prisma: Pri
     try {
       app.log.info({ storeId: store.id, shopSlug: store.shopSlug }, '[SYNC] Iniciando sincronização de catálogo...');
 
-      // 1. Construir JSONs
-      const storeJson = await buildStoreJson(prisma, store.id);
-      const categoriesJson = await buildCategoriesJson(prisma, store.id);
-      const productsJson = await buildProductsJson(prisma, store.id);
-
-      app.log.info({ itemCount: productsJson.items.length }, '[SYNC] JSONs construídos');
-
-      // 2. Upload para IPFS (usa IpfsClientPool com failover)
-      app.log.info('[SYNC] Fazendo upload para IPFS...');
-      const [storeCid, categoriesCid, productsCid] = await Promise.all([
-        uploadJsonToIpfs(storeJson, 'store.json'),
-        uploadJsonToIpfs(categoriesJson, 'categories.json'),
-        uploadJsonToIpfs(productsJson, 'products.json'),
-      ]);
-
-      app.log.info({
-        storeCid,
-        categoriesCid,
-        productsCid
-      }, '[SYNC] ✅ Upload IPFS concluído');
-
-      // 3. Calcular hashes
-      const storeHash = calculateJsonHash(storeJson);
-      const categoriesHash = calculateJsonHash(categoriesJson);
-      const productsHash = calculateJsonHash(productsJson);
-
-      // 4. Salvar snapshot no banco (para fallback)
+      // Gerar catálogo para contagem
+      const catalog = await buildCatalogForStore(prisma, store.onChainStoreId);
       const newVersion = (store.version ?? 0) + 1;
-      await prisma.storeSnapshot.upsert({
-        where: {
-          storeId_version: {
-            storeId: store.id,
-            version: newVersion,
-          },
-        },
-        create: {
-          storeId: store.id,
-          version: newVersion,
-          storeJson: storeJson as any,
-          categoriesJson: categoriesJson as any,
-          productsJson: productsJson as any,
-        },
-        update: {
-          storeJson: storeJson as any,
-          categoriesJson: categoriesJson as any,
-          productsJson: productsJson as any,
-          cachedAt: new Date(),
-        },
-      });
 
-      // 5. Atualizar SellerProfile com CIDs e hashes
+      // Atualizar versão no banco
       await prisma.sellerProfile.update({
         where: { id: store.id },
         data: {
-          metadataCid: storeCid,
-          categoriesCid,
-          categoriesHash,
-          productsCid,
-          productsHash,
           version: newVersion,
           syncStatus: 'synced',
+          lastPublishedAt: new Date(),
         },
       });
 
@@ -428,14 +371,8 @@ export async function sellersRoutes(app: FastifyInstance, options: { prisma: Pri
         catalog: {
           version: String(newVersion),
           storeId: store.onChainStoreId ? String(store.onChainStoreId) : null,
-          itemCount: productsJson.items.length,
-          items: [], // Frontend não precisa dos items completos na resposta
-          storeCid,
-          categoriesCid,
-          productsCid,
-          storeHash,
-          categoriesHash,
-          productsHash,
+          itemCount: catalog.items.length,
+          items: [],
         },
       });
 

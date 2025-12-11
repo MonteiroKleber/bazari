@@ -167,6 +167,8 @@ export const ordersApi = {
 
   // Reutilizar os helpers existentes para outras operações
   get: (orderId: string) => apiHelpers.getOrder(orderId),
+  getMultiple: (orderIds: string[]) =>
+    Promise.all(orderIds.map((id) => apiHelpers.getOrder(id))),
   createPaymentIntent: (orderId: string) => apiHelpers.createPaymentIntent(orderId),
   confirmReceived: (orderId: string) => apiHelpers.confirmReceived(orderId),
   cancel: (orderId: string) => apiHelpers.cancelOrder(orderId),

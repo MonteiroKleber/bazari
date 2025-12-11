@@ -15,3 +15,16 @@ export type {
   SDKPermissions,
   ResponseTypes,
 } from './responses';
+
+export {
+  LOCATION_PERMISSIONS,
+  WALLET_PERMISSIONS,
+  STORAGE_PERMISSIONS,
+  CONTRACT_PERMISSIONS,
+  ALL_PERMISSIONS,
+  isValidPermission,
+  getPermissionDefinition,
+  filterPermissionsByRisk,
+} from './permissions';
+
+export type { PermissionDefinition, PermissionId } from './permissions';

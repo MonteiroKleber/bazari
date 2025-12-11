@@ -29,6 +29,6 @@ export const bazchatApp: BazariApp = {
   status: 'stable',
   native: true,
   featured: false,
-  preInstalled: false,
+  preInstalled: true,
   defaultOrder: 4,
 };

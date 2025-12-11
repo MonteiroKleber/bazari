@@ -1,0 +1,494 @@
+// path: apps/api/src/routes/developer-revenue.ts
+// BazariOS Developer Revenue API
+
+import { FastifyInstance, FastifyPluginOptions } from 'fastify';
+import { PrismaClient } from '@prisma/client';
+import { authOnRequest } from '../lib/auth/middleware.js';
+
+/**
+ * Revenue Share Tiers
+ * Based on total installs across all developer apps
+ *
+ * Starter: 0-999 installs → 70% developer / 30% platform
+ * Growth: 1,000-9,999 installs → 75% developer / 25% platform
+ * Scale: 10,000-99,999 installs → 80% developer / 20% platform
+ * Enterprise: 100,000+ installs → 85% developer / 15% platform
+ */
+export const REVENUE_TIERS = {
+  STARTER: { minInstalls: 0, maxInstalls: 999, developerShare: 0.70, name: 'Starter' },
+  GROWTH: { minInstalls: 1000, maxInstalls: 9999, developerShare: 0.75, name: 'Growth' },
+  SCALE: { minInstalls: 10000, maxInstalls: 99999, developerShare: 0.80, name: 'Scale' },
+  ENTERPRISE: { minInstalls: 100000, maxInstalls: Infinity, developerShare: 0.85, name: 'Enterprise' },
+} as const;
+
+export type TierName = keyof typeof REVENUE_TIERS;
+
+/**
+ * Get developer's current tier based on total installs
+ */
+export function getDeveloperTier(totalInstalls: number): { tier: TierName; config: typeof REVENUE_TIERS[TierName] } {
+  if (totalInstalls >= REVENUE_TIERS.ENTERPRISE.minInstalls) {
+    return { tier: 'ENTERPRISE', config: REVENUE_TIERS.ENTERPRISE };
+  }
+  if (totalInstalls >= REVENUE_TIERS.SCALE.minInstalls) {
+    return { tier: 'SCALE', config: REVENUE_TIERS.SCALE };
+  }
+  if (totalInstalls >= REVENUE_TIERS.GROWTH.minInstalls) {
+    return { tier: 'GROWTH', config: REVENUE_TIERS.GROWTH };
+  }
+  return { tier: 'STARTER', config: REVENUE_TIERS.STARTER };
+}
+
+/**
+ * Calculate revenue split based on developer tier
+ */
+export function calculateRevenueSplit(
+  amount: number,
+  developerSharePercent: number
+): { developerShare: number; platformShare: number } {
+  const developerShare = Math.floor(amount * developerSharePercent * 100) / 100;
+  const platformShare = Math.floor((amount - developerShare) * 100) / 100;
+  return { developerShare, platformShare };
+}
+
+export async function developerRevenueRoutes(
+  app: FastifyInstance,
+  options: FastifyPluginOptions & { prisma: PrismaClient }
+) {
+  const { prisma } = options;
+
+  // GET /developer/revenue/summary - Resumo geral de receita
+  app.get('/developer/revenue/summary', {
+    onRequest: authOnRequest,
+  }, async (request, reply) => {
+    const userId = (request as any).authUser?.sub;
+
+    // Buscar todos os apps do desenvolvedor
+    const apps = await prisma.thirdPartyApp.findMany({
+      where: { developerId: userId },
+      select: {
+        id: true,
+        name: true,
+        totalRevenue: true,
+        developerRevenue: true,
+        platformRevenue: true,
+        installCount: true,
+      },
+    });
+
+    // Calcular totais
+    const totals = apps.reduce(
+      (acc, app) => ({
+        totalRevenue: acc.totalRevenue + Number(app.totalRevenue),
+        developerRevenue: acc.developerRevenue + Number(app.developerRevenue),
+        platformRevenue: acc.platformRevenue + Number(app.platformRevenue),
+        totalInstalls: acc.totalInstalls + app.installCount,
+      }),
+      { totalRevenue: 0, developerRevenue: 0, platformRevenue: 0, totalInstalls: 0 }
+    );
+
+    // Buscar transações recentes
+    const recentTransactions = await prisma.appPurchase.findMany({
+      where: {
+        app: { developerId: userId },
+        status: 'CONFIRMED',
+      },
+      orderBy: { confirmedAt: 'desc' },
+      take: 5,
+      include: {
+        app: { select: { name: true, icon: true } },
+        inAppPurchase: { select: { name: true } },
+      },
+    });
+
+    // Calcular receita dos últimos 30 dias
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const last30DaysTransactions = await prisma.appPurchase.findMany({
+      where: {
+        app: { developerId: userId },
+        status: 'CONFIRMED',
+        confirmedAt: { gte: thirtyDaysAgo },
+      },
+      select: { developerShare: true },
+    });
+
+    const last30DaysRevenue = last30DaysTransactions.reduce(
+      (sum, t) => sum + Number(t.developerShare),
+      0
+    );
+
+    // Calcular receita dos últimos 7 dias
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const last7DaysTransactions = await prisma.appPurchase.findMany({
+      where: {
+        app: { developerId: userId },
+        status: 'CONFIRMED',
+        confirmedAt: { gte: sevenDaysAgo },
+      },
+      select: { developerShare: true },
+    });
+
+    const last7DaysRevenue = last7DaysTransactions.reduce(
+      (sum, t) => sum + Number(t.developerShare),
+      0
+    );
+
+    return {
+      summary: {
+        totalRevenue: totals.totalRevenue,
+        developerRevenue: totals.developerRevenue,
+        platformFees: totals.platformRevenue,
+        totalInstalls: totals.totalInstalls,
+        appsCount: apps.length,
+        last7DaysRevenue,
+        last30DaysRevenue,
+      },
+      recentTransactions: recentTransactions.map((t) => ({
+        id: t.id,
+        type: t.type,
+        amount: Number(t.amount),
+        developerShare: Number(t.developerShare),
+        appName: t.app.name,
+        appIcon: t.app.icon,
+        productName: t.inAppPurchase?.name || null,
+        confirmedAt: t.confirmedAt,
+      })),
+      appsBreakdown: apps.map((a) => ({
+        id: a.id,
+        name: a.name,
+        totalRevenue: Number(a.totalRevenue),
+        developerRevenue: Number(a.developerRevenue),
+        installCount: a.installCount,
+      })),
+    };
+  });
+
+  // GET /developer/revenue/transactions - Lista de transações paginada
+  app.get('/developer/revenue/transactions', {
+    onRequest: authOnRequest,
+  }, async (request, reply) => {
+    const userId = (request as any).authUser?.sub;
+    const query = request.query as {
+      page?: string;
+      limit?: string;
+      appId?: string;
+      type?: string;
+      from?: string;
+      to?: string;
+    };
+
+    const page = parseInt(query.page || '1', 10);
+    const limit = Math.min(parseInt(query.limit || '20', 10), 100);
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      app: { developerId: userId },
+      status: 'CONFIRMED',
+    };
+
+    if (query.appId) {
+      where.appId = query.appId;
+    }
+
+    if (query.type) {
+      where.type = query.type;
+    }
+
+    if (query.from || query.to) {
+      where.confirmedAt = {};
+      if (query.from) {
+        where.confirmedAt.gte = new Date(query.from);
+      }
+      if (query.to) {
+        where.confirmedAt.lte = new Date(query.to);
+      }
+    }
+
+    const [transactions, total] = await Promise.all([
+      prisma.appPurchase.findMany({
+        where,
+        orderBy: { confirmedAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          app: { select: { name: true, icon: true } },
+          inAppPurchase: { select: { name: true, productId: true } },
+          user: {
+            select: {
+              profile: { select: { handle: true } },
+            },
+          },
+        },
+      }),
+      prisma.appPurchase.count({ where }),
+    ]);
+
+    return {
+      transactions: transactions.map((t) => ({
+        id: t.id,
+        type: t.type,
+        amount: Number(t.amount),
+        developerShare: Number(t.developerShare),
+        platformShare: Number(t.platformShare),
+        currency: t.currency,
+        txHash: t.txHash,
+        status: t.status,
+        appId: t.appId,
+        appName: t.app.name,
+        appIcon: t.app.icon,
+        productId: t.inAppPurchase?.productId || null,
+        productName: t.inAppPurchase?.name || null,
+        buyerHandle: t.user.profile?.handle || 'Anonymous',
+        confirmedAt: t.confirmedAt,
+        createdAt: t.createdAt,
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  });
+
+  // GET /developer/revenue/apps/:appId - Receita detalhada por app
+  app.get('/developer/revenue/apps/:appId', {
+    onRequest: authOnRequest,
+  }, async (request, reply) => {
+    const userId = (request as any).authUser?.sub;
+    const { appId } = request.params as { appId: string };
+
+    const thirdPartyApp = await prisma.thirdPartyApp.findFirst({
+      where: { id: appId, developerId: userId },
+      include: {
+        inAppPurchases: {
+          include: {
+            _count: { select: { purchases: true } },
+          },
+        },
+      },
+    });
+
+    if (!thirdPartyApp) {
+      return reply.status(404).send({ error: 'App not found' });
+    }
+
+    // Estatísticas de vendas por período
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const [
+      appPurchasesCount,
+      iapPurchasesCount,
+      last7DaysPurchases,
+      last30DaysPurchases,
+    ] = await Promise.all([
+      prisma.appPurchase.count({
+        where: { appId, type: 'app', status: 'CONFIRMED' },
+      }),
+      prisma.appPurchase.count({
+        where: { appId, type: 'iap', status: 'CONFIRMED' },
+      }),
+      prisma.appPurchase.findMany({
+        where: {
+          appId,
+          status: 'CONFIRMED',
+          confirmedAt: { gte: sevenDaysAgo },
+        },
+        select: { developerShare: true },
+      }),
+      prisma.appPurchase.findMany({
+        where: {
+          appId,
+          status: 'CONFIRMED',
+          confirmedAt: { gte: thirtyDaysAgo },
+        },
+        select: { developerShare: true },
+      }),
+    ]);
+
+    const last7DaysRevenue = last7DaysPurchases.reduce(
+      (sum, p) => sum + Number(p.developerShare),
+      0
+    );
+    const last30DaysRevenue = last30DaysPurchases.reduce(
+      (sum, p) => sum + Number(p.developerShare),
+      0
+    );
+
+    // Calcular receita por IAP
+    const iapRevenue = await Promise.all(
+      thirdPartyApp.inAppPurchases.map(async (iap) => {
+        const purchases = await prisma.appPurchase.findMany({
+          where: { inAppPurchaseId: iap.id, status: 'CONFIRMED' },
+          select: { developerShare: true },
+        });
+        const revenue = purchases.reduce(
+          (sum, p) => sum + Number(p.developerShare),
+          0
+        );
+        return {
+          productId: iap.productId,
+          name: iap.name,
+          price: Number(iap.price),
+          type: iap.type,
+          purchaseCount: iap._count.purchases,
+          revenue,
+        };
+      })
+    );
+
+    return {
+      app: {
+        id: thirdPartyApp.id,
+        name: thirdPartyApp.name,
+        icon: thirdPartyApp.icon,
+        monetizationType: thirdPartyApp.monetizationType,
+        price: thirdPartyApp.price ? Number(thirdPartyApp.price) : null,
+      },
+      revenue: {
+        total: Number(thirdPartyApp.totalRevenue),
+        developer: Number(thirdPartyApp.developerRevenue),
+        platform: Number(thirdPartyApp.platformRevenue),
+        last7Days: last7DaysRevenue,
+        last30Days: last30DaysRevenue,
+      },
+      sales: {
+        appPurchases: appPurchasesCount,
+        iapPurchases: iapPurchasesCount,
+        totalPurchases: appPurchasesCount + iapPurchasesCount,
+      },
+      inAppPurchases: iapRevenue,
+    };
+  });
+
+  // GET /developer/revenue/chart - Dados para gráfico de receita
+  app.get('/developer/revenue/chart', {
+    onRequest: authOnRequest,
+  }, async (request, reply) => {
+    const userId = (request as any).authUser?.sub;
+    const query = request.query as { days?: string };
+    const days = Math.min(parseInt(query.days || '30', 10), 90);
+
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    startDate.setHours(0, 0, 0, 0);
+
+    const purchases = await prisma.appPurchase.findMany({
+      where: {
+        app: { developerId: userId },
+        status: 'CONFIRMED',
+        confirmedAt: { gte: startDate },
+      },
+      select: {
+        developerShare: true,
+        confirmedAt: true,
+      },
+      orderBy: { confirmedAt: 'asc' },
+    });
+
+    // Agrupar por dia
+    const dailyRevenue: Record<string, number> = {};
+
+    // Inicializar todos os dias com 0
+    for (let i = 0; i <= days; i++) {
+      const date = new Date(startDate);
+      date.setDate(date.getDate() + i);
+      const key = date.toISOString().split('T')[0];
+      dailyRevenue[key] = 0;
+    }
+
+    // Somar receita por dia
+    for (const purchase of purchases) {
+      if (purchase.confirmedAt) {
+        const key = purchase.confirmedAt.toISOString().split('T')[0];
+        dailyRevenue[key] = (dailyRevenue[key] || 0) + Number(purchase.developerShare);
+      }
+    }
+
+    const chartData = Object.entries(dailyRevenue).map(([date, revenue]) => ({
+      date,
+      revenue,
+    }));
+
+    return { chartData };
+  });
+
+  // GET /developer/revenue/tier - Get current tier info
+  app.get('/developer/revenue/tier', {
+    onRequest: authOnRequest,
+  }, async (request, reply) => {
+    const userId = (request as any).authUser?.sub;
+
+    // Calcular total de installs de todos os apps do desenvolvedor
+    const apps = await prisma.thirdPartyApp.findMany({
+      where: { developerId: userId },
+      select: { installCount: true },
+    });
+
+    const totalInstalls = apps.reduce((sum, app) => sum + app.installCount, 0);
+    const { tier, config } = getDeveloperTier(totalInstalls);
+
+    // Calcular próximo tier
+    let nextTier: { name: string; installsNeeded: number } | null = null;
+    if (tier === 'STARTER') {
+      nextTier = {
+        name: REVENUE_TIERS.GROWTH.name,
+        installsNeeded: REVENUE_TIERS.GROWTH.minInstalls - totalInstalls,
+      };
+    } else if (tier === 'GROWTH') {
+      nextTier = {
+        name: REVENUE_TIERS.SCALE.name,
+        installsNeeded: REVENUE_TIERS.SCALE.minInstalls - totalInstalls,
+      };
+    } else if (tier === 'SCALE') {
+      nextTier = {
+        name: REVENUE_TIERS.ENTERPRISE.name,
+        installsNeeded: REVENUE_TIERS.ENTERPRISE.minInstalls - totalInstalls,
+      };
+    }
+
+    // Calcular progresso para próximo tier
+    let progress = 100;
+    if (tier === 'STARTER') {
+      progress = Math.min(100, (totalInstalls / REVENUE_TIERS.GROWTH.minInstalls) * 100);
+    } else if (tier === 'GROWTH') {
+      const range = REVENUE_TIERS.SCALE.minInstalls - REVENUE_TIERS.GROWTH.minInstalls;
+      progress = Math.min(100, ((totalInstalls - REVENUE_TIERS.GROWTH.minInstalls) / range) * 100);
+    } else if (tier === 'SCALE') {
+      const range = REVENUE_TIERS.ENTERPRISE.minInstalls - REVENUE_TIERS.SCALE.minInstalls;
+      progress = Math.min(100, ((totalInstalls - REVENUE_TIERS.SCALE.minInstalls) / range) * 100);
+    }
+
+    return {
+      currentTier: {
+        id: tier,
+        name: config.name,
+        developerShare: config.developerShare * 100,
+        platformShare: (1 - config.developerShare) * 100,
+        minInstalls: config.minInstalls,
+        maxInstalls: config.maxInstalls === Infinity ? null : config.maxInstalls,
+      },
+      stats: {
+        totalInstalls,
+        appsCount: apps.length,
+        progress: Math.round(progress * 100) / 100,
+      },
+      nextTier,
+      allTiers: Object.entries(REVENUE_TIERS).map(([id, t]) => ({
+        id,
+        name: t.name,
+        developerShare: t.developerShare * 100,
+        platformShare: (1 - t.developerShare) * 100,
+        minInstalls: t.minInstalls,
+        maxInstalls: t.maxInstalls === Infinity ? null : t.maxInstalls,
+        isCurrent: id === tier,
+      })),
+    };
+  });
+}

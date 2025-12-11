@@ -27,6 +27,6 @@ export const p2pApp: BazariApp = {
   status: 'stable',
   native: true,
   featured: false,
-  preInstalled: false,
+  preInstalled: true,
   defaultOrder: 5,
 };

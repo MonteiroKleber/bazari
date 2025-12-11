@@ -10,6 +10,7 @@ import {
   launchExternalApp,
   getInternalAppUrl,
   isExternalApp,
+  isIframeApp,
   canLaunchApp,
   type LaunchResult,
 } from '../services/app-launcher';
@@ -67,6 +68,13 @@ export function useAppLauncher(): UseAppLauncherReturn {
           }
 
           return result;
+        }
+
+        // App iframe (terceiros via IPFS): navega para /app/external/:slug
+        if (isIframeApp(app)) {
+          const url = app.entryPoint || `/app/external/${app.slug}`;
+          navigate(url);
+          return { success: true, url };
         }
 
         // App interno: navega via router

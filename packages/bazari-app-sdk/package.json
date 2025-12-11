@@ -1,6 +1,6 @@
 {
-  "name": "@bazari/app-sdk",
-  "version": "0.1.0",
+  "name": "@bazari.libervia.xyz/app-sdk",
+  "version": "0.2.2",
   "description": "SDK for building Bazari apps",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

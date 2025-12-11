@@ -344,6 +344,22 @@ export default function SellerManagePage() {
               </div>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('seller.settings.plugins', { defaultValue: 'Plugins da Loja' })}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {t('seller.settings.pluginsDescription', { defaultValue: 'Adicione recursos extras como fidelidade, cupons, cashback e mais' })}
+                </p>
+                <Button variant="outline" onClick={() => navigate('/app/seller/plugins')}>
+                  {t('seller.settings.managePlugins', { defaultValue: 'Gerenciar Plugins' })}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

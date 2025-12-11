@@ -8,7 +8,6 @@ import { FastifyPluginAsync } from 'fastify';
 import { prisma } from '../lib/prisma';
 import { authOnRequest } from '../lib/auth/middleware.js';
 import { z } from 'zod';
-import { ipfsService } from '../chat/services/ipfs';
 
 // Schemas de validação
 const createMarketplaceSchema = z.object({
@@ -84,24 +83,7 @@ const affiliatesRoutes: FastifyPluginAsync = async (server) => {
 
       const now = Date.now();
 
-      // Criar metadata para IPFS
-      const metadata = {
-        name: body.name,
-        description: body.description || '',
-        logoUrl: body.logoUrl || '',
-        bannerUrl: body.bannerUrl || '',
-        theme: 'bazari',
-        primaryColor: body.primaryColor || '#7C3AED',
-        secondaryColor: body.secondaryColor || '#EC4899',
-        createdAt: now,
-      };
-
-      // Upload metadata para IPFS
-      const metadataBuffer = Buffer.from(JSON.stringify(metadata), 'utf-8');
-      const encryptionKey = ipfsService.generateEncryptionKey();
-      const metadataCid = await ipfsService.uploadEncrypted(metadataBuffer, encryptionKey);
-
-      // Criar marketplace
+      // Criar marketplace diretamente no PostgreSQL (sem IPFS)
       const marketplace = await prisma.affiliateMarketplace.create({
         data: {
           ownerId: profile.id,
@@ -113,7 +95,6 @@ const affiliatesRoutes: FastifyPluginAsync = async (server) => {
           theme: 'bazari',
           primaryColor: body.primaryColor,
           secondaryColor: body.secondaryColor,
-          metadataCid,
           createdAt: BigInt(now),
           updatedAt: BigInt(now),
         },
@@ -130,7 +111,6 @@ const affiliatesRoutes: FastifyPluginAsync = async (server) => {
           bannerUrl: marketplace.bannerUrl,
           primaryColor: marketplace.primaryColor,
           secondaryColor: marketplace.secondaryColor,
-          metadataCid: marketplace.metadataCid,
           isActive: marketplace.isActive,
           isPublic: marketplace.isPublic,
           createdAt: Number(marketplace.createdAt),
@@ -252,7 +232,6 @@ const affiliatesRoutes: FastifyPluginAsync = async (server) => {
           secondaryColor: marketplace.secondaryColor,
           isActive: marketplace.isActive,
           isPublic: marketplace.isPublic,
-          metadataCid: marketplace.metadataCid,
           products: marketplace.products.map(p => ({
             id: p.id,
             storeId: Number(p.storeId),

@@ -1,0 +1,96 @@
+# {{name}}
+
+{{description}}
+
+## Desenvolvimento
+
+```bash
+# Instalar dependências
+npm install
+
+# Iniciar servidor de desenvolvimento
+npm run dev
+
+# Build para produção
+npm run build
+
+# Preview do build
+npm run preview
+```
+
+## Testando no Bazari
+
+1. Execute `npm run dev` para iniciar o servidor local
+2. Acesse o [Developer Portal](https://bazari.libervia.xyz/app/developer/preview)
+3. Cole a URL `http://localhost:3333`
+4. Teste as funcionalidades do SDK
+
+## Usando o SDK
+
+```tsx
+import { useBazari } from './hooks/useBazari';
+
+function MyComponent() {
+  const { sdk, user, balance, isInBazari } = useBazari();
+
+  // Verificar se está rodando no Bazari
+  if (!isInBazari) {
+    return <p>Abra este app no Bazari</p>;
+  }
+
+  // Obter usuário atual
+  console.log('User:', user);
+
+  // Mostrar notificação
+  const showNotification = async () => {
+    await sdk.ui.success('Operação realizada!');
+  };
+
+  // Verificar saldo
+  console.log('Saldo:', balance, 'BZR');
+
+  return (
+    <div>
+      <p>Olá, {user?.displayName}</p>
+      <p>Saldo: {balance} BZR</p>
+      <button onClick={showNotification}>Notificar</button>
+    </div>
+  );
+}
+```
+
+## Permissões
+
+Este app solicita as seguintes permissões:
+
+- `user.profile.read`: Para exibir informações do seu perfil
+- `wallet.balance.read`: Para exibir seu saldo
+
+## Configuração para Produção
+
+Antes de publicar, configure sua API Key:
+
+1. Obtenha sua API Key em: https://bazari.libervia.xyz/app/developer/api-keys
+2. Crie o arquivo `.env.production`:
+
+```bash
+# .env.production
+VITE_BAZARI_API_KEY=baz_app_xxxxxxxxxxxxxxxx
+```
+
+## Publicando no Bazari
+
+```bash
+# Validar manifesto
+npx bazari validate
+
+# Fazer build de produção (usa .env.production)
+npm run build
+
+# Publicar na App Store
+npx bazari publish
+```
+
+## Licença
+
+MIT

@@ -43,32 +43,28 @@ export default function FeedPage() {
   return (
     <>
       <PullToRefreshIndicator isRefreshing={isRefreshing} pullDistance={pullDistance} />
-      <section className="py-2 md:py-3 mobile-safe-bottom">
+      <section className="container mx-auto px-4 py-10 pt-6 mobile-safe-bottom">
         <CreatePostModal open={createPostOpen} onOpenChange={setCreatePostOpen} />
+        {/* Feed Header - Link para perfil */}
+        {profile?.handle && (
+          <div className="mb-4 flex items-center justify-between">
+            <h1 className="text-2xl font-bold hidden md:block">Feed</h1>
+            <Button variant="outline" size="sm" asChild>
+              <Link to={`/u/${profile.handle}`} className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                <span className="hidden sm:inline">Meu Perfil</span>
+                <span className="sm:hidden">Perfil</span>
+              </Link>
+            </Button>
+          </div>
+        )}
 
-        {/* Main Content - Full Width */}
-        <div className="max-w-7xl mx-auto px-4">
-          {/* Feed Header - Link para perfil */}
-          {profile?.handle && (
-            <div className="mb-4 flex items-center justify-between">
-              <h1 className="text-2xl font-bold hidden md:block">Feed</h1>
-              <Button variant="outline" size="sm" asChild>
-                <Link to={`/u/${profile.handle}`} className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  <span className="hidden sm:inline">Meu Perfil</span>
-                  <span className="sm:hidden">Perfil</span>
-                </Link>
-              </Button>
-            </div>
-          )}
-
-          <PersonalizedFeed
-            key={refreshKey}
-            showQuickPost={true}
-            userProfile={profile}
-            onCreatePost={() => setCreatePostOpen(true)}
-          />
-        </div>
+        <PersonalizedFeed
+          key={refreshKey}
+          showQuickPost={true}
+          userProfile={profile}
+          onCreatePost={() => setCreatePostOpen(true)}
+        />
       </section>
     </>
   );

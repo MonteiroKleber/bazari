@@ -197,6 +197,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // TODO: Integrar com sistema de governance/conselho para aprovação de apps
+  // Por enquanto usando role simples para admins
+  role      String   @default("USER") // "USER" | "ADMIN" | "MODERATOR"
+
   refreshTokens RefreshToken[]
 
   // Perfis (1:1) e Lojas (1:N)
@@ -241,6 +245,7 @@ model User {
   // BazariOS Developer Portal
   developerApps ThirdPartyApp[] @relation("DeveloperApps")
   appReviews    AppReview[]     @relation("AppReviews")
+  appPurchases  AppPurchase[]   @relation("UserAppPurchases")
 }
 
 model SocialAccount {
@@ -341,8 +346,8 @@ model RefreshToken {
 enum OrderStatus {
   CREATED
   PENDING
-  PENDING_BLOCKCHAIN    // Order criada no DB, aguardando sync on-chain
-  BLOCKCHAIN_FAILED     // Falha ao criar on-chain (retry pendente)
+  PENDING_BLOCKCHAIN // Order criada no DB, aguardando sync on-chain
+  BLOCKCHAIN_FAILED // Falha ao criar on-chain (retry pendente)
   ESCROWED
   SHIPPED
   RELEASED
@@ -385,6 +390,10 @@ enum NotificationType {
   ACHIEVEMENT_UNLOCKED
   GROUP_INVITE
   GROUP_JOIN_REQUEST
+  // App Store notifications
+  APP_APPROVED
+  APP_REJECTED
+  APP_UNPUBLISHED
 }
 
 // === PROPOSAL-003: Multi-Store Checkout Session ===
@@ -450,7 +459,7 @@ model Order {
   onChainStatus     String? // Cache of on-chain status (PENDING, CONFIRMED, etc)
   lastSyncedAt      DateTime? // Last time synced with blockchain
   blockchainRetries Int       @default(0) // Number of retry attempts for blockchain sync
-  blockchainError   String?   // Last error message from blockchain sync attempt
+  blockchainError   String? // Last error message from blockchain sync attempt
 
   items          OrderItem[]
   paymentIntents PaymentIntent[]
@@ -482,9 +491,9 @@ model OrderItem {
   createdAt            DateTime @default(now())
 
   // === PROPOSAL-002: Snapshot da opção de envio selecionada ===
-  shippingOptionId             String? // ID da ProductShippingOption selecionada
-  shippingMethodSnapshot       String? // Método no momento do pedido
-  shippingPriceBzrSnapshot     Decimal? @db.Decimal(30, 0) // Preço do frete em planck
+  shippingOptionId              String? // ID da ProductShippingOption selecionada
+  shippingMethodSnapshot        String? // Método no momento do pedido
+  shippingPriceBzrSnapshot      Decimal? @db.Decimal(30, 0) // Preço do frete em planck
   estimatedDeliveryDaysSnapshot Int? // Prazo no momento do pedido
 
   order Order @relation(fields: [orderId], references: [id])
@@ -553,7 +562,6 @@ model Profile {
   onChainProfileId BigInt?   @unique @db.BigInt
   reputationScore  Int       @default(0)
   reputationTier   String    @default("bronze")
-  metadataCid      String?
   isVerified       Boolean   @default(false)
   lastChainSync    DateTime?
 
@@ -586,6 +594,9 @@ model Profile {
   // === Rewards Relations (Blockchain Gamification) ===
   missionProgress UserMissionProgress[]
   cashbackGrants  CashbackGrant[]
+
+  // === Developer Apps (SDK External Apps) ===
+  developerApps DeveloperApp[] @relation("DeveloperApps")
 
   @@index([onChainProfileId])
   @@index([reputationScore])
@@ -629,20 +640,16 @@ model SellerProfile {
   version         Int?      @default(0) // versão incremental da loja on-chain
   lastSyncBlock   BigInt?   @db.BigInt // último bloco onde foi feita sincronização
   lastPublishedAt DateTime? // timestamp da última publicação on-chain
-  metadataCid     String? // CID do JSON de metadados da loja (store.json)
-  categoriesCid   String? // CID do JSON de categorias
-  categoriesHash  String? // SHA-256 do JSON de categorias
-  productsCid     String? // CID do JSON de produtos/catálogo
-  productsHash    String? // SHA-256 do JSON de produtos/catálogo
 
   // === Address for Pickup ===
   pickupAddress Json? // { street, number, complement?, city, state, zipCode, lat?, lng?, instructions? }
 
   // Relations
-  products       Product[]
-  services       ServiceOffering[]
-  publishHistory StorePublishHistory[]
-  land           Land? // VR: Relação 1:1 com terreno virtual
+  products        Product[]
+  services        ServiceOffering[]
+  publishHistory  StorePublishHistory[]
+  land            Land? // VR: Relação 1:1 com terreno virtual
+  pluginInstances PluginInstance[] // Plugins instalados na loja
 
   @@index([userId])
   @@index([onChainStoreId])
@@ -1018,32 +1025,11 @@ model StorePublishHistory {
   version         Int // versão incremental
   blockNumber     BigInt        @db.BigInt // bloco em que foi publicado
   extrinsicHash   String? // hash da extrinsic do publish_store
-  metadataCid     String // CID do JSON de metadados da loja
-  categoriesCid   String // CID do JSON de categorias
-  categoriesHash  String // SHA-256 do JSON de categorias
-  productsCid     String // CID do JSON de produtos/catálogo
-  productsHash    String // SHA-256 do JSON de produtos/catálogo
   publishedAt     DateTime      @default(now())
 
   @@index([sellerProfileId, version])
   @@index([blockNumber])
   @@index([publishedAt])
-}
-
-/// --- Store Snapshots (Cache) ---
-
-model StoreSnapshot {
-  id             String   @id @default(cuid())
-  storeId        String
-  version        Int
-  storeJson      Json
-  categoriesJson Json?
-  productsJson   Json?
-  cachedAt       DateTime @default(now())
-
-  @@unique([storeId, version])
-  @@index([storeId])
-  @@index([cachedAt])
 }
 
 // User Interactions for Feed Algorithm
@@ -1549,9 +1535,6 @@ model AffiliateMarketplace {
   theme          String  @default("bazari")
   primaryColor   String?
   secondaryColor String?
-
-  // Metadados IPFS (opcional)
-  metadataCid String?
 
   // Estatísticas (cache)
   totalSales      Int     @default(0)
@@ -2301,19 +2284,38 @@ model ThirdPartyApp {
   rating       Float?
   ratingCount  Int    @default(0)
 
+  // Monetização
+  monetizationType MonetizationType @default(FREE)
+  price            Decimal?         @db.Decimal(18, 8)
+  currency         String           @default("BZR")
+
+  // Revenue
+  totalRevenue     Decimal @default(0) @db.Decimal(18, 8)
+  developerRevenue Decimal @default(0) @db.Decimal(18, 8)
+  platformRevenue  Decimal @default(0) @db.Decimal(18, 8)
+
   // Timestamps
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   publishedAt DateTime?
 
+  // Review fields (TODO: integrar com governance/conselho)
+  submittedAt DateTime?
+  reviewedAt  DateTime?
+  reviewerId  String?
+  reviewNotes String?
+
   // Relações
-  versions    AppVersion[]
-  reviews     AppReview[]
-  submissions AppSubmission[]
+  versions       AppVersion[]
+  reviews        AppReview[]
+  submissions    AppSubmission[]
+  inAppPurchases InAppPurchase[]
+  purchases      AppPurchase[]   @relation("AppPurchases")
 
   @@index([developerId])
   @@index([category])
   @@index([status])
+  @@index([monetizationType])
 }
 
 model AppVersion {
@@ -2376,12 +2378,15 @@ model AppReview {
 
 enum AppStatus {
   DRAFT
-  PENDING_REVIEW
+  PENDING         // Aguardando início do review
+  PENDING_REVIEW  // Legacy - alias for PENDING
+  IN_REVIEW       // Em análise por reviewer
   APPROVED
   PUBLISHED
   REJECTED
   SUSPENDED
   DEPRECATED
+  UNPUBLISHED     // Removido da loja mas não deletado
 }
 
 enum VersionStatus {
@@ -2396,4 +2401,326 @@ enum SubmissionStatus {
   APPROVED
   REJECTED
   CANCELLED
+}
+
+enum MonetizationType {
+  FREE
+  PAID
+  FREEMIUM
+  SUBSCRIPTION
+}
+
+enum PurchaseType {
+  CONSUMABLE // Pode comprar múltiplas vezes
+  NON_CONSUMABLE // Compra única permanente
+  SUBSCRIPTION // Recorrente
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+  REFUNDED
+}
+
+// ========================================
+// BazariOS App Store - In-App Purchases
+// ========================================
+
+model InAppPurchase {
+  id    String        @id @default(cuid())
+  appId String
+  app   ThirdPartyApp @relation(fields: [appId], references: [id], onDelete: Cascade)
+
+  productId   String // ID único do produto no app
+  name        String
+  description String?
+  price       Decimal      @db.Decimal(18, 8)
+  currency    String       @default("BZR")
+  type        PurchaseType
+
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  purchases AppPurchase[] @relation("IAPPurchases")
+
+  @@unique([appId, productId])
+  @@index([appId])
+}
+
+model AppPurchase {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation("UserAppPurchases", fields: [userId], references: [id])
+
+  appId String
+  app   ThirdPartyApp @relation("AppPurchases", fields: [appId], references: [id])
+
+  inAppPurchaseId String?
+  inAppPurchase   InAppPurchase? @relation("IAPPurchases", fields: [inAppPurchaseId], references: [id])
+
+  type     String // "app" | "iap"
+  amount   Decimal @db.Decimal(18, 8)
+  currency String  @default("BZR")
+
+  developerShare Decimal @db.Decimal(18, 8)
+  platformShare  Decimal @db.Decimal(18, 8)
+
+  txHash String? // Hash da transação blockchain
+  status PaymentStatus @default(PENDING)
+
+  createdAt   DateTime  @default(now())
+  confirmedAt DateTime?
+
+  // Refund fields
+  refundedAt   DateTime?
+  refundReason String?
+  refundTxHash String?
+
+  @@index([userId])
+  @@index([appId])
+  @@index([status])
+}
+
+// ========================================
+// BazariOS Plugin System (Low-Code)
+// ========================================
+
+enum PluginCategory {
+  ENGAGEMENT // Fidelidade, Gamificação
+  MARKETING // Cupons, Promoções
+  OPERATIONS // Delivery, Estoque
+  PAYMENTS // Cashback, Parcelamento
+  ANALYTICS // Relatórios, Insights
+  COMMUNICATION // Chat, Notificações
+}
+
+enum PluginPricing {
+  FREE
+  PAID
+  FREEMIUM
+  USAGE_BASED
+}
+
+// Definição do plugin (template)
+model PluginDefinition {
+  id          String         @id @default(cuid())
+  slug        String         @unique // "loyalty-program"
+  name        String // "Programa de Fidelidade"
+  description String         @db.Text
+  version     String         @default("1.0.0")
+  category    PluginCategory
+
+  // Pricing
+  pricingType  PluginPricing @default(FREE)
+  priceMonthly Decimal?      @db.Decimal(18, 12)
+  pricingTiers Json? // { "basic": 0, "pro": 10 }
+
+  // Schema de configuração (JSON Schema)
+  configSchema  Json // Define campos configuráveis
+  defaultConfig Json // Valores padrão
+
+  // Componentes que o plugin usa
+  components Json // { "storePage": "LoyaltyWidget", ... }
+
+  // Hooks (eventos que disparam ações)
+  hooks Json? // { "onPurchase": "addPoints", ... }
+
+  // Smart contract associado (opcional)
+  contractAddress String?
+  contractAbi     Json?
+
+  // Metadata
+  iconUrl       String?
+  bannerUrl     String?
+  developerName String  @default("Bazari")
+  isOfficial    Boolean @default(true)
+  isActive      Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  instances PluginInstance[]
+
+  @@index([category])
+  @@index([isActive])
+  @@index([slug])
+}
+
+// Instância do plugin (configuração do lojista)
+model PluginInstance {
+  id String @id @default(cuid())
+
+  pluginId String
+  plugin   PluginDefinition @relation(fields: [pluginId], references: [id])
+
+  sellerId String
+  seller   SellerProfile @relation(fields: [sellerId], references: [id])
+
+  storeId String?
+
+  // Estado
+  enabled Boolean @default(true)
+
+  // Configuração customizada pelo lojista
+  config   Json // Valores específicos do lojista
+  branding Json? // Cores, logo, etc
+
+  // Dados runtime
+  stats Json? // Estatísticas de uso
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relação com dados de fidelidade
+  loyaltyPoints    LoyaltyPoints[]
+  pendingCashbacks PendingCashback[]
+
+  @@unique([pluginId, sellerId, storeId])
+  @@index([sellerId])
+  @@index([pluginId])
+  @@index([enabled])
+}
+
+// Pontos de fidelidade por usuário/loja
+model LoyaltyPoints {
+  id String @id @default(cuid())
+
+  instanceId String
+  instance   PluginInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  userId      String // User.id ou Profile.id
+  points      Int    @default(0)
+  totalEarned Int    @default(0) // Total acumulado (histórico)
+  tier        String @default("bronze") // bronze, silver, gold, platinum
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([instanceId, userId])
+  @@index([instanceId])
+  @@index([userId])
+  @@index([tier])
+}
+
+// Cashback pendente
+model PendingCashback {
+  id String @id @default(cuid())
+
+  pluginInstanceId String
+  pluginInstance   PluginInstance @relation(fields: [pluginInstanceId], references: [id], onDelete: Cascade)
+
+  orderId String
+  userId  String
+  amount  Decimal @db.Decimal(20, 12) // Valor em BZR (planck)
+
+  scheduledFor DateTime // Quando será creditado
+  status       CashbackStatus @default(PENDING)
+
+  creditedAt DateTime?
+  txHash     String? // Hash da transação quando creditado
+
+  createdAt DateTime @default(now())
+
+  @@index([pluginInstanceId])
+  @@index([userId])
+  @@index([orderId])
+  @@index([status])
+  @@index([scheduledFor])
+}
+
+enum CashbackStatus {
+  PENDING
+  CREDITED
+  CANCELLED
+  FAILED
+}
+
+// ============================================
+// DEVELOPER APP REGISTRY (SDK Security)
+// ============================================
+
+// Status de um app de desenvolvedor
+enum DeveloperAppStatus {
+  PENDING // Aguardando aprovação
+  APPROVED // Aprovado e ativo
+  SUSPENDED // Suspenso temporariamente
+  REJECTED // Rejeitado
+}
+
+// App registrado por um desenvolvedor
+model DeveloperApp {
+  id String @id @default(cuid())
+
+  // Relação com desenvolvedor
+  developerId String
+  developer   Profile @relation("DeveloperApps", fields: [developerId], references: [id], onDelete: Cascade)
+
+  // Informações básicas
+  name        String
+  slug        String  @unique // URL-friendly identifier
+  description String?
+  websiteUrl  String?
+
+  // Credenciais de API
+  apiKey        String  @unique // baz_app_xxxxx (produção) ou baz_test_xxxxx (sandbox)
+  secretKeyHash String? // Hash da secret key para HMAC (nunca armazena plain text)
+
+  // Segurança
+  allowedOrigins String[] // Origens permitidas para postMessage
+  permissions    String[] // Permissões concedidas (ex: wallet:read, wallet:transfer)
+
+  // Status e moderação
+  status      DeveloperAppStatus @default(PENDING)
+  reviewNotes String? // Notas do revisor
+  reviewedAt  DateTime?
+  reviewedBy  String? // Profile ID do admin que revisou
+
+  // Rate limiting customizado (opcional)
+  rateLimitCapacity   Int? // Capacidade do bucket (default: 100)
+  rateLimitRefillRate Int? // Tokens por segundo (default: 10)
+
+  // Estatísticas
+  totalRequests BigInt    @default(0)
+  lastRequestAt DateTime?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Logs de uso
+  usageLogs DeveloperAppUsageLog[]
+
+  @@index([developerId])
+  @@index([status])
+  @@index([apiKey])
+}
+
+// Log de uso de apps (para analytics e auditoria)
+model DeveloperAppUsageLog {
+  id String @id @default(cuid())
+
+  appId String
+  app   DeveloperApp @relation(fields: [appId], references: [id], onDelete: Cascade)
+
+  // Detalhes da requisição
+  messageType String // Tipo de mensagem (ex: wallet:getBalance)
+  success     Boolean
+  errorCode   String? // Código de erro se falhou
+
+  // Metadados
+  userAgent String?
+  origin    String? // Origem da requisição
+
+  // Performance
+  responseTimeMs Int? // Tempo de resposta em ms
+
+  createdAt DateTime @default(now())
+
+  @@index([appId])
+  @@index([messageType])
+  @@index([createdAt])
+  @@index([success])
 }

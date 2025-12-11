@@ -255,11 +255,6 @@ export async function meSellersRoutes(app: FastifyInstance, options: { prisma: P
         version: (store as any).version ?? null,
         lastSyncBlock: (store as any).lastSyncBlock?.toString() ?? null,
         lastPublishedAt: (store as any).lastPublishedAt ?? null,
-        metadataCid: (store as any).metadataCid ?? null,
-        categoriesCid: (store as any).categoriesCid ?? null,
-        categoriesHash: (store as any).categoriesHash ?? null,
-        productsCid: (store as any).productsCid ?? null,
-        productsHash: (store as any).productsHash ?? null,
       }),
     });
   });

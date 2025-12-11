@@ -31,7 +31,59 @@ export type MessageType =
   // Events
   | 'events:subscribe'
   | 'events:unsubscribe'
-  | 'events:emit';
+  | 'events:emit'
+
+  // Location
+  | 'location:getCurrentPosition'
+  | 'location:watchPosition'
+  | 'location:clearWatch'
+  | 'location:calculateDistance'
+  | 'location:geocode'
+  | 'location:reverseGeocode'
+
+  // Maps
+  | 'maps:create'
+  | 'maps:setCenter'
+  | 'maps:setZoom'
+  | 'maps:addMarker'
+  | 'maps:removeMarker'
+  | 'maps:clearMarkers'
+  | 'maps:drawRoute'
+  | 'maps:clearRoutes'
+  | 'maps:fitBounds'
+  | 'maps:destroy'
+  | 'maps:showFullscreen'
+  | 'maps:pickLocation'
+  | 'maps:openNavigation'
+
+  // Contracts
+  | 'contracts:deployLoyalty'
+  | 'contracts:deployEscrow'
+  | 'contracts:deployRevenueSplit'
+  | 'contracts:list'
+  | 'contracts:escrow:create'
+  | 'contracts:loyalty:issuePoints'
+  | 'contracts:loyalty:redeem'
+  | 'contracts:loyalty:transfer'
+  | 'contracts:loyalty:balanceOf'
+  | 'contracts:loyalty:tierOf'
+  | 'contracts:loyalty:totalEarnedOf'
+  | 'contracts:loyalty:getInfo'
+  | 'contracts:loyalty:addOperator'
+  | 'contracts:loyalty:removeOperator'
+  | 'contracts:escrow:fund'
+  | 'contracts:escrow:confirmDelivery'
+  | 'contracts:escrow:openDispute'
+  | 'contracts:escrow:refund'
+  | 'contracts:escrow:release'
+  | 'contracts:escrow:getStatus'
+  | 'contracts:revenueSplit:withdraw'
+  | 'contracts:revenueSplit:pendingBalance'
+  | 'contracts:revenueSplit:getParticipants'
+  | 'contracts:revenueSplit:getTotalDistributed'
+  | 'contracts:revenueSplit:addParticipant'
+  | 'contracts:revenueSplit:removeParticipant'
+  | 'contracts:revenueSplit:updateShare';
 
 /**
  * Estrutura de uma mensagem enviada pelo SDK

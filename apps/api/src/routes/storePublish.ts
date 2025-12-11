@@ -2,14 +2,6 @@ import type { FastifyInstance } from 'fastify';
 import type { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { authOnRequest } from '../lib/auth/middleware.js';
-import {
-  buildStoreJson,
-  buildCategoriesJson,
-  buildProductsJson,
-  calculateJsonHash,
-  uploadJsonToIpfs,
-} from '../lib/publishPipeline.js';
-import { fetchIpfsJson } from '../lib/ipfs.js';
 import { getStoresApi } from '../lib/storesChain.js';
 import { indexQueue } from '../lib/queue.js';
 import { Keyring } from '@polkadot/keyring';
@@ -60,22 +52,7 @@ export async function storePublishRoutes(
       });
 
       try {
-        // 3. Gerar JSONs
-        const storeJson = await buildStoreJson(prisma, store.id);
-        const categoriesJson = await buildCategoriesJson(prisma, store.id);
-        const productsJson = await buildProductsJson(prisma, store.id);
-
-        // 4. Upload IPFS
-        const storeCid = await uploadJsonToIpfs(storeJson, 'store.json');
-        const categoriesCid = await uploadJsonToIpfs(categoriesJson, 'categories.json');
-        const productsCid = await uploadJsonToIpfs(productsJson, 'products.json');
-
-        // 5. Calcular hashes
-        const storeHash = calculateJsonHash(storeJson);
-        const categoriesHash = calculateJsonHash(categoriesJson);
-        const productsHash = calculateJsonHash(productsJson);
-
-        // 6. Chamar extrinsic publish_store
+        // 3. Chamar extrinsic on-chain
         const api = await getStoresApi();
         await cryptoWaitReady();
 
@@ -93,22 +70,15 @@ export async function storePublishRoutes(
         let createdStoreId: bigint | null = null;
 
         if (isCreating) {
-          // Criar novo NFT com store CID e slug
+          // Criar novo NFT com slug (sem CID)
           const slug = store.shopSlug || store.id;
           tx = api.tx.stores.createStore(
-            Array.from(new TextEncoder().encode(storeCid)),
             Array.from(new TextEncoder().encode(slug))
           );
         } else {
-          // Atualizar NFT existente
-          tx = api.tx.stores.publishStore(
-            store.onChainStoreId!.toString(),
-            Array.from(new TextEncoder().encode(storeCid)),
-            Array.from(Buffer.from(storeHash, 'hex')),
-            Array.from(new TextEncoder().encode(categoriesCid)),
-            Array.from(Buffer.from(categoriesHash, 'hex')),
-            Array.from(new TextEncoder().encode(productsCid)),
-            Array.from(Buffer.from(productsHash, 'hex')),
+          // Incrementar versão on-chain (sem CIDs/hashes)
+          tx = api.tx.stores.incrementVersion(
+            store.onChainStoreId!.toString()
           );
         }
 
@@ -151,7 +121,7 @@ export async function storePublishRoutes(
           )
         ]);
 
-        // 7. Extrair storeId se for criação
+        // 4. Extrair storeId se for criação
         app.log.info('Extraindo dados do resultado...');
         if (isCreating) {
           const createdEvent = result.events.find(
@@ -164,14 +134,14 @@ export async function storePublishRoutes(
           app.log.info({ createdStoreId: createdStoreId.toString() }, 'Store ID criado');
         }
 
-        // 8. Extrair blockNumber do resultado
+        // 5. Extrair blockNumber do resultado
         app.log.info('Extraindo blockNumber...');
         const blockHash = result.status.asFinalized;
         const signedBlock = await api.rpc.chain.getBlock(blockHash);
         const blockNumber = signedBlock.block.header.number.toBigInt();
         app.log.info({ blockNumber: blockNumber.toString() }, 'Block number extraído');
 
-        // 9. Atualizar Postgres
+        // 6. Atualizar Postgres
         app.log.info('Atualizando banco de dados...');
         const newVersion = isCreating ? 1 : (store.version || 0) + 1;
         const updateData: any = {
@@ -179,11 +149,6 @@ export async function storePublishRoutes(
           version: newVersion,
           lastSyncBlock: blockNumber,
           lastPublishedAt: new Date(),
-          metadataCid: storeCid,
-          categoriesCid,
-          categoriesHash,
-          productsCid,
-          productsHash,
           ownerAddress: pair.address,
         };
 
@@ -198,7 +163,7 @@ export async function storePublishRoutes(
         });
         app.log.info('Banco de dados atualizado');
 
-        // 9. Salvar histórico
+        // 7. Salvar histórico
         app.log.info('Salvando histórico...');
         await prisma.storePublishHistory.create({
           data: {
@@ -206,30 +171,12 @@ export async function storePublishRoutes(
             version: newVersion,
             blockNumber,
             extrinsicHash: result.txHash?.toString() || null,
-            metadataCid: storeCid,
-            categoriesCid,
-            categoriesHash,
-            productsCid,
-            productsHash,
             publishedAt: new Date(),
           },
         });
         app.log.info('Histórico salvo');
 
-        // 10. Salvar snapshot para fallback
-        app.log.info('Salvando snapshot...');
-        await prisma.storeSnapshot.create({
-          data: {
-            storeId: store.id,
-            version: newVersion,
-            storeJson: storeJson as any,
-            categoriesJson: categoriesJson as any,
-            productsJson: productsJson as any,
-          },
-        });
-        app.log.info('Snapshot salvo');
-
-        // 11. Disparar job de indexação no OpenSearch
+        // 8. Disparar job de indexação no OpenSearch
         app.log.info('Adicionando job de indexação...');
         await indexQueue.add('index-store', {
           storeId: store.id,
@@ -242,11 +189,6 @@ export async function storePublishRoutes(
           status: 'synced',
           version: newVersion,
           blockNumber: blockNumber.toString(),
-          cids: {
-            store: storeCid,
-            categories: categoriesCid,
-            products: productsCid
-          },
         };
 
         // Adicionar storeId se for criação
@@ -303,7 +245,7 @@ export async function storePublishRoutes(
     }
   );
 
-  // POST /stores/:id/verify
+  // POST /stores/:id/verify - Simplified verification (no IPFS check)
   app.post<{ Params: { id: string } }>(
     '/stores/:id/verify',
     { preHandler: authOnRequest },
@@ -322,22 +264,17 @@ export async function storePublishRoutes(
         return reply.status(404).send({ error: 'Loja não encontrada' });
       }
 
-      if (!store.metadataCid) {
-        return reply.status(400).send({ error: 'Loja não possui metadataCid' });
+      if (!store.onChainStoreId) {
+        return reply.status(400).send({ error: 'Loja ainda não foi publicada on-chain' });
       }
 
-      // Fetch IPFS e validar hashes
-      try {
-        const storeIpfs = await fetchIpfsJson(store.metadataCid, 'stores');
-        const storeHash = calculateJsonHash(storeIpfs.metadata as object);
-
-        // TODO: comparar com hash do NFT (via uniques.attribute)
-        // Se divergente → retornar erro com detalhes
-
-        return reply.send({ status: 'SYNCED', message: 'Hashes válidos' });
-      } catch (error) {
-        return reply.status(500).send({ error: (error as Error).message });
-      }
+      // Verificação simplificada: apenas confirma que a loja existe on-chain
+      return reply.send({
+        status: 'SYNCED',
+        message: 'Loja verificada',
+        version: store.version,
+        lastPublishedAt: store.lastPublishedAt?.toISOString(),
+      });
     }
   );
 }

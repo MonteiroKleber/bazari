@@ -89,6 +89,11 @@ import { vrSessionsRoute } from './routes/vr/sessions.js';
 import authSocialRoutes from './routes/auth-social.js';
 import { socialBackupRoutes } from './routes/social-backup.js';
 import { developerRoutes } from './routes/developer.js';
+import pluginsRoutes from './routes/plugins.js';
+import { adminAppReviewRoutes } from './routes/admin-app-review.js';
+// TODO: Re-enable when App Store schema is complete
+// import { developerRevenueRoutes } from './routes/developer-revenue.js';
+// import { appStorePurchaseRoutes } from './routes/app-store-purchase.js';
 
 // Import workers with side effects
 import './workers/affiliate-stats.worker.js';
@@ -184,6 +189,12 @@ async function buildApp() {
   await app.register(userActionsRoutes, { prefix: '/', prisma });
   await app.register(analyticsRoutes, { prefix: '/', prisma });
   await app.register(affiliatesRoutes, { prefix: '/affiliates' });
+  await app.register(developerRoutes, { prefix: '/', prisma });
+  // Admin App Review routes (TODO: integrar com governance/conselho)
+  await app.register(adminAppReviewRoutes, { prefix: '/', prisma });
+  // TODO: Re-enable when App Store schema is complete
+  // await app.register(developerRevenueRoutes, { prefix: '/', prisma });
+  // await app.register(appStorePurchaseRoutes, { prefix: '/', prisma });
   // Também expor com prefixo /api para compatibilidade com o front
   await app.register(healthRoutes, { prefix: '/api', prisma });
   await app.register(mediaRoutes, { prefix: '/api', prisma, storage });
@@ -196,6 +207,11 @@ async function buildApp() {
   await app.register(socialBackupRoutes, { prefix: '/api' });
   await app.register(vrRoutes, { prefix: '/api', prisma });
   await app.register(developerRoutes, { prefix: '/api', prisma });
+  // Admin App Review routes (TODO: integrar com governance/conselho)
+  await app.register(adminAppReviewRoutes, { prefix: '/api', prisma });
+  // TODO: Re-enable when App Store schema is complete
+  // await app.register(developerRevenueRoutes, { prefix: '/api', prisma });
+  // await app.register(appStorePurchaseRoutes, { prefix: '/api', prisma });
   await app.register(ordersRoutes, { prefix: '/api', prisma });
   await app.register(profilesRoutes, { prefix: '/api', prisma });
   await app.register(sellersRoutes, { prefix: '/api', prisma });
@@ -223,6 +239,9 @@ async function buildApp() {
   await app.register(userActionsRoutes, { prefix: '/api', prisma });
   await app.register(analyticsRoutes, { prefix: '/api', prisma });
   await app.register(affiliatesRoutes, { prefix: '/api/affiliates' });
+
+  // Plugins routes (BazariOS Low-Code)
+  await app.register(pluginsRoutes, { prefix: '/api' });
 
   // Chat routes
   await app.register(chatThreadsRoutes, { prefix: '/api' });

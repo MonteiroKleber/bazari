@@ -1,0 +1,624 @@
+// path: apps/api/src/routes/app-store-purchase.ts
+// BazariOS App Store Purchase API
+
+import { FastifyInstance, FastifyPluginOptions } from 'fastify';
+import { PrismaClient, Prisma } from '@prisma/client';
+import { z } from 'zod';
+import { authOnRequest } from '../lib/auth/middleware.js';
+import { getDeveloperTier } from './developer-revenue.js';
+
+const createIAPSchema = z.object({
+  productId: z.string().min(1).max(100),
+  name: z.string().min(1).max(100),
+  description: z.string().max(500).optional(),
+  price: z.string().regex(/^\d+\.?\d*$/, 'Invalid price format'),
+  type: z.enum(['CONSUMABLE', 'NON_CONSUMABLE', 'SUBSCRIPTION']),
+});
+
+export async function appStorePurchaseRoutes(
+  app: FastifyInstance,
+  options: FastifyPluginOptions & { prisma: PrismaClient }
+) {
+  const { prisma } = options;
+
+  // POST /store/apps/:appId/purchase - Comprar app pago
+  app.post('/store/apps/:appId/purchase', {
+    onRequest: authOnRequest,
+  }, async (request, reply) => {
+    const userId = (request as any).authUser?.sub;
+    const { appId } = request.params as { appId: string };
+
+    const thirdPartyApp = await prisma.thirdPartyApp.findUnique({
+      where: { id: appId },
+    });
+
+    if (!thirdPartyApp) {
+      return reply.status(404).send({ error: 'App not found' });
+    }
+
+    if (thirdPartyApp.monetizationType === 'FREE') {
+      return reply.status(400).send({ error: 'App is free' });
+    }
+
+    if (!thirdPartyApp.price) {
+      return reply.status(400).send({ error: 'App has no price set' });
+    }
+
+    // Verificar se já comprou
+    const existingPurchase = await prisma.appPurchase.findFirst({
+      where: {
+        userId,
+        appId,
+        type: 'app',
+        status: 'CONFIRMED',
+      },
+    });
+
+    if (existingPurchase) {
+      return reply.status(400).send({ error: 'Already purchased' });
+    }
+
+    const price = thirdPartyApp.price;
+
+    // Get developer's tier based on total installs
+    const developerApps = await prisma.thirdPartyApp.findMany({
+      where: { developerId: thirdPartyApp.developerId },
+      select: { installCount: true },
+    });
+    const totalInstalls = developerApps.reduce((sum, a) => sum + a.installCount, 0);
+    const { config: tierConfig } = getDeveloperTier(totalInstalls);
+
+    // Calcular revenue share baseado no tier
+    const developerShareDecimal = new Prisma.Decimal(tierConfig.developerShare);
+    const developerShare = price.mul(developerShareDecimal);
+    const platformShare = price.sub(developerShare);
+
+    // Criar registro de compra
+    // Por enquanto, confirmamos automaticamente (simula transação blockchain)
+    const purchase = await prisma.appPurchase.create({
+      data: {
+        userId,
+        appId,
+        type: 'app',
+        amount: price,
+        developerShare,
+        platformShare,
+        status: 'CONFIRMED',
+        confirmedAt: new Date(),
+        txHash: `mock_tx_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+      },
+    });
+
+    // Atualizar métricas do app
+    await prisma.thirdPartyApp.update({
+      where: { id: appId },
+      data: {
+        totalRevenue: { increment: price },
+        developerRevenue: { increment: developerShare },
+        platformRevenue: { increment: platformShare },
+      },
+    });
+
+    return reply.status(201).send({
+      success: true,
+      purchase,
+      message: 'App purchased successfully',
+    });
+  });
+
+  // GET /store/apps/:appId/purchased - Verificar se usuário comprou
+  app.get('/store/apps/:appId/purchased', {
+    onRequest: authOnRequest,
+  }, async (request, reply) => {
+    const userId = (request as any).authUser?.sub;
+    const { appId } = request.params as { appId: string };
+
+    const purchase = await prisma.appPurchase.findFirst({
+      where: {
+        userId,
+        appId,
+        type: 'app',
+        status: 'CONFIRMED',
+      },
+    });
+
+    return {
+      purchased: !!purchase,
+      purchase,
+    };
+  });
+
+  // GET /store/apps/:appId/iaps - Listar in-app purchases de um app
+  app.get('/store/apps/:appId/iaps', async (request, reply) => {
+    const { appId } = request.params as { appId: string };
+
+    const iaps = await prisma.inAppPurchase.findMany({
+      where: {
+        appId,
+        active: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return { iaps };
+  });
+
+  // POST /store/apps/:appId/iap/:productId/purchase - Comprar in-app purchase
+  app.post('/store/apps/:appId/iap/:productId/purchase', {
+    onRequest: authOnRequest,
+  }, async (request, reply) => {
+    const userId = (request as any).authUser?.sub;
+    const { appId, productId } = request.params as { appId: string; productId: string };
+
+    const iap = await prisma.inAppPurchase.findFirst({
+      where: { appId, productId, active: true },
+      include: { app: true },
+    });
+
+    if (!iap) {
+      return reply.status(404).send({ error: 'Product not found' });
+    }
+
+    // Para NON_CONSUMABLE, verificar se já comprou
+    if (iap.type === 'NON_CONSUMABLE') {
+      const existing = await prisma.appPurchase.findFirst({
+        where: {
+          userId,
+          inAppPurchaseId: iap.id,
+          status: 'CONFIRMED',
+        },
+      });
+
+      if (existing) {
+        return reply.status(400).send({ error: 'Already purchased' });
+      }
+    }
+
+    const price = iap.price;
+
+    // Get developer's tier based on total installs
+    const developerApps = await prisma.thirdPartyApp.findMany({
+      where: { developerId: iap.app.developerId },
+      select: { installCount: true },
+    });
+    const totalInstalls = developerApps.reduce((sum, a) => sum + a.installCount, 0);
+    const { config: tierConfig } = getDeveloperTier(totalInstalls);
+
+    // Calcular revenue share baseado no tier
+    const developerShareDecimal = new Prisma.Decimal(tierConfig.developerShare);
+    const developerShare = price.mul(developerShareDecimal);
+    const platformShare = price.sub(developerShare);
+
+    const purchase = await prisma.appPurchase.create({
+      data: {
+        userId,
+        appId,
+        inAppPurchaseId: iap.id,
+        type: 'iap',
+        amount: price,
+        developerShare,
+        platformShare,
+        status: 'CONFIRMED',
+        confirmedAt: new Date(),
+        txHash: `mock_tx_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+      },
+    });
+
+    // Atualizar métricas do app
+    await prisma.thirdPartyApp.update({
+      where: { id: appId },
+      data: {
+        totalRevenue: { increment: price },
+        developerRevenue: { increment: developerShare },
+        platformRevenue: { increment: platformShare },
+      },
+    });
+
+    return reply.status(201).send({
+      success: true,
+      purchase,
+      message: 'In-app purchase completed',
+    });
+  });
+
+  // GET /store/apps/:appId/iap/:productId/purchased - Verificar IAP comprado
+  app.get('/store/apps/:appId/iap/:productId/purchased', {
+    onRequest: authOnRequest,
+  }, async (request, reply) => {
+    const userId = (request as any).authUser?.sub;
+    const { appId, productId } = request.params as { appId: string; productId: string };
+
+    const iap = await prisma.inAppPurchase.findFirst({
+      where: { appId, productId },
+    });
+
+    if (!iap) {
+      return reply.status(404).send({ error: 'Product not found' });
+    }
+
+    const purchase = await prisma.appPurchase.findFirst({
+      where: {
+        userId,
+        inAppPurchaseId: iap.id,
+        status: 'CONFIRMED',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return {
+      purchased: !!purchase,
+      purchase,
+    };
+  });
+
+  // ========================================
+  // Developer endpoints para gerenciar IAPs
+  // ========================================
+
+  // POST /developer/apps/:appId/iaps - Criar in-app purchase
+  app.post('/developer/apps/:appId/iaps', {
+    onRequest: authOnRequest,
+  }, async (request, reply) => {
+    const userId = (request as any).authUser?.sub;
+    const { appId } = request.params as { appId: string };
+
+    const validation = createIAPSchema.safeParse(request.body);
+    if (!validation.success) {
+      return reply.status(400).send({
+        error: 'Validation failed',
+        details: validation.error.flatten(),
+      });
+    }
+
+    const body = validation.data;
+
+    // Verificar se o app pertence ao dev
+    const thirdPartyApp = await prisma.thirdPartyApp.findFirst({
+      where: { id: appId, developerId: userId },
+    });
+
+    if (!thirdPartyApp) {
+      return reply.status(404).send({ error: 'App not found' });
+    }
+
+    // Verificar se productId já existe
+    const existing = await prisma.inAppPurchase.findFirst({
+      where: { appId, productId: body.productId },
+    });
+
+    if (existing) {
+      return reply.status(400).send({ error: 'Product ID already exists' });
+    }
+
+    const iap = await prisma.inAppPurchase.create({
+      data: {
+        appId,
+        productId: body.productId,
+        name: body.name,
+        description: body.description || null,
+        price: new Prisma.Decimal(body.price),
+        type: body.type,
+      },
+    });
+
+    return reply.status(201).send({ iap });
+  });
+
+  // GET /developer/apps/:appId/iaps - Listar IAPs do dev
+  app.get('/developer/apps/:appId/iaps', {
+    onRequest: authOnRequest,
+  }, async (request, reply) => {
+    const userId = (request as any).authUser?.sub;
+    const { appId } = request.params as { appId: string };
+
+    const thirdPartyApp = await prisma.thirdPartyApp.findFirst({
+      where: { id: appId, developerId: userId },
+    });
+
+    if (!thirdPartyApp) {
+      return reply.status(404).send({ error: 'App not found' });
+    }
+
+    const iaps = await prisma.inAppPurchase.findMany({
+      where: { appId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        _count: {
+          select: { purchases: true },
+        },
+      },
+    });
+
+    return { iaps };
+  });
+
+  // PUT /developer/apps/:appId/iaps/:iapId - Atualizar IAP
+  app.put('/developer/apps/:appId/iaps/:iapId', {
+    onRequest: authOnRequest,
+  }, async (request, reply) => {
+    const userId = (request as any).authUser?.sub;
+    const { appId, iapId } = request.params as { appId: string; iapId: string };
+
+    const thirdPartyApp = await prisma.thirdPartyApp.findFirst({
+      where: { id: appId, developerId: userId },
+    });
+
+    if (!thirdPartyApp) {
+      return reply.status(404).send({ error: 'App not found' });
+    }
+
+    const body = request.body as {
+      name?: string;
+      description?: string;
+      price?: string;
+      active?: boolean;
+    };
+
+    const iap = await prisma.inAppPurchase.update({
+      where: { id: iapId },
+      data: {
+        name: body.name,
+        description: body.description,
+        price: body.price ? new Prisma.Decimal(body.price) : undefined,
+        active: body.active,
+      },
+    });
+
+    return { iap };
+  });
+
+  // DELETE /developer/apps/:appId/iaps/:iapId - Desativar IAP
+  app.delete('/developer/apps/:appId/iaps/:iapId', {
+    onRequest: authOnRequest,
+  }, async (request, reply) => {
+    const userId = (request as any).authUser?.sub;
+    const { appId, iapId } = request.params as { appId: string; iapId: string };
+
+    const thirdPartyApp = await prisma.thirdPartyApp.findFirst({
+      where: { id: appId, developerId: userId },
+    });
+
+    if (!thirdPartyApp) {
+      return reply.status(404).send({ error: 'App not found' });
+    }
+
+    // Soft delete - apenas desativa
+    await prisma.inAppPurchase.update({
+      where: { id: iapId },
+      data: { active: false },
+    });
+
+    return { success: true };
+  });
+
+  // ========================================
+  // Refund System
+  // ========================================
+
+  const REFUND_WINDOW_HOURS = 24; // 24 hours refund window
+
+  // POST /store/purchases/:purchaseId/refund - Request refund
+  app.post('/store/purchases/:purchaseId/refund', {
+    onRequest: authOnRequest,
+  }, async (request, reply) => {
+    const userId = (request as any).authUser?.sub;
+    const { purchaseId } = request.params as { purchaseId: string };
+    const { reason } = request.body as { reason?: string };
+
+    const purchase = await prisma.appPurchase.findFirst({
+      where: {
+        id: purchaseId,
+        userId,
+        status: 'CONFIRMED',
+      },
+      include: {
+        app: true,
+      },
+    });
+
+    if (!purchase) {
+      return reply.status(404).send({ error: 'Purchase not found' });
+    }
+
+    // Check if already refunded
+    if (purchase.refundedAt) {
+      return reply.status(400).send({ error: 'Purchase already refunded' });
+    }
+
+    // Check refund window (24 hours)
+    const purchaseTime = purchase.confirmedAt || purchase.createdAt;
+    const hoursSincePurchase = (Date.now() - purchaseTime.getTime()) / (1000 * 60 * 60);
+
+    if (hoursSincePurchase > REFUND_WINDOW_HOURS) {
+      return reply.status(400).send({
+        error: `Refund window expired. Refunds must be requested within ${REFUND_WINDOW_HOURS} hours of purchase.`,
+        hoursSincePurchase: Math.round(hoursSincePurchase * 10) / 10,
+      });
+    }
+
+    // Process refund
+    const refundedPurchase = await prisma.appPurchase.update({
+      where: { id: purchaseId },
+      data: {
+        status: 'REFUNDED',
+        refundedAt: new Date(),
+        refundReason: reason || 'User requested refund',
+      },
+    });
+
+    // Revert revenue from app
+    await prisma.thirdPartyApp.update({
+      where: { id: purchase.appId },
+      data: {
+        totalRevenue: { decrement: purchase.amount },
+        developerRevenue: { decrement: purchase.developerShare },
+        platformRevenue: { decrement: purchase.platformShare },
+      },
+    });
+
+    // Create notification for developer
+    await prisma.notification.create({
+      data: {
+        userId: purchase.app.developerId,
+        type: 'PURCHASE_REFUNDED',
+        title: 'Purchase Refunded',
+        message: `A purchase of "${purchase.app.name}" was refunded. Amount: ${purchase.amount} BZR`,
+        data: JSON.stringify({
+          purchaseId: purchase.id,
+          appId: purchase.appId,
+          amount: Number(purchase.amount),
+          reason: reason || 'User requested refund',
+        }),
+      },
+    });
+
+    return {
+      success: true,
+      refund: {
+        purchaseId: refundedPurchase.id,
+        amount: Number(refundedPurchase.amount),
+        refundedAt: refundedPurchase.refundedAt,
+        reason: refundedPurchase.refundReason,
+      },
+      message: 'Refund processed successfully',
+    };
+  });
+
+  // GET /store/purchases/:purchaseId/refund-eligibility - Check refund eligibility
+  app.get('/store/purchases/:purchaseId/refund-eligibility', {
+    onRequest: authOnRequest,
+  }, async (request, reply) => {
+    const userId = (request as any).authUser?.sub;
+    const { purchaseId } = request.params as { purchaseId: string };
+
+    const purchase = await prisma.appPurchase.findFirst({
+      where: {
+        id: purchaseId,
+        userId,
+      },
+      include: {
+        app: { select: { name: true } },
+      },
+    });
+
+    if (!purchase) {
+      return reply.status(404).send({ error: 'Purchase not found' });
+    }
+
+    if (purchase.status === 'REFUNDED') {
+      return {
+        eligible: false,
+        reason: 'Purchase already refunded',
+        purchase: {
+          id: purchase.id,
+          appName: purchase.app.name,
+          amount: Number(purchase.amount),
+          refundedAt: purchase.refundedAt,
+        },
+      };
+    }
+
+    if (purchase.status !== 'CONFIRMED') {
+      return {
+        eligible: false,
+        reason: `Purchase status is ${purchase.status}`,
+        purchase: {
+          id: purchase.id,
+          appName: purchase.app.name,
+          amount: Number(purchase.amount),
+          status: purchase.status,
+        },
+      };
+    }
+
+    const purchaseTime = purchase.confirmedAt || purchase.createdAt;
+    const hoursSincePurchase = (Date.now() - purchaseTime.getTime()) / (1000 * 60 * 60);
+    const hoursRemaining = REFUND_WINDOW_HOURS - hoursSincePurchase;
+
+    if (hoursSincePurchase > REFUND_WINDOW_HOURS) {
+      return {
+        eligible: false,
+        reason: `Refund window expired (${REFUND_WINDOW_HOURS}h limit)`,
+        hoursSincePurchase: Math.round(hoursSincePurchase * 10) / 10,
+        purchase: {
+          id: purchase.id,
+          appName: purchase.app.name,
+          amount: Number(purchase.amount),
+          purchasedAt: purchaseTime,
+        },
+      };
+    }
+
+    return {
+      eligible: true,
+      hoursRemaining: Math.round(hoursRemaining * 10) / 10,
+      refundWindowHours: REFUND_WINDOW_HOURS,
+      purchase: {
+        id: purchase.id,
+        appName: purchase.app.name,
+        amount: Number(purchase.amount),
+        purchasedAt: purchaseTime,
+      },
+    };
+  });
+
+  // GET /store/me/purchases - Get user's purchase history
+  app.get('/store/me/purchases', {
+    onRequest: authOnRequest,
+  }, async (request, reply) => {
+    const userId = (request as any).authUser?.sub;
+    const { page, limit, status } = request.query as {
+      page?: string;
+      limit?: string;
+      status?: string;
+    };
+
+    const pageNum = parseInt(page || '1', 10);
+    const limitNum = Math.min(parseInt(limit || '20', 10), 100);
+    const skip = (pageNum - 1) * limitNum;
+
+    const where: any = { userId };
+    if (status) {
+      where.status = status;
+    }
+
+    const [purchases, total] = await Promise.all([
+      prisma.appPurchase.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limitNum,
+        include: {
+          app: { select: { id: true, name: true, icon: true, slug: true } },
+          inAppPurchase: { select: { productId: true, name: true } },
+        },
+      }),
+      prisma.appPurchase.count({ where }),
+    ]);
+
+    return {
+      purchases: purchases.map((p) => ({
+        id: p.id,
+        type: p.type,
+        status: p.status,
+        amount: Number(p.amount),
+        currency: p.currency,
+        app: p.app,
+        product: p.inAppPurchase,
+        purchasedAt: p.confirmedAt || p.createdAt,
+        refundedAt: p.refundedAt,
+        refundReason: p.refundReason,
+        refundEligible:
+          p.status === 'CONFIRMED' &&
+          !p.refundedAt &&
+          (Date.now() - (p.confirmedAt || p.createdAt).getTime()) / (1000 * 60 * 60) <= REFUND_WINDOW_HOURS,
+      })),
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum),
+      },
+    };
+  });
+}

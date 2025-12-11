@@ -1,24 +1,28 @@
-# @bazari/app-sdk
+# @bazari.libervia.xyz/app-sdk
 
 SDK oficial para desenvolvimento de apps no ecossistema Bazari.
 
 ## Instalação
 
 ```bash
-npm install @bazari/app-sdk
+npm install @bazari.libervia.xyz/app-sdk
 # ou
-yarn add @bazari/app-sdk
+yarn add @bazari.libervia.xyz/app-sdk
 # ou
-pnpm add @bazari/app-sdk
+pnpm add @bazari.libervia.xyz/app-sdk
 ```
 
 ## Uso Básico
 
 ```typescript
-import { BazariSDK } from '@bazari/app-sdk';
+import { BazariSDK } from '@bazari.libervia.xyz/app-sdk';
 
 // Inicializar SDK
-const sdk = new BazariSDK();
+// API Key é opcional no Developer Preview, obrigatória em produção
+const sdk = new BazariSDK({
+  apiKey: import.meta.env.VITE_BAZARI_API_KEY,  // Variável de ambiente
+  debug: import.meta.env.DEV,                    // Logs em desenvolvimento
+});
 
 // Verificar se está no Bazari
 if (!sdk.isInBazari()) {
@@ -29,13 +33,37 @@ if (!sdk.isInBazari()) {
 const user = await sdk.auth.getCurrentUser();
 console.log('Usuário:', user.displayName);
 
-// Verificar saldo
-const balance = await sdk.wallet.getBalance();
-console.log('Saldo BZR:', balance.formatted.bzr);
+// Verificar saldo (retorna array de SDKBalance)
+const balances = await sdk.wallet.getBalance();
+const bzrBalance = balances.find(b => b.symbol === 'BZR');
+console.log('Saldo BZR:', bzrBalance?.formatted);
 
 // Mostrar notificação
 await sdk.ui.success('Bem-vindo ao app!');
 ```
+
+## Configuração de API Key
+
+A API Key identifica seu app e controla suas permissões.
+
+### Desenvolvimento (Preview Mode)
+No Developer Preview, a API Key é **opcional**:
+```bash
+npm run dev
+# Testar em https://bazari.libervia.xyz/app/developer/preview
+```
+
+### Produção
+Para apps publicados, a API Key é **obrigatória**:
+
+1. Obtenha sua API Key em: https://bazari.libervia.xyz/app/developer/api-keys
+2. Crie o arquivo `.env.production`:
+```bash
+VITE_BAZARI_API_KEY=baz_app_xxxxxxxxxxxxxxxx
+```
+3. Build: `npm run build`
+
+> **Importante:** Nunca commite sua API Key no repositório. Use variáveis de ambiente.
 
 ## APIs Disponíveis
 
@@ -159,7 +187,7 @@ import type {
   SDKTransaction,
   SDKPermissions,
   BazariEvent
-} from '@bazari/app-sdk';
+} from '@bazari.libervia.xyz/app-sdk';
 ```
 
 ## Debug Mode

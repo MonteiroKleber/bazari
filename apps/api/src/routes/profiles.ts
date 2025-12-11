@@ -42,7 +42,6 @@ export async function profilesRoutes(app: FastifyInstance, options: { prisma: Pr
         onChainProfileId: true,
         reputationScore: true,
         reputationTier: true,
-        metadataCid: true,
         isVerified: true,
         lastChainSync: true,
       },

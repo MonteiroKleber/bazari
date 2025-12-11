@@ -28,6 +28,7 @@ import { clearSession } from "@/modules/auth/session";
 import { toast } from "sonner";
 import { apiHelpers } from "@/lib/api";
 import { useIsDAOMember } from "@/hooks/useIsDAOMember";
+import { useUserAppsStore } from "@/platform/store";
 // import { WalletMenu } from "./WalletMenu"; // placeholder futuro
 
 /**
@@ -43,10 +44,11 @@ export function AppHeader() {
   const [loadingProfile, setLoadingProfile] = React.useState(true);
   const [loggingOut, setLoggingOut] = React.useState(false);
   const isDAOMember = useIsDAOMember();
+  const { isInstalled } = useUserAppsStore();
 
   const isActive = (path: string) => {
-    if (path === '/app') {
-      return location.pathname === '/app' || location.pathname === '/app/dashboard';
+    if (path === '/app/hub') {
+      return location.pathname === '/app' || location.pathname === '/app/hub' || location.pathname === '/app/dashboard';
     }
     return location.pathname.startsWith(path);
   };
@@ -59,9 +61,11 @@ export function AppHeader() {
   ];
 
   // Secondary navigation - accessed via dropdown "Mais"
+  // Condiciona links baseado nos apps instalados
   const baseSecondaryLinks = [
-    { to: '/app', label: t('nav.dashboard', { defaultValue: 'Dashboard' }), checkActive: () => isActive('/app') && !location.pathname.includes('/sellers') && !location.pathname.includes('/wallet') && !location.pathname.includes('/p2p') && !location.pathname.includes('/feed') && !location.pathname.includes('/chat') },
-    { to: '/app/sellers', label: t('nav.myStores', { defaultValue: 'Minhas Lojas' }), checkActive: () => isActive('/app/sellers') || isActive('/app/seller') },
+    { to: '/app/hub', label: t('nav.home', { defaultValue: 'Home' }), checkActive: () => isActive('/app/hub') },
+    // Minhas Lojas - só aparece se o app 'stores' estiver instalado
+    ...(isInstalled('stores') ? [{ to: '/app/sellers', label: t('nav.myStores', { defaultValue: 'Minhas Lojas' }), checkActive: () => isActive('/app/sellers') || isActive('/app/seller') }] : []),
     { to: '/app/wallet', label: t('nav.wallet', { defaultValue: 'Wallet' }), checkActive: () => isActive('/app/wallet') },
     { to: '/app/p2p', label: t('nav.p2p', { defaultValue: 'P2P' }), checkActive: () => isActive('/app/p2p') },
   ];
@@ -228,8 +232,8 @@ export function AppHeader() {
             </SheetContent>
           </Sheet>
 
-          {/* Logo - link para dashboard */}
-          <Link to="/app" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+          {/* Logo - link para Home */}
+          <Link to="/app/hub" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <span className="text-primary-foreground font-bold">B</span>
             </div>
@@ -306,15 +310,18 @@ export function AppHeader() {
         <>
           {/* Ações internas */}
           <div className="hidden md:flex items-center gap-3">
-            {/* Rewards Widgets */}
-            <Link to="/app/rewards/streaks" className="hover:opacity-80 transition-opacity">
-              <StreakWidgetCompact />
-            </Link>
-            <Link to="/app/rewards/cashback" className="hover:opacity-80 transition-opacity">
-              <CashbackBalanceCompact />
-            </Link>
-
-            <div className="w-px h-6 bg-border" /> {/* Separator */}
+            {/* Rewards Widgets - só aparece se o app 'rewards' estiver instalado */}
+            {isInstalled('rewards') && (
+              <>
+                <Link to="/app/rewards/streaks" className="hover:opacity-80 transition-opacity">
+                  <StreakWidgetCompact />
+                </Link>
+                <Link to="/app/rewards/cashback" className="hover:opacity-80 transition-opacity">
+                  <CashbackBalanceCompact />
+                </Link>
+                <div className="w-px h-6 bg-border" /> {/* Separator */}
+              </>
+            )}
 
             <CreatePostButton />
             <ApiHealth />

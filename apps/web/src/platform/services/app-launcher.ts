@@ -115,11 +115,22 @@ export function isExternalApp(app: BazariApp): boolean {
 }
 
 /**
- * Verifica se um app pode ser lançado (tem componente ou é externo)
+ * Verifica se um app pode ser lançado (tem componente, é externo, ou é iframe)
  */
 export function canLaunchApp(app: BazariApp): boolean {
   if (app.launchMode === 'external') {
     return !!app.externalUrl;
   }
+  if (app.launchMode === 'iframe') {
+    // Apps iframe usam bundleUrl (IPFS) e entryPoint para navegação
+    return !!(app.bundleUrl || app.entryPoint);
+  }
   return !!app.component;
+}
+
+/**
+ * Verifica se um app é iframe (terceiros via IPFS)
+ */
+export function isIframeApp(app: BazariApp): boolean {
+  return app.launchMode === 'iframe';
 }

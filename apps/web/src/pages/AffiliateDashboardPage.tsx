@@ -56,7 +56,6 @@ interface Marketplace {
   secondaryColor: string | null;
   isActive: boolean;
   isPublic: boolean;
-  metadataCid: string | null;
   products: MarketplaceProduct[];
   stats: MarketplaceStats;
   createdAt: number;

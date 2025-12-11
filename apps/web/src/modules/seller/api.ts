@@ -17,11 +17,6 @@ export interface SellerProfileDto {
   version?: number | null;
   lastSyncBlock?: string | number | null;
   lastPublishedAt?: string | null;
-  metadataCid?: string | null;
-  categoriesCid?: string | null;
-  categoriesHash?: string | null;
-  productsCid?: string | null;
-  productsHash?: string | null;
   onChainReputation?: {
     sales?: number | null;
     positive?: number | null;
@@ -112,7 +107,7 @@ export const sellerApi = {
     storeId: string,
     payload: { signerMnemonic: string }
   ) => {
-    return postJSON<{ status: string; version: number; blockNumber: string; cids: { store: string; categories: string; products: string } }>(
+    return postJSON<{ status: string; version: number; blockNumber: string; storeId?: string }>(
       `/stores/${encodeURIComponent(storeId)}/publish`,
       payload,
       undefined, // extraHeaders

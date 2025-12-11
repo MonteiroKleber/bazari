@@ -286,8 +286,9 @@ export function CreateAccount() {
 
         await fetchProfile().catch(() => null);
 
-        // Redirecionar direto para /app (zero-friction)
-        navigate('/app');
+        // Ir para Step 4 (review) - mostrar chave pública antes de entrar
+        setPinValue(values.pin);
+        setStep(4);
         return;
       } catch (err) {
         console.error('[OAuth Account Creation] Error:', err);

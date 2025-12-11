@@ -3,10 +3,12 @@
 
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, Navigate, useLocation } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Initialize BazariOS App Registry
 import { initializeAppRegistry } from '@/platform/registry';
 initializeAppRegistry();
+import { UserAppsSync } from '@/platform/components/UserAppsSync';
 import { useTranslation } from 'react-i18next';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { Header } from './components/Header';
@@ -46,7 +48,8 @@ import { Button } from './components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
 import { WalletHome } from './modules/wallet/pages/WalletHome';
 import { hasEncryptedSeed, isSessionActive } from '@/modules/auth';
-import DashboardPage from './pages/DashboardPage';
+// DashboardPage replaced by AppHubPage - kept for reference
+// import DashboardPage from './pages/DashboardPage';
 import ProfileEditPage from './pages/ProfileEditPage';
 import ProfilePublicPage from './pages/ProfilePublicPage';
 import DiscoverPeoplePage from './pages/DiscoverPeoplePage';
@@ -86,6 +89,8 @@ import { CommissionPolicyPage } from './pages/seller/CommissionPolicyPage';
 import { AffiliatesPage } from './pages/seller/AffiliatesPage';
 import { CommissionAnalyticsPage } from './pages/seller/CommissionAnalyticsPage';
 import { SaleDetailPage } from './pages/seller/SaleDetailPage';
+import SellerPluginsPage from './pages/seller/SellerPluginsPage';
+import PluginCatalogPage from './pages/seller/PluginCatalogPage';
 import { MyAffiliationsPage } from './pages/promoter/MyAffiliationsPage';
 import { useChat } from './hooks/useChat';
 import { getAccessToken, refreshSession } from './modules/auth/session';
@@ -139,11 +144,47 @@ import TestRewardsHeader from './pages/TestRewardsHeader';
 import AppHubPage from './pages/AppHubPage';
 import AppStorePage from './pages/AppStorePage';
 import AppDetailPage from './pages/AppDetailPage';
+import AppSettingsPage from './pages/settings/AppSettingsPage';
 
 // Developer Portal pages
 import DevPortalDashboardPage from './pages/developer/DevPortalDashboardPage';
 import NewAppPage from './pages/developer/NewAppPage';
 import AppDetailDevPage from './pages/developer/AppDetailDevPage';
+import RevenueDashboardPage from './pages/developer/RevenueDashboardPage';
+import AppMonetizationPage from './pages/developer/AppMonetizationPage';
+import DocsPage from './pages/developer/DocsPage';
+import DocContentPage from './pages/developer/DocContentPage';
+import TemplatesPage from './pages/developer/TemplatesPage';
+import TemplateDetailPage from './pages/developer/TemplateDetailPage';
+import ComponentsPage from './pages/developer/ComponentsPage';
+import SupportPage from './pages/developer/SupportPage';
+import AppAnalyticsPage from './pages/developer/AppAnalyticsPage';
+import ApiKeysPage from './pages/developer/ApiKeysPage';
+import DevPreviewPage from './pages/developer/DevPreviewPage';
+import CliAuthPage from './pages/developer/CliAuthPage';
+
+// App Store - Additional pages
+import CategoryPage from './pages/store/CategoryPage';
+import SearchAppsPage from './pages/store/SearchAppsPage';
+import FeaturedAppsPage from './pages/store/FeaturedAppsPage';
+
+// External App Sandbox
+import ExternalAppPage from './pages/external/ExternalAppPage';
+
+// Admin pages
+import AdminAppReviewPage from './pages/admin/AdminAppReviewPage';
+import AdminDashboardPage from './pages/admin/AdminDashboardPage';
+import AdminAppStoreAnalyticsPage from './pages/admin/AdminAppStoreAnalyticsPage';
+
+// Create QueryClient instance for react-query
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      retry: 1,
+    },
+  },
+});
 
 function LandingPage() {
   const { t } = useTranslation();
@@ -351,9 +392,11 @@ function AppInitializer() {
 function App() {
 
   return (
-    <ThemeProvider>
-      <BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <BrowserRouter>
         <AppInitializer />
+        <UserAppsSync />
         <div className="min-h-screen bg-background">
           <Toaster position="top-right" richColors />
           <SessionBoundary />
@@ -396,6 +439,9 @@ function App() {
             <Route path="/auth/recover-pin" element={<RecoverPin />} />
             <Route path="/auth/device-link" element={<DeviceLink />} />
 
+            {/* CLI Auth - Public route for CLI browser login */}
+            <Route path="/cli-auth" element={<CliAuthPage />} />
+
             {/* Delivery - Public landing page */}
             <Route path="/delivery" element={<DeliveryLandingPage />} />
 
@@ -424,8 +470,9 @@ function App() {
                 <RequireAuth>
                   <AppLayout>
                     <Routes>
-                      <Route index element={<DashboardPage />} />
-                      <Route path="dashboard" element={<DashboardPage />} />
+                      {/* Redirect /app to /app/hub (new Home) */}
+                      <Route index element={<Navigate to="/app/hub" replace />} />
+                      <Route path="dashboard" element={<Navigate to="/app/hub" replace />} />
                       <Route path="feed" element={<FeedPage />} />
                       <Route path="notifications" element={<NotificationsPage />} />
                       <Route path="profile/edit" element={<ProfileEditPage />} />
@@ -443,7 +490,11 @@ function App() {
                       <Route path="orders/:id/pay" element={<OrderPayPage />} />
                       <Route path="orders/:id" element={<OrderPage />} />
                       <Route path="orders/:orderId/escrow" element={<EscrowManagementPage />} />
+                      {/* Admin Panel routes */}
+                      <Route path="admin" element={<AdminDashboardPage />} />
                       <Route path="admin/escrows" element={<AdminEscrowDashboard />} />
+                      <Route path="admin/app-reviews" element={<AdminAppReviewPage />} />
+                      <Route path="admin/analytics" element={<AdminAppStoreAnalyticsPage />} />
                       <Route path="p2p" element={<P2PHomePage />} />
                       <Route path="p2p/my-orders" element={<P2PMyOrdersPage />} />
                       <Route path="p2p/offers/new" element={<P2POfferNewPage />} />
@@ -459,6 +510,8 @@ function App() {
                       <Route path="seller/commission-policy" element={<CommissionPolicyPage />} />
                       <Route path="seller/affiliates" element={<AffiliatesPage />} />
                       <Route path="seller/commissions" element={<CommissionAnalyticsPage />} />
+                      <Route path="seller/plugins/catalog" element={<PluginCatalogPage />} />
+                      <Route path="seller/plugins" element={<SellerPluginsPage />} />
                       <Route path="sales/:saleId" element={<SaleDetailPage />} />
                       <Route path="promoter/affiliates" element={<MyAffiliationsPage />} />
                       <Route path="affiliate/dashboard" element={<AffiliateDashboardPage />} />
@@ -507,11 +560,29 @@ function App() {
                       <Route path="hub" element={<AppHubPage />} />
                       <Route path="store" element={<AppStorePage />} />
                       <Route path="store/:appId" element={<AppDetailPage />} />
+                      <Route path="store/categories/:category" element={<CategoryPage />} />
+                      <Route path="store/search" element={<SearchAppsPage />} />
+                      <Route path="store/featured" element={<FeaturedAppsPage />} />
+                      <Route path="settings/apps" element={<AppSettingsPage />} />
+
+                      {/* External App Sandbox */}
+                      <Route path="external/:appId/*" element={<ExternalAppPage />} />
 
                       {/* Developer Portal routes */}
                       <Route path="developer" element={<DevPortalDashboardPage />} />
                       <Route path="developer/new" element={<NewAppPage />} />
                       <Route path="developer/apps/:id" element={<AppDetailDevPage />} />
+                      <Route path="developer/apps/:id/monetization" element={<AppMonetizationPage />} />
+                      <Route path="developer/apps/:id/analytics" element={<AppAnalyticsPage />} />
+                      <Route path="developer/api-keys" element={<ApiKeysPage />} />
+                      <Route path="developer/preview" element={<DevPreviewPage />} />
+                      <Route path="developer/revenue" element={<RevenueDashboardPage />} />
+                      <Route path="developer/docs" element={<DocsPage />} />
+                      <Route path="developer/docs/*" element={<DocContentPage />} />
+                      <Route path="developer/templates" element={<TemplatesPage />} />
+                      <Route path="developer/templates/:templateId" element={<TemplateDetailPage />} />
+                      <Route path="developer/components" element={<ComponentsPage />} />
+                      <Route path="developer/support" element={<SupportPage />} />
 
                       {/* Futuras rotas internas */}
                       {/* <Route path="dashboard" element={<Dashboard />} /> */}
@@ -526,6 +597,7 @@ function App() {
         </div>
       </BrowserRouter>
     </ThemeProvider>
+    </QueryClientProvider>
   );
 }
 

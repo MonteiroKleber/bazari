@@ -12,6 +12,8 @@ import { discoverApp } from '@/apps/discover/manifest';
 import { affiliatesApp } from '@/apps/affiliates/manifest';
 import { storesApp } from '@/apps/stores/manifest';
 import { vrApp } from '@/apps/vr/manifest';
+import { developerPortalApp } from '@/apps/developer-portal/manifest';
+import { adminPanelApp } from '@/apps/admin-panel/manifest';
 
 import type { BazariApp } from '../types';
 
@@ -33,6 +35,8 @@ export const NATIVE_APPS: BazariApp[] = [
   affiliatesApp,
   storesApp,
   vrApp,
+  developerPortalApp,
+  adminPanelApp,
 ];
 
 /**

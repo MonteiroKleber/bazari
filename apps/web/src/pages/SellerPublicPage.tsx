@@ -23,6 +23,7 @@ import { StoreSidebarAdvanced } from '@/modules/store/StoreSidebarAdvanced';
 import { StoreFiltersDrawer } from '@/modules/store/StoreFiltersDrawer';
 import { StoreTopBar } from '@/modules/store/StoreTopBar';
 import { applyPageSeo, buildStoreJsonLd, injectJsonLd } from '@/lib/seo';
+import { PluginRenderer } from '@/components/plugins';
 import { API_BASE_URL, FEATURE_FLAGS } from '@/config';
 import { useElementSize } from '@/modules/store/useElementSize';
 
@@ -662,6 +663,15 @@ export default function SellerPublicPage({ mode = 'default' }: SellerPublicPageP
               owner={owner}
               onChainReputation={profile?.onChainReputation ?? null}
               onChainStoreId={profile?.onChainStoreId != null ? String(profile.onChainStoreId) : null}
+            />
+          )}
+
+          {/* Plugin Widgets - Store Page */}
+          {profile?.id && (
+            <PluginRenderer
+              storeId={profile.id}
+              position="storePage"
+              className="space-y-4"
             />
           )}
 

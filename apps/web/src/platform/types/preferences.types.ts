@@ -30,7 +30,7 @@ export interface UserAppPreferences {
  * Preferências padrão para novos usuários
  */
 export const DEFAULT_USER_PREFERENCES: UserAppPreferences = {
-  installedApps: ['wallet', 'marketplace', 'feed'],
+  installedApps: ['wallet', 'marketplace', 'feed', 'bazchat', 'p2p', 'stores'],
   pinnedApps: [],
   appOrder: {},
   grantedPermissions: {},

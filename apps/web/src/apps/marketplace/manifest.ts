@@ -14,7 +14,7 @@ export const marketplaceApp: BazariApp = {
   category: 'commerce',
   tags: ['compras', 'vendas', 'produtos', 'loja'],
 
-  entryPoint: '/app/marketplace',
+  entryPoint: '/search?sort=relevance',
   component: lazy(() => import('@/pages/MarketplacePage')),
 
   permissions: [

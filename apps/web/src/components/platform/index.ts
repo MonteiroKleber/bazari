@@ -8,3 +8,4 @@ export { AppSearch } from './AppSearch';
 export { AppEmptyState } from './AppEmptyState';
 export { AppInstalledBadge } from './AppInstalledBadge';
 export { AppIframe } from './AppIframe';
+export { AppPurchaseButton } from './AppPurchaseButton';

@@ -1,9 +1,9 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Star, Download, Trash2 } from 'lucide-react';
+import { ArrowLeft, Star, Download, Trash2, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { AppIcon, PermissionList, AppInstallModal } from '@/components/platform';
+import { AppIcon, PermissionList, AppInstallModal, AppPurchaseButton } from '@/components/platform';
 import { appRegistry } from '@/platform/registry';
 import { useAppInstall, useAppPermissions, useAppLauncher } from '@/platform/hooks';
 import { isExternalApp } from '@/platform/services';
@@ -98,6 +98,19 @@ export default function AppDetailPage() {
         </div>
       </div>
 
+      {/* Price Badge */}
+      {app.monetizationType && app.monetizationType !== 'FREE' && app.price && (
+        <div className="flex items-center gap-2 mb-4">
+          <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
+            <DollarSign className="w-3 h-3 mr-1" />
+            {app.price.toFixed(2)} {app.currency || 'BZR'}
+          </Badge>
+          {app.monetizationType === 'SUBSCRIPTION' && (
+            <Badge variant="outline">Assinatura</Badge>
+          )}
+        </div>
+      )}
+
       {/* Action Button */}
       <div className="flex gap-3 mb-8">
         {isInstalled ? (
@@ -115,9 +128,24 @@ export default function AppDetailPage() {
             </Button>
           </>
         ) : (
-          <Button onClick={install} disabled={isProcessing} className="flex-1">
-            {isProcessing ? 'Instalando...' : 'Instalar'}
-          </Button>
+          <>
+            {/* Show purchase button for paid apps */}
+            {app.monetizationType && app.monetizationType !== 'FREE' && app.price ? (
+              <AppPurchaseButton
+                appId={app.id}
+                appName={app.name}
+                price={app.price}
+                currency={app.currency}
+                monetizationType={app.monetizationType}
+                onPurchaseComplete={() => {
+                  // After purchase, user can install
+                }}
+              />
+            ) : null}
+            <Button onClick={install} disabled={isProcessing} className="flex-1">
+              {isProcessing ? 'Instalando...' : 'Instalar'}
+            </Button>
+          </>
         )}
       </div>
 

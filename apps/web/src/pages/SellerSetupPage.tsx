@@ -12,12 +12,10 @@ import { Badge } from '@/components/ui/badge';
 import { sellerApi, type SellerProfileDto } from '@/modules/seller/api';
 import type { StoreTheme } from '@/modules/store/StoreLayout';
 import {
-  buildStoreMetadata,
   fetchOnChainStore,
   getCreationDeposit,
   getPendingTransfer,
   resolveIpfsUrl,
-  uploadMetadataToIpfs,
   type NormalizedOnChainStore,
 } from '@/modules/store/onchain';
 import {
@@ -37,7 +35,7 @@ import type { KeyringPair } from '@polkadot/keyring/types';
 import { cryptoWaitReady } from '@polkadot/util-crypto';
 import type { SubmittableExtrinsic } from '@polkadot/api/types';
 import type { ApiPromise } from '@polkadot/api';
-import { AlertCircle, Loader2, ShieldCheck, Users, Wallet, ArrowRight, Copy, Info, Trash2, Layers, ExternalLink, RefreshCw } from 'lucide-react';
+import { AlertCircle, Loader2, ShieldCheck, Users, Wallet, ArrowRight, Copy, Info, Trash2, Layers, RefreshCw } from 'lucide-react';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 const DEFAULT_THEME: StoreTheme = {
@@ -177,9 +175,6 @@ export default function SellerSetupPage() {
   const [syncingCatalog, setSyncingCatalog] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
   const [verifyingStore, setVerifyingStore] = useState(false);
-  const [metadataCid, setMetadataCid] = useState<string | null>(null);
-  const [categoriesCid, setCategoriesCid] = useState<string | null>(null);
-  const [productsCid, setProductsCid] = useState<string | null>(null);
   const [lastSyncBlock, setLastSyncBlock] = useState<string | number | null>(null);
 
   const themeLabels = useMemo(
@@ -285,9 +280,6 @@ export default function SellerSetupPage() {
         const storedId = profile.onChainStoreId != null ? String(profile.onChainStoreId) : null;
         setOnChainStoreId(storedId);
         setSyncStatus(profile.syncStatus ?? null);
-        setMetadataCid(profile.metadataCid ?? null);
-        setCategoriesCid(profile.categoriesCid ?? null);
-        setProductsCid(profile.productsCid ?? null);
         setLastSyncBlock(profile.lastSyncBlock ?? null);
         if (storedId) {
           void refreshOnChainData(storedId);
@@ -543,14 +535,7 @@ export default function SellerSetupPage() {
           await refreshOnChainData(onChainStoreId);
         }
 
-        // 5. Atualizar CIDs do banco de dados
-        if (response.cids) {
-          setMetadataCid(response.cids.store || null);
-          setCategoriesCid(response.cids.categories || null);
-          setProductsCid(response.cids.products || null);
-        }
-
-        // 6. Redirecionar para página pública
+        // 5. Redirecionar para página pública
         navigate(`/loja/${trimmedSlug}`);
       } catch (err) {
         handleOperationError(err);
@@ -735,7 +720,7 @@ export default function SellerSetupPage() {
       setSyncingCatalog(true);
       setError(null);
 
-      // 1. Chamar API para gerar catálogo
+      // Chamar API para gerar e sincronizar catálogo
       const response = await sellerApi.syncCatalog(storeIdentifier);
       const catalog = response.catalog;
 
@@ -750,68 +735,24 @@ export default function SellerSetupPage() {
         return;
       }
 
-      toast.info(
-        t('store.onchain.catalogCount', {
-          defaultValue: '{{count}} item no catálogo',
-          defaultValue_other: '{{count}} itens no catálogo',
-          count: catalog.itemCount,
-        }),
-      );
-
-      // 2. Enviar catálogo para IPFS
-      console.log('[sync-catalog] Enviando catálogo para IPFS...');
-      const catalogCid = await uploadMetadataToIpfs(catalog);
-      console.log('[sync-catalog] Catálogo enviado ao IPFS:', catalogCid);
-      toast.success(
-        t('store.onchain.catalogUploaded', {
-          defaultValue: 'Catálogo enviado ao IPFS: {{cid}}',
-          cid: catalogCid,
-        }),
-      );
-
-      // 3. Atualizar metadata on-chain incluindo catalogCid
-      console.log('[sync-catalog] Construindo metadata atualizado...');
-      const updatedMetadata = buildStoreMetadata({
-        name: shopName,
-        description: about || undefined,
-        categories: [], // Categories agora são derivadas automaticamente dos produtos
-        theme: themeEnabled ? theme : undefined,
-      });
-
-      // Adicionar catalogCid ao metadata
-      const metadataWithCatalog = {
-        ...updatedMetadata,
-        catalog: catalogCid,
-      };
-
-      console.log('[sync-catalog] Enviando metadata atualizado para IPFS...');
-      const metadataCid = await uploadMetadataToIpfs(metadataWithCatalog);
-      console.log('[sync-catalog] Metadata enviado ao IPFS:', metadataCid);
-
+      // Incrementar versão on-chain
       console.log('[sync-catalog] Solicitando assinatura do usuário...');
       await withSigner(async ({ api, pair }) => {
-        const tx = api.tx.stores.updateMetadata(onChainStoreId, Array.from(new TextEncoder().encode(metadataCid)));
+        const tx = api.tx.stores.incrementVersion(onChainStoreId);
         await signAndSend(api, tx, pair);
       });
       console.log('[sync-catalog] Transação assinada e enviada!');
 
+      // Atualizar dados on-chain
       console.log('[sync-catalog] Atualizando dados on-chain...');
       await refreshOnChainData(onChainStoreId);
       console.log('[sync-catalog] Dados atualizados!');
 
-      // Atualizar CIDs localmente na interface
-      console.log('[sync-catalog] Atualizando CIDs locais...');
-      setMetadataCid(metadataCid);
-      setProductsCid(catalogCid);
-      console.log('[sync-catalog] CIDs locais atualizados!');
-
-      console.log('[sync-catalog] Mostrando mensagem de sucesso...');
-      const message = t('store.onchain.catalogSynced', {
-        defaultValue: 'Catálogo sincronizado com sucesso!',
-      });
-      console.log('[sync-catalog] Mensagem:', message);
-      toast.success(message);
-      console.log('[sync-catalog] toast.success() chamado!');
+      toast.success(
+        t('store.onchain.catalogSynced', {
+          defaultValue: 'Catálogo sincronizado com sucesso!',
+        }),
+      );
     } catch (err) {
       console.error('[sync-catalog] Erro capturado:', err);
       handleOperationError(err);
@@ -819,16 +760,12 @@ export default function SellerSetupPage() {
       setSyncingCatalog(false);
     }
   }, [
-    about,
     handleOperationError,
     onChainEnabled,
     onChainStoreId,
     refreshOnChainData,
-    shopName,
     storeIdentifier,
     t,
-    theme,
-    themeEnabled,
     withSigner,
   ]);
 
@@ -867,11 +804,6 @@ export default function SellerSetupPage() {
       setVerifyingStore(false);
     }
   }, [handleOperationError, storeIdentifier, t]);
-
-  const handleReancorar = useCallback(async () => {
-    // Reancorar é o mesmo que sincronizar o catálogo novamente
-    await handleSyncCatalog();
-  }, [handleSyncCatalog]);
 
   return (
     <div className="container mx-auto px-4 py-2 md:py-3">
@@ -1399,62 +1331,14 @@ export default function SellerSetupPage() {
 
               <Separator />
 
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">
-                  {t('seller.onchain.anchoredCids', { defaultValue: 'CIDs Ancorados' })}
-                </Label>
-                <div className="space-y-1 text-xs font-mono">
-                  <div>
-                    <span className="text-muted-foreground">store:</span> {metadataCid || 'N/A'}
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">categories:</span> {categoriesCid || 'N/A'}
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">products:</span> {productsCid || 'N/A'}
-                  </div>
-                </div>
-              </div>
-
-              {syncStatus === 'DIVERGED' && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    {t('seller.onchain.divergedWarning', {
-                      defaultValue: 'Hash divergente detectado. Conteúdo do IPFS não corresponde ao hash ancorado no NFT.',
-                    })}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-2"
-                      onClick={handleReancorar}
-                    >
-                      {t('seller.onchain.reanchor', { defaultValue: 'Reancorar Metadados' })}
-                    </Button>
-                  </AlertDescription>
-                </Alert>
-              )}
-
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const url = resolveIpfsUrl(metadataCid);
-                    if (url) window.open(url, '_blank');
-                  }}
-                  disabled={!metadataCid}
-                >
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  {t('seller.onchain.viewIpfs', { defaultValue: 'Ver no IPFS' })}
-                </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => storeIdentifier && sellerApi.verifyStore(storeIdentifier)}
                 >
                   <RefreshCw className="mr-2 h-4 w-4" />
-                  {t('seller.onchain.verifyHashes', { defaultValue: 'Verificar Hashes' })}
+                  {t('seller.onchain.verifyStatus', { defaultValue: 'Verificar Status' })}
                 </Button>
               </div>
             </CardContent>

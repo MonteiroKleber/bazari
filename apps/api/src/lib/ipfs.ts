@@ -1,55 +1,12 @@
 import { env } from '../env.js';
 import { create } from 'kubo-rpc-client';
-import crypto from 'crypto';
 
 // Type inference from create() return
 type IPFSHTTPClient = ReturnType<typeof create>;
 
 // ============================================================================
-// TYPES
-// ============================================================================
-
-const DEFAULT_PLACEHOLDER = null;
-
-export type IpfsFetchResult<T = unknown> = {
-  metadata: T | null;
-  source: 'stores' | 'registry' | 'placeholder';
-};
-
-export type ProfileMetadata = {
-  schema_version: string;
-  profile: {
-    display_name: string;
-    bio: string | null;
-    avatar_cid: string | null;
-    banner_cid: string | null;
-    joined_at: string;
-  };
-  reputation: {
-    score: number;
-    tier: string;
-    since: string;
-  };
-  badges: Array<{
-    code: string;
-    label: { pt: string; en: string; es: string };
-    issued_by: string;
-    issued_at: number;
-  }>;
-  penalties: Array<{
-    code: string;
-    reason: string;
-    points: number;
-    timestamp: number;
-  }>;
-  links: {
-    website?: string;
-    social?: Array<{ type: string; url: string }>;
-  };
-};
-
-// ============================================================================
 // IPFS CLIENT POOL (Multi-Node with Failover)
+// Mantido apenas para Chat/Media e Disputes (módulos com uso legítimo de IPFS)
 // ============================================================================
 
 class IpfsClientPool {
@@ -57,17 +14,14 @@ class IpfsClientPool {
   private currentIndex = 0;
   private readonly timeout: number;
   private readonly retryAttempts: number;
-  private readonly gatewayBase: string;
 
   constructor(
     urls: string[],
     timeout: number = 30000,
-    retries: number = 3,
-    gatewayUrl: string = 'https://ipfs.io/ipfs/'
+    retries: number = 3
   ) {
     this.timeout = timeout;
     this.retryAttempts = retries;
-    this.gatewayBase = gatewayUrl.endsWith('/') ? gatewayUrl : `${gatewayUrl}/`;
 
     // Criar cliente para cada URL
     this.clients = urls.map((url) => ({
@@ -76,14 +30,14 @@ class IpfsClientPool {
     }));
 
     if (this.clients.length === 0) {
-      console.warn('[IPFS] ⚠️  No IPFS nodes configured');
+      console.warn('[IPFS] No IPFS nodes configured');
     } else {
-      console.log(`[IPFS] ✅ Initialized with ${this.clients.length} node(s):`, urls);
+      console.log(`[IPFS] Initialized with ${this.clients.length} node(s):`, urls);
     }
   }
 
   /**
-   * Adiciona arquivo/JSON ao IPFS com failover automático
+   * Adiciona arquivo ao IPFS com failover automático
    */
   async add(
     content: string | Uint8Array,
@@ -105,7 +59,7 @@ class IpfsClientPool {
         const attemptStart = Date.now();
         try {
           console.log(
-            `[IPFS] 📤 Upload attempt ${attempt}/${this.retryAttempts} to node: ${url}${
+            `[IPFS] Upload attempt ${attempt}/${this.retryAttempts} to node: ${url}${
               options?.filename ? ` (${options.filename})` : ''
             }`
           );
@@ -124,7 +78,7 @@ class IpfsClientPool {
           const duration = Date.now() - attemptStart;
 
           console.log(
-            `[IPFS] ✅ Successfully uploaded to ${url}: ${cid} (${duration}ms)${
+            `[IPFS] Successfully uploaded to ${url}: ${cid} (${duration}ms)${
               options?.filename ? ` - ${options.filename}` : ''
             }`
           );
@@ -137,7 +91,7 @@ class IpfsClientPool {
           const err = error as Error;
           const duration = Date.now() - attemptStart;
           console.warn(
-            `[IPFS] ❌ Node ${url} attempt ${attempt} failed (${duration}ms):`,
+            `[IPFS] Node ${url} attempt ${attempt} failed (${duration}ms):`,
             err.message
           );
           errors.push(new Error(`${url}: ${err.message}`));
@@ -170,7 +124,7 @@ class IpfsClientPool {
 
     for (const { url, client } of this.clients) {
       try {
-        console.log(`[IPFS] 📥 Fetching ${cid} from ${url}`);
+        console.log(`[IPFS] Fetching ${cid} from ${url}`);
 
         const chunks: Uint8Array[] = [];
         for await (const chunk of client.cat(cid, { timeout: this.timeout })) {
@@ -178,12 +132,12 @@ class IpfsClientPool {
         }
 
         const buffer = Buffer.concat(chunks);
-        console.log(`[IPFS] ✅ Fetched ${cid} from ${url} (${buffer.length} bytes)`);
+        console.log(`[IPFS] Fetched ${cid} from ${url} (${buffer.length} bytes)`);
 
         return buffer;
       } catch (error) {
         const err = error as Error;
-        console.warn(`[IPFS] ❌ Failed to fetch from ${url}:`, err.message);
+        console.warn(`[IPFS] Failed to fetch from ${url}:`, err.message);
         errors.push(new Error(`${url}: ${err.message}`));
         continue;
       }
@@ -192,34 +146,6 @@ class IpfsClientPool {
     throw new Error(
       `[IPFS] All nodes failed to fetch ${cid}: ${errors.map((e) => e.message).join('; ')}`
     );
-  }
-
-  /**
-   * Busca JSON do IPFS via HTTP gateway (fallback)
-   */
-  async fetchJson<T = unknown>(
-    cid: string | null,
-    sourceHint: 'stores' | 'registry' = 'stores'
-  ): Promise<IpfsFetchResult<T>> {
-    if (!cid) {
-      return { metadata: DEFAULT_PLACEHOLDER, source: 'placeholder' };
-    }
-
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), this.timeout);
-
-    try {
-      const res = await fetch(`${this.gatewayBase}${cid}`, { signal: controller.signal });
-      if (!res.ok) {
-        return { metadata: DEFAULT_PLACEHOLDER, source: 'placeholder' };
-      }
-      const json = (await res.json()) as T;
-      return { metadata: json, source: sourceHint };
-    } catch {
-      return { metadata: DEFAULT_PLACEHOLDER, source: 'placeholder' };
-    } finally {
-      clearTimeout(id);
-    }
   }
 
   /**
@@ -270,94 +196,18 @@ const ipfsPool =
     ? new IpfsClientPool(
         env.IPFS_API_URLS,
         env.IPFS_TIMEOUT_MS ?? 30000,
-        env.IPFS_RETRY_ATTEMPTS ?? 3,
-        env.IPFS_GATEWAY_URL
+        env.IPFS_RETRY_ATTEMPTS ?? 3
       )
     : null;
 
 // ============================================================================
-// PUBLIC API (Backward Compatible)
+// PUBLIC API
+// Funções mantidas apenas para Chat/Media e Disputes
 // ============================================================================
 
 /**
- * Busca JSON do IPFS via HTTP gateway
- * Mantém assinatura original para compatibilidade
- */
-export async function fetchIpfsJson<T = unknown>(
-  cid: string | null,
-  sourceHint: 'stores' | 'registry' = 'stores'
-): Promise<IpfsFetchResult<T>> {
-  if (!ipfsPool) {
-    // Fallback para fetch direto se não houver pool
-    const gatewayBase = env.IPFS_GATEWAY_URL?.endsWith('/')
-      ? env.IPFS_GATEWAY_URL
-      : `${env.IPFS_GATEWAY_URL}/`;
-
-    if (!cid) {
-      return { metadata: DEFAULT_PLACEHOLDER, source: 'placeholder' };
-    }
-
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), env.IPFS_TIMEOUT_MS ?? 2000);
-
-    try {
-      const res = await fetch(`${gatewayBase}${cid}`, { signal: controller.signal });
-      if (!res.ok) {
-        return { metadata: DEFAULT_PLACEHOLDER, source: 'placeholder' };
-      }
-      const json = (await res.json()) as T;
-      return { metadata: json, source: sourceHint };
-    } catch {
-      return { metadata: DEFAULT_PLACEHOLDER, source: 'placeholder' };
-    } finally {
-      clearTimeout(id);
-    }
-  }
-
-  return ipfsPool.fetchJson<T>(cid, sourceHint);
-}
-
-/**
- * Publica metadados de perfil no IPFS
- * Mantém assinatura original para compatibilidade
- */
-export async function publishProfileMetadata(data: ProfileMetadata): Promise<string> {
-  if (!ipfsPool) {
-    // Desenvolvimento: gerar CID fake baseado em hash dos dados
-    console.warn('[IPFS] ⚠️  IPFS pool not configured, using fake CID for development');
-    const json = JSON.stringify(data);
-    const hash = Buffer.from(json).toString('base64').substring(0, 46);
-    const fakeCid = `bafydev${hash.replace(/[+/=]/g, 'a')}`;
-    console.log('[IPFS] Generated fake CID:', fakeCid);
-    return fakeCid;
-  }
-
-  const json = JSON.stringify(data);
-  const result = await ipfsPool.add(json, { filename: 'profile-metadata.json' });
-  return result.cid;
-}
-
-/**
- * Busca metadados de perfil do IPFS
- */
-export async function fetchProfileMetadata(cid: string): Promise<ProfileMetadata | null> {
-  if (!ipfsPool) {
-    // Fallback para gateway HTTP
-    const result = await fetchIpfsJson<ProfileMetadata>(cid, 'stores');
-    return result.metadata;
-  }
-
-  try {
-    const data = await ipfsPool.cat(cid);
-    return JSON.parse(Buffer.from(data).toString());
-  } catch (error) {
-    console.error('[IPFS] Error fetching profile metadata:', error);
-    return null;
-  }
-}
-
-/**
  * Upload genérico para IPFS
+ * Usado por: Chat (mídia criptografada), Disputes (evidências)
  */
 export async function uploadToIpfs(
   content: string | Uint8Array,
@@ -373,6 +223,7 @@ export async function uploadToIpfs(
 
 /**
  * Download genérico do IPFS
+ * Usado por: Chat (mídia criptografada), Disputes (evidências)
  */
 export async function downloadFromIpfs(cid: string): Promise<Uint8Array> {
   if (!ipfsPool) {
@@ -407,34 +258,6 @@ export function getIpfsInfo(): { configured: boolean; nodeCount: number; urls: s
     configured: true,
     nodeCount: ipfsPool.getNodeCount(),
     urls: env.IPFS_API_URLS || [],
-  };
-}
-
-/**
- * Cria metadados iniciais para um novo perfil
- */
-export function createInitialMetadata(profile: {
-  handle: string;
-  displayName: string;
-  createdAt: Date;
-}): ProfileMetadata {
-  return {
-    schema_version: '1.0',
-    profile: {
-      display_name: profile.displayName,
-      bio: null,
-      avatar_cid: null,
-      banner_cid: null,
-      joined_at: profile.createdAt.toISOString(),
-    },
-    reputation: {
-      score: 0,
-      tier: 'bronze',
-      since: profile.createdAt.toISOString(),
-    },
-    badges: [],
-    penalties: [],
-    links: {},
   };
 }
 

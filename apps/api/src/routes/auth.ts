@@ -17,7 +17,6 @@ import { authOnRequest } from '../lib/auth/middleware.js';
 import { parseMessage } from '@bazari/siws-utils';
 import { normalizeSignature, verifySiws } from '../lib/auth/verifySiws.js';
 import { mintProfileOnChain } from '../lib/profilesChain.js';
-import { createInitialMetadata, publishProfileMetadata } from '../lib/ipfs.js';
 
 const ADDRESS_RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
 const ADDRESS_RATE_LIMIT_MAX = 5;
@@ -209,11 +208,8 @@ export async function authRoutes(app: FastifyInstance, options: { prisma: Prisma
       });
 
       try {
-        // 2. Gerar metadados IPFS
-        const metadata = createInitialMetadata(profile);
-        const cid = await publishProfileMetadata(metadata);
-
-        // 3. MINTAR NFT ON-CHAIN (BLOQUEANTE ~6s)
+        // MINTAR NFT ON-CHAIN (BLOQUEANTE ~6s)
+        // Nota: CID removido - metadados ficam no PostgreSQL
         app.log.info({
           event: 'auth.profile.minting',
           address: user.address,
@@ -223,7 +219,7 @@ export async function authRoutes(app: FastifyInstance, options: { prisma: Prisma
         const profileId = await mintProfileOnChain(
           user.address,
           finalHandle,
-          cid
+          '' // CID vazio - metadados não são mais armazenados no IPFS
         );
 
         app.log.info({
@@ -231,7 +227,7 @@ export async function authRoutes(app: FastifyInstance, options: { prisma: Prisma
           profileId: profileId.toString()
         });
 
-        // 4. Atualizar Profile com onChainProfileId
+        // Atualizar Profile com onChainProfileId
         // Verificar se já existe outro perfil com este onChainProfileId
         const existing = await prisma.profile.findFirst({
           where: { onChainProfileId: profileId },
@@ -249,7 +245,6 @@ export async function authRoutes(app: FastifyInstance, options: { prisma: Prisma
           where: { id: profile.id },
           data: {
             onChainProfileId: profileId,
-            metadataCid: cid,
             lastChainSync: new Date(),
           },
         });

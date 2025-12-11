@@ -106,9 +106,10 @@ export interface VRTokenPayload {
 
 export function verifyAccessToken(token: string): AccessTokenPayload {
   try {
-    const decoded = jwt.verify(token, authConfig.jwtSecret as Secret) as AccessTokenPayload;
+    const decoded = jwt.verify(token, authConfig.jwtSecret as Secret) as AccessTokenPayload & { type: string };
 
-    if (decoded.type !== 'access') {
+    // Accept both 'access' and 'cli' token types
+    if (decoded.type !== 'access' && decoded.type !== 'cli') {
       throw new Error('Tipo de token inválido.');
     }
 

@@ -1743,5 +1743,306 @@
       "high": "Alto",
       "critical": "Crítico"
     }
+  },
+  "devPortal": {
+    "title": "Portal del Desarrollador",
+    "subtitle": "Crea y publica apps en Bazari",
+    "dashboard": "Dashboard",
+    "myApps": "Mis Apps",
+    "analytics": "Analytics",
+    "revenue": "Ingresos",
+    "settings": "Configuración",
+    "createApp": "Crear Nueva App",
+    "noApps": "Aún no tienes ninguna app",
+    "noAppsDesc": "Crea tu primera app y publícala en la App Store de Bazari.",
+    "startBuilding": "Empezar a Crear",
+    "stats": {
+      "totalApps": "Total de Apps",
+      "totalInstalls": "Instalaciones Totales",
+      "totalRevenue": "Ingresos Totales",
+      "last30Days": "Últimos 30 días"
+    },
+    "app": {
+      "status": {
+        "draft": "Borrador",
+        "pending": "En Revisión",
+        "approved": "Aprobada",
+        "rejected": "Rechazada",
+        "unpublished": "No Publicada"
+      },
+      "version": "Versión",
+      "installs": "Instalaciones",
+      "revenue": "Ingresos",
+      "edit": "Editar",
+      "submit": "Enviar para Revisión",
+      "submitting": "Enviando...",
+      "viewInStore": "Ver en Store"
+    },
+    "create": {
+      "title": "Nueva App",
+      "basicInfo": "Información Básica",
+      "name": "Nombre de la App",
+      "slug": "Slug (URL)",
+      "description": "Descripción",
+      "category": "Categoría",
+      "icon": "Ícono de la App",
+      "screenshots": "Capturas de pantalla",
+      "monetization": "Monetización",
+      "monetizationType": "Tipo de Monetización",
+      "price": "Precio (BZR)",
+      "permissions": "Permisos",
+      "submit": "Crear App",
+      "creating": "Creando..."
+    },
+    "monetization": {
+      "title": "Monetización",
+      "subtitle": "Configura cómo quieres ganar con tu app",
+      "type": {
+        "free": "Gratis",
+        "paid": "Pago",
+        "freemium": "Freemium",
+        "subscription": "Suscripción"
+      },
+      "price": "Precio de la App",
+      "iap": {
+        "title": "Compras en la App",
+        "add": "Agregar IAP",
+        "productId": "ID del Producto",
+        "name": "Nombre",
+        "description": "Descripción",
+        "price": "Precio",
+        "type": "Tipo",
+        "consumable": "Consumible",
+        "nonConsumable": "No Consumible",
+        "subscription": "Suscripción"
+      },
+      "tier": {
+        "title": "Tu Tier de Revenue Share",
+        "current": "Tier Actual",
+        "nextTier": "Próximo Tier",
+        "installsNeeded": "instalaciones necesarias",
+        "progress": "Progreso",
+        "starter": {
+          "name": "Starter",
+          "desc": "0-999 instalaciones"
+        },
+        "growth": {
+          "name": "Growth",
+          "desc": "1.000-9.999 instalaciones"
+        },
+        "scale": {
+          "name": "Scale",
+          "desc": "10.000-99.999 instalaciones"
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "desc": "100.000+ instalaciones"
+        }
+      },
+      "revenueShare": "Revenue Share",
+      "developerShare": "Tú recibes",
+      "platformShare": "Plataforma"
+    },
+    "revenue": {
+      "title": "Ingresos",
+      "subtitle": "Rastrea tus ganancias",
+      "overview": "Resumen",
+      "totalRevenue": "Ingresos Totales",
+      "developerRevenue": "Tus Ingresos",
+      "platformFees": "Comisiones de Plataforma",
+      "transactions": "Transacciones",
+      "noTransactions": "Sin transacciones aún",
+      "chart": "Gráfico de Ingresos",
+      "last7Days": "Últimos 7 días",
+      "last30Days": "Últimos 30 días",
+      "appSales": "Ventas de Apps",
+      "iapSales": "Compras en la App"
+    },
+    "refund": {
+      "title": "Reembolso",
+      "requested": "Solicitado en",
+      "reason": "Motivo",
+      "amount": "Cantidad",
+      "status": "Estado",
+      "refunded": "Reembolsado",
+      "window": "Puedes solicitar un reembolso dentro de las 24 horas de la compra"
+    },
+    "review": {
+      "title": "Revisión de Apps",
+      "pending": "Pendiente de Revisión",
+      "inReview": "En Revisión",
+      "approved": "Aprobadas",
+      "rejected": "Rechazadas",
+      "approve": "Aprobar",
+      "reject": "Rechazar",
+      "notes": "Notas de Revisión",
+      "reasonRequired": "Por favor, proporciona un motivo para el rechazo"
+    }
+  },
+  "adminPanel": {
+    "title": "Panel de Admin",
+    "subtitle": "Panel de control para miembros de la DAO",
+    "dashboard": "Dashboard",
+    "restrictedAccess": "Acceso Restringido",
+    "restrictedDesc": "Este panel está disponible solo para miembros de la DAO Bazari.",
+    "quickActions": "Acciones Rápidas",
+    "reviewActivity": "Actividad de Revisiones",
+    "stats": {
+      "pending": "Pendientes",
+      "approved": "Aprobados",
+      "installs": "Instalaciones",
+      "revenue": "Ingresos",
+      "appsToReview": "apps para revisar",
+      "appsPublished": "apps publicadas",
+      "totalPlatform": "total de la plataforma"
+    },
+    "actions": {
+      "appReviews": {
+        "title": "Revisión de Apps",
+        "desc": "Revisar apps enviadas por desarrolladores"
+      },
+      "analytics": {
+        "title": "Analytics de App Store",
+        "desc": "Métricas de App Store y desarrolladores"
+      },
+      "escrows": {
+        "title": "Gestión de Escrow",
+        "desc": "Gestionar disputas y liberaciones"
+      },
+      "missions": {
+        "title": "Misiones y Recompensas",
+        "desc": "Configurar misiones y sistema de recompensas"
+      }
+    },
+    "reviews": {
+      "waitingReview": "Esperando Revisión",
+      "inAnalysis": "En Análisis",
+      "avgReviewTime": "Tiempo promedio de revisión",
+      "viewAll": "Ver Todas las Revisiones"
+    },
+    "analytics": {
+      "title": "Analytics de App Store",
+      "subtitle": "Métricas de la plataforma",
+      "period": {
+        "last7d": "Últimos 7 días",
+        "last30d": "Últimos 30 días",
+        "last90d": "Últimos 90 días",
+        "all": "Todo el período"
+      },
+      "totalRevenue": "Ingresos Totales",
+      "totalInstalls": "Instalaciones",
+      "publishedApps": "Apps Publicadas",
+      "developers": "Desarrolladores",
+      "activePlatform": "activos en la plataforma",
+      "revenueSplit": "División de Ingresos",
+      "revenueSplitDesc": "Distribución de ingresos de la plataforma",
+      "developerRevenue": "Desarrolladores",
+      "platformRevenue": "Plataforma (Treasury)",
+      "avgRating": "Calificación Promedio",
+      "categoryRevenue": "Ingresos por Categoría",
+      "categoryRevenueDesc": "Rendimiento de categorías de apps",
+      "topDevelopers": "Top Desarrolladores",
+      "topDevelopersDesc": "Desarrolladores con mayores ingresos",
+      "vsPrevious": "vs período anterior"
+    }
+  },
+  "developer": {
+    "portal": {
+      "title": "Portal de Desarrolladores"
+    },
+    "nav": {
+      "dashboard": "Panel",
+      "dashboardDesc": "Vista general de tus apps",
+      "newApp": "Crear App",
+      "newAppDesc": "Publicar una nueva app",
+      "revenue": "Ingresos",
+      "revenueDesc": "Seguimiento de ganancias",
+      "docs": "Documentación",
+      "docsDesc": "Guías y tutoriales",
+      "templates": "Plantillas",
+      "templatesDesc": "Smart contracts listos para usar",
+      "components": "Componentes",
+      "componentsDesc": "Sistema de Diseño UI",
+      "support": "Soporte",
+      "supportDesc": "Ayuda y contacto",
+      "create": "Crear"
+    },
+    "breadcrumb": {
+      "home": "Inicio",
+      "developer": "Portal de Desarrolladores",
+      "apps": "Apps",
+      "docs": "Documentación",
+      "templates": "Plantillas",
+      "components": "Componentes",
+      "support": "Soporte",
+      "monetization": "Monetización",
+      "analytics": "Analíticas",
+      "new": "Crear App",
+      "revenue": "Ingresos"
+    },
+    "templates": {
+      "title": "Plantillas ink!",
+      "description": "Smart contracts listos para usar",
+      "search": "Buscar plantillas...",
+      "noResults": "No se encontraron plantillas",
+      "tryDifferentSearch": "Intenta una búsqueda diferente",
+      "code": "Código",
+      "features": "Funcionalidades",
+      "featuresDesc": "Lo que incluye esta plantilla",
+      "requirements": "Requisitos",
+      "requirementsDesc": "Dependencias necesarias",
+      "useTemplate": "Usar Plantilla",
+      "viewOnGitHub": "Ver en GitHub"
+    },
+    "components": {
+      "title": "Sistema de Diseño",
+      "description": "Componentes UI de @bazari/ui-kit",
+      "installation": "Instalación"
+    },
+    "support": {
+      "title": "Soporte al Desarrollador",
+      "description": "Ayuda y recursos para desarrolladores",
+      "contact": "Contacto Directo",
+      "contactDesc": "Para asuntos que no pueden resolverse en canales públicos",
+      "faq": "Preguntas Frecuentes",
+      "tips": "Consejos Rápidos"
+    },
+    "analytics": {
+      "description": "Métricas y estadísticas de tu app",
+      "downloadsChart": "Descargas por Día",
+      "topCountries": "Top Países",
+      "recentReviews": "Reseñas Recientes",
+      "export": "Exportar Informe"
+    }
+  },
+  "store": {
+    "backToStore": "Volver a la Tienda",
+    "apps": "apps",
+    "results": "resultados",
+    "free": "Gratis",
+    "freeOnly": "Solo gratis",
+    "sort": {
+      "popular": "Más populares",
+      "rating": "Mejor calificados",
+      "downloads": "Más descargas",
+      "newest": "Más recientes"
+    },
+    "search": {
+      "title": "Buscar Apps",
+      "placeholder": "Buscar apps, desarrolladores...",
+      "filters": "Filtros",
+      "categories": "Categorías",
+      "price": "Precio",
+      "rating": "Calificación",
+      "noResults": "No se encontraron apps",
+      "tryDifferent": "Intenta una búsqueda diferente o ajusta los filtros"
+    },
+    "featured": {
+      "title": "Apps Destacadas",
+      "description": "Las mejores apps seleccionadas por el equipo Bazari",
+      "editorsPicks": "Selección del Editor",
+      "trending": "Tendencias",
+      "newNoteworthy": "Nuevas y Notables"
+    }
   }
 }

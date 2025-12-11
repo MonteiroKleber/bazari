@@ -1,7 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { generateSocialWallet } from '../lib/auth/social-wallet.js';
 import { encryptMnemonic, type EncryptedData } from '../lib/auth/encryption.js';
-import { createInitialMetadata, publishProfileMetadata } from '../lib/ipfs.js';
 import { mintProfileOnChain } from '../lib/profilesChain.js';
 
 const prisma = new PrismaClient();
@@ -119,15 +118,12 @@ export async function handleGoogleLogin(profile: GoogleProfile): Promise<SocialL
       // Processar IPFS + NFT em background (não bloquear login)
       (async () => {
         try {
-          const metadata = createInitialMetadata(existingProfile!);
-          const cid = await publishProfileMetadata(metadata);
-          const profileId = await mintProfileOnChain(managedWallet.address, existingProfile!.handle, cid);
+          const profileId = await mintProfileOnChain(managedWallet.address, existingProfile!.handle, '');
 
           await prisma.profile.update({
             where: { id: existingProfile!.id },
             data: {
               onChainProfileId: profileId,
-              metadataCid: cid,
             },
           });
 
@@ -240,33 +236,24 @@ export async function handleGoogleLogin(profile: GoogleProfile): Promise<SocialL
     };
   });
 
-  console.log('🎉 [Social Auth] Transação completa. Iniciando IPFS + NFT minting...');
+  console.log('🎉 [Social Auth] Transação completa. Iniciando NFT minting...');
 
-  // 6. Processar IPFS e NFT minting FORA da transação (pode demorar ~6 segundos)
+  // 6. Processar NFT minting FORA da transação (pode demorar ~6 segundos)
   try {
-    // Criar metadados IPFS
-    const metadata = createInitialMetadata(result.profile);
-    console.log('📝 [Social Auth] Metadados criados');
-
-    // Publicar no IPFS
-    const cid = await publishProfileMetadata(metadata);
-    console.log('📤 [Social Auth] Metadados publicados no IPFS:', cid);
-
-    // Mintar NFT on-chain
+    // Mintar NFT on-chain (sem IPFS)
     console.log('⛓️  [Social Auth] Iniciando mint do NFT on-chain...');
-    const profileId = await mintProfileOnChain(result.address, result.profile.handle, cid);
+    const profileId = await mintProfileOnChain(result.address, result.profile.handle, '');
     console.log('✅ [Social Auth] NFT mintado! Profile ID:', profileId);
 
-    // Atualizar profile com IDs on-chain
+    // Atualizar profile com onChainProfileId
     await prisma.profile.update({
       where: { id: result.profile.id },
       data: {
         onChainProfileId: profileId,
-        metadataCid: cid,
       },
     });
 
-    console.log('✅ [Social Auth] Profile atualizado com onChainProfileId e metadataCid');
+    console.log('✅ [Social Auth] Profile atualizado com onChainProfileId');
   } catch (error) {
     // Log do erro, mas NÃO falhar o login
     // O perfil básico já existe no banco, IPFS/NFT pode ser processado depois

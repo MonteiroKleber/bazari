@@ -1750,5 +1750,306 @@
       "high": "High",
       "critical": "Critical"
     }
+  },
+  "devPortal": {
+    "title": "Developer Portal",
+    "subtitle": "Build and publish apps on Bazari",
+    "dashboard": "Dashboard",
+    "myApps": "My Apps",
+    "analytics": "Analytics",
+    "revenue": "Revenue",
+    "settings": "Settings",
+    "createApp": "Create New App",
+    "noApps": "You don't have any apps yet",
+    "noAppsDesc": "Create your first app and publish it on the Bazari App Store.",
+    "startBuilding": "Start Building",
+    "stats": {
+      "totalApps": "Total Apps",
+      "totalInstalls": "Total Installs",
+      "totalRevenue": "Total Revenue",
+      "last30Days": "Last 30 days"
+    },
+    "app": {
+      "status": {
+        "draft": "Draft",
+        "pending": "In Review",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "unpublished": "Unpublished"
+      },
+      "version": "Version",
+      "installs": "Installs",
+      "revenue": "Revenue",
+      "edit": "Edit",
+      "submit": "Submit for Review",
+      "submitting": "Submitting...",
+      "viewInStore": "View in Store"
+    },
+    "create": {
+      "title": "New App",
+      "basicInfo": "Basic Info",
+      "name": "App Name",
+      "slug": "Slug (URL)",
+      "description": "Description",
+      "category": "Category",
+      "icon": "App Icon",
+      "screenshots": "Screenshots",
+      "monetization": "Monetization",
+      "monetizationType": "Monetization Type",
+      "price": "Price (BZR)",
+      "permissions": "Permissions",
+      "submit": "Create App",
+      "creating": "Creating..."
+    },
+    "monetization": {
+      "title": "Monetization",
+      "subtitle": "Configure how you want to earn from your app",
+      "type": {
+        "free": "Free",
+        "paid": "Paid",
+        "freemium": "Freemium",
+        "subscription": "Subscription"
+      },
+      "price": "App Price",
+      "iap": {
+        "title": "In-App Purchases",
+        "add": "Add IAP",
+        "productId": "Product ID",
+        "name": "Name",
+        "description": "Description",
+        "price": "Price",
+        "type": "Type",
+        "consumable": "Consumable",
+        "nonConsumable": "Non-Consumable",
+        "subscription": "Subscription"
+      },
+      "tier": {
+        "title": "Your Revenue Share Tier",
+        "current": "Current Tier",
+        "nextTier": "Next Tier",
+        "installsNeeded": "installs needed",
+        "progress": "Progress",
+        "starter": {
+          "name": "Starter",
+          "desc": "0-999 installs"
+        },
+        "growth": {
+          "name": "Growth",
+          "desc": "1,000-9,999 installs"
+        },
+        "scale": {
+          "name": "Scale",
+          "desc": "10,000-99,999 installs"
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "desc": "100,000+ installs"
+        }
+      },
+      "revenueShare": "Revenue Share",
+      "developerShare": "You receive",
+      "platformShare": "Platform"
+    },
+    "revenue": {
+      "title": "Revenue",
+      "subtitle": "Track your earnings",
+      "overview": "Overview",
+      "totalRevenue": "Total Revenue",
+      "developerRevenue": "Your Revenue",
+      "platformFees": "Platform Fees",
+      "transactions": "Transactions",
+      "noTransactions": "No transactions yet",
+      "chart": "Revenue Chart",
+      "last7Days": "Last 7 days",
+      "last30Days": "Last 30 days",
+      "appSales": "App Sales",
+      "iapSales": "In-App Purchases"
+    },
+    "refund": {
+      "title": "Refund",
+      "requested": "Requested at",
+      "reason": "Reason",
+      "amount": "Amount",
+      "status": "Status",
+      "refunded": "Refunded",
+      "window": "You can request a refund within 24 hours of purchase"
+    },
+    "review": {
+      "title": "App Review",
+      "pending": "Pending Review",
+      "inReview": "In Review",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "approve": "Approve",
+      "reject": "Reject",
+      "notes": "Review Notes",
+      "reasonRequired": "Please provide a reason for rejection"
+    }
+  },
+  "adminPanel": {
+    "title": "Admin Panel",
+    "subtitle": "Control panel for DAO members",
+    "dashboard": "Dashboard",
+    "restrictedAccess": "Restricted Access",
+    "restrictedDesc": "This panel is only available to Bazari DAO members.",
+    "quickActions": "Quick Actions",
+    "reviewActivity": "Review Activity",
+    "stats": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "installs": "Installs",
+      "revenue": "Revenue",
+      "appsToReview": "apps to review",
+      "appsPublished": "apps published",
+      "totalPlatform": "platform total"
+    },
+    "actions": {
+      "appReviews": {
+        "title": "App Reviews",
+        "desc": "Review apps submitted by developers"
+      },
+      "analytics": {
+        "title": "App Store Analytics",
+        "desc": "App Store and developer metrics"
+      },
+      "escrows": {
+        "title": "Escrow Management",
+        "desc": "Manage disputes and releases"
+      },
+      "missions": {
+        "title": "Missions & Rewards",
+        "desc": "Configure missions and rewards system"
+      }
+    },
+    "reviews": {
+      "waitingReview": "Waiting for Review",
+      "inAnalysis": "In Analysis",
+      "avgReviewTime": "Average review time",
+      "viewAll": "View All Reviews"
+    },
+    "analytics": {
+      "title": "App Store Analytics",
+      "subtitle": "Platform metrics",
+      "period": {
+        "last7d": "Last 7 days",
+        "last30d": "Last 30 days",
+        "last90d": "Last 90 days",
+        "all": "All time"
+      },
+      "totalRevenue": "Total Revenue",
+      "totalInstalls": "Installs",
+      "publishedApps": "Published Apps",
+      "developers": "Developers",
+      "activePlatform": "active on platform",
+      "revenueSplit": "Revenue Split",
+      "revenueSplitDesc": "Platform revenue distribution",
+      "developerRevenue": "Developers",
+      "platformRevenue": "Platform (Treasury)",
+      "avgRating": "Average Rating",
+      "categoryRevenue": "Revenue by Category",
+      "categoryRevenueDesc": "App category performance",
+      "topDevelopers": "Top Developers",
+      "topDevelopersDesc": "Developers with highest revenue",
+      "vsPrevious": "vs previous period"
+    }
+  },
+  "developer": {
+    "portal": {
+      "title": "Developer Portal"
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "dashboardDesc": "Overview of your apps",
+      "newApp": "Create App",
+      "newAppDesc": "Publish a new app",
+      "revenue": "Revenue",
+      "revenueDesc": "Track earnings",
+      "docs": "Documentation",
+      "docsDesc": "Guides and tutorials",
+      "templates": "Templates",
+      "templatesDesc": "Ready-to-use smart contracts",
+      "components": "Components",
+      "componentsDesc": "Design System UI",
+      "support": "Support",
+      "supportDesc": "Help and contact",
+      "create": "Create"
+    },
+    "breadcrumb": {
+      "home": "Home",
+      "developer": "Developer Portal",
+      "apps": "Apps",
+      "docs": "Documentation",
+      "templates": "Templates",
+      "components": "Components",
+      "support": "Support",
+      "monetization": "Monetization",
+      "analytics": "Analytics",
+      "new": "Create App",
+      "revenue": "Revenue"
+    },
+    "templates": {
+      "title": "ink! Templates",
+      "description": "Ready-to-use smart contracts",
+      "search": "Search templates...",
+      "noResults": "No templates found",
+      "tryDifferentSearch": "Try a different search",
+      "code": "Code",
+      "features": "Features",
+      "featuresDesc": "What this template includes",
+      "requirements": "Requirements",
+      "requirementsDesc": "Required dependencies",
+      "useTemplate": "Use Template",
+      "viewOnGitHub": "View on GitHub"
+    },
+    "components": {
+      "title": "Design System",
+      "description": "@bazari/ui-kit UI components",
+      "installation": "Installation"
+    },
+    "support": {
+      "title": "Developer Support",
+      "description": "Help and resources for developers",
+      "contact": "Direct Contact",
+      "contactDesc": "For issues that cannot be resolved through public channels",
+      "faq": "Frequently Asked Questions",
+      "tips": "Quick Tips"
+    },
+    "analytics": {
+      "description": "Metrics and statistics for your app",
+      "downloadsChart": "Downloads per Day",
+      "topCountries": "Top Countries",
+      "recentReviews": "Recent Reviews",
+      "export": "Export Report"
+    }
+  },
+  "store": {
+    "backToStore": "Back to Store",
+    "apps": "apps",
+    "results": "results",
+    "free": "Free",
+    "freeOnly": "Free only",
+    "sort": {
+      "popular": "Most popular",
+      "rating": "Top rated",
+      "downloads": "Most downloads",
+      "newest": "Newest"
+    },
+    "search": {
+      "title": "Search Apps",
+      "placeholder": "Search apps, developers...",
+      "filters": "Filters",
+      "categories": "Categories",
+      "price": "Price",
+      "rating": "Rating",
+      "noResults": "No apps found",
+      "tryDifferent": "Try a different search or adjust filters"
+    },
+    "featured": {
+      "title": "Featured Apps",
+      "description": "Top apps selected by the Bazari team",
+      "editorsPicks": "Editor's Picks",
+      "trending": "Trending",
+      "newNoteworthy": "New & Noteworthy"
+    }
   }
 }

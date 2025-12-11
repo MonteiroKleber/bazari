@@ -80,7 +80,8 @@ export default defineConfig({
           /^\/doc/,       // Static documentation (HTML)
           /^\/rpc/,       // Blockchain WebSocket
           /^\/static/,    // User uploads
-          /^\/uploads/    // Static assets
+          /^\/uploads/,   // Static assets
+          /^\/ipfs/       // IPFS gateway (third-party app bundles)
         ],
         // Força update imediato do Service Worker
         skipWaiting: true,

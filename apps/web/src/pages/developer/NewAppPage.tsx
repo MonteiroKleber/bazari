@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { api } from '@/lib/api';
+import { DeveloperLayout } from '@/layouts/DeveloperLayout';
 
 const CATEGORIES = [
   { id: 'finance', label: 'Finanças', icon: '💰' },
@@ -44,15 +44,15 @@ export default function NewAppPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await api.post('/developer/apps', formData);
+      const response = await api.post<{ app: { id: string } }>('/developer/apps', formData);
       toast.success('App criado!', {
         description: 'Seu app foi criado com sucesso.',
       });
-      navigate(`/app/developer/apps/${response.data.app.id}`);
+      navigate(`/app/developer/apps/${response.app.id}`);
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { error?: string } } };
+      const err = error as { message?: string };
       toast.error('Erro ao criar app', {
-        description: err.response?.data?.error || 'Tente novamente',
+        description: err.message || 'Tente novamente',
       });
     } finally {
       setIsSubmitting(false);
@@ -74,23 +74,14 @@ export default function NewAppPage() {
   };
 
   return (
-    <div className="container max-w-2xl mx-auto px-4 py-6">
-      <Button
-        variant="ghost"
-        asChild
-        className="mb-4"
-      >
-        <Link to="/app/developer">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Voltar
-        </Link>
-      </Button>
-
+    <DeveloperLayout
+      title="Criar Novo App"
+      description="Preencha os dados básicos do seu app"
+    >
       <Card>
         <CardHeader>
-          <CardTitle>Criar Novo App</CardTitle>
           <CardDescription>
-            Preencha os dados básicos do seu app. Você poderá editar depois.
+            Você poderá editar depois.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -221,6 +212,6 @@ export default function NewAppPage() {
           </form>
         </CardContent>
       </Card>
-    </div>
+    </DeveloperLayout>
   );
 }
