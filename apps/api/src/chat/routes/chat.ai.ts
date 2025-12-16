@@ -84,7 +84,7 @@ export default async function chatAiRoutes(app: FastifyInstance) {
       // Proxy para AI Gateway
       const formData = new FormData();
       const buffer = await data.toBuffer();
-      formData.append('file', new Blob([buffer]), data.filename);
+      formData.append('file', new Blob([buffer as BlobPart]), data.filename);
 
       const response = await fetch(`${AI_GATEWAY_URL}/ai/stt`, {
         method: 'POST',

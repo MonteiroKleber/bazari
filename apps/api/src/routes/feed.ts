@@ -416,6 +416,83 @@ export async function feedRoutes(app: FastifyInstance, options: { prisma: Prisma
       return reply.status(500).send({ error: 'Internal server error' });
     }
   });
+
+  // GET /feed/count - Contar novos posts desde um timestamp
+  app.get(
+    '/feed/count',
+    { preHandler: authOnRequest },
+    async (request, reply) => {
+      const authUser = (request as any).authUser as { sub: string } | undefined;
+      if (!authUser) {
+        return reply.status(401).send({ error: 'Unauthorized' });
+      }
+
+      const countSchema = z.object({
+        since: z.string().datetime().optional(),
+        tab: z.enum(['for-you', 'following', 'popular']).optional().default('for-you'),
+      });
+
+      let query;
+      try {
+        query = countSchema.parse(request.query);
+      } catch {
+        return reply.status(400).send({ error: 'Invalid query parameters' });
+      }
+
+      const { since, tab } = query;
+
+      // Se não há since, retornar 0
+      if (!since) {
+        return reply.send({ count: 0 });
+      }
+
+      const sinceDate = new Date(since);
+
+      try {
+        let count = 0;
+
+        if (tab === 'following') {
+          // Buscar perfis que o usuário segue
+          const meProfile = await prisma.profile.findUnique({
+            where: { userId: authUser.sub },
+            select: { id: true },
+          });
+
+          if (meProfile) {
+            const following = await prisma.follow.findMany({
+              where: { followerId: meProfile.id },
+              select: { followingId: true },
+            });
+
+            const followingIds = following.map((f) => f.followingId);
+
+            if (followingIds.length > 0) {
+              count = await prisma.post.count({
+                where: {
+                  createdAt: { gt: sinceDate },
+                  status: 'PUBLISHED',
+                  authorId: { in: followingIds },
+                },
+              });
+            }
+          }
+        } else {
+          // for-you e popular: contar todos os posts públicos
+          count = await prisma.post.count({
+            where: {
+              createdAt: { gt: sinceDate },
+              status: 'PUBLISHED',
+            },
+          });
+        }
+
+        return reply.send({ count });
+      } catch (error) {
+        console.error('Error counting new posts:', error);
+        return reply.status(500).send({ error: 'Internal server error' });
+      }
+    }
+  );
 }
 
 export default feedRoutes;

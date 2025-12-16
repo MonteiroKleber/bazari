@@ -1,6 +1,6 @@
 // apps/web/src/components/social/CreatePostModal.tsx
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,6 +12,9 @@ import { toast } from 'sonner';
 import { ImagePlus, Smile, AtSign, X, BarChart3, Video } from 'lucide-react';
 import { uploadVideoChunked, UploadProgress as UploadProgressType } from '@/lib/chunkedUpload';
 import { UploadProgressBar } from '@/components/UploadProgress';
+import { useDraftPost } from '@/hooks/useDraftPost';
+import { DraftRecoveryDialog } from './DraftRecoveryDialog';
+import { DraftSaveIndicator } from './DraftSaveIndicator';
 
 const MAX_LENGTH = 5000;
 
@@ -38,6 +41,54 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
   const [uploadProgress, setUploadProgress] = useState<UploadProgressType | null>(null);
   const [uploadingFile, setUploadingFile] = useState<File | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Draft auto-save
+  const { draft, getDraft, saveDraft, clearDraft, isSaving, lastSaved } = useDraftPost();
+  const [showDraftDialog, setShowDraftDialog] = useState(false);
+  const checkedDraftRef = useRef(false);
+
+  // Check for draft when modal opens
+  useEffect(() => {
+    if (open && !checkedDraftRef.current) {
+      checkedDraftRef.current = true;
+      const storedDraft = getDraft();
+      if (storedDraft && storedDraft.content.trim()) {
+        setShowDraftDialog(true);
+      }
+    }
+    if (!open) {
+      checkedDraftRef.current = false;
+    }
+  }, [open, getDraft]);
+
+  // Auto-save draft when content changes
+  useEffect(() => {
+    if (content.trim()) {
+      saveDraft({
+        content,
+        kind: showPollForm ? 'poll' : 'text',
+        pollOptions: showPollForm ? pollOptions : undefined,
+        pollDuration: showPollForm ? pollDuration : undefined,
+      });
+    }
+  }, [content, showPollForm, pollOptions, pollDuration, saveDraft]);
+
+  const handleRecoverDraft = () => {
+    if (draft) {
+      setContent(draft.content);
+      if (draft.kind === 'poll') {
+        setShowPollForm(true);
+        if (draft.pollOptions) setPollOptions(draft.pollOptions);
+        if (draft.pollDuration) setPollDuration(draft.pollDuration);
+      }
+    }
+    setShowDraftDialog(false);
+  };
+
+  const handleDiscardDraft = () => {
+    clearDraft();
+    setShowDraftDialog(false);
+  };
 
   const handleSubmit = async () => {
     if (!content.trim()) {
@@ -81,6 +132,7 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
       await apiHelpers.createPost(payload);
 
       toast.success('Post publicado!');
+      clearDraft(); // Clear saved draft after successful publish
       setContent('');
       setImages([]);
       setVideos([]);
@@ -181,7 +233,7 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
       });
 
       const uploadedUrl = res.asset.url;
-      const thumbnailUrl = res.asset.thumbnailUrl;
+      const thumbnailUrl = (res.asset as { thumbnailUrl?: string }).thumbnailUrl;
 
       // Converter para URLs completas se necessário (padrão ProfileEditPage)
       const fullUrl = uploadedUrl.startsWith('http')
@@ -264,10 +316,20 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <DraftRecoveryDialog
+        open={showDraftDialog}
+        draft={draft}
+        onRecover={handleRecoverDraft}
+        onDiscard={handleDiscardDraft}
+      />
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] md:max-h-[90vh] top-[5vh] md:top-[50%] translate-y-0 md:translate-y-[-50%] flex flex-col gap-0 p-0">
         <DialogHeader className="px-6 pt-6 pb-4 flex-shrink-0">
-          <DialogTitle>Criar Post</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>Criar Post</DialogTitle>
+            <DraftSaveIndicator isSaving={isSaving} lastSaved={lastSaved} />
+          </div>
         </DialogHeader>
 
         <div className="space-y-4 overflow-y-auto flex-1 px-6 pb-4">
@@ -515,5 +577,6 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
         </div>
       </DialogContent>
     </Dialog>
+    </>
   );
 }

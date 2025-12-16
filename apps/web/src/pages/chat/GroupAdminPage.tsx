@@ -43,7 +43,19 @@ import { toast } from 'sonner';
 export function GroupAdminPage() {
   const { groupId } = useParams<{ groupId: string }>();
   const navigate = useNavigate();
-  const { groups, loadGroups } = useChat();
+  const { groups, loadGroups, threads } = useChat();
+
+  // Encontrar a thread do grupo para navegação de volta
+  const groupThread = threads.find(t => t.groupId === groupId);
+
+  // Função para voltar - vai para a conversa do grupo se existir, senão para lista
+  const handleGoBack = () => {
+    if (groupThread) {
+      navigate(`/app/chat/${groupThread.id}`);
+    } else {
+      navigate('/app/chat');
+    }
+  };
 
   const [group, setGroup] = useState<any>(null);
   const [members, setMembers] = useState<any[]>([]);
@@ -260,7 +272,7 @@ export function GroupAdminPage() {
     <div className="max-w-4xl mx-auto px-4 py-2 md:py-3 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <Button variant="ghost" onClick={() => navigate('/app/chat')}>
+        <Button variant="ghost" onClick={handleGoBack}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Voltar
         </Button>

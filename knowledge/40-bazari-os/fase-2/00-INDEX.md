@@ -88,7 +88,7 @@ A Fase 2 adota um **modelo híbrido** que atende dois públicos:
 │  ├──────────────────────────────────────────────────────────────────────────┤   │
 │  │                                                                           │   │
 │  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐           │   │
-│  │  │  SELLER PORTAL  │  │ DEVELOPER PORTAL│  │   @bazari/cli   │           │   │
+│  │  │  SELLER PORTAL  │  │ DEVELOPER PORTAL│  │@bazari.libervia.xyz/cli│       │   │
 │  │  │  /seller/plugins│  │    /developer   │  │  create, build  │           │   │
 │  │  │  Low-Code UI    │  │    Pro-Code UI  │  │  publish        │           │   │
 │  │  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘           │   │
@@ -204,7 +204,7 @@ A Fase 2 adota um **modelo híbrido** que atende dois públicos:
 - [ ] Upload IPFS real
 - [ ] Templates ink! (fidelidade, escrow, divisão)
 - [ ] Documentação/Tutoriais
-- [ ] Publicação no npm (@bazari/cli, @bazari/app-sdk)
+- [ ] Publicação no npm (@bazari.libervia.xyz/cli, @bazari.libervia.xyz/app-sdk)
 
 #### P2-P3 - Extras
 - [ ] Design System para devs

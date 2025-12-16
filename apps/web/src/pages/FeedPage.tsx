@@ -5,20 +5,29 @@ import { CreatePostModal } from '../components/social/CreatePostModal';
 import { PersonalizedFeed } from '../components/social/PersonalizedFeed';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { PullToRefreshIndicator } from '../components/mobile/PullToRefreshIndicator';
+import { ScrollToTopFAB } from '../components/ui/ScrollToTopFAB';
+import { StoriesBar } from '../components/chat/StoriesBar';
+import { StoryViewer } from '../components/chat/StoryViewer';
+import { StoryCreator } from '../components/chat/StoryCreator';
 import { Button } from '../components/ui/button';
 import { apiHelpers } from '../lib/api';
+import type { StoryFeedItem } from '@bazari/shared-types';
 
 export default function FeedPage() {
   const [createPostOpen, setCreatePostOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [profile, setProfile] = useState<{ avatarUrl?: string | null; displayName: string; handle: string } | null>(null);
+  const [profile, setProfile] = useState<{ id: string; avatarUrl?: string | null; displayName: string; handle: string } | null>(null);
+
+  // Stories state
+  const [showStoryCreator, setShowStoryCreator] = useState(false);
+  const [viewingStory, setViewingStory] = useState<{ feedItem: StoryFeedItem; profileId: string } | null>(null);
 
   // Load user profile
   useEffect(() => {
     let active = true;
     (async () => {
       try {
-        const res = await apiHelpers.getMeProfile();
+        const res = await apiHelpers.getMeProfile() as { profile?: { id: string; avatarUrl?: string | null; displayName: string; handle: string } | null };
         if (active) {
           setProfile(res.profile ?? null);
         }
@@ -43,6 +52,16 @@ export default function FeedPage() {
   return (
     <>
       <PullToRefreshIndicator isRefreshing={isRefreshing} pullDistance={pullDistance} />
+
+      {/* Stories Bar - apenas para logados */}
+      {profile && (
+        <StoriesBar
+          onCreateStory={() => setShowStoryCreator(true)}
+          onViewStories={(profileId, feedItem) => setViewingStory({ feedItem, profileId })}
+          currentProfileId={profile.id}
+        />
+      )}
+
       <section className="container mx-auto px-4 py-10 pt-6 mobile-safe-bottom">
         <CreatePostModal open={createPostOpen} onOpenChange={setCreatePostOpen} />
         {/* Feed Header - Link para perfil */}
@@ -66,6 +85,20 @@ export default function FeedPage() {
           onCreatePost={() => setCreatePostOpen(true)}
         />
       </section>
+      <ScrollToTopFAB />
+
+      {/* Story Creator Modal */}
+      {showStoryCreator && (
+        <StoryCreator onClose={() => setShowStoryCreator(false)} />
+      )}
+
+      {/* Story Viewer Modal */}
+      {viewingStory && (
+        <StoryViewer
+          feedItem={viewingStory.feedItem}
+          onClose={() => setViewingStory(null)}
+        />
+      )}
     </>
   );
 }

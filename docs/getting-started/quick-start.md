@@ -17,7 +17,7 @@ Verifique a instalação:
 
 ```bash
 bazari --version
-# @bazari.libervia.xyz/cli v0.2.8
+# @bazari.libervia.xyz/cli v0.2.25
 ```
 
 ## Passo 2: Fazer Login (1 min)

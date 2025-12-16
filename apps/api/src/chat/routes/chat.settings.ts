@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyRequest } from 'fastify';
 import { authOnRequest } from '../../lib/auth/middleware';
 import { AccessTokenPayload } from '../../lib/auth/jwt';
 import { prisma } from '../../lib/prisma';
+import { getUserPresence } from '../ws/handlers';
 
 export default async function chatSettingsRoutes(app: FastifyInstance) {
   // Buscar políticas de comissão de uma loja
@@ -137,6 +138,84 @@ export default async function chatSettingsRoutes(app: FastifyInstance) {
     } catch (error) {
       req.log.error({ error, profileId }, 'Failed to fetch reputation');
       return reply.code(500).send({ error: 'Failed to fetch reputation' });
+    }
+  });
+
+  // Buscar status de presença de múltiplos usuários
+  app.post('/chat/presence', { preHandler: authOnRequest }, async (req, reply) => {
+    const authReq = req as FastifyRequest & { authUser: AccessTokenPayload };
+    const currentProfileId = authReq.authUser.sub;
+
+    const { profileIds } = req.body as { profileIds: string[] };
+
+    if (!profileIds || !Array.isArray(profileIds) || profileIds.length === 0) {
+      return reply.code(400).send({ error: 'profileIds array is required' });
+    }
+
+    // Limitar a 100 perfis por request
+    if (profileIds.length > 100) {
+      return reply.code(400).send({ error: 'Maximum 100 profile IDs allowed' });
+    }
+
+    try {
+      const presences = await Promise.all(
+        profileIds.map(async (profileId) => {
+          return getUserPresence(profileId);
+        })
+      );
+
+      return { presences };
+    } catch (error) {
+      req.log.error({ error }, 'Failed to fetch presence status');
+      return reply.code(500).send({ error: 'Failed to fetch presence status' });
+    }
+  });
+
+  // Atualizar configuração de visibilidade de status online
+  app.put('/chat/settings/privacy', { preHandler: authOnRequest }, async (req, reply) => {
+    const authReq = req as FastifyRequest & { authUser: AccessTokenPayload };
+    const profileId = authReq.authUser.sub;
+
+    const { showOnlineStatus } = req.body as { showOnlineStatus?: boolean };
+
+    if (typeof showOnlineStatus !== 'boolean') {
+      return reply.code(400).send({ error: 'showOnlineStatus must be a boolean' });
+    }
+
+    try {
+      await prisma.profile.update({
+        where: { id: profileId },
+        data: { showOnlineStatus },
+      });
+
+      req.log.info({ profileId, showOnlineStatus }, 'Privacy settings updated');
+
+      return { success: true, showOnlineStatus };
+    } catch (error) {
+      req.log.error({ error, profileId }, 'Failed to update privacy settings');
+      return reply.code(500).send({ error: 'Failed to update privacy settings' });
+    }
+  });
+
+  // Obter configurações de privacidade atuais
+  app.get('/chat/settings/privacy', { preHandler: authOnRequest }, async (req, reply) => {
+    const authReq = req as FastifyRequest & { authUser: AccessTokenPayload };
+    const profileId = authReq.authUser.sub;
+
+    try {
+      const profile = await prisma.profile.findUnique({
+        where: { id: profileId },
+        select: { showOnlineStatus: true },
+      });
+
+      if (!profile) {
+        return reply.code(404).send({ error: 'Profile not found' });
+      }
+
+      return { showOnlineStatus: profile.showOnlineStatus };
+    } catch (error) {
+      req.log.error({ error, profileId }, 'Failed to fetch privacy settings');
+      return reply.code(500).send({ error: 'Failed to fetch privacy settings' });
     }
   });
 }

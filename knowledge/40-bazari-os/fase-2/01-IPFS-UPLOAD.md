@@ -317,7 +317,7 @@ IPFS_RETRY_ATTEMPTS=3
 ```bash
 # 1. Criar um app de teste
 cd /tmp
-npx @bazari/cli create test-app
+npx @bazari.libervia.xyz/cli create test-app
 
 # 2. Build
 cd test-app

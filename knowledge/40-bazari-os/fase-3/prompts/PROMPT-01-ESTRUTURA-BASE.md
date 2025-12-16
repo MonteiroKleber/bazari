@@ -341,7 +341,7 @@ export function EnvironmentCheck({ children }: Props) {
           Nao tem o CLI instalado? Execute:
         </p>
         <div className="bg-gray-900 text-gray-100 p-4 rounded-lg font-mono text-sm w-full">
-          $ npm install -g @bazari/cli
+          $ npm install -g @bazari.libervia.xyz/cli
         </div>
         <button
           onClick={retry}
@@ -475,7 +475,7 @@ export function ServerNotFoundPage({ onRetry }: Props) {
               1. Instale o CLI (se necessario)
             </h3>
             <code className="block bg-gray-900 text-green-400 p-3 rounded font-mono text-sm">
-              npm install -g @bazari/cli
+              npm install -g @bazari.libervia.xyz/cli
             </code>
           </div>
 

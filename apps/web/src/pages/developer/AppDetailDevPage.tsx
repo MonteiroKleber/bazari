@@ -18,6 +18,8 @@ import {
   Plus,
   Trash2,
   TrendingUp,
+  Store,
+  Key,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -1020,6 +1022,101 @@ function SettingsForm({
                   onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
                   placeholder="defi, trading, crypto (separados por vírgula)"
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Distribution Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Distribuicao</CardTitle>
+              <CardDescription>
+                Como seu app sera disponibilizado
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* App Store Status */}
+              <div className="p-4 rounded-lg border">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <Store className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium">App Store</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Publicado no marketplace Bazari
+                      </p>
+                    </div>
+                  </div>
+                  <Badge
+                    variant={
+                      app.status === 'APPROVED' || app.status === 'PUBLISHED'
+                        ? 'default'
+                        : app.status === 'PENDING_REVIEW'
+                        ? 'secondary'
+                        : app.status === 'REJECTED'
+                        ? 'destructive'
+                        : 'outline'
+                    }
+                  >
+                    {app.status === 'APPROVED' && 'Aprovado'}
+                    {app.status === 'PUBLISHED' && 'Publicado'}
+                    {app.status === 'PENDING_REVIEW' && 'Em Revisao'}
+                    {app.status === 'REJECTED' && 'Rejeitado'}
+                    {app.status === 'DRAFT' && 'Rascunho'}
+                  </Badge>
+                </div>
+
+                {app.bundleUrl && (
+                  <div className="mt-3 p-3 bg-muted/50 rounded-lg space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Bundle URL</span>
+                      <a
+                        href={app.bundleUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline flex items-center gap-1 truncate max-w-[200px]"
+                      >
+                        {app.bundleUrl.slice(0, 40)}...
+                        <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                      </a>
+                    </div>
+                    {app.bundleHash && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Hash</span>
+                        <code className="text-xs">{app.bundleHash.slice(0, 16)}...</code>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* SDK Externo */}
+              <div className="p-4 rounded-lg border">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-purple-500/10">
+                      <Key className="h-5 w-5 text-purple-500" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium">SDK Externo</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Integracao via API Key no seu dominio
+                      </p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link to="/app/developer/api-keys">
+                      Gerenciar API Keys
+                    </Link>
+                  </Button>
+                </div>
+
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Use API Keys para integrar o SDK do Bazari em apps externos
+                  que rodam no seu proprio dominio.
+                </p>
               </div>
             </CardContent>
           </Card>

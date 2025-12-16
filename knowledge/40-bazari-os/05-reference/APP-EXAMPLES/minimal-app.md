@@ -103,12 +103,12 @@ my-bazari-app/
     "publish": "bazari publish"
   },
   "dependencies": {
-    "@bazari/app-sdk": "^1.0.0",
+    "@bazari.libervia.xyz/app-sdk": "^0.2.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@bazari/cli": "^1.0.0",
+    "@bazari.libervia.xyz/cli": "^0.2.23",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@vitejs/plugin-react": "^4.0.0",
@@ -148,7 +148,7 @@ export default defineConfig({
 ```typescript
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BazariSDK } from '@bazari/app-sdk';
+import { BazariSDK } from '@bazari.libervia.xyz/app-sdk';
 import App from './App';
 import './index.css';
 
@@ -189,7 +189,7 @@ init();
 
 ```typescript
 import { useState, useEffect } from 'react';
-import { BazariSDK } from '@bazari/app-sdk';
+import { BazariSDK } from '@bazari.libervia.xyz/app-sdk';
 
 interface UserProfile {
   id: string;
@@ -424,7 +424,7 @@ body {
 ### Autenticação
 
 ```typescript
-import { BazariSDK } from '@bazari/app-sdk';
+import { BazariSDK } from '@bazari.libervia.xyz/app-sdk';
 
 // Obter perfil do usuário logado
 const profile = await BazariSDK.auth.getProfile();
@@ -501,12 +501,12 @@ BazariSDK.events.on('app:closing', () => {
 
 ```bash
 # Via CLI (recomendado)
-npx @bazari/cli create my-app
+npx @bazari.libervia.xyz/cli create my-app
 
 # Ou manualmente
 mkdir my-app && cd my-app
 npm init -y
-npm install @bazari/app-sdk react react-dom
+npm install @bazari.libervia.xyz/app-sdk react react-dom
 ```
 
 ### 2. Desenvolver

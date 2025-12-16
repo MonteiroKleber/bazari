@@ -20,9 +20,9 @@ export const deliveryApp: BazariApp = {
   ),
 
   permissions: [
-    { id: 'location', reason: 'Rastrear entregas' },
+    { id: 'location:read', reason: 'Rastrear entregas' },
     { id: 'orders.read', reason: 'Ver pedidos para entrega' },
-    { id: 'notifications.send', reason: 'Alertar status de entrega' },
+    { id: 'ui:toast', reason: 'Alertar status de entrega' },
   ],
 
   requiredRoles: ['delivery'],

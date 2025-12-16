@@ -1,8 +1,11 @@
 import { chatConfig } from '../config/chat';
 import { WsClientMsg, WsServerMsg } from '@bazari/shared-types';
+import { chatNotificationService } from './notifications';
+import { chatSoundService } from './sounds';
 
 type MessageHandler = (msg: WsServerMsg) => void;
 type ConnectionStatusHandler = (connected: boolean) => void;
+type NewMessageHandler = (msg: any, currentProfileId: string | null) => void;
 
 interface QueuedMessage {
   msg: WsClientMsg;
@@ -14,8 +17,10 @@ class ChatWebSocketClient {
   private ws: WebSocket | null = null;
   private handlers: MessageHandler[] = [];
   private statusHandlers: ConnectionStatusHandler[] = [];
+  private newMessageHandlers: NewMessageHandler[] = [];
   private reconnectTimer: any = null;
   private token: string | null = null;
+  private currentProfileId: string | null = null;
 
   // Exponential backoff
   private reconnectAttempts = 0;
@@ -28,6 +33,10 @@ class ChatWebSocketClient {
   private readonly maxQueueSize = 100;
   private readonly maxMessageAge = 5 * 60 * 1000; // 5 minutes
   private readonly maxRetries = 3;
+
+  // Typing indicator state
+  private typingTimeouts: Map<string, NodeJS.Timeout> = new Map();
+  private readonly typingDebounceMs = 3000;
 
   connect(token: string) {
     if (this.ws?.readyState === WebSocket.OPEN) return;
@@ -58,6 +67,30 @@ class ChatWebSocketClient {
       try {
         const msg: WsServerMsg = JSON.parse(event.data);
         this.handlers.forEach(h => h(msg));
+
+        // Handle new message notifications
+        if (msg.op === 'message') {
+          const message = msg.data as any;
+
+          // Only notify for messages from others
+          if (message.from !== this.currentProfileId) {
+            // Play notification sound
+            chatSoundService.play();
+
+            // Show push notification
+            const senderName = message.senderName || message.senderHandle || 'Nova mensagem';
+            const preview = this.getMessagePreview(message);
+            chatNotificationService.notifyNewMessage(
+              senderName,
+              preview,
+              message.threadId,
+              message.id
+            );
+
+            // Notify new message handlers
+            this.newMessageHandlers.forEach(h => h(message, this.currentProfileId));
+          }
+        }
       } catch (err) {
         console.error('[ChatWS] Parse error:', err);
       }
@@ -209,6 +242,115 @@ class ChatWebSocketClient {
 
   getReconnectAttempts(): number {
     return this.reconnectAttempts;
+  }
+
+  /**
+   * Envia indicador de que o usuário está digitando.
+   * Implementa debounce automático de 3 segundos.
+   */
+  sendTypingStart(threadId: string) {
+    // Enviar evento de typing
+    this.send({ op: 'typing:start', data: { threadId } } as WsClientMsg);
+
+    // Limpar timeout anterior se existir
+    const existingTimeout = this.typingTimeouts.get(threadId);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
+    // Configurar auto-stop após debounce
+    const timeout = setTimeout(() => {
+      this.sendTypingStop(threadId);
+    }, this.typingDebounceMs);
+
+    this.typingTimeouts.set(threadId, timeout);
+  }
+
+  /**
+   * Envia indicador de que o usuário parou de digitar.
+   */
+  sendTypingStop(threadId: string) {
+    // Limpar timeout se existir
+    const existingTimeout = this.typingTimeouts.get(threadId);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+      this.typingTimeouts.delete(threadId);
+    }
+
+    this.send({ op: 'typing:stop', data: { threadId } } as WsClientMsg);
+  }
+
+  /**
+   * Envia confirmação de entrega de mensagens.
+   */
+  sendDeliveryReceipt(messageIds: string[]) {
+    if (messageIds.length === 0) return;
+    this.send({ op: 'receipt:delivered', data: { messageIds } } as WsClientMsg);
+  }
+
+  /**
+   * Envia confirmação de leitura de mensagens.
+   */
+  sendReadReceipt(threadId: string, messageIds: string[]) {
+    if (messageIds.length === 0) return;
+    this.send({ op: 'receipt:read', data: { threadId, messageIds } } as WsClientMsg);
+  }
+
+  /**
+   * Define o ID do perfil atual (para filtrar notificações de mensagens próprias)
+   */
+  setCurrentProfileId(profileId: string | null) {
+    this.currentProfileId = profileId;
+  }
+
+  /**
+   * Registra handler para novas mensagens (para atualização de badges, etc)
+   */
+  onNewMessage(handler: NewMessageHandler) {
+    this.newMessageHandlers.push(handler);
+    return () => {
+      this.newMessageHandlers = this.newMessageHandlers.filter(h => h !== handler);
+    };
+  }
+
+  /**
+   * Gera preview do conteúdo da mensagem para notificação
+   */
+  private getMessagePreview(message: any): string {
+    switch (message.type) {
+      case 'image':
+        return '📷 Imagem';
+      case 'video':
+        return '🎬 Vídeo';
+      case 'audio':
+        return '🎤 Áudio';
+      case 'file':
+        return '📎 Arquivo';
+      case 'proposal':
+        return '💼 Proposta comercial';
+      case 'gif':
+        return 'GIF';
+      default:
+        // Para texto, usar o plaintext se disponível, senão o ciphertext truncado
+        if (message.plaintext) {
+          return message.plaintext;
+        }
+        return 'Nova mensagem';
+    }
+  }
+
+  /**
+   * Envia edição de mensagem via WebSocket
+   */
+  sendMessageEdit(messageId: string, ciphertext: string) {
+    this.send({ op: 'message:edit', data: { messageId, ciphertext } } as WsClientMsg);
+  }
+
+  /**
+   * Envia deleção de mensagem via WebSocket
+   */
+  sendMessageDelete(messageId: string) {
+    this.send({ op: 'message:delete', data: { messageId } } as WsClientMsg);
   }
 }
 

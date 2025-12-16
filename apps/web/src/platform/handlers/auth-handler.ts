@@ -102,16 +102,16 @@ export async function handleGetPermissions(
   const store = useUserAppsStore.getState();
   const granted = store.getAppPermissions(appId);
 
-  // All possible permissions that can be requested
+  // All possible permissions that can be requested (new format)
   const allPermissions: PermissionId[] = [
-    'user.profile.read',
-    'wallet.balance.read',
-    'wallet.history.read',
-    'wallet.transfer.request',
-    'storage.app',
-    'notifications',
-    'location',
-    'blockchain.sign',
+    'auth:read',
+    'wallet:read',
+    'wallet:transfer',
+    'storage:read',
+    'storage:write',
+    'ui:toast',
+    'contracts:read',
+    'contracts:write',
   ];
 
   // Permissions that are not yet granted

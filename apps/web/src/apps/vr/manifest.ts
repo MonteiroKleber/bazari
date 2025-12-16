@@ -24,8 +24,8 @@ export const vrApp: BazariApp = {
   component: undefined,
 
   permissions: [
-    { id: 'user.profile.read', reason: 'Criar avatar' },
-    { id: 'camera', reason: 'Experiência AR', optional: true },
+    { id: 'auth:read', reason: 'Criar avatar' },
+    { id: 'camera:access', reason: 'Experiência AR', optional: true },
   ],
 
   status: 'beta',

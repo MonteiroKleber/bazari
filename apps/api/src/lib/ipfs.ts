@@ -261,5 +261,166 @@ export function getIpfsInfo(): { configured: boolean; nodeCount: number; urls: s
   };
 }
 
+/**
+ * Opções para upload de diretório
+ */
+interface UploadDirectoryOptions {
+  maxFiles?: number;
+  maxFileSize?: number;
+  validateStructure?: boolean;
+}
+
+/**
+ * Resultado do upload de diretório
+ */
+interface UploadDirectoryResult {
+  cid: string;
+  files: number;
+  totalSize: number;
+}
+
+/**
+ * Upload de diretório para IPFS a partir de um tarball
+ * Extrai o tarball e faz upload de cada arquivo, retornando o CID do diretório
+ *
+ * @param tarballBuffer - Buffer do tarball (.tar.gz)
+ * @param name - Nome do diretório no IPFS
+ * @param options - Opções de validação
+ */
+export async function uploadDirectoryToIpfs(
+  tarballBuffer: Buffer,
+  name: string,
+  options?: UploadDirectoryOptions
+): Promise<string | UploadDirectoryResult> {
+  if (!ipfsPool) {
+    throw new Error('[IPFS] IPFS pool not configured');
+  }
+
+  const path = await import('path');
+  const { createGunzip } = await import('zlib');
+  const tar = await import('tar-stream');
+  const { Readable } = await import('stream');
+  const { pipeline } = await import('stream/promises');
+
+  const maxFiles = options?.maxFiles ?? 1000;
+  const maxFileSize = options?.maxFileSize ?? 10 * 1024 * 1024; // 10MB per file
+  const validateStructure = options?.validateStructure ?? false;
+
+  // Extrair arquivos do tarball
+  const files: Array<{ path: string; content: Buffer }> = [];
+  let totalSize = 0;
+
+  await new Promise<void>((resolve, reject) => {
+    const extract = tar.extract();
+    const gunzip = createGunzip();
+
+    extract.on('entry', (header, stream, next) => {
+      if (header.type !== 'file') {
+        stream.resume();
+        next();
+        return;
+      }
+
+      // Path traversal protection
+      const normalizedPath = path.normalize(header.name);
+      const safePath = normalizedPath.replace(/^(\.\.([/\\]|$))+/, '');
+
+      if (safePath !== normalizedPath || safePath.startsWith('/') || safePath.includes('..')) {
+        console.warn(`[IPFS] Blocked path traversal attempt: ${header.name}`);
+        stream.resume();
+        next();
+        return;
+      }
+
+      // File count limit
+      if (files.length >= maxFiles) {
+        reject(new Error(`Too many files in bundle. Maximum: ${maxFiles}`));
+        return;
+      }
+
+      const chunks: Buffer[] = [];
+      let fileSize = 0;
+
+      stream.on('data', (chunk: Buffer) => {
+        fileSize += chunk.length;
+
+        if (fileSize > maxFileSize) {
+          reject(new Error(
+            `File too large: ${header.name} (${Math.round(fileSize / 1024)}KB). Maximum: ${Math.round(maxFileSize / 1024 / 1024)}MB`
+          ));
+          return;
+        }
+
+        chunks.push(chunk);
+      });
+
+      stream.on('end', () => {
+        const content = Buffer.concat(chunks);
+        files.push({
+          path: safePath,
+          content,
+        });
+        totalSize += content.length;
+        next();
+      });
+
+      stream.on('error', reject);
+    });
+
+    extract.on('finish', resolve);
+    extract.on('error', reject);
+
+    const readable = Readable.from(tarballBuffer);
+    pipeline(readable, gunzip, extract).catch(reject);
+  });
+
+  // Validate bundle structure if requested
+  if (validateStructure) {
+    const hasIndex = files.some(
+      (f) => f.path === 'index.html' || f.path.endsWith('/index.html')
+    );
+
+    if (!hasIndex) {
+      throw new Error('Bundle must contain index.html at root');
+    }
+  }
+
+  console.log(`[IPFS] Extracted ${files.length} files (${Math.round(totalSize / 1024)}KB) from tarball ${name}`);
+
+  // Upload each file and build directory structure for IPFS
+  // Using ipfs.addAll to create a directory with all files
+  const client = ipfsPool['clients'][0].client;
+
+  const ipfsFiles = files.map((f) => ({
+    path: `${name}/${f.path}`,
+    content: f.content,
+  }));
+
+  let rootCid = '';
+  for await (const result of client.addAll(ipfsFiles, { pin: true, wrapWithDirectory: false })) {
+    // The last entry with the directory name is the root CID
+    if (result.path === name) {
+      rootCid = result.cid.toString();
+    }
+  }
+
+  if (!rootCid) {
+    throw new Error('[IPFS] Failed to get root CID for directory');
+  }
+
+  console.log(`[IPFS] Uploaded directory ${name} with CID: ${rootCid}`);
+
+  // Return extended result if options were provided
+  if (options) {
+    return {
+      cid: rootCid,
+      files: files.length,
+      totalSize,
+    };
+  }
+
+  return rootCid;
+}
+
 // Exportar pool para uso interno (se necessário)
 export { ipfsPool };

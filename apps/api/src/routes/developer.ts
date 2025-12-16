@@ -1234,4 +1234,155 @@ export async function developerRoutes(
       createdAt: user.createdAt,
     };
   });
+
+  // ============================================
+  // STUDIO PUBLISH ENDPOINTS
+  // ============================================
+
+  // POST /developer/upload-bundle - Upload do bundle para IPFS
+  app.post('/developer/upload-bundle', {
+    onRequest: authOnRequest,
+  }, async (request, reply) => {
+    const userId = (request as any).authUser?.sub;
+
+    if (!userId) {
+      return reply.status(401).send({ error: 'Not authenticated' });
+    }
+
+    // Get metadata from headers
+    const appSlug = request.headers['x-app-slug'] as string;
+    const appVersion = request.headers['x-app-version'] as string;
+
+    if (!appSlug || !appVersion) {
+      return reply.status(400).send({ error: 'Missing X-App-Slug or X-App-Version headers' });
+    }
+
+    try {
+      // Get the raw body as buffer
+      const bodyBuffer = await request.body as Buffer;
+
+      if (!bodyBuffer || bodyBuffer.length === 0) {
+        return reply.status(400).send({ error: 'Empty body' });
+      }
+
+      // Extract tarball and upload directory to IPFS
+      const { uploadDirectoryToIpfs } = await import('../lib/ipfs.js');
+      const cid = await uploadDirectoryToIpfs(bodyBuffer, `${appSlug}-${appVersion}`);
+
+      if (!cid) {
+        return reply.status(500).send({ error: 'Failed to upload to IPFS' });
+      }
+
+      return {
+        cid,
+        bundleUrl: `https://bazari.libervia.xyz/ipfs/${cid}`,
+      };
+    } catch (error) {
+      console.error('Upload bundle error:', error);
+      return reply.status(500).send({
+        error: error instanceof Error ? error.message : 'Failed to upload bundle',
+      });
+    }
+  });
+
+  // POST /developer/submit-version - Submeter versão para review
+  app.post('/developer/submit-version', {
+    onRequest: authOnRequest,
+  }, async (request, reply) => {
+    const userId = (request as any).authUser?.sub;
+
+    if (!userId) {
+      return reply.status(401).send({ error: 'Not authenticated' });
+    }
+
+    const body = request.body as {
+      appSlug: string;
+      version: string;
+      cid: string;
+      bundleUrl: string;
+      changelog?: string;
+      manifest: Record<string, unknown>;
+    };
+
+    if (!body.appSlug || !body.version || !body.cid || !body.bundleUrl) {
+      return reply.status(400).send({ error: 'Missing required fields' });
+    }
+
+    try {
+      // Check if app exists for this developer
+      let appData = await prisma.thirdPartyApp.findFirst({
+        where: {
+          appId: body.appSlug,
+          developerId: userId,
+        },
+      });
+
+      // If app doesn't exist, create it
+      if (!appData) {
+        const manifest = body.manifest || {};
+
+        appData = await prisma.thirdPartyApp.create({
+          data: {
+            appId: body.appSlug,
+            name: (manifest.name as string) || body.appSlug,
+            slug: body.appSlug,
+            description: (manifest.description as string) || 'App created via Bazari Studio',
+            category: (manifest.category as string) || 'tools',
+            icon: (manifest.icon as string) || 'Package',
+            color: (manifest.color as string) || 'bg-gray-500',
+            developerId: userId,
+            status: 'PENDING_REVIEW',
+            bundleUrl: body.bundleUrl,
+            bundleHash: body.cid,
+            currentVersion: body.version,
+            sdkVersion: (manifest.sdkVersion as string) || '0.2.2',
+            permissions: (manifest.permissions as any[]) || [],
+          },
+        });
+      } else {
+        // Update existing app
+        appData = await prisma.thirdPartyApp.update({
+          where: { id: appData.id },
+          data: {
+            status: 'PENDING_REVIEW',
+            bundleUrl: body.bundleUrl,
+            bundleHash: body.cid,
+            currentVersion: body.version,
+          },
+        });
+      }
+
+      // Create version record
+      const version = await prisma.appVersion.create({
+        data: {
+          appId: appData.id,
+          version: body.version,
+          changelog: body.changelog || null,
+          bundleUrl: body.bundleUrl,
+          bundleHash: body.cid,
+        },
+      });
+
+      // Create submission for review
+      const submission = await prisma.appSubmission.create({
+        data: {
+          appId: appData.id,
+          version: body.version,
+          notes: body.changelog || null,
+        },
+      });
+
+      return {
+        appId: appData.id,
+        versionId: version.id,
+        submissionId: submission.id,
+        status: 'PENDING_REVIEW',
+      };
+    } catch (error) {
+      console.error('Submit version error:', error);
+      return reply.status(500).send({
+        error: error instanceof Error ? error.message : 'Failed to submit version',
+      });
+    }
+  });
 }

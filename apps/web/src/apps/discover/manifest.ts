@@ -18,7 +18,7 @@ export const discoverApp: BazariApp = {
   component: lazy(() => import('@/pages/DiscoverPeoplePage')),
 
   permissions: [
-    { id: 'user.profile.read', reason: 'Mostrar perfis sugeridos' },
+    { id: 'auth:read', reason: 'Mostrar perfis sugeridos' },
     { id: 'feed.read', reason: 'Exibir tendências' },
   ],
 

@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { usePersonalizedFeed, type FeedTab } from '@/hooks/usePersonalizedFeed';
+import { useNewPostsIndicator } from '@/hooks/useNewPostsIndicator';
+import { useFeedFilters } from '@/hooks/useFeedFilters';
 import { PostCard } from './PostCard';
 import { PostCardSkeleton } from './PostCardSkeleton';
+import { NewPostsBanner } from './NewPostsBanner';
+import { FeedFilterDropdown } from './FeedFilterDropdown';
 import { SkeletonList } from '../SkeletonList';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, RefreshCw, Sparkles, Users, TrendingUp } from 'lucide-react';
+import { Loader2, RefreshCw, Sparkles, Users, TrendingUp, Filter } from 'lucide-react';
 
 const TABS: { value: FeedTab; label: string; icon: React.ReactNode }[] = [
   { value: 'for-you', label: 'Para Você', icon: <Sparkles className="w-4 h-4" /> },
@@ -27,13 +31,35 @@ export function PersonalizedFeed({ showQuickPost = false, userProfile, onCreateP
   const [activeTab, setActiveTab] = useState<FeedTab>('for-you');
   const { posts, loading, loadingMore, hasMore, error, refresh, loadMoreRef, setPosts } =
     usePersonalizedFeed({ tab: activeTab });
+  const { newPostsCount, clearAndRefresh } = useNewPostsIndicator({ tab: activeTab });
+  const { filters, toggleFilter, resetFilters, activeFiltersCount, filterPosts } = useFeedFilters();
+  const feedContainerRef = useRef<HTMLDivElement>(null);
+
+  // Apply filters to posts
+  const filteredPosts = useMemo(() => {
+    return filterPosts(posts as Array<{ kind?: string; media?: unknown[] } & typeof posts[number]>);
+  }, [posts, filterPosts]);
 
   const handleTabChange = (tab: FeedTab) => {
     setActiveTab(tab);
   };
 
+  const handleLoadNewPosts = useCallback(() => {
+    clearAndRefresh();
+    refresh();
+    // Scroll to top
+    feedContainerRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [clearAndRefresh, refresh]);
+
   return (
-    <div className="w-full">
+    <div className="w-full" ref={feedContainerRef}>
+      {/* New Posts Banner */}
+      <NewPostsBanner
+        count={newPostsCount}
+        onLoad={handleLoadNewPosts}
+        className="top-16"
+      />
+
       {/* Tabs - Sticky */}
       <div className="sticky top-0 z-20 bg-background border-b backdrop-blur-sm bg-background/95">
         <div className="flex items-center">
@@ -83,8 +109,14 @@ export function PersonalizedFeed({ showQuickPost = false, userProfile, onCreateP
         </div>
       )}
 
-      {/* Refresh Button */}
-      <div className="flex justify-end p-4 border-b bg-background/50">
+      {/* Refresh Button and Filters */}
+      <div className="flex justify-end gap-2 p-4 border-b bg-background/50">
+        <FeedFilterDropdown
+          filters={filters}
+          activeFiltersCount={activeFiltersCount}
+          onToggleFilter={toggleFilter}
+          onResetFilters={resetFilters}
+        />
         <Button
           variant="ghost"
           size="sm"
@@ -117,9 +149,9 @@ export function PersonalizedFeed({ showQuickPost = false, userProfile, onCreateP
         )}
 
         {/* Posts */}
-        {!loading && !error && posts.length > 0 && (
+        {!loading && !error && filteredPosts.length > 0 && (
           <>
-            {posts.map((post) => (
+            {filteredPosts.map((post) => (
               <PostCard
                 key={post.id}
                 post={{
@@ -153,7 +185,21 @@ export function PersonalizedFeed({ showQuickPost = false, userProfile, onCreateP
           </>
         )}
 
-        {/* Empty State */}
+        {/* Empty State - Filters removed all posts */}
+        {!loading && !error && posts.length > 0 && filteredPosts.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+            <Filter className="w-12 h-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Nenhum post corresponde aos filtros</h3>
+            <p className="text-muted-foreground mb-4">
+              Tente ajustar os filtros para ver mais conteúdo
+            </p>
+            <Button onClick={resetFilters} variant="outline">
+              Limpar filtros
+            </Button>
+          </div>
+        )}
+
+        {/* Empty State - No posts at all */}
         {!loading && !error && posts.length === 0 && (
           <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
             <Sparkles className="w-12 h-12 text-muted-foreground mb-4" />
@@ -184,7 +230,7 @@ export function PersonalizedFeed({ showQuickPost = false, userProfile, onCreateP
         )}
 
         {/* End of Feed */}
-        {!loading && !hasMore && posts.length > 0 && (
+        {!loading && !hasMore && filteredPosts.length > 0 && (
           <div className="py-8 text-center text-sm text-muted-foreground">
             Você chegou ao fim do feed
           </div>

@@ -32,6 +32,24 @@ const TEMPLATES = [
   },
 ];
 
+const DISTRIBUTION_CHOICES = [
+  {
+    name: 'App Store (Bazari)',
+    value: 'appstore',
+    description: 'Publicar no marketplace Bazari',
+  },
+  {
+    name: 'SDK Externo (meu site)',
+    value: 'external',
+    description: 'Integrar via API Key no seu domínio',
+  },
+  {
+    name: 'Ambos',
+    value: 'both',
+    description: 'App Store + integração externa',
+  },
+];
+
 // Template básico Vanilla para manter compatibilidade
 const VANILLA_INDEX_HTML = `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -212,6 +230,44 @@ export const createCommand = new Command('create')
       },
     ]);
 
+    // Distribution type selection
+    const { distributionType } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'distributionType',
+        message: 'Como você quer distribuir seu app?',
+        choices: DISTRIBUTION_CHOICES.map((c) => ({
+          name: `${c.name} - ${chalk.dim(c.description)}`,
+          value: c.value,
+        })),
+      },
+    ]);
+
+    // Ask for allowed origins if external
+    let allowedOrigins: string[] = [];
+    if (distributionType === 'external' || distributionType === 'both') {
+      const { origins } = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'origins',
+          message: 'Origens permitidas (separadas por vírgula):',
+          default: 'http://localhost:3000',
+          validate: (input: string) => {
+            const urls = input.split(',').map((u) => u.trim());
+            for (const url of urls) {
+              try {
+                new URL(url);
+              } catch {
+                return `URL inválida: ${url}`;
+              }
+            }
+            return true;
+          },
+        },
+      ]);
+      allowedOrigins = origins.split(',').map((u: string) => u.trim());
+    }
+
     const slug = answers.name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
@@ -230,6 +286,13 @@ export const createCommand = new Command('create')
         return;
       }
 
+      // Build distribution config
+      const distribution = {
+        appStore: distributionType === 'appstore' || distributionType === 'both',
+        external: distributionType === 'external' || distributionType === 'both',
+        allowedOrigins: distributionType !== 'appstore' ? allowedOrigins : undefined,
+      };
+
       if (template === 'react-ts') {
         await createReactTsProject(projectDir, {
           name: answers.name,
@@ -238,6 +301,7 @@ export const createCommand = new Command('create')
           description: answers.description,
           category: answers.category,
           author: answers.author,
+          distribution,
         });
       } else {
         await createVanillaProject(projectDir, {
@@ -247,6 +311,7 @@ export const createCommand = new Command('create')
           description: answers.description,
           category: answers.category,
           author: answers.author,
+          distribution,
         });
       }
 
@@ -280,6 +345,11 @@ interface ProjectConfig {
   description: string;
   category: string;
   author: string;
+  distribution: {
+    appStore: boolean;
+    external: boolean;
+    allowedOrigins?: string[];
+  };
 }
 
 async function createReactTsProject(projectDir: string, config: ProjectConfig) {
@@ -348,15 +418,16 @@ async function createReactTsProject(projectDir: string, config: ProjectConfig) {
     entryPoint: '/index.html',
     permissions: [
       {
-        id: 'user.profile.read',
+        id: 'auth:read',
         reason: 'Para exibir informações do seu perfil',
       },
       {
-        id: 'wallet.balance.read',
+        id: 'wallet:read',
         reason: 'Para exibir seu saldo',
       },
     ],
     sdkVersion: '0.2.0',
+    distribution: config.distribution,
     monetizationType: 'FREE',
   };
 
@@ -444,11 +515,12 @@ const balance = await sdk.wallet.getBalance();
     entryPoint: '/index.html',
     permissions: [
       {
-        id: 'user.profile.read',
+        id: 'auth:read',
         reason: 'Para exibir informações do seu perfil',
       },
     ],
     sdkVersion: '0.2.0',
+    distribution: config.distribution,
     monetizationType: 'FREE',
   };
 

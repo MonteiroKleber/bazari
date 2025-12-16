@@ -628,22 +628,125 @@ export async function handleAppMessage(
 
 /**
  * Mapa de tipo de mensagem para permissão necessária
+ * Formato: messageType -> permissionId (novo formato auth:read ou legado user.profile.read)
  */
-const permissionMap: Partial<Record<MessageType, PermissionId>> = {
-  'auth:getCurrentUser': 'user.profile.read',
-  'wallet:getBalance': 'wallet.balance.read',
-  'wallet:getHistory': 'wallet.history.read',
-  'wallet:requestTransfer': 'wallet.transfer.request',
-  'storage:get': 'storage.app',
-  'storage:set': 'storage.app',
-  'storage:remove': 'storage.app',
-  'storage:clear': 'storage.app',
-  'location:getCurrentPosition': 'location',
-  'location:watchPosition': 'location',
-  'contracts:deployLoyalty': 'blockchain.sign',
-  'contracts:deployEscrow': 'blockchain.sign',
-  'contracts:deployRevenueSplit': 'blockchain.sign',
+const permissionMap: Record<string, string> = {
+  // ============ AUTH ============
+  // auth:getCurrentUser e auth:getPermissions são públicos para apps instalados
+  // Não exigem permissão explícita pois:
+  // 1. O usuário já está autenticado
+  // 2. O app já foi instalado pelo usuário
+  // 3. Saber quem é o usuário não é sensível (padrão de mercado iOS/Android)
+
+  // ============ WALLET ============
+  'wallet:getBalance': 'wallet:read',
+  'wallet:getHistory': 'wallet:read',
+  'wallet:requestTransfer': 'wallet:transfer',
+
+  // ============ STORAGE ============
+  'storage:get': 'storage:read',
+  'storage:set': 'storage:write',
+  'storage:remove': 'storage:write',
+  'storage:clear': 'storage:write',
+
+  // ============ UI ============
+  'ui:showToast': 'ui:toast',
+  'ui:showConfirm': 'ui:modal',
+  'ui:showModal': 'ui:modal',
+  'ui:closeModal': 'ui:modal',
+
+  // ============ NAVIGATION ============
+  // Navigation doesn't require special permissions
+  // 'navigation:goTo': null,
+  // 'navigation:openApp': null,
+  // 'navigation:goBack': null,
+
+  // ============ EVENTS ============
+  'events:subscribe': 'events:subscribe',
+  'events:unsubscribe': 'events:subscribe',
+  'events:emit': 'events:emit',
+
+  // ============ LOCATION ============
+  'location:getCurrentPosition': 'location:read',
+  'location:watchPosition': 'location:read',
+  'location:clearWatch': 'location:read',
+  'location:calculateDistance': 'location:read',
+  'location:geocode': 'location:geocode',
+  'location:reverseGeocode': 'location:geocode',
+
+  // ============ MAPS ============
+  'maps:create': 'maps:display',
+  'maps:setCenter': 'maps:display',
+  'maps:setZoom': 'maps:display',
+  'maps:addMarker': 'maps:display',
+  'maps:removeMarker': 'maps:display',
+  'maps:clearMarkers': 'maps:display',
+  'maps:drawRoute': 'maps:directions',
+  'maps:clearRoutes': 'maps:directions',
+  'maps:fitBounds': 'maps:display',
+  'maps:destroy': 'maps:display',
+  'maps:showFullscreen': 'maps:display',
+  'maps:pickLocation': 'maps:display',
+  'maps:openNavigation': 'maps:directions',
+
+  // ============ CONTRACTS - Deploy ============
+  'contracts:deployLoyalty': 'contracts:deploy',
+  'contracts:deployEscrow': 'contracts:deploy',
+  'contracts:deployRevenueSplit': 'contracts:deploy',
+  'contracts:list': 'contracts:read',
+
+  // ============ CONTRACTS - Escrow ============
+  'contracts:escrow:create': 'contracts:execute',
+  'contracts:escrow:fund': 'contracts:execute',
+  'contracts:escrow:confirmDelivery': 'contracts:execute',
+  'contracts:escrow:openDispute': 'contracts:execute',
+  'contracts:escrow:refund': 'contracts:execute',
+  'contracts:escrow:release': 'contracts:execute',
+  'contracts:escrow:getStatus': 'contracts:read',
+
+  // ============ CONTRACTS - Loyalty ============
+  'contracts:loyalty:issuePoints': 'contracts:execute',
+  'contracts:loyalty:redeem': 'contracts:execute',
+  'contracts:loyalty:transfer': 'contracts:execute',
+  'contracts:loyalty:balanceOf': 'contracts:read',
+  'contracts:loyalty:tierOf': 'contracts:read',
+  'contracts:loyalty:totalEarnedOf': 'contracts:read',
+  'contracts:loyalty:getInfo': 'contracts:read',
+  'contracts:loyalty:addOperator': 'contracts:execute',
+  'contracts:loyalty:removeOperator': 'contracts:execute',
+
+  // ============ CONTRACTS - RevenueSplit ============
+  'contracts:revenueSplit:withdraw': 'contracts:execute',
+  'contracts:revenueSplit:pendingBalance': 'contracts:read',
+  'contracts:revenueSplit:getParticipants': 'contracts:read',
+  'contracts:revenueSplit:getTotalDistributed': 'contracts:read',
+  'contracts:revenueSplit:addParticipant': 'contracts:execute',
+  'contracts:revenueSplit:removeParticipant': 'contracts:execute',
+  'contracts:revenueSplit:updateShare': 'contracts:execute',
 };
+
+/**
+ * Mapa de permissões legadas para o novo formato
+ */
+const legacyPermissionMap: Record<string, string> = {
+  'user.profile.read': 'auth:read',
+  'user.profile.write': 'auth:write',
+  'wallet.balance.read': 'wallet:read',
+  'wallet.history.read': 'wallet:read',
+  'wallet.transfer.request': 'wallet:transfer',
+  'storage.app': 'storage:read', // Implica também storage:write
+  'notifications.send': 'ui:toast',
+  'blockchain.read': 'contracts:read',
+  'blockchain.sign': 'contracts:execute',
+  'location': 'location:read',
+};
+
+/**
+ * Normaliza permissão para o novo formato
+ */
+function normalizePermission(permission: string): string {
+  return legacyPermissionMap[permission] || permission;
+}
 
 /**
  * Verifica se o app tem permissão para executar a ação
@@ -654,26 +757,85 @@ async function checkPermission(
 ): Promise<boolean> {
   const requiredPermission = permissionMap[messageType];
 
-  // Algumas operações não precisam de permissão
+  // Algumas operações não precisam de permissão especial
   if (!requiredPermission) {
     return true;
   }
 
-  // Apps em modo de preview de desenvolvimento têm acesso a operações básicas de leitura
+  // Apps em modo de preview de desenvolvimento têm acesso total
+  // O Preview é um ambiente controlado onde o desenvolvedor está testando
   if (appId === 'dev-preview') {
-    const readOnlyPermissions: PermissionId[] = [
-      'user.profile.read',
-      'wallet.balance.read',
-      'wallet.history.read',
-      'storage.app',
-    ];
-    if (readOnlyPermissions.includes(requiredPermission)) {
-      return true;
+    console.log(`[HostBridge] Dev preview: auto-allowing ${messageType}`);
+    return true;
+  }
+
+  // Normalizar permissão para comparação
+  const normalizedRequired = normalizePermission(requiredPermission);
+
+  // Verificar se é um app externo (tem apiKey começando com baz_app_)
+  // Apps externos são verificados via getVerifiedApp que já carrega permissões
+  const verifiedApp = await getVerifiedAppByAppId(appId);
+  if (verifiedApp && verifiedApp.permissions.length > 0) {
+    // App externo - verificar permissões do DeveloperApp
+    const hasPermission = verifiedApp.permissions.some(
+      (p) => normalizePermission(p) === normalizedRequired
+    );
+
+    if (!hasPermission) {
+      console.warn(`[HostBridge] External app ${appId} does not have permission: ${requiredPermission}`);
+      return false;
+    }
+    return true;
+  }
+
+  // App da App Store - verificar localStorage (grantedPermissions)
+  const store = useUserAppsStore.getState();
+
+  // Verificar se app está instalado
+  if (!store.isInstalled(appId)) {
+    console.warn(`[HostBridge] App not installed: ${appId}`);
+    return false;
+  }
+
+  // Verificar se permissão foi concedida pelo usuário
+  const grantedPermissions = store.getAppPermissions(appId);
+
+  // Verificar com normalização (aceita tanto formato novo quanto legado)
+  const hasPermission = grantedPermissions.some(
+    (p) => normalizePermission(p) === normalizedRequired
+  );
+
+  // Verificar também formato legado direto
+  const hasLegacyPermission = grantedPermissions.includes(requiredPermission as PermissionId);
+
+  if (!hasPermission && !hasLegacyPermission) {
+    console.warn(`[HostBridge] Permission not granted for app ${appId}: ${requiredPermission}`);
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Busca app verificado pelo appId (para apps externos)
+ * Usa cache se disponível
+ */
+async function getVerifiedAppByAppId(appId: string): Promise<VerifiedApp | null> {
+  // Verificar se já temos o app no cache pelo ID
+  for (const [, cached] of appCacheWithTTL) {
+    if (cached.app.id === appId) {
+      return cached.app;
     }
   }
 
-  const store = useUserAppsStore.getState();
-  return store.hasPermission(appId, requiredPermission);
+  // Verificar cache legado
+  for (const [, app] of verifiedAppsCache) {
+    if (app.id === appId) {
+      return app;
+    }
+  }
+
+  return null;
 }
 
 /**

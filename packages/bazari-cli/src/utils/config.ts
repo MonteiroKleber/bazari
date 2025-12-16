@@ -12,6 +12,18 @@ export interface BazariConfig {
   developerId?: string;
 }
 
+/**
+ * Configuração de distribuição do app
+ */
+export interface DistributionConfig {
+  /** Publicar na Bazari App Store */
+  appStore: boolean;
+  /** Usar SDK em domínio externo */
+  external: boolean;
+  /** Origens permitidas para SDK externo (obrigatório se external=true) */
+  allowedOrigins?: string[];
+}
+
 export interface AppManifest {
   appId: string;
   name: string;
@@ -31,6 +43,8 @@ export interface AppManifest {
     optional?: boolean;
   }>;
   sdkVersion: string;
+  /** Configuração de distribuição */
+  distribution?: DistributionConfig;
   // Monetization
   monetizationType?: 'FREE' | 'PAID' | 'FREEMIUM' | 'SUBSCRIPTION';
   price?: string;

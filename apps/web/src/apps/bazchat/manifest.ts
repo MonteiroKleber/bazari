@@ -22,8 +22,8 @@ export const bazchatApp: BazariApp = {
   permissions: [
     { id: 'messages.read', reason: 'Acessar suas conversas' },
     { id: 'messages.write', reason: 'Enviar mensagens' },
-    { id: 'user.profile.read', reason: 'Mostrar info dos contatos' },
-    { id: 'notifications.send', reason: 'Alertar novas mensagens' },
+    { id: 'auth:read', reason: 'Mostrar info dos contatos' },
+    { id: 'ui:toast', reason: 'Alertar novas mensagens' },
   ],
 
   status: 'stable',

@@ -1,35 +1,63 @@
 /**
  * IDs de permissões disponíveis no sistema
+ * Formato: resource:action (padrão OAuth2)
  */
 export type PermissionId =
-  // User
-  | 'user.profile.read'
-  | 'user.profile.write'
+  // Auth
+  | 'auth:read'
+  | 'auth:write'
 
   // Wallet
+  | 'wallet:read'
+  | 'wallet:transfer'
+
+  // Storage
+  | 'storage:read'
+  | 'storage:write'
+
+  // UI
+  | 'ui:toast'
+  | 'ui:modal'
+
+  // Events
+  | 'events:subscribe'
+  | 'events:emit'
+
+  // Location
+  | 'location:read'
+  | 'location:geocode'
+
+  // Maps
+  | 'maps:display'
+  | 'maps:directions'
+
+  // Contracts
+  | 'contracts:read'
+  | 'contracts:write'
+  | 'contracts:deploy'
+  | 'contracts:execute'
+
+  // Camera
+  | 'camera:access'
+
+  // Legacy aliases (for backward compatibility)
+  | 'user.profile.read'
+  | 'user.profile.write'
   | 'wallet.balance.read'
   | 'wallet.history.read'
   | 'wallet.transfer.request'
-
-  // Commerce
   | 'products.read'
   | 'products.write'
   | 'orders.read'
   | 'orders.write'
-
-  // Social
   | 'feed.read'
   | 'feed.write'
   | 'messages.read'
   | 'messages.write'
-
-  // System
   | 'notifications.send'
   | 'storage.app'
   | 'camera'
   | 'location'
-
-  // Blockchain
   | 'blockchain.read'
   | 'blockchain.sign';
 
@@ -62,10 +90,190 @@ export interface PermissionDefinition {
 }
 
 /**
- * Catálogo de todas as permissões
+ * Mapa de permissões legadas para o novo formato
  */
-export const PERMISSIONS_CATALOG: Record<PermissionId, PermissionDefinition> = {
-  // User
+const LEGACY_TO_NEW_MAP: Record<string, PermissionId> = {
+  'user.profile.read': 'auth:read',
+  'user.profile.write': 'auth:write',
+  'wallet.balance.read': 'wallet:read',
+  'wallet.history.read': 'wallet:read',
+  'wallet.transfer.request': 'wallet:transfer',
+  'storage.app': 'storage:read',
+  'notifications.send': 'ui:toast',
+  'blockchain.read': 'contracts:read',
+  'blockchain.sign': 'contracts:execute',
+  'location': 'location:read',
+  'camera': 'camera:access',
+};
+
+/**
+ * Normaliza um ID de permissão para o formato novo
+ */
+export function normalizePermissionId(id: string): PermissionId {
+  return (LEGACY_TO_NEW_MAP[id] || id) as PermissionId;
+}
+
+/**
+ * Catálogo de todas as permissões (formato novo)
+ */
+export const PERMISSIONS_CATALOG: Record<string, PermissionDefinition> = {
+  // ============ AUTH ============
+  'auth:read': {
+    id: 'auth:read',
+    name: 'Ler perfil',
+    description: 'Ver seu nome, avatar e handle',
+    risk: 'low',
+    icon: 'User',
+  },
+  'auth:write': {
+    id: 'auth:write',
+    name: 'Editar perfil',
+    description: 'Modificar informações do seu perfil',
+    risk: 'medium',
+    icon: 'UserCog',
+  },
+
+  // ============ WALLET ============
+  'wallet:read': {
+    id: 'wallet:read',
+    name: 'Ver carteira',
+    description: 'Consultar saldo e histórico de transações',
+    risk: 'low',
+    icon: 'Wallet',
+  },
+  'wallet:transfer': {
+    id: 'wallet:transfer',
+    name: 'Solicitar transferência',
+    description: 'Pedir autorização para transferir tokens',
+    risk: 'high',
+    icon: 'Send',
+    requiresConfirmation: true,
+  },
+
+  // ============ STORAGE ============
+  'storage:read': {
+    id: 'storage:read',
+    name: 'Ler dados',
+    description: 'Acessar dados salvos pelo app',
+    risk: 'low',
+    icon: 'Database',
+  },
+  'storage:write': {
+    id: 'storage:write',
+    name: 'Salvar dados',
+    description: 'Salvar dados persistentes do app',
+    risk: 'low',
+    icon: 'Save',
+  },
+
+  // ============ UI ============
+  'ui:toast': {
+    id: 'ui:toast',
+    name: 'Notificações',
+    description: 'Exibir mensagens temporárias',
+    risk: 'low',
+    icon: 'Bell',
+  },
+  'ui:modal': {
+    id: 'ui:modal',
+    name: 'Modais',
+    description: 'Exibir diálogos e confirmações',
+    risk: 'low',
+    icon: 'MessageSquare',
+  },
+
+  // ============ EVENTS ============
+  'events:subscribe': {
+    id: 'events:subscribe',
+    name: 'Escutar eventos',
+    description: 'Receber notificações de eventos',
+    risk: 'low',
+    icon: 'Radio',
+  },
+  'events:emit': {
+    id: 'events:emit',
+    name: 'Emitir eventos',
+    description: 'Enviar eventos para a plataforma',
+    risk: 'low',
+    icon: 'Megaphone',
+  },
+
+  // ============ LOCATION ============
+  'location:read': {
+    id: 'location:read',
+    name: 'Localização',
+    description: 'Acessar sua localização GPS',
+    risk: 'medium',
+    icon: 'MapPin',
+  },
+  'location:geocode': {
+    id: 'location:geocode',
+    name: 'Geocodificação',
+    description: 'Converter endereços em coordenadas',
+    risk: 'low',
+    icon: 'Map',
+  },
+
+  // ============ MAPS ============
+  'maps:display': {
+    id: 'maps:display',
+    name: 'Exibir mapas',
+    description: 'Mostrar mapas interativos',
+    risk: 'low',
+    icon: 'Map',
+  },
+  'maps:directions': {
+    id: 'maps:directions',
+    name: 'Rotas',
+    description: 'Calcular e exibir rotas',
+    risk: 'low',
+    icon: 'Navigation',
+  },
+
+  // ============ CONTRACTS ============
+  'contracts:read': {
+    id: 'contracts:read',
+    name: 'Ler blockchain',
+    description: 'Consultar dados on-chain',
+    risk: 'low',
+    icon: 'Blocks',
+  },
+  'contracts:write': {
+    id: 'contracts:write',
+    name: 'Escrever blockchain',
+    description: 'Enviar transações on-chain',
+    risk: 'high',
+    icon: 'FileEdit',
+    requiresConfirmation: true,
+  },
+  'contracts:deploy': {
+    id: 'contracts:deploy',
+    name: 'Deploy contratos',
+    description: 'Fazer deploy de smart contracts',
+    risk: 'critical',
+    icon: 'Rocket',
+    requiresConfirmation: true,
+  },
+  'contracts:execute': {
+    id: 'contracts:execute',
+    name: 'Executar contratos',
+    description: 'Chamar métodos de smart contracts',
+    risk: 'high',
+    icon: 'Play',
+    requiresConfirmation: true,
+  },
+
+  // ============ CAMERA ============
+  'camera:access': {
+    id: 'camera:access',
+    name: 'Câmera',
+    description: 'Acessar câmera do dispositivo',
+    risk: 'medium',
+    icon: 'Camera',
+  },
+
+  // ============ LEGACY ALIASES ============
+  // Mapeiam para as definições novas
   'user.profile.read': {
     id: 'user.profile.read',
     name: 'Ler perfil',
@@ -80,8 +288,6 @@ export const PERMISSIONS_CATALOG: Record<PermissionId, PermissionDefinition> = {
     risk: 'medium',
     icon: 'UserCog',
   },
-
-  // Wallet
   'wallet.balance.read': {
     id: 'wallet.balance.read',
     name: 'Ver saldo',
@@ -104,8 +310,6 @@ export const PERMISSIONS_CATALOG: Record<PermissionId, PermissionDefinition> = {
     icon: 'Send',
     requiresConfirmation: true,
   },
-
-  // Commerce
   'products.read': {
     id: 'products.read',
     name: 'Ver produtos',
@@ -134,8 +338,6 @@ export const PERMISSIONS_CATALOG: Record<PermissionId, PermissionDefinition> = {
     risk: 'high',
     icon: 'ShoppingCart',
   },
-
-  // Social
   'feed.read': {
     id: 'feed.read',
     name: 'Ler feed',
@@ -166,8 +368,6 @@ export const PERMISSIONS_CATALOG: Record<PermissionId, PermissionDefinition> = {
     icon: 'Send',
     requiresConfirmation: true,
   },
-
-  // System
   'notifications.send': {
     id: 'notifications.send',
     name: 'Notificações',
@@ -182,22 +382,20 @@ export const PERMISSIONS_CATALOG: Record<PermissionId, PermissionDefinition> = {
     risk: 'low',
     icon: 'Database',
   },
-  camera: {
+  'camera': {
     id: 'camera',
     name: 'Câmera',
     description: 'Acessar câmera do dispositivo',
     risk: 'medium',
     icon: 'Camera',
   },
-  location: {
+  'location': {
     id: 'location',
     name: 'Localização',
     description: 'Acessar sua localização GPS',
     risk: 'medium',
     icon: 'MapPin',
   },
-
-  // Blockchain
   'blockchain.read': {
     id: 'blockchain.read',
     name: 'Ler blockchain',
@@ -216,10 +414,16 @@ export const PERMISSIONS_CATALOG: Record<PermissionId, PermissionDefinition> = {
 };
 
 /**
- * Obtém definição de uma permissão
+ * Obtém definição de uma permissão (aceita formato novo ou legado)
  */
-export function getPermissionDefinition(id: PermissionId): PermissionDefinition {
-  return PERMISSIONS_CATALOG[id];
+export function getPermissionDefinition(id: string): PermissionDefinition | undefined {
+  // Primeiro tenta buscar diretamente
+  if (PERMISSIONS_CATALOG[id]) {
+    return PERMISSIONS_CATALOG[id];
+  }
+  // Tenta normalizar e buscar
+  const normalizedId = normalizePermissionId(id);
+  return PERMISSIONS_CATALOG[normalizedId];
 }
 
 /**
@@ -236,7 +440,7 @@ export function groupPermissionsByRisk(
   };
 
   for (const id of permissionIds) {
-    const def = PERMISSIONS_CATALOG[id];
+    const def = getPermissionDefinition(id);
     if (def) {
       grouped[def.risk].push(def);
     }

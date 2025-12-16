@@ -31,6 +31,7 @@ import { startReputationWorker } from './workers/reputation.worker.js';
 import { startGovernanceSyncWorker } from './workers/governance-sync.worker.js';
 import { startBlockchainOrderSyncWorker, BlockchainOrderSyncWorker } from './workers/blockchain-order-sync.worker.js';
 import { startEscrowAutoReleaseWorker, EscrowAutoReleaseWorker } from './workers/escrow-auto-release.worker.js';
+import { startExpireStoriesWorker } from './workers/expire-stories.worker.js';
 import { profilesRoutes } from './routes/profiles.js';
 import { sellersRoutes } from './routes/sellers.js';
 import { socialRoutes } from './routes/social.js';
@@ -70,6 +71,9 @@ import chatRankingRoutes from './chat/routes/chat.ranking.js';
 import chatCallsRoutes from './chat/routes/chat.calls.js';
 import { chatKeysRoutes } from './chat/routes/chat.keys.js';
 import chatAffiliatesRoutes from './chat/routes/chat.affiliates.js';
+import chatReactionsRoutes from './chat/routes/chat.reactions.js';
+import chatGifsRoutes from './chat/routes/chat.gifs.js';
+import chatBlocksRoutes from './chat/routes/chat.blocks.js';
 import affiliatesRoutes from './routes/affiliates.js';
 import { deliveryRoutes } from './routes/delivery.js';
 import { deliveryProfileRoutes } from './routes/delivery-profile.js';
@@ -91,6 +95,11 @@ import { socialBackupRoutes } from './routes/social-backup.js';
 import { developerRoutes } from './routes/developer.js';
 import pluginsRoutes from './routes/plugins.js';
 import { adminAppReviewRoutes } from './routes/admin-app-review.js';
+import { ipfsProxyRoutes } from './routes/ipfs-proxy.js';
+import pushRoutes from './routes/push.js';
+import linkPreviewRoutes from './routes/link-preview.js';
+import storiesRoutes from './routes/stories.js';
+import storiesUploadRoutes from './routes/stories-upload.js';
 // TODO: Re-enable when App Store schema is complete
 // import { developerRevenueRoutes } from './routes/developer-revenue.js';
 // import { appStorePurchaseRoutes } from './routes/app-store-purchase.js';
@@ -144,6 +153,11 @@ async function buildApp() {
   await app.register(securityPlugin);
   await app.register(multipartPlugin);
   await app.register(staticPlugin);
+
+  // Add content type parser for binary data (used by upload-bundle endpoint)
+  app.addContentTypeParser('application/octet-stream', { parseAs: 'buffer' }, (req, body, done) => {
+    done(null, body);
+  });
 
   // Rate limiting global
   await app.register(import('@fastify/rate-limit'), {
@@ -243,6 +257,10 @@ async function buildApp() {
   // Plugins routes (BazariOS Low-Code)
   await app.register(pluginsRoutes, { prefix: '/api' });
 
+  // IPFS Proxy routes (serve content from local IPFS node)
+  await app.register(ipfsProxyRoutes, { prefix: '/api' });
+  await app.register(linkPreviewRoutes);
+
   // Chat routes
   await app.register(chatThreadsRoutes, { prefix: '/api' });
   await app.register(chatMessagesRoutes, { prefix: '/api' });
@@ -257,6 +275,12 @@ async function buildApp() {
   await app.register(chatCallsRoutes, { prefix: '/api' });
   await app.register(chatKeysRoutes, { prefix: '/api/chat' });
   await app.register(chatAffiliatesRoutes, { prefix: '/api' });
+  await app.register(chatReactionsRoutes, { prefix: '/api' });
+  await app.register(chatGifsRoutes, { prefix: '/api' });
+  await app.register(chatBlocksRoutes, { prefix: '/api' });
+  await app.register(storiesRoutes, { prefix: '/api' });
+  await app.register(storiesUploadRoutes, { prefix: '/api' });
+  await app.register(pushRoutes, { prefix: '/api' });
 
   // Delivery routes
   await app.register(deliveryRoutes, { prefix: '/api', prisma });
@@ -314,6 +338,7 @@ async function buildApp() {
   let governanceSyncWorker: any = null;
   let orderSyncWorker: BlockchainOrderSyncWorker | null = null;
   let autoReleaseWorker: EscrowAutoReleaseWorker | null = null;
+  let expireStoriesWorker: NodeJS.Timeout | null = null;
   if (process.env.NODE_ENV !== 'production') {
     try {
       timeoutWorker = startPaymentsTimeoutWorker(prisma, {
@@ -375,6 +400,17 @@ async function buildApp() {
     app.log.warn({ err }, 'Falha ao iniciar worker de auto-release de escrow');
   }
 
+  // Iniciar Expire Stories Worker (remove stories após 24h)
+  try {
+    expireStoriesWorker = startExpireStoriesWorker(prisma, {
+      logger: app.log,
+      intervalMs: 15 * 60 * 1000, // 15 minutos
+    });
+    app.log.info('Worker de expiração de stories iniciado');
+  } catch (err) {
+    app.log.warn({ err }, 'Falha ao iniciar worker de expiração de stories');
+  }
+
   // Limpar worker no graceful shutdown
   app.addHook('onClose', async () => {
     if (timeoutWorker) {
@@ -400,6 +436,10 @@ async function buildApp() {
     if (autoReleaseWorker) {
       autoReleaseWorker.stop();
       app.log.info('Worker de auto-release de escrow parado');
+    }
+    if (expireStoriesWorker) {
+      clearInterval(expireStoriesWorker);
+      app.log.info('Worker de expiração de stories parado');
     }
   });
 

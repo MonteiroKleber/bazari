@@ -20,7 +20,7 @@ export const feedApp: BazariApp = {
   permissions: [
     { id: 'feed.read', reason: 'Exibir posts do feed' },
     { id: 'feed.write', reason: 'Criar e interagir com posts', optional: true },
-    { id: 'user.profile.read', reason: 'Mostrar informações dos autores' },
+    { id: 'auth:read', reason: 'Mostrar informações dos autores' },
   ],
 
   status: 'stable',

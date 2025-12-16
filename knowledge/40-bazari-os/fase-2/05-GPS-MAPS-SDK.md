@@ -25,7 +25,7 @@ Adicionar APIs de geolocalização e mapas ao SDK para habilitar casos de uso co
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │                        @bazari/app-sdk                                │   │
+│  │                        @bazari.libervia.xyz/app-sdk                                │   │
 │  │                                                                       │   │
 │  │  sdk.location.getCurrentPosition()                                   │   │
 │  │  sdk.location.watchPosition(callback)                                │   │
@@ -400,7 +400,7 @@ export class MapsClient {
 **Arquivo:** `apps/web/src/platform/handlers/location-handler.ts`
 
 ```typescript
-import type { Coordinates, Position } from '@bazari/app-sdk';
+import type { Coordinates, Position } from '@bazari.libervia.xyz/app-sdk';
 
 export class LocationHandler {
   private watchPositions: Map<string, number> = new Map();
@@ -721,7 +721,7 @@ export class BazariSDK {
 ## Exemplo de Uso: App de Delivery
 
 ```typescript
-import { BazariSDK } from '@bazari/app-sdk';
+import { BazariSDK } from '@bazari.libervia.xyz/app-sdk';
 
 const sdk = new BazariSDK();
 

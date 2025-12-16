@@ -16,18 +16,19 @@
     "clean": "pnpm --parallel --filter './apps/*' --filter './packages/*' clean",
     "lint": "pnpm --parallel --filter './apps/*' --filter './packages/*' lint",
     "test": "pnpm --parallel --filter './apps/*' --filter './packages/*' test",
-
     "dev:api": "pnpm --filter @bazari/api dev",
     "dev:api:nowatch": "pnpm --filter @bazari/api exec tsx src/server.ts",
-
     "typecheck": "pnpm --filter @bazari/api run typecheck || echo 'typecheck-api only'",
     "lint:api": "pnpm --filter @bazari/api run lint || echo 'lint-api only'",
     "test:api": "pnpm --filter @bazari/api run test || echo 'test-api only'",
-
     "os:reindex": "pnpm --filter @bazari/api exec tsx src/ops/os-reindex.ts"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
+    "@types/web-push": "^3.6.4",
     "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "web-push": "^3.6.7"
   }
 }

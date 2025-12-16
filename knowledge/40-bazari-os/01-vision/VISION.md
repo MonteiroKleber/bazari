@@ -241,8 +241,8 @@ Q2 2025: App Store
 └── Preferências do usuário
 
 Q3 2025: SDK & DevEx
-├── @bazari/app-sdk
-├── @bazari/cli
+├── @bazari.libervia.xyz/app-sdk
+├── @bazari.libervia.xyz/cli
 └── Developer Portal
 
 Q4 2025: Ecosystem

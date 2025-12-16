@@ -1,6 +1,15 @@
 # SDK Overview
 
-O `@bazari.libervia.xyz/app-sdk` é a biblioteca oficial para desenvolver apps que rodam dentro da plataforma Bazari.
+O `@bazari.libervia.xyz/app-sdk` é a biblioteca oficial para desenvolver apps que integram com a plataforma Bazari.
+
+## Modos de Uso
+
+O SDK suporta dois modos de operação:
+
+| Modo | Descrição | Caso de Uso |
+|------|-----------|-------------|
+| **App Store** | App roda em iframe dentro do Bazari | Apps nativos da plataforma |
+| **External** | App roda em site externo | Integração em e-commerce, sites, etc |
 
 ## Instalação
 
@@ -18,6 +27,10 @@ Ou via CDN:
 
 ## Inicialização
 
+### Modo App Store (iframe)
+
+Para apps que rodam dentro da plataforma Bazari:
+
 ```javascript
 import { BazariSDK } from '@bazari.libervia.xyz/app-sdk';
 
@@ -27,16 +40,56 @@ const sdk = new BazariSDK({
 });
 ```
 
-### API Key
+### Modo Externo (SDK Externo)
 
-A API Key identifica seu app e controla permissões:
+Para apps que rodam em sites externos:
+
+```javascript
+import { BazariSDK } from '@bazari.libervia.xyz/app-sdk';
+
+const sdk = new BazariSDK({
+  apiKey: 'baz_sdk_abc123...',      // Obrigatória
+  secretKey: 'sk_secret_xyz789...', // Obrigatória (server-side apenas!)
+  mode: 'external',                  // Indica modo externo
+});
+```
+
+> **Segurança:** O `secretKey` deve ser usado apenas no servidor. Nunca exponha no frontend!
+
+## API Key e Secret Key
+
+### Para App Store
 
 | Ambiente | API Key |
 |----------|---------|
 | Developer Preview | Opcional |
-| Produção (App Store) | Obrigatória |
+| Produção | Obrigatória |
 
 Obtenha sua API Key em: https://bazari.libervia.xyz/app/developer/api-keys
+
+### Para SDK Externo
+
+| Credencial | Onde usar | Propósito |
+|------------|-----------|-----------|
+| API Key | Frontend + Backend | Identifica o app |
+| Secret Key | Backend apenas | Autentica requisições |
+
+Gere credenciais via CLI:
+
+```bash
+bazari publish --target external --origin https://meusite.com
+```
+
+Gerencie credenciais:
+
+```bash
+bazari keys list      # Listar todas
+bazari keys show      # Ver detalhes
+bazari keys rotate    # Rotacionar secret
+bazari keys revoke    # Revogar (permanente)
+```
+
+Veja [gerenciamento de API Keys](../cli/keys.md) para mais detalhes.
 
 ## APIs Disponíveis
 

@@ -20,8 +20,8 @@ export const affiliatesApp: BazariApp = {
   ),
 
   permissions: [
-    { id: 'user.profile.read', reason: 'Ver perfil de parceiros' },
-    { id: 'wallet.balance.read', reason: 'Exibir comissões' },
+    { id: 'auth:read', reason: 'Ver perfil de parceiros' },
+    { id: 'wallet:read', reason: 'Exibir comissões' },
     { id: 'orders.read', reason: 'Rastrear vendas afiliadas' },
   ],
 

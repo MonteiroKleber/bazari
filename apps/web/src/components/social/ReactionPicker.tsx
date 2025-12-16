@@ -1,6 +1,6 @@
 // apps/web/src/components/social/ReactionPicker.tsx
 
-import { useState } from 'react';
+import { useState, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
@@ -10,6 +10,11 @@ import {
 import { apiHelpers } from '@/lib/api';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+
+export interface ReactionPickerRef {
+  addLoveReaction: () => Promise<boolean>;
+  hasUserReaction: () => boolean;
+}
 
 const REACTIONS = [
   { key: 'love', emoji: '❤️', label: 'Curtir' },
@@ -31,17 +36,28 @@ interface ReactionPickerProps {
   userReaction?: string;
 }
 
-export function ReactionPicker({
+export const ReactionPicker = forwardRef<ReactionPickerRef, ReactionPickerProps>(function ReactionPicker({
   postId,
   initialReactions,
   userReaction: initialUserReaction,
-}: ReactionPickerProps) {
+}, ref) {
   const [reactions, setReactions] = useState(initialReactions);
   const [userReaction, setUserReaction] = useState<string | undefined>(initialUserReaction);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
 
   const totalReactions = Object.values(reactions).reduce((a, b) => a + b, 0);
+
+  // Expose methods via ref for double-tap integration
+  useImperativeHandle(ref, () => ({
+    addLoveReaction: async () => {
+      // Only add if no reaction exists (double-tap doesn't toggle off)
+      if (userReaction) return false;
+      await handleReact('love');
+      return true;
+    },
+    hasUserReaction: () => !!userReaction,
+  }));
 
   const handleReact = async (reactionKey: string) => {
     if (loading) return;
@@ -158,4 +174,4 @@ export function ReactionPicker({
       </PopoverContent>
     </Popover>
   );
-}
+});

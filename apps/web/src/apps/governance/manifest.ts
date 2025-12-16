@@ -20,9 +20,9 @@ export const governanceApp: BazariApp = {
   ),
 
   permissions: [
-    { id: 'blockchain.read', reason: 'Consultar propostas on-chain' },
-    { id: 'blockchain.sign', reason: 'Votar em propostas' },
-    { id: 'wallet.balance.read', reason: 'Verificar poder de voto' },
+    { id: 'contracts:read', reason: 'Consultar propostas on-chain' },
+    { id: 'contracts:execute', reason: 'Votar em propostas' },
+    { id: 'wallet:read', reason: 'Verificar poder de voto' },
   ],
 
   requiredRoles: ['dao_member'],

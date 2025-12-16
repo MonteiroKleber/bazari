@@ -51,6 +51,35 @@ Todo app precisa de um arquivo `bazari.manifest.json` que define:
 | `sdkVersion` | Versão do SDK usada |
 | `monetizationType` | `free`, `paid`, `freemium` |
 | `price` | Preço em BZR (se paid) |
+| `distribution` | Configuração de distribuição |
+
+### Campo Distribution
+
+O campo `distribution` define como seu app será distribuído:
+
+```json
+{
+  "distribution": {
+    "appStore": true,
+    "external": true,
+    "allowedOrigins": ["https://meusite.com", "https://app.meusite.com"]
+  }
+}
+```
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| `appStore` | boolean | Publicar na App Store Bazari (iframe) |
+| `external` | boolean | Gerar API Key para SDK externo |
+| `allowedOrigins` | string[] | Domínios permitidos para SDK externo |
+
+**Cenários de uso:**
+
+| appStore | external | Uso |
+|----------|----------|-----|
+| true | false | App tradicional no Bazari (padrão) |
+| false | true | Integração em site externo |
+| true | true | Ambos os modelos |
 
 ## Permissões
 

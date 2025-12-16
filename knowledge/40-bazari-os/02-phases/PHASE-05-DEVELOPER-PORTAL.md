@@ -9,7 +9,7 @@
 
 ## Objetivo
 
-Criar o portal web onde desenvolvedores podem gerenciar seus apps, ver analytics, e submeter para a App Store. Inclui também a CLI `@bazari/cli` para criar e publicar apps.
+Criar o portal web onde desenvolvedores podem gerenciar seus apps, ver analytics, e submeter para a App Store. Inclui também a CLI `@bazari.libervia.xyz/cli` para criar e publicar apps.
 
 ---
 
@@ -39,7 +39,7 @@ Ao final desta fase:
 │                                                                  │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐         │
 │  │   CLI       │    │   Portal    │    │   Review    │         │
-│  │  @bazari/cli│───▶│   Web UI    │───▶│   System    │         │
+│  │  @bazari.libervia.xyz/cli│───▶│   Web UI    │───▶│   System    │         │
 │  │             │    │             │    │             │         │
 │  │  - create   │    │  - My Apps  │    │  - Queue    │         │
 │  │  - dev      │    │  - Analytics│    │  - Approve  │         │

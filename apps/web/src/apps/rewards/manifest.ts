@@ -18,9 +18,9 @@ export const rewardsApp: BazariApp = {
   component: lazy(() => import('@/pages/rewards/MissionsHubPage')),
 
   permissions: [
-    { id: 'user.profile.read', reason: 'Verificar progresso' },
-    { id: 'wallet.balance.read', reason: 'Exibir recompensas' },
-    { id: 'notifications.send', reason: 'Alertar missões completas' },
+    { id: 'auth:read', reason: 'Verificar progresso' },
+    { id: 'wallet:read', reason: 'Exibir recompensas' },
+    { id: 'ui:toast', reason: 'Alertar missões completas' },
   ],
 
   status: 'stable',

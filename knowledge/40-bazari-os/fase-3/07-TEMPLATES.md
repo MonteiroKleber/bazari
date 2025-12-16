@@ -428,7 +428,7 @@ export const REACT_TS_TEMPLATE: Template = {
   "dependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "@bazari.libervia.xyz/app-sdk": "^0.2.0"
+    "@bazari.libervia.xyz/app-sdk": "^0.2.2"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",

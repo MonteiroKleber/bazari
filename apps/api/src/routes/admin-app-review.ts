@@ -56,8 +56,14 @@ export const adminAppReviewRoutes: FastifyPluginCallback<PluginOptions> = (
 
     const whereClause: any = {};
     if (status && status !== 'all') {
-      // Convert to uppercase to match Prisma enum (PENDING, IN_REVIEW, etc.)
-      whereClause.status = status.toUpperCase();
+      // Convert to uppercase to match Prisma enum
+      // Map 'pending' to both PENDING and PENDING_REVIEW statuses
+      const upperStatus = status.toUpperCase();
+      if (upperStatus === 'PENDING') {
+        whereClause.status = { in: ['PENDING', 'PENDING_REVIEW'] };
+      } else {
+        whereClause.status = upperStatus;
+      }
     }
 
     const apps = await prisma.thirdPartyApp.findMany({
@@ -192,7 +198,8 @@ export const adminAppReviewRoutes: FastifyPluginCallback<PluginOptions> = (
       return reply.status(404).send({ error: 'App not found' });
     }
 
-    if (app.status !== 'PENDING' && app.status !== 'IN_REVIEW') {
+    // Allow approval for PENDING, PENDING_REVIEW, or IN_REVIEW status
+    if (app.status !== 'PENDING' && app.status !== 'PENDING_REVIEW' && app.status !== 'IN_REVIEW') {
       return reply.status(400).send({
         error: `Cannot approve app with status: ${app.status}`,
       });
@@ -257,7 +264,8 @@ export const adminAppReviewRoutes: FastifyPluginCallback<PluginOptions> = (
       return reply.status(404).send({ error: 'App not found' });
     }
 
-    if (app.status !== 'PENDING' && app.status !== 'IN_REVIEW') {
+    // Allow rejection for PENDING, PENDING_REVIEW, or IN_REVIEW status
+    if (app.status !== 'PENDING' && app.status !== 'PENDING_REVIEW' && app.status !== 'IN_REVIEW') {
       return reply.status(400).send({
         error: `Cannot reject app with status: ${app.status}`,
       });

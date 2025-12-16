@@ -1,5 +1,6 @@
 // apps/web/src/components/social/PostCard.tsx
 
+import { useState, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,13 @@ import { PollCard } from './PollCard';
 import { PostOptionsMenu } from './PostOptionsMenu';
 import { ProfileHoverCard } from './ProfileHoverCard';
 import { BadgeIcon } from './BadgeIcon';
-import { ReactionPicker } from './ReactionPicker';
+import { ReactionPicker, ReactionPickerRef } from './ReactionPicker';
+import { HeartAnimation } from './HeartAnimation';
+import { LinkPreview, extractFirstUrl } from '@/components/chat/LinkPreview';
+import { ExpandableContent } from './ExpandableContent';
+import { ImageGalleryLightbox } from '@/components/ui/ImageGalleryLightbox';
+import { useDoubleTap } from '@/hooks/useDoubleTap';
+import { useLightbox } from '@/hooks/useLightbox';
 
 interface PostCardProps {
   post: {
@@ -68,18 +75,56 @@ interface PostCardProps {
 
 export function PostCard({ post, currentUserHandle, onDeleted, onUpdated, onPinned }: PostCardProps) {
   const navigate = useNavigate();
+  const [showHeart, setShowHeart] = useState(false);
+  const reactionPickerRef = useRef<ReactionPickerRef>(null);
+
   const timeAgo = formatDistanceToNow(new Date(post.createdAt), {
     addSuffix: true,
     locale: ptBR
   });
 
+  // Extract first URL for link preview (only if no media)
+  const hasMedia = post.media && post.media.length > 0;
+  const linkUrl = !hasMedia ? extractFirstUrl(post.content) : null;
+
+  // Image lightbox (only images, not videos)
+  const imageMedia = post.media?.filter(m => m.type !== 'video') || [];
+  const lightbox = useLightbox(imageMedia.length);
+
+  const handleDoubleTapLike = useCallback(async () => {
+    // Don't add if already has a reaction
+    if (reactionPickerRef.current?.hasUserReaction()) {
+      // Still show heart animation for feedback
+      setShowHeart(true);
+      setTimeout(() => setShowHeart(false), 800);
+      return;
+    }
+
+    // Show heart animation
+    setShowHeart(true);
+    setTimeout(() => setShowHeart(false), 800);
+
+    // Add love reaction
+    reactionPickerRef.current?.addLoveReaction();
+  }, []);
+
+  const { handleTap } = useDoubleTap({
+    onDoubleTap: handleDoubleTapLike,
+  });
+
   const handleCardClick = (e: React.MouseEvent) => {
+    // Handle double-tap detection
+    handleTap(e);
+  };
+
+  const handleSingleClick = (e: React.MouseEvent) => {
     // Prevent navigation if clicking on interactive elements
     const target = e.target as HTMLElement;
     if (
       target.closest('button') ||
       target.closest('a') ||
-      target.closest('[role="button"]')
+      target.closest('[role="button"]') ||
+      target.closest('video')
     ) {
       return;
     }
@@ -87,8 +132,11 @@ export function PostCard({ post, currentUserHandle, onDeleted, onUpdated, onPinn
   };
 
   return (
-    <Card className="overflow-hidden cursor-pointer hover:bg-muted/30 transition-colors" onClick={handleCardClick}>
-      <CardContent className="p-4">
+    <Card className="overflow-hidden cursor-pointer hover:bg-muted/30 transition-colors relative" onClick={handleCardClick}>
+      {/* Heart Animation for double-tap */}
+      <HeartAnimation show={showHeart} />
+
+      <CardContent className="p-4" onClick={handleSingleClick}>
         {/* Repost Indicator */}
         {post.repostedBy && (
           <div className="flex items-center gap-2 mb-2 text-sm text-muted-foreground">
@@ -173,9 +221,7 @@ export function PostCard({ post, currentUserHandle, onDeleted, onUpdated, onPinn
 
         {/* Content */}
         <div className="mb-3">
-          <p className="whitespace-pre-wrap break-words">
-            {post.content}
-          </p>
+          <ExpandableContent content={post.content} />
         </div>
 
         {/* Poll */}
@@ -207,17 +253,30 @@ export function PostCard({ post, currentUserHandle, onDeleted, onUpdated, onPinn
                   key={index}
                   src={item.url}
                   alt={`Media ${index + 1}`}
-                  className="w-full h-auto rounded-md object-cover"
+                  className="w-full h-auto rounded-md object-cover cursor-pointer hover:opacity-95 transition-opacity"
                   loading="lazy"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const imageIndex = imageMedia.findIndex(m => m.url === item.url);
+                    lightbox.open(imageIndex >= 0 ? imageIndex : 0);
+                  }}
                 />
               )
             ))}
           </div>
         )}
 
+        {/* Link Preview (only if no media) */}
+        {linkUrl && (
+          <div className="mb-3">
+            <LinkPreview url={linkUrl} />
+          </div>
+        )}
+
         {/* Actions */}
         <div className="flex items-center gap-1 pt-2 border-t">
           <ReactionPicker
+            ref={reactionPickerRef}
             postId={post.id}
             initialReactions={post.reactions || {
               love: post.likesCount || 0, // Fallback para likesCount
@@ -251,6 +310,16 @@ export function PostCard({ post, currentUserHandle, onDeleted, onUpdated, onPinn
           />
         </div>
       </CardContent>
+
+      {/* Image Lightbox */}
+      {lightbox.isOpen && imageMedia.length > 0 && (
+        <ImageGalleryLightbox
+          images={imageMedia.map(m => ({ url: m.url, alt: `Media` }))}
+          initialIndex={lightbox.currentIndex}
+          onClose={lightbox.close}
+          onIndexChange={lightbox.setIndex}
+        />
+      )}
     </Card>
   );
 }

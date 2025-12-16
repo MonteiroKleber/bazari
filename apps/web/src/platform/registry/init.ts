@@ -18,8 +18,9 @@ async function fetchPublishedApps(): Promise<BazariApp[]> {
 
     const data = await response.json();
     const apps: BazariApp[] = (data.apps || []).map((app: any) => ({
-      id: app.id,
+      id: app.slug, // Usar slug como ID principal (consistente com URLs e permissões)
       appId: app.appId,
+      prismaId: app.id, // Manter referência ao Prisma ID para operações de API
       name: app.name,
       slug: app.slug,
       description: app.description,

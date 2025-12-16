@@ -9,14 +9,14 @@
 
 ## Objetivo
 
-Criar o SDK (`@bazari/app-sdk`) que permite desenvolvedores terceiros criar apps para o ecossistema Bazari. Inclui sistema de bridge via postMessage e sandbox de segurança.
+Criar o SDK (`@bazari.libervia.xyz/app-sdk`) que permite desenvolvedores terceiros criar apps para o ecossistema Bazari. Inclui sistema de bridge via postMessage e sandbox de segurança.
 
 ---
 
 ## Resultado Esperado
 
 Ao final desta fase:
-- Pacote npm `@bazari/app-sdk` publicável
+- Pacote npm `@bazari.libervia.xyz/app-sdk` publicável
 - Sistema de iframe sandbox para apps terceiros
 - Bridge de comunicação host <-> app
 - Validação de permissões
@@ -51,7 +51,7 @@ Ao final desta fase:
 │  │  ┌─────────────────────────────────────────────────────┐  │  │
 │  │  │                 THIRD-PARTY APP                      │  │  │
 │  │  │                                                      │  │  │
-│  │  │  import { BazariSDK } from '@bazari/app-sdk'        │  │  │
+│  │  │  import { BazariSDK } from '@bazari.libervia.xyz/app-sdk'        │  │  │
 │  │  │  const sdk = new BazariSDK()                        │  │  │
 │  │  │  const user = await sdk.auth.getCurrentUser()       │  │  │
 │  │  │                                                      │  │  │
@@ -115,7 +115,7 @@ packages/bazari-app-sdk/
 **Código:**
 ```json
 {
-  "name": "@bazari/app-sdk",
+  "name": "@bazari.libervia.xyz/app-sdk",
   "version": "0.1.0",
   "description": "SDK for building Bazari apps",
   "main": "dist/index.js",
@@ -982,7 +982,7 @@ export interface BazariSDKOptions {
  *
  * @example
  * ```typescript
- * import { BazariSDK } from '@bazari/app-sdk';
+ * import { BazariSDK } from '@bazari.libervia.xyz/app-sdk';
  *
  * const sdk = new BazariSDK();
  *
@@ -1120,7 +1120,7 @@ export { isInsideBazari } from './utils/bridge';
 
 **Código:**
 ```typescript
-import type { SDKMessage, HostResponse, MessageType } from '@bazari/app-sdk';
+import type { SDKMessage, HostResponse, MessageType } from '@bazari.libervia.xyz/app-sdk';
 import { useUserAppsStore } from '../store';
 
 type MessageHandler = (
@@ -1251,7 +1251,7 @@ async function checkPermission(
 ```typescript
 import { useEffect, useRef, useCallback } from 'react';
 import { handleAppMessage } from '@/platform/sdk/host-bridge';
-import type { SDKMessage } from '@bazari/app-sdk';
+import type { SDKMessage } from '@bazari.libervia.xyz/app-sdk';
 
 interface AppIframeProps {
   appId: string;
@@ -1332,24 +1332,24 @@ export function AppIframe({
 
 **Código:**
 ```markdown
-# @bazari/app-sdk
+# @bazari.libervia.xyz/app-sdk
 
 SDK oficial para desenvolvimento de apps no ecossistema Bazari.
 
 ## Instalação
 
 ```bash
-npm install @bazari/app-sdk
+npm install @bazari.libervia.xyz/app-sdk
 # ou
-yarn add @bazari/app-sdk
+yarn add @bazari.libervia.xyz/app-sdk
 # ou
-pnpm add @bazari/app-sdk
+pnpm add @bazari.libervia.xyz/app-sdk
 ```
 
 ## Uso Básico
 
 ```typescript
-import { BazariSDK } from '@bazari/app-sdk';
+import { BazariSDK } from '@bazari.libervia.xyz/app-sdk';
 
 // Inicializar SDK
 const sdk = new BazariSDK();
@@ -1481,7 +1481,7 @@ import type {
   SDKUser,
   SDKBalance,
   SDKTransaction
-} from '@bazari/app-sdk';
+} from '@bazari.libervia.xyz/app-sdk';
 ```
 
 ## Licença

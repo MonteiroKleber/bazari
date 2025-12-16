@@ -36,6 +36,8 @@ export default defineConfig({
       },
       workbox: {
         maximumFileSizeToCacheInBytes: 6000000, // 6MB
+        // Import push notification handler
+        importScripts: ['/sw-push.js'],
         // Network-first strategy for API calls
         runtimeCaching: [
           {

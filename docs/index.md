@@ -15,6 +15,8 @@ Bem-vindo à documentação para desenvolvedores do Bazari!
 - [Seu primeiro app em 10 minutos](./getting-started/quick-start.md)
 - [Instalação do CLI](./getting-started/installation.md)
 - [Referência do SDK](./sdk/overview.md)
+- [Publicar apps](./cli/publish.md)
+- [Gerenciar API Keys](./cli/keys.md)
 - [Exemplos de apps](./examples/)
 
 ## Casos de Uso Populares

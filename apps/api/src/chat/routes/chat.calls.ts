@@ -1,186 +1,256 @@
-import { FastifyInstance } from 'fastify';
+import { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { isPeerOnline } from '../ws/rtc.js';
 import { prisma } from '../../lib/prisma.js';
+import { authOnRequest } from '../../lib/auth/middleware.js';
+import { AccessTokenPayload } from '../../lib/auth/jwt.js';
+import { getConnectionByProfileId } from '../ws/handlers.js';
 
 /**
- * Rotas para gerenciamento de chamadas WebRTC
+ * Rotas REST para gerenciamento de chamadas
+ * Nota: A sinalização principal é via WebSocket (call-handlers.ts)
+ * Estas rotas são para consulta de histórico e status
  */
 
-const startCallSchema = z.object({
-  threadId: z.string(),
-  calleeId: z.string(),
-  type: z.enum(['audio', 'video']),
-});
+// Helper para obter profileId do userId
+async function getProfileId(userId: string): Promise<string | null> {
+  const profile = await prisma.profile.findUnique({
+    where: { userId },
+    select: { id: true },
+  });
+  return profile?.id || null;
+}
 
 export default async function chatCallsRoutes(app: FastifyInstance) {
   /**
-   * POST /chat/calls
-   * Inicia uma nova chamada
+   * GET /chat/calls
+   * Lista histórico de chamadas do usuário
    */
-  app.post('/chat/calls', async (request, reply) => {
-    try {
-      const user = (request as any).user;
+  app.get('/chat/calls', { preHandler: authOnRequest }, async (req, reply) => {
+    const authReq = req as FastifyRequest & { authUser: AccessTokenPayload };
+    const userId = authReq.authUser.sub;
 
-      if (!user || !user.profileId) {
-        return reply.code(401).send({
-          success: false,
-          error: 'Unauthorized',
-        });
-      }
-
-      const body = startCallSchema.parse(request.body);
-
-      // Verificar se o destinatário está online
-      if (!isPeerOnline(body.calleeId)) {
-        return reply.code(400).send({
-          success: false,
-          error: 'Callee is offline',
-        });
-      }
-
-      // Criar registro de chamada
-      const call = {
-        id: `call_${Date.now()}`,
-        threadId: body.threadId,
-        callerId: user.profileId,
-        calleeId: body.calleeId,
-        type: body.type,
-        status: 'ringing',
-        startedAt: Date.now(),
-      };
-
-      // TODO: Salvar em banco (criar tabela ChatCall se necessário)
-      // Por enquanto, apenas retornar o objeto
-
-      return {
-        success: true,
-        data: call,
-      };
-    } catch (error) {
-      request.log.error({ error }, 'Failed to start call');
-
-      if (error instanceof z.ZodError) {
-        return reply.code(400).send({
-          success: false,
-          error: 'Invalid request',
-          details: error.errors,
-        });
-      }
-
-      return reply.code(500).send({
-        success: false,
-        error: 'Failed to start call',
-      });
+    const profileId = await getProfileId(userId);
+    if (!profileId) {
+      return reply.code(404).send({ error: 'Profile not found' });
     }
+
+    const { threadId, limit = '20', cursor } = req.query as {
+      threadId?: string;
+      limit?: string;
+      cursor?: string;
+    };
+
+    const limitNum = Math.min(parseInt(limit) || 20, 50);
+
+    const where: any = {
+      OR: [{ callerId: profileId }, { calleeId: profileId }],
+    };
+
+    if (threadId) {
+      where.threadId = threadId;
+    }
+
+    if (cursor) {
+      where.createdAt = { lt: new Date(cursor) };
+    }
+
+    const calls = await prisma.call.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: limitNum + 1,
+      include: {
+        caller: {
+          select: { id: true, handle: true, displayName: true, avatarUrl: true },
+        },
+        callee: {
+          select: { id: true, handle: true, displayName: true, avatarUrl: true },
+        },
+      },
+    });
+
+    const hasMore = calls.length > limitNum;
+    const items = hasMore ? calls.slice(0, -1) : calls;
+    const nextCursor = hasMore ? items[items.length - 1]?.createdAt.toISOString() : undefined;
+
+    return {
+      calls: items.map((call) => ({
+        id: call.id,
+        threadId: call.threadId,
+        type: call.type,
+        status: call.status,
+        caller: call.caller,
+        callee: call.callee,
+        isOutgoing: call.callerId === profileId,
+        startedAt: call.startedAt?.toISOString() || null,
+        endedAt: call.endedAt?.toISOString() || null,
+        duration: call.duration,
+        createdAt: call.createdAt.toISOString(),
+      })),
+      nextCursor,
+    };
   });
 
   /**
    * GET /chat/calls/:id
-   * Busca status de uma chamada
+   * Busca detalhes de uma chamada específica
    */
-  app.get('/chat/calls/:id', async (request, reply) => {
-    try {
-      const user = (request as any).user;
+  app.get('/chat/calls/:id', { preHandler: authOnRequest }, async (req, reply) => {
+    const authReq = req as FastifyRequest & { authUser: AccessTokenPayload };
+    const userId = authReq.authUser.sub;
+    const { id } = req.params as { id: string };
 
-      if (!user || !user.profileId) {
-        return reply.code(401).send({
-          success: false,
-          error: 'Unauthorized',
-        });
-      }
-
-      const { id } = request.params as { id: string };
-
-      // TODO: Buscar do banco
-      // Por enquanto, retornar mock
-
-      return {
-        success: true,
-        data: {
-          id,
-          status: 'active',
-        },
-      };
-    } catch (error) {
-      request.log.error({ error }, 'Failed to fetch call');
-
-      return reply.code(500).send({
-        success: false,
-        error: 'Failed to fetch call',
-      });
+    const profileId = await getProfileId(userId);
+    if (!profileId) {
+      return reply.code(404).send({ error: 'Profile not found' });
     }
+
+    const call = await prisma.call.findUnique({
+      where: { id },
+      include: {
+        caller: {
+          select: { id: true, handle: true, displayName: true, avatarUrl: true },
+        },
+        callee: {
+          select: { id: true, handle: true, displayName: true, avatarUrl: true },
+        },
+      },
+    });
+
+    if (!call) {
+      return reply.code(404).send({ error: 'Call not found' });
+    }
+
+    // Verificar se o usuário é participante da chamada
+    if (call.callerId !== profileId && call.calleeId !== profileId) {
+      return reply.code(403).send({ error: 'Not authorized' });
+    }
+
+    return {
+      id: call.id,
+      threadId: call.threadId,
+      type: call.type,
+      status: call.status,
+      caller: call.caller,
+      callee: call.callee,
+      isOutgoing: call.callerId === profileId,
+      startedAt: call.startedAt?.toISOString() || null,
+      endedAt: call.endedAt?.toISOString() || null,
+      duration: call.duration,
+      createdAt: call.createdAt.toISOString(),
+    };
+  });
+
+  /**
+   * GET /chat/calls/check-online/:profileId
+   * Verifica se um usuário está online (para UI de chamada)
+   */
+  app.get('/chat/calls/check-online/:profileId', { preHandler: authOnRequest }, async (req, reply) => {
+    const { profileId } = req.params as { profileId: string };
+
+    const connection = getConnectionByProfileId(profileId);
+    const isOnline = !!connection;
+
+    return { profileId, isOnline };
+  });
+
+  /**
+   * GET /chat/calls/stats
+   * Estatísticas de chamadas do usuário
+   */
+  app.get('/chat/calls/stats', { preHandler: authOnRequest }, async (req, reply) => {
+    const authReq = req as FastifyRequest & { authUser: AccessTokenPayload };
+    const userId = authReq.authUser.sub;
+
+    const profileId = await getProfileId(userId);
+    if (!profileId) {
+      return reply.code(404).send({ error: 'Profile not found' });
+    }
+
+    const [totalCalls, missedCalls, totalDuration] = await Promise.all([
+      // Total de chamadas
+      prisma.call.count({
+        where: {
+          OR: [{ callerId: profileId }, { calleeId: profileId }],
+        },
+      }),
+      // Chamadas perdidas (recebidas e não atendidas)
+      prisma.call.count({
+        where: {
+          calleeId: profileId,
+          status: 'MISSED',
+        },
+      }),
+      // Duração total em segundos
+      prisma.call.aggregate({
+        where: {
+          OR: [{ callerId: profileId }, { calleeId: profileId }],
+          status: 'ENDED',
+          duration: { not: null },
+        },
+        _sum: { duration: true },
+      }),
+    ]);
+
+    return {
+      totalCalls,
+      missedCalls,
+      totalDurationSeconds: totalDuration._sum.duration || 0,
+    };
+  });
+
+  /**
+   * DELETE /chat/calls
+   * Limpa todo o histórico de chamadas do usuário
+   */
+  app.delete('/chat/calls', { preHandler: authOnRequest }, async (req, reply) => {
+    const authReq = req as FastifyRequest & { authUser: AccessTokenPayload };
+    const userId = authReq.authUser.sub;
+
+    const profileId = await getProfileId(userId);
+    if (!profileId) {
+      return reply.code(404).send({ error: 'Profile not found' });
+    }
+
+    // Deletar todas as chamadas onde o usuário é caller ou callee
+    const result = await prisma.call.deleteMany({
+      where: {
+        OR: [{ callerId: profileId }, { calleeId: profileId }],
+      },
+    });
+
+    return { deleted: result.count };
   });
 
   /**
    * DELETE /chat/calls/:id
-   * Encerra uma chamada
+   * Deleta uma chamada específica do histórico
    */
-  app.delete('/chat/calls/:id', async (request, reply) => {
-    try {
-      const user = (request as any).user;
+  app.delete('/chat/calls/:id', { preHandler: authOnRequest }, async (req, reply) => {
+    const authReq = req as FastifyRequest & { authUser: AccessTokenPayload };
+    const userId = authReq.authUser.sub;
+    const { id } = req.params as { id: string };
 
-      if (!user || !user.profileId) {
-        return reply.code(401).send({
-          success: false,
-          error: 'Unauthorized',
-        });
-      }
-
-      const { id } = request.params as { id: string };
-
-      // TODO: Atualizar status no banco
-      // TODO: Notificar peers via WebSocket
-
-      return {
-        success: true,
-        data: {
-          message: 'Call ended',
-        },
-      };
-    } catch (error) {
-      request.log.error({ error }, 'Failed to end call');
-
-      return reply.code(500).send({
-        success: false,
-        error: 'Failed to end call',
-      });
+    const profileId = await getProfileId(userId);
+    if (!profileId) {
+      return reply.code(404).send({ error: 'Profile not found' });
     }
-  });
 
-  /**
-   * GET /chat/calls
-   * Lista histórico de chamadas
-   */
-  app.get('/chat/calls', async (request, reply) => {
-    try {
-      const user = (request as any).user;
+    // Verificar se a chamada existe e se o usuário é participante
+    const call = await prisma.call.findUnique({
+      where: { id },
+      select: { callerId: true, calleeId: true },
+    });
 
-      if (!user || !user.profileId) {
-        return reply.code(401).send({
-          success: false,
-          error: 'Unauthorized',
-        });
-      }
-
-      const { threadId, limit = 20 } = request.query as any;
-
-      // TODO: Buscar histórico do banco
-      // Por enquanto, retornar vazio
-
-      return {
-        success: true,
-        data: {
-          calls: [],
-        },
-      };
-    } catch (error) {
-      request.log.error({ error }, 'Failed to fetch calls');
-
-      return reply.code(500).send({
-        success: false,
-        error: 'Failed to fetch calls',
-      });
+    if (!call) {
+      return reply.code(404).send({ error: 'Call not found' });
     }
+
+    if (call.callerId !== profileId && call.calleeId !== profileId) {
+      return reply.code(403).send({ error: 'Not authorized' });
+    }
+
+    await prisma.call.delete({ where: { id } });
+
+    return { deleted: true };
   });
 }

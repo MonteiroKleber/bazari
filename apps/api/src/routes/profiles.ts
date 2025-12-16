@@ -6,6 +6,7 @@ import { validateHandle } from '../lib/handles.js';
 import { decodeCursor, encodeCursor } from '../lib/cursor.js';
 import { env } from '../env.js';
 import { verifyAccessToken } from '../lib/auth/jwt.js';
+import { getUserPresence } from '../chat/ws/handlers.js';
 
 export async function profilesRoutes(app: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
@@ -380,6 +381,72 @@ export async function profilesRoutes(app: FastifyInstance, options: { prisma: Pr
     return reply.send(response);
   });
 
+  // GET /profiles/:handle/media — público, posts com mídia (grid view)
+  app.get<{ Params: { handle: string } }>('/profiles/:handle/media', async (request, reply) => {
+    const { handle } = handleParamSchema.parse(request.params);
+    const { cursor, limit } = paginationSchema.parse(request.query ?? {});
+    const take = Math.min(limit ?? 24, 100); // Default 24 para grid
+
+    try {
+      validateHandle(handle);
+    } catch (e) {
+      return reply.status(400).send({ error: (e as Error).message });
+    }
+
+    const profile = await prisma.profile.findUnique({
+      where: { handle },
+      select: { id: true },
+    });
+
+    if (!profile) {
+      return reply.status(404).send({ error: 'Perfil não encontrado' });
+    }
+
+    const c = decodeCursor(cursor ?? null);
+
+    // Buscar posts com mídia (media não vazio)
+    const whereClause = {
+      authorId: profile.id,
+      status: 'PUBLISHED' as const,
+      NOT: {
+        media: { equals: [] },
+      },
+      ...(c ? {
+        OR: [
+          { createdAt: { lt: c.createdAt } },
+          { createdAt: c.createdAt, id: { lt: c.id } },
+        ],
+      } : {}),
+    };
+
+    const posts = await prisma.post.findMany({
+      where: whereClause,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: take + 1,
+      select: {
+        id: true,
+        media: true,
+        createdAt: true,
+      },
+    });
+
+    let nextCursor: string | null = null;
+    if (posts.length > take) {
+      const tail = posts.pop()!;
+      nextCursor = encodeCursor({ createdAt: tail.createdAt, id: tail.id });
+    }
+
+    reply.header('Cache-Control', 'public, max-age=30');
+    return reply.send({
+      items: posts.map((p) => ({
+        id: p.id,
+        media: p.media,
+        createdAt: p.createdAt.toISOString(),
+      })),
+      nextCursor,
+    });
+  });
+
   // GET /profiles/:handle/followers — público
   app.get<{ Params: { handle: string } }>('/profiles/:handle/followers', async (request, reply) => {
     const { handle } = handleParamSchema.parse(request.params);
@@ -592,6 +659,41 @@ export async function profilesRoutes(app: FastifyInstance, options: { prisma: Pr
       return reply.send({ badges });
     }
   );
+
+  // GET /profiles/:handle/presence — status de presença online
+  app.get<{ Params: { handle: string } }>('/profiles/:handle/presence', async (request, reply) => {
+    const { handle } = handleParamSchema.parse(request.params);
+
+    try {
+      validateHandle(handle);
+    } catch (err) {
+      return reply.status(400).send({ error: (err as Error).message });
+    }
+
+    const profile = await prisma.profile.findUnique({
+      where: { handle },
+      select: { id: true, showOnlineStatus: true },
+    });
+
+    if (!profile) {
+      return reply.status(404).send({ error: 'Perfil não encontrado' });
+    }
+
+    // Se usuário não permite mostrar status online, retornar offline sem lastSeenAt
+    if (!profile.showOnlineStatus) {
+      return reply.send({
+        isOnline: false,
+        lastSeenAt: null,
+      });
+    }
+
+    const presence = await getUserPresence(profile.id);
+
+    return reply.send({
+      isOnline: presence.status === 'online',
+      lastSeenAt: presence.lastSeenAt || null,
+    });
+  });
 
   // GET /profiles/:handle/reputation/history — histórico de reputação
   app.get<{ Params: { handle: string } }>('/profiles/:handle/reputation/history',

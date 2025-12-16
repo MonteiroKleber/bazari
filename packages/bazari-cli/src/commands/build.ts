@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
+import inquirer from 'inquirer';
 import fs from 'fs-extra';
 import path from 'path';
 import crypto from 'crypto';
@@ -8,19 +9,42 @@ import { build as esbuild } from 'esbuild';
 import { glob } from 'glob';
 import { spawn } from 'child_process';
 import { loadManifest } from '../utils/config.js';
+import {
+  detectPermissions,
+  comparePermissions,
+  generatePermissionEntries,
+  PERMISSION_METADATA,
+} from '../utils/permissions.js';
 
 export const buildCommand = new Command('build')
   .description('Build app for production')
   .option('-o, --output <dir>', 'Output directory', 'dist')
   .option('--minify', 'Minify output', true)
   .option('--sourcemap', 'Generate sourcemaps', false)
+  .option('--skip-permissions', 'Skip permission check')
+  .option('-y, --yes', 'Auto-confirm permission sync')
   .action(async (options) => {
     console.log(chalk.bold.blue('\n📦 Building Bazari App\n'));
 
-    const manifest = await loadManifest();
+    const cwd = process.cwd();
+    const manifestPath = path.join(cwd, 'bazari.manifest.json');
+
+    let manifest = await loadManifest();
     if (!manifest) {
       console.log(chalk.red('Error: bazari.manifest.json not found'));
       return;
+    }
+
+    // Check permissions before building (unless skipped)
+    if (!options.skipPermissions) {
+      const permissionResult = await checkAndSyncPermissions(manifest, manifestPath, options.yes);
+      if (permissionResult === 'cancelled') {
+        return;
+      }
+      if (permissionResult === 'updated') {
+        // Reload manifest after update
+        manifest = await loadManifest();
+      }
     }
 
     // Check if it's a Vite project
@@ -32,6 +56,88 @@ export const buildCommand = new Command('build')
       await buildLegacyProject(manifest, options);
     }
   });
+
+/**
+ * Check for missing permissions and optionally sync them
+ */
+async function checkAndSyncPermissions(
+  manifest: any,
+  manifestPath: string,
+  autoConfirm: boolean
+): Promise<'ok' | 'updated' | 'cancelled'> {
+  const cwd = process.cwd();
+
+  const spinner = ora('Checking SDK permissions...').start();
+
+  try {
+    const detected = await detectPermissions(cwd);
+
+    if (detected.length === 0) {
+      spinner.succeed('No SDK API calls detected');
+      return 'ok';
+    }
+
+    const result = comparePermissions(detected, manifest.permissions || []);
+
+    if (result.missing.length === 0) {
+      spinner.succeed(`Permissions OK (${result.declared.length} declared)`);
+      return 'ok';
+    }
+
+    spinner.warn(`${result.missing.length} permission(s) missing from manifest`);
+
+    console.log(chalk.yellow('\n⚠️  Missing permissions detected:\n'));
+
+    for (const perm of result.missing) {
+      const meta = PERMISSION_METADATA[perm.id];
+      console.log(`  • ${chalk.bold(perm.id)}`);
+      if (meta) {
+        console.log(chalk.dim(`    ${meta.description}`));
+      }
+      // Show first source
+      if (perm.sources.length > 0) {
+        const src = perm.sources[0];
+        console.log(chalk.dim(`    └─ ${src.file}:${src.line}`));
+      }
+    }
+
+    // Ask to sync
+    let shouldSync = autoConfirm;
+    if (!shouldSync) {
+      const { confirm } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'confirm',
+          message: 'Add missing permissions to manifest and continue build?',
+          default: true,
+        },
+      ]);
+      shouldSync = confirm;
+    }
+
+    if (!shouldSync) {
+      console.log(chalk.dim('\nBuild cancelled. Run "bazari manifest sync" to add permissions manually.'));
+      return 'cancelled';
+    }
+
+    // Update manifest
+    const newPermissions = generatePermissionEntries(result.missing);
+    manifest.permissions = [
+      ...(manifest.permissions || []),
+      ...newPermissions,
+    ];
+
+    await fs.writeJson(manifestPath, manifest, { spaces: 2 });
+
+    console.log(chalk.green(`\n✓ Added ${newPermissions.length} permission(s) to manifest\n`));
+
+    return 'updated';
+
+  } catch (error) {
+    spinner.warn('Permission check skipped (analysis error)');
+    return 'ok';
+  }
+}
 
 async function detectViteProject(): Promise<boolean> {
   const cwd = process.cwd();

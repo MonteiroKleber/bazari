@@ -196,7 +196,7 @@ Tasks:
 **Verificação:**
 ```bash
 # Criar app de teste
-cd /tmp && npx @bazari/cli create test-app
+cd /tmp && npx @bazari.libervia.xyz/cli create test-app
 cd test-app
 
 # Build e publish

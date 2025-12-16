@@ -1,9 +1,9 @@
 {
-  "name": "Bazari - Decentralized Marketplace",
+  "name": "Bazari - Nação Digital Descentralizada",
   "short_name": "Bazari",
-  "description": "A decentralized marketplace and social platform built on Polkadot",
-  "theme_color": "#000000",
-  "background_color": "#ffffff",
+  "description": "Economia popular descentralizada com moeda própria (BZR) e cashback (LIVO)",
+  "theme_color": "#8B0000",
+  "background_color": "#F5F1E0",
   "display": "standalone",
   "orientation": "portrait-primary",
   "scope": "/",

@@ -121,3 +121,48 @@ export async function createApp(manifest: Record<string, unknown>): Promise<ApiR
     body: JSON.stringify(manifest),
   });
 }
+
+// ==================== SDK Apps (External) ====================
+
+export async function getSdkApps(): Promise<ApiResponse<{ apps: any[] }>> {
+  return apiRequest('/developer/sdk-apps');
+}
+
+export async function getSdkAppBySlug(slug: string): Promise<ApiResponse<{ app: any }>> {
+  const response = await getSdkApps();
+  if (response.error) return { ...response, data: { app: null } };
+
+  const app = response.data?.apps?.find((a: any) => a.slug === slug);
+  return { data: { app }, status: response.status };
+}
+
+export async function createSdkApp(data: {
+  name: string;
+  slug?: string;
+  description?: string;
+  allowedOrigins: string[];
+  permissions: string[];
+}): Promise<ApiResponse<{ app: any; secretKey: string }>> {
+  return apiRequest('/developer/sdk-apps', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function rotateSdkAppSecret(appId: string): Promise<ApiResponse<{ secretKey: string }>> {
+  return apiRequest(`/developer/sdk-apps/${appId}/rotate-secret`, {
+    method: 'POST',
+  });
+}
+
+export async function rotateSdkAppKey(appId: string): Promise<ApiResponse<{ apiKey: string }>> {
+  return apiRequest(`/developer/sdk-apps/${appId}/rotate-api-key`, {
+    method: 'POST',
+  });
+}
+
+export async function deleteSdkApp(appId: string): Promise<ApiResponse<void>> {
+  return apiRequest(`/developer/sdk-apps/${appId}`, {
+    method: 'DELETE',
+  });
+}

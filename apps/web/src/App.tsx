@@ -1,7 +1,7 @@
 // V-1 (2025-09-18): Add PDP routes for product and service detail pages
 // path: apps/web/src/App.tsx
 
-import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -82,6 +82,7 @@ import { FEATURE_FLAGS } from './config';
 import { ChatInboxPage } from './pages/chat/ChatInboxPage';
 import { ChatThreadPage } from './pages/chat/ChatThreadPage';
 import { ChatNewPage } from './pages/chat/ChatNewPage';
+import { ChatLayout } from './components/chat/ChatLayout';
 import { GroupAdminPage } from './pages/chat/GroupAdminPage';
 import { SaleDetailsPage } from './pages/chat/SaleDetailsPage';
 import { ReceiptViewerPage } from './pages/chat/ReceiptViewerPage';
@@ -94,6 +95,11 @@ import PluginCatalogPage from './pages/seller/PluginCatalogPage';
 import { MyAffiliationsPage } from './pages/promoter/MyAffiliationsPage';
 import { useChat } from './hooks/useChat';
 import { getAccessToken, refreshSession } from './modules/auth/session';
+import { chatSoundService } from './lib/chat/sounds';
+import { useDocumentTitle } from './hooks/useDocumentTitle';
+import { LightboxProvider } from './contexts/LightboxContext';
+import { IncomingCallModal } from './components/chat/IncomingCallModal';
+import { ActiveCallOverlay } from './components/chat/ActiveCallOverlay';
 
 // Delivery pages
 import { DeliveryLandingPage } from './pages/delivery/DeliveryLandingPage';
@@ -149,6 +155,7 @@ import AppSettingsPage from './pages/settings/AppSettingsPage';
 // Developer Portal pages
 import DevPortalDashboardPage from './pages/developer/DevPortalDashboardPage';
 import NewAppPage from './pages/developer/NewAppPage';
+import ImportAppPage from './pages/developer/ImportAppPage';
 import AppDetailDevPage from './pages/developer/AppDetailDevPage';
 import RevenueDashboardPage from './pages/developer/RevenueDashboardPage';
 import AppMonetizationPage from './pages/developer/AppMonetizationPage';
@@ -162,6 +169,9 @@ import AppAnalyticsPage from './pages/developer/AppAnalyticsPage';
 import ApiKeysPage from './pages/developer/ApiKeysPage';
 import DevPreviewPage from './pages/developer/DevPreviewPage';
 import CliAuthPage from './pages/developer/CliAuthPage';
+
+// Studio App (lazy loaded)
+const StudioApp = lazy(() => import('./apps/studio/StudioApp'));
 
 // App Store - Additional pages
 import CategoryPage from './pages/store/CategoryPage';
@@ -390,10 +400,31 @@ function AppInitializer() {
 }
 
 function App() {
+  // Update document title with unread count
+  const totalUnreadCount = useChat((state) => state.getTotalUnreadCount());
+  useDocumentTitle('Bazari', totalUnreadCount);
+
+  // Unlock audio playback on first user interaction
+  useEffect(() => {
+    const unlockAudio = () => {
+      chatSoundService.unlock();
+      document.removeEventListener('click', unlockAudio);
+      document.removeEventListener('touchstart', unlockAudio);
+    };
+
+    document.addEventListener('click', unlockAudio, { once: true });
+    document.addEventListener('touchstart', unlockAudio, { once: true });
+
+    return () => {
+      document.removeEventListener('click', unlockAudio);
+      document.removeEventListener('touchstart', unlockAudio);
+    };
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
+        <LightboxProvider>
         <BrowserRouter>
         <AppInitializer />
         <UserAppsSync />
@@ -405,6 +436,9 @@ function App() {
           <UpdatePrompt />
           <InstallPrompt />
           <MobileBottomNav />
+          {/* Global Call Components - Show incoming/active calls from anywhere */}
+          <IncomingCallModal />
+          <ActiveCallOverlay />
           <Routes>
             <Route
               path="/app/wallet/*"
@@ -463,6 +497,30 @@ function App() {
               }
             />
 
+            {/* Chat New - Precisa vir ANTES de :threadId para não ser capturado */}
+            <Route
+              path="/app/chat/new"
+              element={
+                <RequireAuth>
+                  <AppLayout>
+                    <ChatNewPage />
+                  </AppLayout>
+                </RequireAuth>
+              }
+            />
+
+            {/* Chat Thread - Layout imersivo no mobile (sem AppHeader/Footer/BottomNav) */}
+            <Route
+              path="/app/chat/:threadId"
+              element={
+                <RequireAuth>
+                  <ChatLayout>
+                    <ChatThreadPage />
+                  </ChatLayout>
+                </RequireAuth>
+              }
+            />
+
             {/* Rotas internas/autenticadas */}
             <Route
               path="/app/*"
@@ -503,7 +561,7 @@ function App() {
                       <Route path="p2p/zari/stats" element={<ZARIStatsPage />} />
                       <Route path="chat" element={<ChatInboxPage />} />
                       <Route path="chat/new" element={<ChatNewPage />} />
-                      <Route path="chat/:threadId" element={<ChatThreadPage />} />
+                      {/* chat/:threadId moved to immersive ChatLayout route above */}
                       <Route path="chat/group/:groupId/admin" element={<GroupAdminPage />} />
                       <Route path="chat/sales/:saleId" element={<SaleDetailsPage />} />
                       <Route path="receipts/:cid" element={<ReceiptViewerPage />} />
@@ -571,6 +629,7 @@ function App() {
                       {/* Developer Portal routes */}
                       <Route path="developer" element={<DevPortalDashboardPage />} />
                       <Route path="developer/new" element={<NewAppPage />} />
+                      <Route path="developer/import" element={<ImportAppPage />} />
                       <Route path="developer/apps/:id" element={<AppDetailDevPage />} />
                       <Route path="developer/apps/:id/monetization" element={<AppMonetizationPage />} />
                       <Route path="developer/apps/:id/analytics" element={<AppAnalyticsPage />} />
@@ -584,6 +643,16 @@ function App() {
                       <Route path="developer/components" element={<ComponentsPage />} />
                       <Route path="developer/support" element={<SupportPage />} />
 
+                      {/* Studio IDE - full screen, no AppLayout wrapper */}
+                      <Route
+                        path="studio/*"
+                        element={
+                          <Suspense fallback={<div className="flex h-screen items-center justify-center bg-background"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>}>
+                            <StudioApp />
+                          </Suspense>
+                        }
+                      />
+
                       {/* Futuras rotas internas */}
                       {/* <Route path="dashboard" element={<Dashboard />} /> */}
                       {/* <Route path="wallet" element={<Wallet />} /> */}
@@ -596,6 +665,7 @@ function App() {
           </Routes>
         </div>
       </BrowserRouter>
+        </LightboxProvider>
     </ThemeProvider>
     </QueryClientProvider>
   );

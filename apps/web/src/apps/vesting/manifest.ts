@@ -20,9 +20,9 @@ export const vestingApp: BazariApp = {
   ),
 
   permissions: [
-    { id: 'blockchain.read', reason: 'Consultar schedule de vesting' },
-    { id: 'blockchain.sign', reason: 'Resgatar tokens liberados' },
-    { id: 'wallet.balance.read', reason: 'Exibir tokens disponíveis' },
+    { id: 'contracts:read', reason: 'Consultar schedule de vesting' },
+    { id: 'contracts:execute', reason: 'Resgatar tokens liberados' },
+    { id: 'wallet:read', reason: 'Exibir tokens disponíveis' },
   ],
 
   status: 'stable',

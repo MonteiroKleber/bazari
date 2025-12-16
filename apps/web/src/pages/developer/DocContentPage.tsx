@@ -43,11 +43,21 @@ O arquivo \`bazari.manifest.json\` define seu app:
 
 \`\`\`json
 {
-  "id": "com.example.meu-app",
+  "appId": "com.example.meu-app",
   "name": "Meu App",
+  "slug": "meu-app",
   "version": "1.0.0",
-  "permissions": ["wallet:read"],
-  "entry": "dist/index.js"
+  "description": "Descrição do meu app",
+  "category": "tools",
+  "permissions": [
+    { "id": "auth:read", "reason": "Para exibir seu perfil" },
+    { "id": "wallet:read", "reason": "Para exibir seu saldo" },
+    { "id": "ui:toast", "reason": "Para exibir notificações" }
+  ],
+  "sdkVersion": "0.2.0",
+  "entryPoint": "dist/index.html",
+  "icon": "Package",
+  "color": "from-blue-500 to-purple-600"
 }
 \`\`\`
 
@@ -114,16 +124,23 @@ pnpm add -g @bazari.libervia.xyz/cli
 
 \`\`\`bash
 bazari --version
+# @bazari.libervia.xyz/cli v0.2.25
 \`\`\`
 
 ## Comandos Disponíveis
 
 | Comando | Descrição |
 |---------|-----------|
+| \`bazari login\` | Autentica com sua conta Bazari |
+| \`bazari logout\` | Desloga da conta |
+| \`bazari whoami\` | Mostra o usuário logado |
 | \`bazari create <nome>\` | Cria um novo projeto |
 | \`bazari dev\` | Inicia servidor de desenvolvimento |
 | \`bazari build\` | Compila para produção |
-| \`bazari publish\` | Publica no Bazari |
+| \`bazari validate\` | Valida o manifest e estrutura |
+| \`bazari publish\` | Publica na App Store ou gera API Key |
+| \`bazari keys\` | Gerencia API Keys para SDK externo |
+| \`bazari studio\` | Abre o Bazari Studio (IDE visual) |
 
 ## Autenticação
 
@@ -135,10 +152,30 @@ bazari login
 
 Isso abrirá o navegador para você fazer login no Bazari.
 
+## Targets de Publicação
+
+O CLI suporta dois targets:
+
+- **appstore** (padrão): Apps que rodam dentro do Bazari
+- **external**: Gera API Key para usar SDK em sites externos
+
+\`\`\`bash
+# Publicar na App Store
+bazari publish
+
+# Publicar para SDK externo
+bazari publish --target external --origin https://meusite.com
+
+# Publicar em ambos
+bazari publish --target both --origin https://meusite.com
+\`\`\`
+
 ## Próximos Passos
 
 - [Quick Start](/app/developer/docs/quick-start)
 - [Conceitos Básicos](/app/developer/docs/concepts)
+- [Publicar seu app](/app/developer/docs/cli/publish)
+- [Gerenciar API Keys](/app/developer/docs/cli/keys)
 `,
   },
   concepts: {
@@ -146,7 +183,7 @@ Isso abrirá o navegador para você fazer login no Bazari.
     content: `
 ## Arquitetura
 
-Apps Bazari são micro-frontends React que rodam dentro da plataforma.
+Apps Bazari são micro-frontends React que rodam dentro da plataforma ou em sites externos via SDK.
 
 ### Manifest
 
@@ -154,28 +191,53 @@ O \`bazari.manifest.json\` define metadados e permissões:
 
 \`\`\`json
 {
-  "id": "com.company.app-name",
+  "appId": "com.company.app-name",
   "name": "Nome do App",
+  "slug": "app-name",
   "version": "1.0.0",
   "description": "Descrição do app",
+  "category": "tools",
   "permissions": [
-    "wallet:read",
-    "wallet:write",
-    "storage:read",
-    "storage:write"
+    { "id": "wallet:read" },
+    { "id": "wallet:transfer" }
   ],
-  "entry": "dist/index.js"
+  "sdkVersion": "0.1.0",
+  "monetizationType": "free",
+  "distribution": {
+    "appStore": true,
+    "external": false
+  }
 }
 \`\`\`
+
+### Campo Distribution
+
+O campo \`distribution\` define como seu app será distribuído:
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| \`appStore\` | boolean | Publicar na App Store Bazari (iframe) |
+| \`external\` | boolean | Gerar API Key para SDK externo |
+| \`allowedOrigins\` | string[] | Domínios permitidos para SDK externo |
+
+**Cenários de uso:**
+
+| appStore | external | Uso |
+|----------|----------|-----|
+| true | false | App tradicional no Bazari (padrão) |
+| false | true | Integração em site externo |
+| true | true | Ambos os modelos |
 
 ### Permissões
 
 | Permissão | Descrição |
 |-----------|-----------|
+| \`auth:read\` | Ler perfil do usuário |
 | \`wallet:read\` | Ler saldo e histórico |
-| \`wallet:write\` | Enviar transações |
+| \`wallet:transfer\` | Solicitar transferências |
 | \`storage:read\` | Ler dados salvos |
 | \`storage:write\` | Salvar dados |
+| \`ui:toast\` | Exibir notificações |
 | \`contracts:read\` | Consultar contratos |
 | \`contracts:write\` | Executar contratos |
 
@@ -206,14 +268,15 @@ sdk.ui.toast('Mensagem de sucesso');
 
 1. **Desenvolvimento**: \`bazari dev\`
 2. **Build**: \`bazari build\`
-3. **Publicação**: \`bazari publish\`
+3. **Publicação**: \`bazari publish\` (App Store ou SDK externo)
 4. **Revisão**: Equipe Bazari revisa
-5. **Aprovação**: App disponível na store
+5. **Aprovação**: App disponível na store ou API Key ativa
 
 ## Próximos Passos
 
 - [SDK Overview](/app/developer/docs/sdk/overview)
 - [API de Wallet](/app/developer/docs/sdk/wallet)
+- [Publicar seu app](/app/developer/docs/cli/publish)
 `,
   },
   'sdk/overview': {
@@ -221,7 +284,16 @@ sdk.ui.toast('Mensagem de sucesso');
     content: `
 ## @bazari.libervia.xyz/app-sdk
 
-SDK oficial para desenvolver apps no ecossistema Bazari.
+SDK oficial para desenvolver apps que integram com a plataforma Bazari.
+
+## Modos de Uso
+
+O SDK suporta dois modos de operação:
+
+| Modo | Descrição | Caso de Uso |
+|------|-----------|-------------|
+| **App Store** | App roda em iframe dentro do Bazari | Apps nativos da plataforma |
+| **External** | App roda em site externo | Integração em e-commerce, sites, etc |
 
 ## Instalação
 
@@ -231,10 +303,42 @@ npm install @bazari.libervia.xyz/app-sdk
 
 ## Inicialização
 
+### Modo App Store (iframe)
+
 \`\`\`typescript
 import { BazariSDK } from '@bazari.libervia.xyz/app-sdk';
 
-const sdk = new BazariSDK();
+const sdk = new BazariSDK({
+  apiKey: import.meta.env.VITE_BAZARI_API_KEY,
+  debug: import.meta.env.DEV,
+});
+\`\`\`
+
+### Modo Externo (SDK Externo)
+
+\`\`\`typescript
+import { BazariSDK } from '@bazari.libervia.xyz/app-sdk';
+
+const sdk = new BazariSDK({
+  apiKey: 'baz_sdk_abc123...',
+  secretKey: 'sk_secret_xyz789...', // Server-side apenas!
+  mode: 'external',
+});
+\`\`\`
+
+**Importante:** O \`secretKey\` deve ser usado apenas no servidor. Nunca exponha no frontend!
+
+## API Key e Secret Key
+
+| Credencial | Onde usar | Propósito |
+|------------|-----------|-----------|
+| API Key | Frontend + Backend | Identifica o app |
+| Secret Key | Backend apenas | Autentica requisições |
+
+Gere credenciais via CLI:
+
+\`\`\`bash
+bazari publish --target external --origin https://meusite.com
 \`\`\`
 
 ## Módulos Disponíveis
@@ -317,7 +421,9 @@ API para obter informações do usuário autenticado.
 
 ## Permissões
 
-Nenhuma permissão especial necessária - dados básicos são públicos.
+- \`auth:read\` - Para obter dados do perfil do usuário
+
+**Nota:** Esta permissão é concedida automaticamente, não requer aprovação explícita.
 
 ## Métodos
 
@@ -399,7 +505,7 @@ API para operações financeiras com BZR token.
 ## Permissões
 
 - \`wallet:read\` - Para consultar saldo e histórico
-- \`wallet:write\` - Para enviar transações
+- \`wallet:transfer\` - Para solicitar transferências
 
 ## Métodos
 
@@ -598,6 +704,11 @@ await sdk.storage.set('favorites', favorites);
 ## UI
 
 API para interações de interface com o usuário.
+
+## Permissões
+
+- \`ui:toast\` - Para exibir notificações (toast, success, error)
+- \`ui:modal\` - Para exibir modais (confirm, prompt)
 
 ## Métodos
 
@@ -1325,47 +1436,98 @@ bazari publish
   'cli/publish': {
     title: 'CLI - bazari publish',
     content: `
-## Publicar na App Store
+## Publicar App
 
-O comando \`bazari publish\` envia seu app para a Bazari App Store.
+O comando \`bazari publish\` publica seu app na App Store ou gera credenciais para SDK externo.
 
 ## Pré-requisitos
 
 1. Estar logado (\`bazari login\`)
-2. Ter feito build (\`bazari build\`)
+2. Ter feito build (\`bazari build\`) - apenas para App Store
 3. Manifest válido
 
-## Uso
+## Sintaxe
 
 \`\`\`bash
-bazari publish
+bazari publish [options]
 \`\`\`
-
-## Fluxo de Publicação
-
-1. **Upload**: Envia arquivos para o servidor
-2. **Validação**: Verifica manifest e estrutura
-3. **Review**: Equipe Bazari revisa o app
-4. **Aprovação**: App fica disponível na store
 
 ## Opções
 
-| Opção | Descrição |
-|-------|-----------|
-| \`--draft\` | Salvar como rascunho (não submete para review) |
-| \`--notes <texto>\` | Notas para os revisores |
+| Opção | Descrição | Padrão |
+|-------|-----------|--------|
+| \`-d, --dir <dir>\` | Diretório do build | dist |
+| \`-t, --target <target>\` | Target: appstore, external, both | auto |
+| \`-o, --origin <urls...>\` | Origens permitidas (SDK externo) | - |
+| \`--changelog <text>\` | Changelog da versão | - |
+| \`--no-submit\` | Upload sem submeter para review | false |
+
+## Targets de Publicação
+
+### appstore (padrão)
+
+Publica na App Store Bazari. App será carregado em iframe.
+
+\`\`\`bash
+bazari publish --target appstore
+\`\`\`
+
+### external
+
+Gera API Key para usar o SDK em sites externos.
+
+\`\`\`bash
+bazari publish --target external --origin https://meusite.com
+\`\`\`
+
+### both
+
+Publica na App Store E gera API Key para SDK externo.
+
+\`\`\`bash
+bazari publish --target both --origin https://meusite.com
+\`\`\`
 
 ## Exemplos
 
 \`\`\`bash
-# Publicar para review
+# Publicar na App Store (padrão)
 bazari publish
 
-# Salvar rascunho
-bazari publish --draft
+# Publicar para SDK externo
+bazari publish --target external --origin https://meusite.com https://app.meusite.com
 
-# Com notas para revisores
-bazari publish --notes "Corrigido bug de login"
+# Publicar em ambos
+bazari publish --target both --origin https://meusite.com
+
+# Com changelog
+bazari publish --changelog "Corrigido bug de login"
+
+# Upload sem submeter para review
+bazari publish --no-submit
+\`\`\`
+
+## Diferenças entre Targets
+
+| Característica | App Store | External |
+|----------------|-----------|----------|
+| Onde roda | Iframe no Bazari | Seu próprio site |
+| Autenticação | Automática | Via API Key + OAuth |
+| Bundle | Upload para IPFS | Não necessário |
+| Review | Sim | Sim (para aprovar API Key) |
+
+## Configuração via Manifest
+
+O target também pode ser definido no \`bazari.manifest.json\`:
+
+\`\`\`json
+{
+  "distribution": {
+    "appStore": true,
+    "external": true,
+    "allowedOrigins": ["https://meusite.com"]
+  }
+}
 \`\`\`
 
 ## Tempo de Review
@@ -1374,42 +1536,160 @@ bazari publish --notes "Corrigido bug de login"
 |------|-------|
 | Primeiro app | 1-3 dias úteis |
 | Atualização | Até 24h |
-| Correção de bug | Até 12h |
-
-## Status de Review
-
-Você receberá email com o status:
-
-- **Em Análise**: Aguardando revisor
-- **Aprovado**: Disponível na store
-- **Rejeitado**: Correções necessárias (com feedback)
-
-## Checklist antes de publicar
-
-- Executar \`bazari build\`
-- Executar \`bazari validate\` sem erros
-- Screenshots atualizados
-- Descrição clara
-- Permissões justificadas
-
-## Atualizações
-
-Para atualizar um app existente:
-
-1. Incremente a versão no \`bazari.manifest.json\`
-2. Execute \`bazari build\`
-3. Execute \`bazari publish\`
-
-\`\`\`json
-{
-  "version": "1.0.1"
-}
-\`\`\`
+| API Key externa | Até 24h |
 
 ## Próximos Passos
 
+- [Gerenciar API Keys](/app/developer/docs/cli/keys)
 - [Monetizar seu app](/app/developer/docs/guides/monetization)
 - [Ver analytics](/app/developer/revenue)
+`,
+  },
+  'cli/keys': {
+    title: 'CLI - bazari keys',
+    content: `
+## Gerenciar API Keys
+
+O comando \`bazari keys\` gerencia API Keys para uso do SDK externo.
+
+## Comandos
+
+| Comando | Descrição |
+|---------|-----------|
+| \`bazari keys list\` | Lista todas as API Keys |
+| \`bazari keys show [slug]\` | Mostra detalhes de uma API Key |
+| \`bazari keys rotate [slug]\` | Rotaciona API Key ou Secret Key |
+| \`bazari keys revoke [slug]\` | Revoga API Key permanentemente |
+
+## bazari keys list
+
+Lista todas as API Keys associadas à sua conta.
+
+\`\`\`bash
+bazari keys list
+\`\`\`
+
+**Saída:**
+
+\`\`\`
+Your API Keys:
+
+Meu App (meu-app)
+  API Key:  baz_sdk_abc123...
+  Status:   APPROVED
+  Origins:  https://meusite.com
+  Requests: 1,234
+\`\`\`
+
+## bazari keys show
+
+Mostra detalhes de uma API Key específica.
+
+\`\`\`bash
+# Por slug
+bazari keys show meu-app
+
+# Ou do projeto atual
+cd meu-app
+bazari keys show
+\`\`\`
+
+## bazari keys rotate
+
+Rotaciona credenciais de segurança.
+
+### Rotacionar Secret Key (padrão)
+
+\`\`\`bash
+bazari keys rotate meu-app
+# ou
+bazari keys rotate --secret meu-app
+\`\`\`
+
+### Rotacionar API Key (cuidado!)
+
+\`\`\`bash
+bazari keys rotate --api meu-app
+\`\`\`
+
+**Atenção:** Rotacionar a API Key invalida todas as integrações existentes!
+
+## bazari keys revoke
+
+Revoga uma API Key permanentemente. **Esta ação não pode ser desfeita.**
+
+\`\`\`bash
+bazari keys revoke meu-app
+\`\`\`
+
+## Boas Práticas
+
+1. **Secret Key no servidor**: Nunca exponha no frontend
+2. **Rotacione periodicamente**: A cada 90 dias é recomendado
+3. **Use allowedOrigins**: Restrinja a domínios específicos
+4. **Monitore uso**: Verifique requests no dashboard
+
+## Status Possíveis
+
+| Status | Descrição |
+|--------|-----------|
+| PENDING | Aguardando aprovação |
+| APPROVED | Ativo e funcionando |
+| REJECTED | Rejeitado |
+| SUSPENDED | Suspenso temporariamente |
+
+## Próximos Passos
+
+- [Publicar app](/app/developer/docs/cli/publish)
+- [SDK Externo](/app/developer/docs/sdk/overview)
+`,
+  },
+  'cli/studio': {
+    title: 'CLI - bazari studio',
+    content: `
+## Bazari Studio
+
+O comando \`bazari studio\` abre o Bazari Studio, uma IDE visual para desenvolvimento de apps.
+
+## Uso
+
+\`\`\`bash
+bazari studio
+\`\`\`
+
+## Funcionalidades
+
+- **Editor visual**: Arraste e solte componentes
+- **Preview em tempo real**: Veja mudanças instantaneamente
+- **Debugger integrado**: Inspecione chamadas do SDK
+- **Deploy direto**: Publique sem sair do Studio
+
+## Opções
+
+| Opção | Descrição | Padrão |
+|-------|-----------|--------|
+| \`-p, --port <port>\` | Porta do servidor | 4000 |
+| \`--open\` | Abre navegador automaticamente | true |
+
+## Exemplo
+
+\`\`\`bash
+# Abrir Studio na porta padrão
+bazari studio
+
+# Porta customizada
+bazari studio --port 5000
+\`\`\`
+
+## Requisitos
+
+- Projeto Bazari válido (bazari.manifest.json)
+- Dependências instaladas (npm install)
+
+## Próximos Passos
+
+- [Criar projeto](/app/developer/docs/cli/create)
+- [Publicar app](/app/developer/docs/cli/publish)
 `,
   },
   'monetization/models': {
@@ -1769,7 +2049,7 @@ balance-app/
   "description": "Visualize seu saldo BZR e ZARI",
   "category": "finance",
   "permissions": [
-    { "id": "wallet.balance.read", "reason": "Para exibir seu saldo" }
+    { "id": "wallet:read", "reason": "Para exibir seu saldo" }
   ],
   "sdkVersion": "0.1.0",
   "monetizationType": "free"
@@ -1889,7 +2169,7 @@ Exemplo de app com persistência usando o Storage do SDK.
   "description": "Lista de tarefas simples",
   "category": "productivity",
   "permissions": [
-    { "id": "storage", "reason": "Para salvar suas tarefas" }
+    { "id": "storage:read", "reason": "Para salvar suas tarefas" }
   ],
   "sdkVersion": "0.1.0",
   "monetizationType": "free"
@@ -2067,10 +2347,10 @@ Exemplo de app com programa de pontos usando wallet e In-App Purchases.
   "description": "Programa de fidelidade com pontos",
   "category": "lifestyle",
   "permissions": [
-    { "id": "user.profile.read", "reason": "Para personalizar experiência" },
-    { "id": "wallet.balance.read", "reason": "Para mostrar pontos" },
-    { "id": "wallet.transfer.request", "reason": "Para resgatar recompensas" },
-    { "id": "storage", "reason": "Para salvar histórico" }
+    { "id": "auth:read", "reason": "Para personalizar experiência" },
+    { "id": "wallet:read", "reason": "Para mostrar pontos" },
+    { "id": "wallet:transfer", "reason": "Para resgatar recompensas" },
+    { "id": "storage:read", "reason": "Para salvar histórico" }
   ],
   "sdkVersion": "0.1.0",
   "monetizationType": "freemium",

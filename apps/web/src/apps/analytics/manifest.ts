@@ -18,7 +18,7 @@ export const analyticsApp: BazariApp = {
   component: lazy(() => import('@/pages/AnalyticsDashboard')),
 
   permissions: [
-    { id: 'user.profile.read', reason: 'Analisar seu perfil' },
+    { id: 'auth:read', reason: 'Analisar seu perfil' },
     { id: 'feed.read', reason: 'Métricas de engajamento' },
     { id: 'orders.read', reason: 'Estatísticas de vendas', optional: true },
   ],

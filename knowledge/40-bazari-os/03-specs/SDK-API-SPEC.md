@@ -8,14 +8,14 @@
 
 ## Visão Geral
 
-O `@bazari/app-sdk` fornece APIs para apps de terceiros interagirem com o ecossistema Bazari de forma segura e controlada.
+O `@bazari.libervia.xyz/app-sdk` fornece APIs para apps de terceiros interagirem com o ecossistema Bazari de forma segura e controlada.
 
 ---
 
 ## Instalação
 
 ```bash
-npm install @bazari/app-sdk
+npm install @bazari.libervia.xyz/app-sdk
 ```
 
 ---
@@ -23,7 +23,7 @@ npm install @bazari/app-sdk
 ## Inicialização
 
 ```typescript
-import { BazariSDK } from '@bazari/app-sdk';
+import { BazariSDK } from '@bazari.libervia.xyz/app-sdk';
 
 const sdk = new BazariSDK({
   debug: true, // Opcional: habilita logs
@@ -406,7 +406,7 @@ try {
 ## Exemplo Completo
 
 ```typescript
-import { BazariSDK } from '@bazari/app-sdk';
+import { BazariSDK } from '@bazari.libervia.xyz/app-sdk';
 
 async function main() {
   const sdk = new BazariSDK();

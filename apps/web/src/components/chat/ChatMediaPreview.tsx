@@ -2,23 +2,38 @@ import { MediaMetadata } from '@bazari/shared-types';
 import { X, FileIcon, Download } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
+import { AudioPlayer } from './AudioPlayer';
+import { useLightbox } from '@/contexts/LightboxContext';
 
 interface ChatMediaPreviewProps {
   media: MediaMetadata;
   onRemove?: () => void;
   showRemove?: boolean;
+  isOwn?: boolean; // Para estilizar AudioPlayer
 }
 
-export function ChatMediaPreview({ media, onRemove, showRemove = false }: ChatMediaPreviewProps) {
+export function ChatMediaPreview({ media, onRemove, showRemove = false, isOwn = false }: ChatMediaPreviewProps) {
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { openLightbox } = useLightbox();
 
   const isImage = media.mimetype.startsWith('image/');
   const isVideo = media.mimetype.startsWith('video/');
   const isAudio = media.mimetype.startsWith('audio/');
+  const isGif = media.mimetype === 'image/gif';
+
+  // Verificar se é URL externa (GIF do Tenor) ou CID do IPFS
+  const isExternalUrl = media.cid.startsWith('http://') || media.cid.startsWith('https://');
 
   useEffect(() => {
+    // Se for URL externa (GIF), usar diretamente
+    if (isExternalUrl) {
+      setMediaUrl(media.cid);
+      setLoading(false);
+      return;
+    }
+
     if (!media.cid || !media.encryptionKey) {
       console.warn('[ChatMediaPreview] Missing CID or encryption key');
       return;
@@ -66,7 +81,7 @@ export function ChatMediaPreview({ media, onRemove, showRemove = false }: ChatMe
     };
 
     decryptAndLoadMedia();
-  }, [media.cid, media.encryptionKey, media.mimetype]);
+  }, [media.cid, media.encryptionKey, media.mimetype, isExternalUrl]);
 
   // Descriptografar usando AES-256-GCM (mesmo algoritmo do backend)
   const decryptMedia = async (encryptedData: ArrayBuffer, keyHex: string): Promise<ArrayBuffer> => {
@@ -151,11 +166,14 @@ export function ChatMediaPreview({ media, onRemove, showRemove = false }: ChatMe
       )}
 
       {isImage && mediaUrl && (
-        <div className="relative rounded-lg overflow-hidden max-w-sm">
+        <div
+          className="relative rounded-lg overflow-hidden max-w-sm cursor-pointer"
+          onClick={() => openLightbox(mediaUrl, media.filename || 'Imagem')}
+        >
           <img
             src={mediaUrl}
             alt={media.filename || 'Imagem'}
-            className="w-full h-auto object-cover"
+            className="w-full h-auto object-cover hover:opacity-90 transition-opacity"
             loading="lazy"
           />
         </div>
@@ -175,11 +193,11 @@ export function ChatMediaPreview({ media, onRemove, showRemove = false }: ChatMe
       )}
 
       {isAudio && mediaUrl && (
-        <div className="flex items-center gap-2 p-3 bg-muted rounded-lg max-w-sm">
-          <audio src={mediaUrl} controls className="flex-1">
-            Seu navegador não suporta áudio.
-          </audio>
-        </div>
+        <AudioPlayer
+          src={mediaUrl}
+          duration={media.duration}
+          isOwn={isOwn}
+        />
       )}
 
       {!isImage && !isVideo && !isAudio && (

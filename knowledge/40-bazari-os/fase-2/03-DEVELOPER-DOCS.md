@@ -124,14 +124,14 @@ Vamos criar um app simples que mostra o saldo do usuário.
 ## Passo 1: Instalar o CLI (2 min)
 
 \`\`\`bash
-npm install -g @bazari/cli
+npm install -g @bazari.libervia.xyz/cli
 \`\`\`
 
 Verifique a instalação:
 
 \`\`\`bash
 bazari --version
-# @bazari/cli v0.1.0
+# @bazari.libervia.xyz/cli v0.1.0
 \`\`\`
 
 ## Passo 2: Fazer Login (1 min)
@@ -223,7 +223,7 @@ Abra `public/index.html` e substitua o conteúdo:
   </div>
 
   <script type="module">
-    import { BazariSDK } from 'https://unpkg.com/@bazari/app-sdk@latest/dist/index.mjs';
+    import { BazariSDK } from 'https://unpkg.com/@bazari.libervia.xyz/app-sdk@latest/dist/index.mjs';
 
     const sdk = new BazariSDK({ debug: true });
     const content = document.getElementById('content');
@@ -326,7 +326,7 @@ Aprenda a receber pagamentos em BZR no seu app.
 O jeito mais simples de receber pagamentos:
 
 \`\`\`javascript
-import { BazariSDK } from '@bazari/app-sdk';
+import { BazariSDK } from '@bazari.libervia.xyz/app-sdk';
 
 const sdk = new BazariSDK();
 
@@ -537,7 +537,7 @@ O contrato de Fidelidade permite:
 ## Passo 1: Deploy do Contrato
 
 \`\`\`javascript
-import { BazariSDK } from '@bazari/app-sdk';
+import { BazariSDK } from '@bazari.libervia.xyz/app-sdk';
 
 const sdk = new BazariSDK();
 
@@ -727,7 +727,7 @@ async function rewardWithBonus(customer, purchaseAmount) {
   </div>
 
   <script type="module">
-    import { BazariSDK } from '@bazari/app-sdk';
+    import { BazariSDK } from '@bazari.libervia.xyz/app-sdk';
 
     const sdk = new BazariSDK();
     let loyalty;
@@ -806,7 +806,7 @@ const DOCS_SECTIONS = [
   },
   {
     title: 'SDK Reference',
-    description: 'API completa do @bazari/app-sdk',
+    description: 'API completa do @bazari.libervia.xyz/app-sdk',
     icon: Code,
     links: [
       { title: 'Autenticação', href: '/docs/sdk/auth' },
@@ -818,7 +818,7 @@ const DOCS_SECTIONS = [
   },
   {
     title: 'CLI',
-    description: 'Comandos do @bazari/cli',
+    description: 'Comandos do @bazari.libervia.xyz/cli',
     icon: Terminal,
     links: [
       { title: 'bazari create', href: '/docs/cli/create' },
@@ -960,7 +960,7 @@ Atualizar Quick Links:
       <CardContent className="pt-6">
         <h3 className="font-semibold mb-2">📚 Documentação SDK</h3>
         <p className="text-sm text-muted-foreground">
-          Aprenda a usar o @bazari/app-sdk
+          Aprenda a usar o @bazari.libervia.xyz/app-sdk
         </p>
       </CardContent>
     </Link>

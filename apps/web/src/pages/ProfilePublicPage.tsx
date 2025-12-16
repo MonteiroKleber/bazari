@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Edit } from 'lucide-react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Edit, MessageCircle, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { apiHelpers } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { cn } from '@/lib/utils';
@@ -11,8 +12,13 @@ import { Badge } from '@/components/ui/badge';
 import { API_BASE_URL } from '@/config';
 import { ReputationBadge } from '@/components/profile/ReputationBadge';
 import { BadgesList } from '@/components/profile/BadgesList';
+import { ProfileSkeleton } from '@/components/profile/ProfileSkeleton';
 import { PostCard } from '@/components/social/PostCard';
 import { ReputationChart } from '@/components/social/ReputationChart';
+import { OnlineIndicator } from '@/components/chat/OnlineIndicator';
+import { LastSeenText } from '@/components/chat/LastSeenText';
+import { ShareButton } from '@/components/mobile/ShareButton';
+import { MediaGrid } from '@/components/profile/MediaGrid';
 
 type PublicProfile = {
   profile: {
@@ -44,10 +50,11 @@ type PublicProfile = {
 export default function ProfilePublicPage() {
   const { handle = '' } = useParams();
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<PublicProfile | null>(null);
-  const [tab, setTab] = useState<'posts' | 'store' | 'followers' | 'following' | 'reputation'>('posts');
+  const [tab, setTab] = useState<'posts' | 'media' | 'store' | 'followers' | 'following' | 'reputation'>('posts');
   const [posts, setPosts] = useState<any[]>([]);
   const [pinnedPost, setPinnedPost] = useState<any | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -56,6 +63,8 @@ export default function ProfilePublicPage() {
   const [storeNextCursor, setStoreNextCursor] = useState<string | null>(null);
   const [storeLoading, setStoreLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ handle: string } | null>(null);
+  const [startingChat, setStartingChat] = useState(false);
+  const [presence, setPresence] = useState<{ isOnline: boolean; lastSeenAt: string | null } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -87,6 +96,23 @@ export default function ProfilePublicPage() {
         setError(e?.message ?? 'Erro ao carregar perfil');
       } finally {
         if (active) setLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [handle]);
+
+  // Buscar presença quando perfil carrega
+  useEffect(() => {
+    if (!handle) return;
+
+    let active = true;
+    (async () => {
+      try {
+        const res = await apiHelpers.getProfilePresence(handle);
+        if (active) setPresence(res);
+      } catch {
+        // Ignorar erros de presença silenciosamente
+        if (active) setPresence(null);
       }
     })();
     return () => { active = false; };
@@ -154,7 +180,24 @@ export default function ProfilePublicPage() {
     }
   }
 
-  if (loading) return <div className="container mx-auto p-6">{t('profile.loading')}</div>;
+  async function handleStartChat() {
+    if (!data || !currentUser) {
+      toast.error('Faça login para enviar mensagens');
+      return;
+    }
+
+    setStartingChat(true);
+    try {
+      const result = await apiHelpers.getOrCreateDmThread({ participantHandle: data.profile.handle });
+      navigate(`/app/chat/${result.threadId}`);
+    } catch (e: any) {
+      toast.error(e?.message || 'Erro ao iniciar conversa');
+    } finally {
+      setStartingChat(false);
+    }
+  }
+
+  if (loading) return <ProfileSkeleton />;
   if (error) return <div className="container mx-auto p-6 text-red-600">{error}</div>;
   if (!data) return null;
 
@@ -172,15 +215,24 @@ export default function ProfilePublicPage() {
             <span className="sm:hidden">Feed</span>
           </Link>
         </Button>
-        {isOwnProfile && (
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/app/profile/edit" className="flex items-center gap-2">
-              <Edit className="h-4 w-4" />
-              <span className="hidden sm:inline">Editar Perfil</span>
-              <span className="sm:hidden">Editar</span>
-            </Link>
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <ShareButton
+            url={window.location.href}
+            title={`${p.displayName} no Bazari`}
+            text={`Confira o perfil de @${p.handle} no Bazari`}
+            variant="ghost"
+            size="icon"
+          />
+          {isOwnProfile && (
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/app/profile/edit" className="flex items-center gap-2">
+                <Edit className="h-4 w-4" />
+                <span className="hidden sm:inline">Editar Perfil</span>
+                <span className="sm:hidden">Editar</span>
+              </Link>
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Banner Section - Edge-to-edge no mobile, contido no desktop */}
@@ -210,6 +262,14 @@ export default function ProfilePublicPage() {
             ) : (
               <div className="h-24 w-24 md:h-32 md:w-32 rounded-full bg-muted border-4 border-background shadow-lg" />
             )}
+            {/* Online indicator */}
+            {presence && (
+              <OnlineIndicator
+                isOnline={presence.isOnline}
+                size="lg"
+                className="absolute bottom-1 right-1 md:bottom-2 md:right-2"
+              />
+            )}
           </div>
 
           {/* Info Section */}
@@ -218,12 +278,37 @@ export default function ProfilePublicPage() {
               <div>
                 <h1 className="text-2xl md:text-3xl font-semibold">{p.displayName}</h1>
                 <p className="text-muted-foreground">@{p.handle}</p>
+                {/* Last seen status */}
+                {presence && !isOwnProfile && (
+                  <LastSeenText
+                    isOnline={presence.isOnline}
+                    lastSeenAt={presence.lastSeenAt}
+                    className="text-xs text-muted-foreground"
+                  />
+                )}
               </div>
 
-              {canFollow && (
-                <Button onClick={onFollowToggle} aria-live="polite">
-                  {isFollowing ? 'Deixar de seguir' : 'Seguir'}
-                </Button>
+              {!isOwnProfile && (
+                <div className="flex gap-2">
+                  {canFollow && (
+                    <Button onClick={onFollowToggle} aria-live="polite">
+                      {isFollowing ? 'Deixar de seguir' : 'Seguir'}
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    onClick={handleStartChat}
+                    disabled={startingChat}
+                    className="flex items-center gap-2"
+                  >
+                    {startingChat ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <MessageCircle className="h-4 w-4" />
+                    )}
+                    <span className="hidden sm:inline">Mensagem</span>
+                  </Button>
+                </div>
               )}
             </div>
 
@@ -288,7 +373,7 @@ export default function ProfilePublicPage() {
       <div className="relative mb-4">
         <div className="overflow-x-auto scrollbar-hide border-b border-border">
           <div className="flex gap-1 min-w-max md:min-w-0">
-            {(['posts','reputation','store','followers','following'] as const).map((tabKey) => (
+            {(['posts','media','reputation','store','followers','following'] as const).map((tabKey) => (
               <button
                 key={tabKey}
                 className={cn(
@@ -300,6 +385,7 @@ export default function ProfilePublicPage() {
                 onClick={() => setTab(tabKey)}
               >
                 {tabKey === 'posts' && t('profile.posts', { defaultValue: 'Posts' })}
+                {tabKey === 'media' && t('profile.media', { defaultValue: 'Mídia' })}
                 {tabKey === 'reputation' && t('profile.reputation', { defaultValue: 'Reputação' })}
                 {tabKey === 'store' && t('profile.store', { defaultValue: 'Loja' })}
                 {tabKey === 'followers' && t('profile.followers', { defaultValue: 'Seguidores' })}
@@ -406,6 +492,10 @@ export default function ProfilePublicPage() {
             <div className="text-muted-foreground">{t('profile.noPosts')}</div>
           ) : null}
         </div>
+      )}
+
+      {tab === 'media' && (
+        <MediaGrid handle={handle} />
       )}
 
       {tab === 'reputation' && data?.profile.handle && (

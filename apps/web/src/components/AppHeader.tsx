@@ -29,6 +29,8 @@ import { toast } from "sonner";
 import { apiHelpers } from "@/lib/api";
 import { useIsDAOMember } from "@/hooks/useIsDAOMember";
 import { useUserAppsStore } from "@/platform/store";
+import { useChat } from "@/hooks/useChat";
+import { BadgeCounter } from "@/components/ui/badge-counter";
 // import { WalletMenu } from "./WalletMenu"; // placeholder futuro
 
 /**
@@ -45,6 +47,7 @@ export function AppHeader() {
   const [loggingOut, setLoggingOut] = React.useState(false);
   const isDAOMember = useIsDAOMember();
   const { isInstalled } = useUserAppsStore();
+  const chatUnreadCount = useChat((state) => state.getTotalUnreadCount());
 
   const isActive = (path: string) => {
     if (path === '/app/hub') {
@@ -55,9 +58,9 @@ export function AppHeader() {
 
   // Primary navigation - most used features
   const primaryNavLinks = [
-    { to: '/app/feed', label: t('nav.feed', { defaultValue: 'Feed' }), icon: Newspaper, checkActive: () => isActive('/app/feed') },
-    { to: '/search', label: t('nav.marketplace', { defaultValue: 'Marketplace' }), checkActive: () => isActive('/search') || isActive('/explore') },
-    { to: '/app/chat', label: t('nav.chat', { defaultValue: 'Chat' }), icon: MessageSquare, checkActive: () => isActive('/app/chat') },
+    { to: '/app/feed', label: t('nav.feed', { defaultValue: 'Feed' }), icon: Newspaper, checkActive: () => isActive('/app/feed'), badge: 0 },
+    { to: '/search', label: t('nav.marketplace', { defaultValue: 'Marketplace' }), checkActive: () => isActive('/search') || isActive('/explore'), badge: 0 },
+    { to: '/app/chat', label: t('nav.chat', { defaultValue: 'Chat' }), icon: MessageSquare, checkActive: () => isActive('/app/chat'), badge: chatUnreadCount },
   ];
 
   // Secondary navigation - accessed via dropdown "Mais"
@@ -257,7 +260,7 @@ export function AppHeader() {
                   key={link.to}
                   to={link.to}
                   className={cn(
-                    "text-sm font-medium transition-colors hover:text-primary whitespace-nowrap",
+                    "text-sm font-medium transition-colors hover:text-primary whitespace-nowrap relative",
                     active
                       ? "text-foreground border-b-2 border-primary pb-1"
                       : "text-muted-foreground"
@@ -265,6 +268,9 @@ export function AppHeader() {
                   aria-current={active ? 'page' : undefined}
                 >
                   {link.label}
+                  {link.badge > 0 && (
+                    <BadgeCounter count={link.badge} size="sm" className="top-[-8px] right-[-12px]" />
+                  )}
                 </Link>
               );
             })}

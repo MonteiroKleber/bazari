@@ -16,6 +16,7 @@ import { handleAppMessage, ensureHandlersRegistered } from '@/platform/sdk';
 
 interface AppData {
   id: string;
+  appId: string; // slug - used for permissions
   name: string;
   version: string;
   iconUrl: string;
@@ -40,6 +41,7 @@ async function fetchAppDetails(appId: string): Promise<AppData> {
 
   return {
     id: app.id,
+    appId: app.appId || app.slug || appId, // slug used for permissions
     name: app.name,
     version: app.currentVersion || '1.0.0',
     iconUrl: app.icon?.startsWith('http')
@@ -108,8 +110,9 @@ export default function ExternalAppPage() {
         console.log('[ExternalApp] SDK message received:', message.type);
 
         // Forward to host-bridge handler
+        // Use appId (slug) for permission checks, not id (Prisma ID)
         await handleAppMessage(
-          app.id, // appId
+          app.appId, // appId (slug) for permissions
           message, // SDK message
           iframeRef.current, // iframe reference
           event.origin // source origin for response

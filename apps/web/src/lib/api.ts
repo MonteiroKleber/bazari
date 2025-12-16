@@ -148,19 +148,24 @@ export async function getPublicJSON<T>(path: string): Promise<T> {
 // Helper para POST com JSON
 export async function postJSON<T>(
   path: string,
-  data: unknown,
+  data?: unknown,
   extraHeaders?: Record<string, string>,
   options?: { timeout?: number }
 ): Promise<T> {
   const baseHeaders: Record<string, string> = {
     "Accept": "application/json",
-    "Content-Type": "application/json",
   };
+
+  // Só adicionar Content-Type e body se data não for undefined
+  if (data !== undefined) {
+    baseHeaders["Content-Type"] = "application/json";
+  }
+
   const headers = extraHeaders ? { ...baseHeaders, ...extraHeaders } : baseHeaders;
   return apiFetch<T>(path, {
     method: "POST",
     headers,
-    body: JSON.stringify(data),
+    body: data !== undefined ? JSON.stringify(data) : undefined,
   }, { timeout: options?.timeout });
 }
 
@@ -307,6 +312,15 @@ export const apiHelpers = {
   // Profiles (public)
   getPublicProfile: (handle: string) => getJSON(`/profiles/${encodeURIComponent(handle)}`),
   getProfile: (handle: string) => getJSON(`/profiles/${encodeURIComponent(handle)}`),
+  getProfilePresence: (handle: string): Promise<{ isOnline: boolean; lastSeenAt: string | null }> =>
+    getJSON(`/profiles/${encodeURIComponent(handle)}/presence`, { requireAuth: false }),
+  getProfileMedia: (handle: string, params?: { cursor?: string }): Promise<{
+    items: Array<{ id: string; media: any[]; createdAt: string }>;
+    nextCursor: string | null;
+  }> => {
+    const qs = params?.cursor ? `?cursor=${encodeURIComponent(params.cursor)}` : '';
+    return getJSON(`/profiles/${encodeURIComponent(handle)}/media${qs}`, { requireAuth: false });
+  },
   getProfilePosts: (handle: string, params?: any) => {
     const qs = params ? '?' + new URLSearchParams(params).toString() : '';
     return getJSON(`/profiles/${encodeURIComponent(handle)}/posts${qs}`);
@@ -335,6 +349,13 @@ export const apiHelpers = {
   },
   follow: (targetHandle: string) => postJSON('/social/follow', { targetHandle }),
   unfollow: (targetHandle: string) => postJSON('/social/unfollow', { targetHandle }),
+
+  // Feed
+  getFeedCount: (params: { since: string; tab?: 'for-you' | 'following' | 'popular' }): Promise<{ count: number }> => {
+    const qs = new URLSearchParams({ since: params.since });
+    if (params.tab) qs.set('tab', params.tab);
+    return getJSON(`/feed/count?${qs.toString()}`);
+  },
   followUser: (handle: string) => postJSON('/social/follow', { targetHandle: handle }),
   unfollowUser: (handle: string) => postJSON('/social/unfollow', { targetHandle: handle }),
   createPost: (payload: any) => postJSON('/posts', payload),
@@ -438,8 +459,24 @@ export const apiHelpers = {
     getJSON<{ messages: any[] }>(`/api/chat/messages?threadId=${threadId}`),
   createChatThread: async (data: { participantId: string; kind?: string }): Promise<any> =>
     postJSON<any>('/api/chat/threads', data),
+  getOrCreateDmThread: async (data: { participantHandle: string }): Promise<{ threadId: string; created: boolean }> =>
+    postJSON<{ threadId: string; created: boolean }>('/api/chat/threads/dm', data),
 
-  // Chat - Upload de mídia
+  // Chat - Thread Preferences (Pin/Archive/Mute)
+  pinThread: async (threadId: string, isPinned: boolean): Promise<any> =>
+    postJSON<any>(`/api/chat/threads/${threadId}/pin`, { isPinned }),
+  archiveThread: async (threadId: string, isArchived: boolean): Promise<any> =>
+    postJSON<any>(`/api/chat/threads/${threadId}/archive`, { isArchived }),
+  muteThread: async (threadId: string, isMuted: boolean): Promise<any> =>
+    postJSON<any>(`/api/chat/threads/${threadId}/mute`, { isMuted }),
+  getThreadPreferences: async (threadId: string): Promise<any> =>
+    getJSON<any>(`/api/chat/threads/${threadId}/preferences`),
+  getArchivedThreads: async (params?: { cursor?: number; limit?: number }): Promise<{ threads: any[]; count: number }> => {
+    const qs = params ? '?' + new URLSearchParams(params as any).toString() : '';
+    return getJSON<{ threads: any[]; count: number }>(`/api/chat/threads/archived${qs}`);
+  },
+
+  // Chat - Upload de mídia (cifrada)
   uploadChatMedia: async (file: File) => {
     await ensureFreshAccessToken();
     const token = getAccessToken();
@@ -452,6 +489,35 @@ export const apiHelpers = {
     formData.append('file', file);
 
     const response = await fetch(`${API_BASE_URL}/api/chat/upload`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Upload failed');
+    }
+
+    return response.json();
+  },
+
+  // Stories - Upload de mídia (pública, sem cifragem)
+  uploadStoryMedia: async (file: File) => {
+    await ensureFreshAccessToken();
+    const token = getAccessToken();
+
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_BASE_URL}/api/stories/upload`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,

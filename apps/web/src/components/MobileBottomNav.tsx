@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import { useDeliveryProfile } from '@/hooks/useDeliveryProfile';
 import { useUnreadNotifications } from '@/hooks/useUnreadNotifications';
+import { useChat } from '@/hooks/useChat';
 import { apiHelpers } from '@/lib/api';
 import { isSessionActive } from '@/modules/auth';
 
@@ -18,7 +19,7 @@ export function MobileBottomNav() {
   const location = useLocation();
   const { profile: deliveryProfile } = useDeliveryProfile();
   const { unreadCount: notificationUnreadCount } = useUnreadNotifications();
-  const [chatUnreadCount, setChatUnreadCount] = useState(0);
+  const chatUnreadCount = useChat((state) => state.getTotalUnreadCount());
   const [currentUserHandle, setCurrentUserHandle] = useState<string>('');
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
@@ -42,12 +43,6 @@ export function MobileBottomNav() {
     return () => { active = false; };
   }, []);
 
-  // Fetch chat unread count
-  useEffect(() => {
-    // TODO: Implement actual chat unread count fetch from API
-    // For now, using mock data
-    setChatUnreadCount(0);
-  }, []);
 
   // Auto-hide on scroll down, show on scroll up
   useEffect(() => {

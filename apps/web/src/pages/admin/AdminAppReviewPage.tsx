@@ -72,6 +72,7 @@ interface PendingApp {
   bundleUrl: string;
   bundleHash: string;
   status: 'DRAFT' | 'PENDING' | 'PENDING_REVIEW' | 'IN_REVIEW' | 'APPROVED' | 'PUBLISHED' | 'REJECTED' | 'SUSPENDED' | 'DEPRECATED' | 'UNPUBLISHED';
+  // Note: PENDING_REVIEW is treated as PENDING for UI purposes
   reviewNotes?: string;
   reviewedAt?: string;
   reviewerId?: string;
@@ -200,7 +201,7 @@ export default function AdminAppReviewPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <StatCard
           title="Pending Review"
-          value={apps?.filter((a) => a.status === 'PENDING').length ?? 0}
+          value={apps?.filter((a) => a.status === 'PENDING' || a.status === 'PENDING_REVIEW').length ?? 0}
           icon={<Clock className="h-5 w-5" />}
           color="text-orange-600"
         />
@@ -254,7 +255,11 @@ export default function AdminAppReviewPage() {
             ) : filteredApps && filteredApps.length > 0 ? (
               <div className="grid gap-4">
                 {filteredApps
-                  .filter((a) => a.status === status)
+                  .filter((a) => {
+                    // Treat PENDING_REVIEW as PENDING for display purposes
+                    const normalizedStatus = a.status === 'PENDING_REVIEW' ? 'PENDING' : a.status;
+                    return normalizedStatus === status;
+                  })
                   .map((app) => (
                     <AppReviewCard
                       key={app.id}

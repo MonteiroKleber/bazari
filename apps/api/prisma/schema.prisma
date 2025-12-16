@@ -571,6 +571,10 @@ model Profile {
   // === Chat E2EE ===
   chatPublicKey String? // Curve25519 public key (base64) for E2EE chat
 
+  // === Online Status ===
+  lastSeenAt       DateTime?
+  showOnlineStatus Boolean   @default(true)
+
   // Relations
   posts                 Post[]
   postComments          PostComment[]
@@ -597,6 +601,21 @@ model Profile {
 
   // === Developer Apps (SDK External Apps) ===
   developerApps DeveloperApp[] @relation("DeveloperApps")
+
+  // === Chat Reactions ===
+  chatMessageReactions ChatMessageReaction[]
+
+  // === Stories ===
+  stories      Story[]
+  storyViews   StoryView[]
+  storyReplies StoryReply[]
+
+  // === Calls ===
+  callsAsCaller Call[] @relation("CallsCaller")
+  callsAsCallee Call[] @relation("CallsCallee")
+
+  // === Web Push ===
+  pushSubscriptions PushSubscription[]
 
   @@index([onChainProfileId])
   @@index([reputationScore])
@@ -1178,6 +1197,19 @@ model UserBlock {
   @@index([blockedUserId])
 }
 
+// Profile-based blocking for chat
+model ChatBlock {
+  id              String   @id @default(cuid())
+  blockerProfile  String   // Profile ID that is blocking
+  blockedProfile  String   // Profile ID that is blocked
+  reason          String?  // Optional reason
+  createdAt       DateTime @default(now())
+
+  @@unique([blockerProfile, blockedProfile])
+  @@index([blockerProfile])
+  @@index([blockedProfile])
+}
+
 model UserMute {
   id          String   @id @default(cuid())
   userId      String
@@ -1207,12 +1239,32 @@ model ChatThread {
   createdAt     BigInt
   updatedAt     BigInt
 
-  messages  ChatMessage[]
-  proposals ChatProposal[]
+  messages    ChatMessage[]
+  proposals   ChatProposal[]
+  preferences ChatThreadPreference[]
+  calls       Call[]
 
   @@index([participants])
   @@index([lastMessageAt(sort: Desc)])
   @@index([kind])
+}
+
+// Preferências do usuário para cada thread (pin, archive, mute)
+model ChatThreadPreference {
+  threadId   String
+  profileId  String
+  isPinned   Boolean @default(false)
+  pinnedAt   BigInt?
+  isArchived Boolean @default(false)
+  archivedAt BigInt?
+  isMuted    Boolean @default(false)
+  mutedAt    BigInt?
+
+  thread ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@id([threadId, profileId])
+  @@index([profileId, isPinned])
+  @@index([profileId, isArchived])
 }
 
 model ChatMessage {
@@ -1228,12 +1280,29 @@ model ChatMessage {
   readAt      BigInt?
   replyTo     String?
   editedAt    BigInt?
+  deletedAt   BigInt?
 
-  thread ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  thread    ChatThread            @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  reactions ChatMessageReaction[]
 
   @@index([threadId, createdAt(sort: Desc)])
   @@index([fromProfile])
   @@index([type])
+}
+
+model ChatMessageReaction {
+  id        String   @id @default(uuid())
+  messageId String
+  profileId String
+  emoji     String   // Unicode emoji: "👍", "❤️", "😂", etc
+  createdAt DateTime @default(now())
+
+  message ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  profile Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, profileId, emoji]) // Um usuario, um emoji por mensagem
+  @@index([messageId])
+  @@index([profileId])
 }
 
 model ChatGroup {
@@ -2723,4 +2792,128 @@ model DeveloperAppUsageLog {
   @@index([messageType])
   @@index([createdAt])
   @@index([success])
+}
+
+// =====================================================
+// STATUS/STORIES (BazChat Fase 05)
+// =====================================================
+
+enum StoryType {
+  TEXT
+  IMAGE
+  VIDEO
+}
+
+model Story {
+  id        String    @id @default(cuid())
+  profileId String
+  profile   Profile   @relation(fields: [profileId], references: [id])
+
+  // Conteúdo
+  type            StoryType // TEXT, IMAGE, VIDEO
+  text            String?   // Texto (para TEXT ou caption)
+  textColor       String?   // Cor do texto (hex)
+  backgroundColor String?   // Cor de fundo para TEXT
+  mediaCid        String?   // CID do IPFS para IMAGE/VIDEO
+  mediaType       String?   // image/jpeg, video/mp4, etc
+  duration        Int?      // Duração em segundos (para video)
+
+  // Metadata
+  createdAt DateTime @default(now())
+  expiresAt DateTime // createdAt + 24h
+  viewCount Int      @default(0)
+
+  // Relações
+  views   StoryView[]
+  replies StoryReply[]
+
+  @@index([profileId, expiresAt])
+  @@index([expiresAt])
+}
+
+model StoryView {
+  id       String   @id @default(cuid())
+  storyId  String
+  story    Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  viewerId String
+  viewer   Profile  @relation(fields: [viewerId], references: [id])
+  viewedAt DateTime @default(now())
+
+  @@unique([storyId, viewerId])
+  @@index([storyId])
+}
+
+model StoryReply {
+  id        String   @id @default(cuid())
+  storyId   String
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  fromId    String
+  from      Profile  @relation(fields: [fromId], references: [id])
+  message   String   // Mensagem de resposta
+  createdAt DateTime @default(now())
+
+  @@index([storyId])
+}
+
+// =====================================================
+// CHAMADAS DE VOZ/VIDEO (BazChat Fase 05)
+// =====================================================
+
+enum CallType {
+  VOICE
+  VIDEO
+}
+
+enum CallStatus {
+  RINGING   // Chamando
+  ONGOING   // Em andamento
+  ENDED     // Encerrada normalmente
+  MISSED    // Não atendida (timeout)
+  REJECTED  // Recusada
+  BUSY      // Ocupado (já em outra chamada)
+}
+
+model Call {
+  id        String     @id @default(cuid())
+  threadId  String
+  thread    ChatThread @relation(fields: [threadId], references: [id])
+
+  callerId String
+  caller   Profile @relation("CallsCaller", fields: [callerId], references: [id])
+  calleeId String
+  callee   Profile @relation("CallsCallee", fields: [calleeId], references: [id])
+
+  type     CallType   // VOICE, VIDEO
+  status   CallStatus // RINGING, ONGOING, ENDED, MISSED, REJECTED, BUSY
+
+  startedAt DateTime? // Quando foi atendida
+  endedAt   DateTime?
+  duration  Int?      // Duração em segundos
+
+  createdAt DateTime @default(now())
+
+  @@index([threadId])
+  @@index([callerId])
+  @@index([calleeId])
+}
+
+/// === Web Push Subscriptions ===
+model PushSubscription {
+  id        String   @id @default(cuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  // Push subscription data (from browser)
+  endpoint String   @unique
+  p256dh   String // Keys.p256dh
+  auth     String // Keys.auth
+
+  // Device info for management
+  userAgent String?
+  deviceId  String? // Optional device identifier
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profileId])
 }

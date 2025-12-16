@@ -32,7 +32,7 @@ yarn global add @bazari.libervia.xyz/cli
 
 ```bash
 bazari --version
-# @bazari.libervia.xyz/cli v0.2.8
+# @bazari.libervia.xyz/cli v0.2.25
 
 bazari --help
 # Mostra todos os comandos disponíveis
@@ -49,7 +49,9 @@ bazari --help
 | `bazari dev` | Inicia servidor de desenvolvimento (Vite ou simples) |
 | `bazari build` | Compila o app para produção |
 | `bazari validate` | Valida o manifest e estrutura |
-| `bazari publish` | Publica na App Store |
+| `bazari publish` | Publica na App Store ou gera API Key |
+| `bazari keys` | Gerencia API Keys para SDK externo |
+| `bazari studio` | Abre o Bazari Studio (IDE visual) |
 
 ## Criando um Projeto
 
@@ -138,6 +140,59 @@ VITE_BAZARI_API_KEY=baz_app_xxxxxxxxxxxxxxxx
 ```bash
 npm run build
 ```
+
+O CLI detecta automaticamente o tipo de projeto:
+
+## Publicação
+
+O CLI suporta dois targets de publicação:
+
+### App Store (padrão)
+Apps que rodam dentro da plataforma Bazari:
+
+```bash
+bazari publish
+# ou explicitamente
+bazari publish --target appstore
+```
+
+### SDK Externo
+Apps que rodam em sites externos usando a API do Bazari:
+
+```bash
+bazari publish --target external --origin https://meusite.com
+```
+
+### Ambos
+Publicar em ambos os targets:
+
+```bash
+bazari publish --target both --origin https://meusite.com
+```
+
+Veja a [documentação completa de publicação](../cli/publish.md) para mais detalhes.
+
+## Gerenciando API Keys
+
+Para apps externos, você pode gerenciar API Keys:
+
+```bash
+# Listar todas as API Keys
+bazari keys list
+
+# Ver detalhes de uma API Key
+bazari keys show meu-app
+
+# Rotacionar secret key
+bazari keys rotate meu-app
+
+# Revogar API Key (permanente!)
+bazari keys revoke meu-app
+```
+
+Veja a [documentação completa de keys](../cli/keys.md) para mais detalhes.
+
+---
 
 O CLI detecta automaticamente o tipo de projeto:
 

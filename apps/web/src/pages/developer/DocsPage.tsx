@@ -62,6 +62,8 @@ const DOCS_SECTIONS = [
       { title: 'bazari dev', href: `${DOCS_BASE}/cli/dev` },
       { title: 'bazari build', href: `${DOCS_BASE}/cli/build` },
       { title: 'bazari publish', href: `${DOCS_BASE}/cli/publish` },
+      { title: 'bazari keys', href: `${DOCS_BASE}/cli/keys` },
+      { title: 'bazari studio', href: `${DOCS_BASE}/cli/studio` },
     ],
   },
   {
