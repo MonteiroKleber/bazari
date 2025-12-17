@@ -29,6 +29,26 @@ export interface P2PPaymentProfile {
   accountName?: string | null;
 }
 
+export interface Order {
+  id: string;
+  offerId: string;
+  makerId: string;
+  takerId: string;
+  side: 'BUY_BZR' | 'SELL_BZR';
+  amountBZR: string;
+  amountBRL: string;
+  priceBRLPerBZR?: string;
+  status: 'DRAFT' | 'AWAITING_ESCROW' | 'AWAITING_FIAT_PAYMENT' | 'AWAITING_CONFIRMATION' | 'RELEASED' | 'CANCELLED' | 'EXPIRED';
+  pixKeySnapshot?: string | null;
+  proofUrls?: string[] | null;
+  expiresAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  assetType?: 'BZR' | 'ZARI';
+  maker?: { userId?: string; handle?: string; displayName?: string; avatarUrl?: string | null } | null;
+  taker?: { userId?: string; handle?: string; displayName?: string; avatarUrl?: string | null } | null;
+}
+
 export const p2pApi = {
   listOffers: (params?: { side?: 'BUY_BZR' | 'SELL_BZR'; method?: 'PIX'; minBRL?: number; maxBRL?: number; cursor?: string; limit?: number }) => {
     let qs = '';

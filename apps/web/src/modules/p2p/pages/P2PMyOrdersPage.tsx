@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { p2pApi } from '../api';
 import { getSessionUser } from '@/modules/auth/session';
@@ -35,7 +35,7 @@ export default function P2PMyOrdersPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await p2pApi.listMyOrders({ status: tab, cursor: reset ? undefined : nextCursor, limit: 20 });
+      const res = await p2pApi.listMyOrders({ status: tab, cursor: reset ? undefined : (nextCursor ?? undefined), limit: 20 });
       if (reset) {
         setItems(res.items as any);
       } else {

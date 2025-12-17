@@ -8,7 +8,7 @@ connecting directly to a local Bazarichain node via Polkadot.js.
 
 - `components/` reusable wallet UI (QR code, scanner, etc.).
 - `hooks/` data hooks for chain metadata and vault state.
-- `pages/` routed views (`WalletDashboard`, `AccountsPage`, `SendPage`, `ReceivePage`).
+- `pages/` routed views (`SaldosPage`, `HistoryPage`, `SendPage`, `ReceivePage`).
 - `services/` Polkadot.js helpers for API connection, balances, tokens, and history.
 - `store/` client-side stores (e.g. enabled tokens).
 - `utils/` formatting helpers for balances and addresses.

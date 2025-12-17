@@ -17,8 +17,7 @@ import { useChainProps } from '@/modules/wallet/hooks/useChainProps';
 import { PinService } from '@/modules/wallet/pin/PinService';
 import { getNativeBalance } from '@/modules/wallet/services/balances';
 import { BZR } from '@/utils/bzr';
-import { Info, Copy, Check } from 'lucide-react';
-import { ZARIPhaseBadge } from '../components/ZARIPhaseBadge';
+import { Info } from 'lucide-react';
 
 type Order = {
   id: string;
@@ -57,9 +56,10 @@ export default function P2POrderRoomPage() {
   const [sending, setSending] = useState(false);
   const [markingPaid, setMarkingPaid] = useState(false);
   const [chatInput, setChatInput] = useState('');
-  const [messages, setMessages] = useState<{ id: string; body: string; createdAt: string; sender: any }[]>([]);
-  const [chatLoading, setChatLoading] = useState(false);
-  const [polling, setPolling] = useState(false);
+  const [messages, setMessages] = useState<{ id: string; body: string; createdAt: string; sender: any; kind?: string }[]>([]);
+  const [chatLoading, _setChatLoading] = useState(false);
+  void _setChatLoading; // Reserved for future use
+  const [_polling, setPolling] = useState(false);
   const [rateLimitedUntil, setRateLimitedUntil] = useState<number | null>(null);
   const [rateCountdown, setRateCountdown] = useState<number>(0);
   const [remainingSec, setRemainingSec] = useState<number>(0);
@@ -269,7 +269,7 @@ export default function P2POrderRoomPage() {
       const api = await getApi();
       let mnemonic = await decryptMnemonic(account.cipher, account.iv, account.salt, pin, account.authTag, account.iterations);
       await cryptoWaitReady();
-      const ss58 = chainProps?.ss58Prefix ?? 42;
+      const ss58 = chainProps?.props?.ss58Prefix ?? 42;
       const keyring = new Keyring({ type: 'sr25519', ss58Format: ss58 });
       const pair = keyring.addFromMnemonic(mnemonic);
       mnemonic = '';
@@ -406,7 +406,6 @@ export default function P2POrderRoomPage() {
   };
 
   const statusLabel = useMemo(() => {
-    const assetName = order?.assetType === 'ZARI' ? 'ZARI' : 'BZR';
     switch (order?.status) {
       case 'AWAITING_ESCROW':
         return order.assetType === 'ZARI'
@@ -462,7 +461,6 @@ export default function P2POrderRoomPage() {
 
   const myRoleLabel = useMemo(() => {
     if (!order || !me) return null;
-    const assetName = order.assetType === 'ZARI' ? 'ZARI' : 'BZR';
     const amSellingAsset = order.side === 'SELL_BZR' ? me.id === order.makerId : me.id === order.takerId;
     return amSellingAsset
       ? (order.assetType === 'ZARI' ? t('p2p.badge.sellingZari', 'Vendendo ZARI') : t('p2p.badge.selling', 'Vendendo BZR'))
@@ -690,7 +688,9 @@ ${t('wallet.ed', 'Depósito existencial (ED)')}: ${edS}
                 >
                   {locking ? t('common.loading') : t('p2p.room.escrow.lockViaWallet', 'Travar via carteira')}
                 </Button>
-                <Info className="h-4 w-4 text-muted-foreground mt-1" aria-label={t('p2p.room.escrow.hintLabel', 'Ajuda de saldo')} title={formulaHint} />
+                <span title={formulaHint} aria-label={t('p2p.room.escrow.hintLabel', 'Ajuda de saldo')}>
+                  <Info className="h-4 w-4 text-muted-foreground mt-1" />
+                </span>
               </>
             )}
           </div>
