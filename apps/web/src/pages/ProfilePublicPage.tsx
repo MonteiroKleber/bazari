@@ -18,6 +18,7 @@ import { ReputationChart } from '@/components/social/ReputationChart';
 import { OnlineIndicator } from '@/components/chat/OnlineIndicator';
 import { LastSeenText } from '@/components/chat/LastSeenText';
 import { ShareButton } from '@/components/mobile/ShareButton';
+import { HandleBadge } from '@/components/ui/HandleBadge';
 import { MediaGrid } from '@/components/profile/MediaGrid';
 
 type PublicProfile = {
@@ -277,7 +278,7 @@ export default function ProfilePublicPage() {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div>
                 <h1 className="text-2xl md:text-3xl font-semibold">{p.displayName}</h1>
-                <p className="text-muted-foreground">@{p.handle}</p>
+                <HandleBadge handle={p.handle} size="md" showIcon={true} />
                 {/* Last seen status */}
                 {presence && !isOwnProfile && (
                   <LastSeenText

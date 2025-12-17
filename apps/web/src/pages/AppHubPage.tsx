@@ -11,6 +11,7 @@ import { RecentActivity } from '@/components/dashboard/RecentActivity';
 import { WhoToFollow } from '@/components/social/WhoToFollow';
 import { TrendingTopics } from '@/components/social/TrendingTopics';
 import { ReputationBadge } from '@/components/profile/ReputationBadge';
+import { HandleBadge } from '@/components/ui/HandleBadge';
 import { TestnetWelcomeModal } from '@/components/onboarding/TestnetWelcomeModal';
 import { TestnetBanner } from '@/components/TestnetBanner';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
@@ -195,7 +196,7 @@ export default function AppHubPage() {
                     )}
                   </div>
                   {profile?.handle && (
-                    <p className="text-xs text-muted-foreground">@{profile.handle}</p>
+                    <HandleBadge handle={profile.handle} size="sm" showIcon={true} />
                   )}
                 </div>
               </div>
