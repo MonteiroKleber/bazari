@@ -32,6 +32,8 @@ import { startGovernanceSyncWorker } from './workers/governance-sync.worker.js';
 import { startBlockchainOrderSyncWorker, BlockchainOrderSyncWorker } from './workers/blockchain-order-sync.worker.js';
 import { startEscrowAutoReleaseWorker, EscrowAutoReleaseWorker } from './workers/escrow-auto-release.worker.js';
 import { startExpireStoriesWorker } from './workers/expire-stories.worker.js';
+import { startPaySchedulerWorker, PaySchedulerWorker } from './workers/pay-scheduler.worker.js';
+import { initPayOnChainService } from './services/pay-onchain.service.js';
 import { profilesRoutes } from './routes/profiles.js';
 import { sellersRoutes } from './routes/sellers.js';
 import { socialRoutes } from './routes/social.js';
@@ -100,6 +102,27 @@ import pushRoutes from './routes/push.js';
 import linkPreviewRoutes from './routes/link-preview.js';
 import storiesRoutes from './routes/stories.js';
 import storiesUploadRoutes from './routes/stories-upload.js';
+import { workRoutes } from './routes/work/index.js';
+import workProfessionalRoutes from './routes/work/professional.js';
+import workTalentsRoutes from './routes/work/talents.js';
+import workJobsRoutes from './routes/work/jobs.js';
+import workProposalsRoutes from './routes/work/proposals.js';
+import workAgreementsRoutes from './routes/work/agreements.js';
+import workEvaluationsRoutes from './routes/work/evaluations.js';
+import workDashboardRoutes from './routes/work/dashboard.js';
+import payDashboardRoutes from './routes/pay/dashboard.js';
+import payContractsRoutes from './routes/pay/contracts.js';
+import payExecutionsRoutes from './routes/pay/executions.js';
+import payAdjustmentsRoutes from './routes/pay/adjustments.js';
+import payVerifyRoutes from './routes/pay/verify.js';
+import payReceiptsRoutes from './routes/pay/receipts.js';
+import payBatchRoutes from './routes/pay/batch.js';
+import payApiKeysRoutes from './routes/pay/api-keys.js';
+import payWebhooksRoutes from './routes/pay/webhooks.js';
+import payReportsRoutes from './routes/pay/reports.js';
+import apiV1ContractsRoutes from './routes/pay/api-v1/contracts.js';
+import { initPayNotificationService } from './services/pay-notification.service.js';
+import { initPayReceiptService } from './services/pay-receipt.service.js';
 // TODO: Re-enable when App Store schema is complete
 // import { developerRevenueRoutes } from './routes/developer-revenue.js';
 // import { appStorePurchaseRoutes } from './routes/app-store-purchase.js';
@@ -134,9 +157,36 @@ async function buildApp() {
   try {
     await blockchainService.connect();
     console.log('✅ Blockchain connected');
+
+    // Inicializar PayOnChainService se signer configurado (PROMPT-04)
+    const paySignerSeed = process.env.PAY_SIGNER_SEED;
+    if (paySignerSeed) {
+      try {
+        const api = await blockchainService.getApi();
+        const payOnChain = initPayOnChainService(api, paySignerSeed);
+        if (payOnChain.isPalletAvailable()) {
+          console.log('✅ PayOnChainService initialized (pallet available)');
+        } else {
+          console.log('⚠️ PayOnChainService initialized but pallet not available in runtime');
+        }
+      } catch (payErr) {
+        console.error('❌ PayOnChainService init failed:', payErr);
+      }
+    } else {
+      console.log('ℹ️ PAY_SIGNER_SEED not set, PayOnChainService disabled');
+    }
+
+    // Inicializar PayNotificationService e PayReceiptService (PROMPT-05)
+    initPayNotificationService(prisma);
+    initPayReceiptService(prisma);
+    console.log('✅ Pay Notification and Receipt services initialized');
   } catch (err) {
     console.error('❌ Blockchain connection failed:', err);
     // Continuar sem blockchain (degraded mode)
+    // Ainda inicializa os serviços de notificação/receipt
+    initPayNotificationService(prisma);
+    initPayReceiptService(prisma);
+    console.log('✅ Pay services initialized (degraded mode)');
   }
 
   const loggerInstance = createLogger();
@@ -206,6 +256,8 @@ async function buildApp() {
   await app.register(developerRoutes, { prefix: '/', prisma });
   // Admin App Review routes (TODO: integrar com governance/conselho)
   await app.register(adminAppReviewRoutes, { prefix: '/', prisma });
+  // Bazari Work routes (sem prefixo)
+  await app.register(workRoutes, { prefix: '/', prisma });
   // TODO: Re-enable when App Store schema is complete
   // await app.register(developerRevenueRoutes, { prefix: '/', prisma });
   // await app.register(appStorePurchaseRoutes, { prefix: '/', prisma });
@@ -282,6 +334,29 @@ async function buildApp() {
   await app.register(storiesUploadRoutes, { prefix: '/api' });
   await app.register(pushRoutes, { prefix: '/api' });
 
+  // Bazari Work routes
+  await app.register(workProfessionalRoutes, { prefix: '/api', prisma });
+  await app.register(workTalentsRoutes, { prefix: '/api', prisma });
+  await app.register(workJobsRoutes, { prefix: '/api', prisma });
+  await app.register(workProposalsRoutes, { prefix: '/api', prisma });
+  await app.register(workAgreementsRoutes, { prefix: '/api', prisma });
+  await app.register(workEvaluationsRoutes, { prefix: '/api/work', prisma });
+  await app.register(workDashboardRoutes, { prefix: '/api/work', prisma });
+
+  // Bazari Pay routes
+  await app.register(payDashboardRoutes, { prefix: '/api/pay', prisma });
+  await app.register(payContractsRoutes, { prefix: '/api/pay', prisma });
+  await app.register(payExecutionsRoutes, { prefix: '/api/pay', prisma });
+  await app.register(payAdjustmentsRoutes, { prefix: '/api/pay', prisma });
+  await app.register(payVerifyRoutes, { prefix: '/api/pay', prisma });
+  await app.register(payReceiptsRoutes, { prefix: '/api/pay', prisma });
+  // Bazari Pay Enterprise (PROMPT-06)
+  await app.register(payBatchRoutes, { prefix: '/api/pay', prisma });
+  await app.register(payApiKeysRoutes, { prefix: '/api/pay', prisma });
+  await app.register(payWebhooksRoutes, { prefix: '/api/pay', prisma });
+  await app.register(payReportsRoutes, { prefix: '/api/pay', prisma });
+  await app.register(apiV1ContractsRoutes, { prefix: '/api/pay/v1', prisma });
+
   // Delivery routes
   await app.register(deliveryRoutes, { prefix: '/api', prisma });
   await app.register(deliveryProfileRoutes, { prefix: '/api', prisma });
@@ -339,6 +414,7 @@ async function buildApp() {
   let orderSyncWorker: BlockchainOrderSyncWorker | null = null;
   let autoReleaseWorker: EscrowAutoReleaseWorker | null = null;
   let expireStoriesWorker: NodeJS.Timeout | null = null;
+  let paySchedulerWorker: PaySchedulerWorker | null = null;
   if (process.env.NODE_ENV !== 'production') {
     try {
       timeoutWorker = startPaymentsTimeoutWorker(prisma, {
@@ -411,6 +487,18 @@ async function buildApp() {
     app.log.warn({ err }, 'Falha ao iniciar worker de expiração de stories');
   }
 
+  // Iniciar Pay Scheduler Worker (pagamentos recorrentes - PROMPT-02)
+  try {
+    paySchedulerWorker = startPaySchedulerWorker(prisma, {
+      logger: app.log,
+      intervalMs: 60 * 60 * 1000, // 1 hora para retries
+      dailyHour: 6, // 06:00 BRT para execução principal
+    });
+    app.log.info('Worker de pagamentos recorrentes iniciado');
+  } catch (err) {
+    app.log.warn({ err }, 'Falha ao iniciar worker de pagamentos recorrentes');
+  }
+
   // Limpar worker no graceful shutdown
   app.addHook('onClose', async () => {
     if (timeoutWorker) {
@@ -440,6 +528,10 @@ async function buildApp() {
     if (expireStoriesWorker) {
       clearInterval(expireStoriesWorker);
       app.log.info('Worker de expiração de stories parado');
+    }
+    if (paySchedulerWorker) {
+      paySchedulerWorker.stop();
+      app.log.info('Worker de pagamentos recorrentes parado');
     }
   });
 

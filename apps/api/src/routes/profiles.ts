@@ -509,6 +509,65 @@ export async function profilesRoutes(app: FastifyInstance, options: { prisma: Pr
     return reply.send({ items: rows.map(r => r.following), nextCursor });
   });
 
+  // GET /profiles/search — buscar usuários por handle ou nome (para ReceiverSearch)
+  app.get('/profiles/search', async (request, reply) => {
+    const querySchema = z.object({
+      q: z.string().min(2).max(100),
+      limit: z.coerce.number().min(1).max(50).optional().default(10),
+    });
+
+    const parsed = querySchema.safeParse(request.query);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'Parâmetro de busca inválido', users: [] });
+    }
+
+    const { q, limit } = parsed.data;
+
+    // Remove @ do início se presente
+    const searchTerm = q.replace(/^@/, '');
+
+    try {
+      const profiles = await prisma.profile.findMany({
+        where: {
+          OR: [
+            { handle: { contains: searchTerm, mode: 'insensitive' } },
+            { displayName: { contains: searchTerm, mode: 'insensitive' } },
+          ],
+        },
+        select: {
+          id: true,
+          handle: true,
+          displayName: true,
+          avatarUrl: true,
+          user: {
+            select: {
+              id: true,
+              address: true,
+            },
+          },
+        },
+        orderBy: [
+          { followersCount: 'desc' },
+          { createdAt: 'asc' },
+        ],
+        take: limit,
+      });
+
+      const users = profiles.map((p) => ({
+        id: p.user.id,
+        handle: p.handle,
+        displayName: p.displayName,
+        avatarUrl: p.avatarUrl,
+        walletAddress: p.user.address,
+      }));
+
+      return reply.send({ users });
+    } catch (error) {
+      app.log.error({ err: error }, 'Error searching profiles');
+      return reply.status(500).send({ error: 'Erro ao buscar usuários', users: [] });
+    }
+  });
+
   // GET /profiles/_resolve — público (by address ou handle)
   app.get('/profiles/_resolve', async (request, reply) => {
     const query = request.query as any;

@@ -199,7 +199,7 @@ model User {
 
   // TODO: Integrar com sistema de governance/conselho para aprovação de apps
   // Por enquanto usando role simples para admins
-  role      String   @default("USER") // "USER" | "ADMIN" | "MODERATOR"
+  role String @default("USER") // "USER" | "ADMIN" | "MODERATOR"
 
   refreshTokens RefreshToken[]
 
@@ -246,6 +246,18 @@ model User {
   developerApps ThirdPartyApp[] @relation("DeveloperApps")
   appReviews    AppReview[]     @relation("AppReviews")
   appPurchases  AppPurchase[]   @relation("UserAppPurchases")
+
+  // Bazari Pay
+  payContractsAsPayer      PayContract[]              @relation("PayContractPayer")
+  payContractsAsReceiver   PayContract[]              @relation("PayContractReceiver")
+  payContractStatusChanges PayContractStatusHistory[] @relation("PayContractStatusChangedBy")
+  payAdjustmentsCreated    PayAdjustment[]            @relation("PayAdjustmentCreatedBy")
+  payAdjustmentsApproved   PayAdjustment[]            @relation("PayAdjustmentApprovedBy")
+
+  // Bazari Pay Enterprise (PROMPT-06)
+  payBatchImportsUploaded PayBatchImport[] @relation("PayBatchImportUploadedBy")
+  payApiKeysCreated       PayApiKey[]      @relation("PayApiKeyCreatedBy")
+  payWebhooksCreated      PayWebhook[]     @relation("PayWebhookCreatedBy")
 }
 
 model SocialAccount {
@@ -617,9 +629,75 @@ model Profile {
   // === Web Push ===
   pushSubscriptions PushSubscription[]
 
+  // === Bazari Work Professional Profile ===
+  professionalProfile ProfessionalProfile?
+
+  // === Bazari Work Job Postings (PROMPT-03) ===
+  jobPostingsCreated JobPosting[]     @relation("JobPostingCreatedBy")
+  jobApplications    JobApplication[] @relation("JobApplicationApplicant")
+
+  // === Bazari Work Proposals (PROMPT-04) ===
+  proposalsSent     WorkProposal[] @relation("WorkProposalSender")
+  proposalsReceived WorkProposal[] @relation("WorkProposalReceiver")
+
+  // === Bazari Work Agreements (PROMPT-05) ===
+  workAgreements         WorkAgreement[]          @relation("WorkAgreementWorker")
+  agreementStatusChanges AgreementStatusHistory[] @relation("AgreementStatusChangedBy")
+
+  // === Bazari Work Evaluations (PROMPT-07) ===
+  evaluationsGiven    WorkEvaluation[] @relation("WorkEvaluationAuthor")
+  evaluationsReceived WorkEvaluation[] @relation("WorkEvaluationTarget")
+
   @@index([onChainProfileId])
   @@index([reputationScore])
   @@index([reputationTier])
+}
+
+// === BAZARI WORK: Professional Profile Extension ===
+enum ProfessionalStatus {
+  AVAILABLE
+  NOT_AVAILABLE
+  INVISIBLE
+}
+
+enum WorkPreference {
+  REMOTE
+  ON_SITE
+  HYBRID
+}
+
+model ProfessionalProfile {
+  id        String  @id @default(uuid())
+  profileId String  @unique
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  // Dados profissionais
+  professionalArea   String?
+  skills             String[]
+  experience         String?        @db.Text
+  hourlyRate         Decimal?       @db.Decimal(10, 2)
+  hourlyRateCurrency String         @default("BRL")
+  workPreference     WorkPreference @default(REMOTE)
+
+  // Visibilidade
+  status         ProfessionalStatus @default(AVAILABLE)
+  showHourlyRate Boolean            @default(false)
+
+  // Avaliações (PROMPT-07)
+  averageRating      Float?
+  totalEvaluations   Int    @default(0)
+  completedContracts Int    @default(0)
+
+  // Metadados
+  activatedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status])
+  @@index([professionalArea])
+  @@index([skills], type: Gin)
+  @@index([workPreference])
+  @@index([averageRating])
 }
 
 model Follow {
@@ -669,6 +747,23 @@ model SellerProfile {
   publishHistory  StorePublishHistory[]
   land            Land? // VR: Relação 1:1 com terreno virtual
   pluginInstances PluginInstance[] // Plugins instalados na loja
+
+  // === Bazari Work Job Postings (PROMPT-03) ===
+  jobPostings JobPosting[]
+
+  // === Bazari Work Proposals (PROMPT-04) ===
+  workProposals WorkProposal[]
+
+  // === Bazari Work Agreements (PROMPT-05) ===
+  workAgreements WorkAgreement[]
+
+  // === Bazari Pay (PROMPT-01) ===
+  payContracts PayContract[] @relation("PayContractPayerCompany")
+
+  // === Bazari Pay Enterprise (PROMPT-06) ===
+  payBatchImports PayBatchImport[] @relation("PayBatchImportCompany")
+  payApiKeys      PayApiKey[]      @relation("PayApiKeyCompany")
+  payWebhooks     PayWebhook[]     @relation("PayWebhookCompany")
 
   @@index([userId])
   @@index([onChainStoreId])
@@ -1199,11 +1294,11 @@ model UserBlock {
 
 // Profile-based blocking for chat
 model ChatBlock {
-  id              String   @id @default(cuid())
-  blockerProfile  String   // Profile ID that is blocking
-  blockedProfile  String   // Profile ID that is blocked
-  reason          String?  // Optional reason
-  createdAt       DateTime @default(now())
+  id             String   @id @default(cuid())
+  blockerProfile String // Profile ID that is blocking
+  blockedProfile String // Profile ID that is blocked
+  reason         String? // Optional reason
+  createdAt      DateTime @default(now())
 
   @@unique([blockerProfile, blockedProfile])
   @@index([blockerProfile])
@@ -1294,7 +1389,7 @@ model ChatMessageReaction {
   id        String   @id @default(uuid())
   messageId String
   profileId String
-  emoji     String   // Unicode emoji: "👍", "❤️", "😂", etc
+  emoji     String // Unicode emoji: "👍", "❤️", "😂", etc
   createdAt DateTime @default(now())
 
   message ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
@@ -2447,15 +2542,15 @@ model AppReview {
 
 enum AppStatus {
   DRAFT
-  PENDING         // Aguardando início do review
-  PENDING_REVIEW  // Legacy - alias for PENDING
-  IN_REVIEW       // Em análise por reviewer
+  PENDING // Aguardando início do review
+  PENDING_REVIEW // Legacy - alias for PENDING
+  IN_REVIEW // Em análise por reviewer
   APPROVED
   PUBLISHED
   REJECTED
   SUSPENDED
   DEPRECATED
-  UNPUBLISHED     // Removido da loja mas não deletado
+  UNPUBLISHED // Removido da loja mas não deletado
 }
 
 enum VersionStatus {
@@ -2805,18 +2900,18 @@ enum StoryType {
 }
 
 model Story {
-  id        String    @id @default(cuid())
+  id        String  @id @default(cuid())
   profileId String
-  profile   Profile   @relation(fields: [profileId], references: [id])
+  profile   Profile @relation(fields: [profileId], references: [id])
 
   // Conteúdo
   type            StoryType // TEXT, IMAGE, VIDEO
-  text            String?   // Texto (para TEXT ou caption)
-  textColor       String?   // Cor do texto (hex)
-  backgroundColor String?   // Cor de fundo para TEXT
-  mediaCid        String?   // CID do IPFS para IMAGE/VIDEO
-  mediaType       String?   // image/jpeg, video/mp4, etc
-  duration        Int?      // Duração em segundos (para video)
+  text            String? // Texto (para TEXT ou caption)
+  textColor       String? // Cor do texto (hex)
+  backgroundColor String? // Cor de fundo para TEXT
+  mediaCid        String? // CID do IPFS para IMAGE/VIDEO
+  mediaType       String? // image/jpeg, video/mp4, etc
+  duration        Int? // Duração em segundos (para video)
 
   // Metadata
   createdAt DateTime @default(now())
@@ -2849,7 +2944,7 @@ model StoryReply {
   story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
   fromId    String
   from      Profile  @relation(fields: [fromId], references: [id])
-  message   String   // Mensagem de resposta
+  message   String // Mensagem de resposta
   createdAt DateTime @default(now())
 
   @@index([storyId])
@@ -2865,30 +2960,30 @@ enum CallType {
 }
 
 enum CallStatus {
-  RINGING   // Chamando
-  ONGOING   // Em andamento
-  ENDED     // Encerrada normalmente
-  MISSED    // Não atendida (timeout)
-  REJECTED  // Recusada
-  BUSY      // Ocupado (já em outra chamada)
+  RINGING // Chamando
+  ONGOING // Em andamento
+  ENDED // Encerrada normalmente
+  MISSED // Não atendida (timeout)
+  REJECTED // Recusada
+  BUSY // Ocupado (já em outra chamada)
 }
 
 model Call {
-  id        String     @id @default(cuid())
-  threadId  String
-  thread    ChatThread @relation(fields: [threadId], references: [id])
+  id       String     @id @default(cuid())
+  threadId String
+  thread   ChatThread @relation(fields: [threadId], references: [id])
 
   callerId String
   caller   Profile @relation("CallsCaller", fields: [callerId], references: [id])
   calleeId String
   callee   Profile @relation("CallsCallee", fields: [calleeId], references: [id])
 
-  type     CallType   // VOICE, VIDEO
-  status   CallStatus // RINGING, ONGOING, ENDED, MISSED, REJECTED, BUSY
+  type   CallType // VOICE, VIDEO
+  status CallStatus // RINGING, ONGOING, ENDED, MISSED, REJECTED, BUSY
 
   startedAt DateTime? // Quando foi atendida
   endedAt   DateTime?
-  duration  Int?      // Duração em segundos
+  duration  Int? // Duração em segundos
 
   createdAt DateTime @default(now())
 
@@ -2899,12 +2994,12 @@ model Call {
 
 /// === Web Push Subscriptions ===
 model PushSubscription {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   profileId String
-  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   // Push subscription data (from browser)
-  endpoint String   @unique
+  endpoint String @unique
   p256dh   String // Keys.p256dh
   auth     String // Keys.auth
 
@@ -2916,4 +3011,645 @@ model PushSubscription {
   updatedAt DateTime @updatedAt
 
   @@index([profileId])
+}
+
+/// === Bazari Work - Job Postings (PROMPT-03) ===
+
+enum JobPostingStatus {
+  DRAFT
+  OPEN
+  PAUSED
+  CLOSED
+}
+
+enum PaymentPeriod {
+  HOURLY
+  DAILY
+  WEEKLY
+  MONTHLY
+  PROJECT
+}
+
+enum ApplicationStatus {
+  PENDING
+  REVIEWED
+  SHORTLISTED
+  REJECTED
+  HIRED
+}
+
+model JobPosting {
+  id String @id @default(cuid())
+
+  // Empresa (SellerProfile como empresa)
+  sellerProfileId String
+  sellerProfile   SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+  createdById     String
+  createdBy       Profile       @relation("JobPostingCreatedBy", fields: [createdById], references: [id])
+
+  // Detalhes da vaga
+  title       String
+  description String         @db.Text
+  area        String
+  skills      String[]
+  workType    WorkPreference
+  location    String?
+
+  // Valores (informativos)
+  paymentValue    Decimal?       @db.Decimal(10, 2)
+  paymentPeriod   PaymentPeriod?
+  paymentCurrency String         @default("BRL")
+
+  // Status
+  status JobPostingStatus @default(DRAFT)
+
+  // Metadados
+  publishedAt DateTime?
+  closedAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relações
+  applications JobApplication[]
+  proposals    WorkProposal[]
+
+  @@index([sellerProfileId])
+  @@index([status])
+  @@index([area])
+  @@index([skills], type: Gin)
+  @@index([workType])
+  @@index([publishedAt])
+  @@index([createdAt])
+}
+
+model JobApplication {
+  id String @id @default(cuid())
+
+  // Relação com vaga
+  jobPostingId String
+  jobPosting   JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+
+  // Candidato (Profile)
+  applicantId String
+  applicant   Profile @relation("JobApplicationApplicant", fields: [applicantId], references: [id], onDelete: Cascade)
+
+  // Dados da candidatura
+  coverLetter   String?  @db.Text
+  expectedValue Decimal? @db.Decimal(10, 2)
+
+  // Status
+  status ApplicationStatus @default(PENDING)
+
+  // Timestamps
+  appliedAt  DateTime  @default(now())
+  reviewedAt DateTime?
+
+  @@unique([jobPostingId, applicantId])
+  @@index([jobPostingId])
+  @@index([applicantId])
+  @@index([status])
+  @@index([appliedAt])
+}
+
+// === BAZARI WORK: Proposals (PROMPT-04) ===
+enum ProposalStatus {
+  PENDING
+  NEGOTIATING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CANCELLED
+}
+
+enum PaymentType {
+  EXTERNAL
+  BAZARI_PAY
+  UNDEFINED
+}
+
+model WorkProposal {
+  id String @id @default(cuid())
+
+  // Empresa (SellerProfile atua como Company)
+  sellerProfileId String
+  sellerProfile   SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+
+  // Remetente (quem enviou a proposta - dono da empresa)
+  senderId String
+  sender   Profile @relation("WorkProposalSender", fields: [senderId], references: [id])
+
+  // Receptor (profissional)
+  receiverId String
+  receiver   Profile @relation("WorkProposalReceiver", fields: [receiverId], references: [id])
+
+  // Vínculo opcional com vaga
+  jobPostingId String?
+  jobPosting   JobPosting? @relation(fields: [jobPostingId], references: [id], onDelete: SetNull)
+
+  // Detalhes da proposta
+  title         String
+  description   String        @db.Text
+  proposedValue Decimal       @db.Decimal(10, 2)
+  valuePeriod   PaymentPeriod
+  valueCurrency String        @default("BRL")
+  startDate     DateTime?
+  duration      String?
+  paymentType   PaymentType   @default(UNDEFINED)
+
+  // Status
+  status ProposalStatus @default(PENDING)
+
+  // Thread de chat vinculada
+  chatThreadId String?
+
+  // Timestamps
+  expiresAt   DateTime
+  respondedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relação com acordo
+  agreement WorkAgreement?
+
+  @@unique([sellerProfileId, receiverId, status], name: "unique_active_proposal")
+  @@index([sellerProfileId])
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([jobPostingId])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([createdAt])
+}
+
+// === BAZARI WORK: Agreements (PROMPT-05) ===
+enum AgreementStatus {
+  ACTIVE
+  PAUSED
+  CLOSED
+}
+
+model WorkAgreement {
+  id String @id @default(cuid())
+
+  // Empresa (SellerProfile)
+  sellerProfileId String
+  sellerProfile   SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
+
+  // Trabalhador (Profile do profissional)
+  workerId String
+  worker   Profile @relation("WorkAgreementWorker", fields: [workerId], references: [id])
+
+  // Origem (proposta aceita)
+  proposalId String?       @unique
+  proposal   WorkProposal? @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+
+  // Termos do acordo
+  title         String
+  description   String?       @db.Text
+  terms         String?       @db.Text
+  agreedValue   Decimal       @db.Decimal(10, 2)
+  valuePeriod   PaymentPeriod
+  valueCurrency String        @default("BRL")
+
+  // Datas
+  startDate DateTime
+  endDate   DateTime?
+
+  // Status e pagamento
+  status      AgreementStatus @default(ACTIVE)
+  paymentType PaymentType
+
+  // On-chain (opcional)
+  onChainId     String? @unique
+  onChainTxHash String?
+
+  // Integração Bazari Pay (futuro)
+  payContractId String?
+
+  // Timestamps e metadados
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  pausedAt     DateTime?
+  closedAt     DateTime?
+  closedReason String?
+
+  // Relações
+  statusHistory AgreementStatusHistory[]
+  evaluations   WorkEvaluation[]
+
+  @@index([sellerProfileId])
+  @@index([workerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model AgreementStatusHistory {
+  id String @id @default(cuid())
+
+  // Acordo
+  agreementId String
+  agreement   WorkAgreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+
+  // Mudança
+  fromStatus AgreementStatus
+  toStatus   AgreementStatus
+  reason     String?
+
+  // Quem fez a mudança
+  changedById String
+  changedBy   Profile @relation("AgreementStatusChangedBy", fields: [changedById], references: [id])
+
+  // Timestamp
+  createdAt DateTime @default(now())
+
+  @@index([agreementId])
+  @@index([createdAt])
+}
+
+// ===========================
+// PROMPT-07: Avaliações Work
+// ===========================
+
+enum EvaluationCommentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model WorkEvaluation {
+  id String @id @default(uuid())
+
+  // Acordo avaliado
+  agreementId String
+  agreement   WorkAgreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+
+  // Quem avalia (Profile)
+  authorId String
+  author   Profile @relation("WorkEvaluationAuthor", fields: [authorId], references: [id])
+
+  // Quem é avaliado (Profile)
+  targetId String
+  target   Profile @relation("WorkEvaluationTarget", fields: [targetId], references: [id])
+
+  // Notas (1-5)
+  overallRating       Int
+  communicationRating Int?
+  punctualityRating   Int?
+  qualityRating       Int?
+
+  // Comentário
+  comment       String?                 @db.Text
+  commentStatus EvaluationCommentStatus @default(PENDING)
+
+  // Visibilidade (só público após ambos avaliarem)
+  isPublic Boolean @default(false)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+
+  @@unique([agreementId, authorId])
+  @@index([agreementId])
+  @@index([authorId])
+  @@index([targetId])
+  @@index([isPublic])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// BAZARI PAY - Pagamentos Recorrentes (PROMPT-01)
+// ============================================================================
+
+enum PayPeriod {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+}
+
+enum PayContractStatus {
+  ACTIVE
+  PAUSED
+  CLOSED
+}
+
+model PayContract {
+  id String @id @default(uuid())
+
+  // Partes
+  payerId        String
+  payer          User           @relation("PayContractPayer", fields: [payerId], references: [id])
+  payerCompanyId String?
+  payerCompany   SellerProfile? @relation("PayContractPayerCompany", fields: [payerCompanyId], references: [id])
+  receiverId     String
+  receiver       User           @relation("PayContractReceiver", fields: [receiverId], references: [id])
+
+  // Wallets
+  payerWallet    String
+  receiverWallet String
+
+  // Valores
+  baseValue Decimal @db.Decimal(18, 8)
+  currency  String  @default("BZR")
+
+  // Periodicidade
+  period     PayPeriod
+  paymentDay Int // 1-28
+
+  // Datas
+  startDate       DateTime
+  endDate         DateTime?
+  nextPaymentDate DateTime
+
+  // Status
+  status PayContractStatus @default(ACTIVE)
+
+  // Descrição
+  description String?
+
+  // Referência externa (ex: Work Agreement)
+  referenceType String?
+  referenceId   String?
+
+  // On-chain (será preenchido na Fase 4)
+  onChainId     String? @unique
+  onChainTxHash String?
+
+  // Metadados
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  pausedAt  DateTime?
+  closedAt  DateTime?
+
+  // Relações
+  statusHistory PayContractStatusHistory[]
+  executions    PayExecution[]
+  adjustments   PayAdjustment[]
+
+  @@index([payerId])
+  @@index([payerCompanyId])
+  @@index([receiverId])
+  @@index([status])
+  @@index([nextPaymentDate])
+  @@index([createdAt])
+  @@map("pay_contracts")
+}
+
+model PayContractStatusHistory {
+  id String @id @default(uuid())
+
+  // Contrato
+  contractId String
+  contract   PayContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  // Mudança
+  fromStatus PayContractStatus
+  toStatus   PayContractStatus
+  reason     String?
+
+  // Quem fez a mudança
+  changedById String
+  changedBy   User   @relation("PayContractStatusChangedBy", fields: [changedById], references: [id])
+
+  // Timestamp
+  createdAt DateTime @default(now())
+
+  @@index([contractId])
+  @@index([createdAt])
+  @@map("pay_contract_status_history")
+}
+
+// Bazari Pay - Execuções de Pagamento (PROMPT-02)
+enum ExecutionStatus {
+  SCHEDULED
+  PROCESSING
+  SUCCESS
+  FAILED
+  RETRYING
+  SKIPPED
+}
+
+model PayExecution {
+  id String @id @default(uuid())
+
+  // Contrato
+  contractId String
+  contract   PayContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  // Período de referência
+  periodStart DateTime
+  periodEnd   DateTime
+  periodRef   String // "2025-02" formato YYYY-MM
+
+  // Valores
+  baseValue        Decimal @db.Decimal(18, 8)
+  adjustmentsTotal Decimal @default(0) @db.Decimal(18, 8)
+  finalValue       Decimal @db.Decimal(18, 8)
+  currency         String  @default("BZR")
+
+  // Status
+  status        ExecutionStatus @default(SCHEDULED)
+  attemptCount  Int             @default(1)
+  failureReason String?
+
+  // On-chain
+  txHash      String?
+  blockNumber Int?
+
+  // Datas
+  scheduledAt DateTime
+  executedAt  DateTime?
+  nextRetryAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relação com ajustes
+  adjustments PayAdjustment[]
+
+  @@index([contractId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([periodRef])
+  @@index([createdAt])
+  @@map("pay_executions")
+}
+
+// Bazari Pay - Ajustes (PROMPT-03)
+enum AdjustmentType {
+  EXTRA
+  DISCOUNT
+}
+
+enum AdjustmentStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  APPLIED
+  CANCELLED
+}
+
+model PayAdjustment {
+  id String @id @default(uuid())
+
+  // Contrato
+  contractId String
+  contract   PayContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  // Tipo e valor
+  type  AdjustmentType
+  value Decimal        @db.Decimal(18, 8)
+
+  // Período de referência
+  referenceMonth DateTime
+
+  // Detalhes
+  reason      String
+  description String?
+  attachments String[] @default([])
+
+  // Aprovação
+  requiresApproval Boolean          @default(false)
+  status           AdjustmentStatus @default(DRAFT)
+  approvedAt       DateTime?
+  approvedById     String?
+  approvedBy       User?            @relation("PayAdjustmentApprovedBy", fields: [approvedById], references: [id])
+  rejectionReason  String?
+
+  // Aplicação
+  executionId String?
+  execution   PayExecution? @relation(fields: [executionId], references: [id])
+
+  // Metadados
+  createdById String
+  createdBy   User     @relation("PayAdjustmentCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([contractId])
+  @@index([status])
+  @@index([referenceMonth])
+  @@index([executionId])
+  @@index([createdById])
+  @@map("pay_adjustments")
+}
+
+// Bazari Pay - Enterprise (PROMPT-06)
+
+enum BatchImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  COMPLETED_WITH_ERRORS
+  FAILED
+}
+
+model PayBatchImport {
+  id String @id @default(uuid())
+
+  // Empresa
+  companyId String
+  company   SellerProfile @relation("PayBatchImportCompany", fields: [companyId], references: [id])
+
+  // Arquivo
+  fileName      String
+  fileSize      Int?
+  totalRows     Int
+  processedRows Int    @default(0)
+  createdCount  Int    @default(0)
+  failedCount   Int    @default(0)
+
+  // Status
+  status BatchImportStatus @default(PENDING)
+
+  // Dados e erros
+  data   Json? // Array de linhas CSV
+  errors Json? // Array de erros por linha
+
+  // Quem fez o upload
+  uploadedById String
+  uploadedBy   User   @relation("PayBatchImportUploadedBy", fields: [uploadedById], references: [id])
+
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  @@index([companyId])
+  @@index([status])
+  @@index([uploadedById])
+  @@index([createdAt])
+  @@map("pay_batch_imports")
+}
+
+enum ApiKeyStatus {
+  ACTIVE
+  REVOKED
+}
+
+model PayApiKey {
+  id String @id @default(uuid())
+
+  // Empresa
+  companyId String
+  company   SellerProfile @relation("PayApiKeyCompany", fields: [companyId], references: [id])
+
+  // Chave
+  name      String
+  keyHash   String @unique
+  keyPrefix String // Primeiros 8 caracteres para identificação
+
+  // Permissões
+  permissions String[] @default(["contracts:read", "contracts:write"])
+
+  // Status
+  status ApiKeyStatus @default(ACTIVE)
+
+  // Uso
+  lastUsedAt DateTime?
+  usageCount Int       @default(0)
+
+  // Metadados
+  createdById String
+  createdBy   User      @relation("PayApiKeyCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now())
+  revokedAt   DateTime?
+
+  @@index([companyId])
+  @@index([keyHash])
+  @@index([status])
+  @@map("pay_api_keys")
+}
+
+model PayWebhook {
+  id String @id @default(uuid())
+
+  // Empresa
+  companyId String
+  company   SellerProfile @relation("PayWebhookCompany", fields: [companyId], references: [id])
+
+  // Configuração
+  name   String?
+  url    String
+  secret String? // Para validar assinatura
+
+  // Eventos
+  events String[] @default(["payment.success", "payment.failed"])
+
+  // Status
+  active Boolean @default(true)
+
+  // Estatísticas
+  lastCalledAt DateTime?
+  successCount Int       @default(0)
+  failureCount Int       @default(0)
+
+  // Metadados
+  createdById String
+  createdBy   User     @relation("PayWebhookCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([active])
+  @@map("pay_webhooks")
 }

@@ -15,6 +15,8 @@ import { vrApp } from '@/apps/vr/manifest';
 import { developerPortalApp } from '@/apps/developer-portal/manifest';
 import { adminPanelApp } from '@/apps/admin-panel/manifest';
 import { studioApp } from '@/apps/studio/manifest';
+import { workApp } from '@/apps/work/manifest';
+import { payApp } from '@/apps/pay/manifest';
 
 import type { BazariApp } from '../types';
 
@@ -36,6 +38,8 @@ export const NATIVE_APPS: BazariApp[] = [
   affiliatesApp,
   storesApp,
   vrApp,
+  workApp,
+  payApp,
   developerPortalApp,
   adminPanelApp,
   studioApp,

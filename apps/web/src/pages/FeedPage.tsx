@@ -53,16 +53,15 @@ export default function FeedPage() {
     <>
       <PullToRefreshIndicator isRefreshing={isRefreshing} pullDistance={pullDistance} />
 
-      {/* Stories Bar - apenas para logados */}
-      {profile && (
-        <StoriesBar
-          onCreateStory={() => setShowStoryCreator(true)}
-          onViewStories={(profileId, feedItem) => setViewingStory({ feedItem, profileId })}
-          currentProfileId={profile.id}
-        />
-      )}
-
       <section className="container mx-auto px-4 py-10 pt-6 mobile-safe-bottom">
+        {/* Stories Bar - apenas para logados */}
+        {profile && (
+          <StoriesBar
+            onCreateStory={() => setShowStoryCreator(true)}
+            onViewStories={(profileId, feedItem) => setViewingStory({ feedItem, profileId })}
+            currentProfileId={profile.id}
+          />
+        )}
         <CreatePostModal open={createPostOpen} onOpenChange={setCreatePostOpen} />
         {/* Feed Header - Link para perfil */}
         {profile?.handle && (

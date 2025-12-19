@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useNotifications } from '@/hooks/useNotifications';
 
 export function NotificationPermissionBanner() {
-  const { permission, isSupported, requestPermission } = useNotifications();
+  const { permission, isSupported, requestPermission, subscribePush } = useNotifications();
   const [dismissed, setDismissed] = useState(() => {
     return localStorage.getItem('notification_banner_dismissed') === 'true';
   });
@@ -22,7 +22,11 @@ export function NotificationPermissionBanner() {
   const handleRequestPermission = async () => {
     setRequesting(true);
     try {
-      await requestPermission();
+      const granted = await requestPermission();
+      // Se permissão concedida, registrar subscription no servidor
+      if (granted) {
+        await subscribePush();
+      }
     } finally {
       setRequesting(false);
     }

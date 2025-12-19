@@ -28,7 +28,7 @@ export function StoriesBar({ onCreateStory, onViewStories, currentProfileId }: S
   const otherStories = feed?.filter(item => !item.isOwn) || [];
 
   return (
-    <div className="flex gap-3 p-4 overflow-x-auto border-b scrollbar-hide">
+    <div className="flex gap-3 py-4 -mx-4 px-4 overflow-x-auto border-b scrollbar-hide">
       {/* Botão criar story / ver meu story */}
       <button
         onClick={() => myStories ? onViewStories(currentProfileId || '', myStories) : onCreateStory()}

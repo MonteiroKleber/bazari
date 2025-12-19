@@ -136,6 +136,12 @@ import { VestingPage } from './modules/vesting';
 // Disputes pages (FASE 7)
 import { DisputeDetailPage, MyDisputesPage } from './modules/disputes';
 
+// Bazari Work pages
+import { WorkHomePage, WorkProfilePage, WorkProfileEditPage, TalentSearchPage, TalentProfilePage, JobSearchPage, JobDetailPage, JobManagePage, JobCreateEditPage, JobApplicationsPage, ProposalListPage, WorkProposalDetailPage, ProposalCreatePage, AgreementListPage, AgreementDetailPage, EvaluationPage, MyEvaluationsPage } from './modules/work';
+
+// Bazari Pay pages
+import { PayDashboardPage, ContractListPage, ContractDetailPage, ContractCreatePage, ExecutionHistoryPage, PendingAdjustmentsPage } from './modules/pay';
+
 // Testnet access page
 import { TestnetAccessPage } from './pages/TestnetAccessPage';
 
@@ -559,6 +565,32 @@ function App() {
                       <Route path="p2p/offers/:id" element={<P2POfferPublicPage />} />
                       <Route path="p2p/orders/:id" element={<P2POrderRoomPage />} />
                       <Route path="p2p/zari/stats" element={<ZARIStatsPage />} />
+                      {/* Bazari Work */}
+                      <Route path="work" element={<WorkHomePage />} />
+                      <Route path="work/profile" element={<WorkProfilePage />} />
+                      <Route path="work/profile/edit" element={<WorkProfileEditPage />} />
+                      <Route path="work/talents" element={<TalentSearchPage />} />
+                      <Route path="work/talents/:handle" element={<TalentProfilePage />} />
+                      <Route path="work/jobs" element={<JobSearchPage />} />
+                      <Route path="work/jobs/:id" element={<JobDetailPage />} />
+                      <Route path="work/manage/jobs" element={<JobManagePage />} />
+                      <Route path="work/manage/jobs/new" element={<JobCreateEditPage />} />
+                      <Route path="work/manage/jobs/:id/edit" element={<JobCreateEditPage />} />
+                      <Route path="work/manage/jobs/:id/applications" element={<JobApplicationsPage />} />
+                      <Route path="work/proposals" element={<ProposalListPage />} />
+                      <Route path="work/proposals/:id" element={<WorkProposalDetailPage />} />
+                      <Route path="work/proposals/new/:handle" element={<ProposalCreatePage />} />
+                      <Route path="work/agreements" element={<AgreementListPage />} />
+                      <Route path="work/agreements/:id" element={<AgreementDetailPage />} />
+                      <Route path="work/agreements/:id/evaluate" element={<EvaluationPage />} />
+                      <Route path="work/evaluations" element={<MyEvaluationsPage />} />
+                      {/* Bazari Pay */}
+                      <Route path="pay" element={<PayDashboardPage />} />
+                      <Route path="pay/contracts" element={<ContractListPage />} />
+                      <Route path="pay/contracts/new" element={<ContractCreatePage />} />
+                      <Route path="pay/contracts/:id" element={<ContractDetailPage />} />
+                      <Route path="pay/history" element={<ExecutionHistoryPage />} />
+                      <Route path="pay/adjustments" element={<PendingAdjustmentsPage />} />
                       <Route path="chat" element={<ChatInboxPage />} />
                       <Route path="chat/new" element={<ChatNewPage />} />
                       {/* chat/:threadId moved to immersive ChatLayout route above */}
