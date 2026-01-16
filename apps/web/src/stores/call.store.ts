@@ -130,11 +130,21 @@ export const useCallStore = create<CallStore>((set, get) => {
           },
           onConnectionStateChange: (connectionState) => {
             console.log('[CallStore] Connection state:', connectionState);
+            const currentState = get().state;
             if (connectionState === 'connected') {
               set({ state: 'connected' });
               startDurationTimer();
             } else if (connectionState === 'failed' || connectionState === 'disconnected') {
-              get().endCall();
+              // Não encerrar automaticamente se ainda estiver em "outgoing" (chamando)
+              // O callee pode estar offline e vai receber push notification
+              // Aguardar timeout do servidor (90s) ou cancelamento manual do usuário
+              if (currentState === 'outgoing') {
+                console.log('[CallStore] Connection failed/disconnected but still outgoing - waiting for callee (may be offline)');
+                // Não fazer nada - manter chamando
+              } else {
+                // Se já estava conectado ou conectando, aí sim encerrar
+                get().endCall();
+              }
             }
           },
         });

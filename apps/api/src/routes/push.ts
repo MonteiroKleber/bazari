@@ -121,6 +121,37 @@ export default async function pushRoutes(app: FastifyInstance) {
   });
 
   /**
+   * GET /push/status
+   * Verifica se o usuário atual tem alguma subscription ativa para o endpoint fornecido
+   */
+  app.get('/push/status', { preHandler: authOnRequest }, async (req, reply) => {
+    const authReq = req as FastifyRequest & { authUser: AccessTokenPayload };
+    const userId = authReq.authUser.sub;
+
+    const profileId = await getProfileId(userId);
+    if (!profileId) {
+      return reply.code(404).send({ error: 'Profile not found' });
+    }
+
+    const { endpoint } = req.query as { endpoint?: string };
+
+    if (endpoint) {
+      // Verificar se este endpoint específico está registrado para este usuário
+      const subscription = await prisma.pushSubscription.findFirst({
+        where: { profileId, endpoint },
+      });
+      return { subscribed: !!subscription, endpoint: endpoint.slice(0, 50) + '...' };
+    }
+
+    // Se não passou endpoint, retorna se tem qualquer subscription
+    const count = await prisma.pushSubscription.count({
+      where: { profileId },
+    });
+
+    return { subscribed: count > 0, count };
+  });
+
+  /**
    * GET /push/subscriptions
    * Lista todas as push subscriptions do usuário (para gerenciamento de dispositivos)
    */

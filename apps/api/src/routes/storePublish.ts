@@ -70,9 +70,12 @@ export async function storePublishRoutes(
         let createdStoreId: bigint | null = null;
 
         if (isCreating) {
-          // Criar novo NFT com slug (sem CID)
+          // Criar novo NFT com CID vazio e slug
+          // O CID será atualizado posteriormente via publish_store
           const slug = store.shopSlug || store.id;
+          const emptyCid = '';
           tx = api.tx.stores.createStore(
+            Array.from(new TextEncoder().encode(emptyCid)),
             Array.from(new TextEncoder().encode(slug))
           );
         } else {

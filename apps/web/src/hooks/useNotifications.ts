@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { chatNotificationService } from '@/lib/chat/notifications';
 import { chatSoundService } from '@/lib/chat/sounds';
-import { subscribeToPush, unsubscribeFromPush, isPushSupported } from '@/lib/chat/push-notifications';
+import { subscribeToPush, unsubscribeFromPush, isPushSupported, isPushSubscribed as checkPushSubscribed } from '@/lib/chat/push-notifications';
 
 export interface UseNotificationsReturn {
   // Permission state
@@ -54,16 +54,17 @@ export function useNotifications(): UseNotificationsReturn {
     return () => clearInterval(interval);
   }, [permission]);
 
-  // Verificar se já está inscrito no push ao montar
+  // Verificar se já está inscrito no push ao montar (verifica no servidor!)
   useEffect(() => {
     const checkPushSubscription = async () => {
       if (!isPushSupported()) return;
       try {
-        const registration = await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager.getSubscription();
-        setIsPushSubscribed(!!subscription);
+        // Usa a função que verifica no servidor se a subscription está vinculada ao usuário atual
+        const isSubscribed = await checkPushSubscribed();
+        setIsPushSubscribed(isSubscribed);
       } catch {
         // Ignora erros silenciosamente
+        setIsPushSubscribed(false);
       }
     };
     checkPushSubscription();
@@ -92,10 +93,13 @@ export function useNotifications(): UseNotificationsReturn {
   }, []);
 
   const testNotification = useCallback(() => {
-    chatNotificationService.showNotification({
-      title: 'Teste de Notificação',
-      body: 'Esta é uma notificação de teste do BazChat!',
-    });
+    chatNotificationService.showNotification(
+      {
+        title: 'Teste de Notificação',
+        body: 'Esta é uma notificação de teste do BazChat!',
+      },
+      true // forceShow - mostrar mesmo com a aba em foco
+    );
   }, []);
 
   const testSound = useCallback(() => {

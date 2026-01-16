@@ -426,6 +426,21 @@ importers:
       vitest:
         specifier: ^1.6.0
         version: 1.6.1(@types/node@20.19.13)(jsdom@24.1.3)(terser@5.44.0)
+      workbox-core:
+        specifier: ^7.4.0
+        version: 7.4.0
+      workbox-expiration:
+        specifier: ^7.4.0
+        version: 7.4.0
+      workbox-precaching:
+        specifier: ^7.4.0
+        version: 7.4.0
+      workbox-routing:
+        specifier: ^7.4.0
+        version: 7.4.0
+      workbox-strategies:
+        specifier: ^7.4.0
+        version: 7.4.0
       workbox-window:
         specifier: ^7.3.0
         version: 7.3.0
@@ -7008,8 +7023,14 @@ packages:
   workbox-core@7.3.0:
     resolution: {integrity: sha512-Z+mYrErfh4t3zi7NVTvOuACB0A/jA3bgxUN3PwtAVHvfEsZxV9Iju580VEETug3zYJRc0Dmii/aixI/Uxj8fmw==}
 
+  workbox-core@7.4.0:
+    resolution: {integrity: sha512-6BMfd8tYEnN4baG4emG9U0hdXM4gGuDU3ectXuVHnj71vwxTFI7WOpQJC4siTOlVtGqCUtj0ZQNsrvi6kZZTAQ==}
+
   workbox-expiration@7.3.0:
     resolution: {integrity: sha512-lpnSSLp2BM+K6bgFCWc5bS1LR5pAwDWbcKt1iL87/eTSJRdLdAwGQznZE+1czLgn/X05YChsrEegTNxjM067vQ==}
+
+  workbox-expiration@7.4.0:
+    resolution: {integrity: sha512-V50p4BxYhtA80eOvulu8xVfPBgZbkxJ1Jr8UUn0rvqjGhLDqKNtfrDfjJKnLz2U8fO2xGQJTx/SKXNTzHOjnHw==}
 
   workbox-google-analytics@7.3.0:
     resolution: {integrity: sha512-ii/tSfFdhjLHZ2BrYgFNTrb/yk04pw2hasgbM70jpZfLk0vdJAXgaiMAWsoE+wfJDNWoZmBYY0hMVI0v5wWDbg==}
@@ -7020,6 +7041,9 @@ packages:
   workbox-precaching@7.3.0:
     resolution: {integrity: sha512-ckp/3t0msgXclVAYaNndAGeAoWQUv7Rwc4fdhWL69CCAb2UHo3Cef0KIUctqfQj1p8h6aGyz3w8Cy3Ihq9OmIw==}
 
+  workbox-precaching@7.4.0:
+    resolution: {integrity: sha512-VQs37T6jDqf1rTxUJZXRl3yjZMf5JX/vDPhmx2CPgDDKXATzEoqyRqhYnRoxl6Kr0rqaQlp32i9rtG5zTzIlNg==}
+
   workbox-range-requests@7.3.0:
     resolution: {integrity: sha512-EyFmM1KpDzzAouNF3+EWa15yDEenwxoeXu9bgxOEYnFfCxns7eAxA9WSSaVd8kujFFt3eIbShNqa4hLQNFvmVQ==}
 
@@ -7029,8 +7053,14 @@ packages:
   workbox-routing@7.3.0:
     resolution: {integrity: sha512-ZUlysUVn5ZUzMOmQN3bqu+gK98vNfgX/gSTZ127izJg/pMMy4LryAthnYtjuqcjkN4HEAx1mdgxNiKJMZQM76A==}
 
+  workbox-routing@7.4.0:
+    resolution: {integrity: sha512-C/ooj5uBWYAhAqwmU8HYQJdOjjDKBp9MzTQ+otpMmd+q0eF59K+NuXUek34wbL0RFrIXe/KKT+tUWcZcBqxbHQ==}
+
   workbox-strategies@7.3.0:
     resolution: {integrity: sha512-tmZydug+qzDFATwX7QiEL5Hdf7FrkhjaF9db1CbB39sDmEZJg3l9ayDvPxy8Y18C3Y66Nrr9kkN1f/RlkDgllg==}
+
+  workbox-strategies@7.4.0:
+    resolution: {integrity: sha512-T4hVqIi5A4mHi92+5EppMX3cLaVywDp8nsyUgJhOZxcfSV/eQofcOA6/EMo5rnTNmNTpw0rUgjAI6LaVullPpg==}
 
   workbox-streams@7.3.0:
     resolution: {integrity: sha512-SZnXucyg8x2Y61VGtDjKPO5EgPUG5NDn/v86WYHX+9ZqvAsGOytP0Jxp1bl663YUuMoXSAtsGLL+byHzEuMRpw==}
@@ -8949,10 +8979,10 @@ snapshots:
       '@noble/hashes': 1.8.0
       '@polkadot/networks': 13.5.9
       '@polkadot/util': 13.5.9
-      '@polkadot/wasm-crypto': 7.5.3(@polkadot/util@13.5.9)(@polkadot/x-randomvalues@13.5.9(@polkadot/util@13.5.6)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.6)))
+      '@polkadot/wasm-crypto': 7.5.3(@polkadot/util@13.5.9)(@polkadot/x-randomvalues@13.5.9(@polkadot/util@13.5.9)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.9)))
       '@polkadot/wasm-util': 7.5.3(@polkadot/util@13.5.9)
       '@polkadot/x-bigint': 13.5.9
-      '@polkadot/x-randomvalues': 13.5.9(@polkadot/util@13.5.9)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.6))
+      '@polkadot/x-randomvalues': 13.5.9(@polkadot/util@13.5.9)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.9))
       '@scure/base': 1.2.6
       tslib: 2.8.1
 
@@ -8990,11 +9020,11 @@ snapshots:
       '@polkadot/x-randomvalues': 13.5.9(@polkadot/util@13.5.6)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.6))
       tslib: 2.8.1
 
-  '@polkadot/wasm-bridge@7.5.3(@polkadot/util@13.5.9)(@polkadot/x-randomvalues@13.5.9(@polkadot/util@13.5.6)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.6)))':
+  '@polkadot/wasm-bridge@7.5.3(@polkadot/util@13.5.9)(@polkadot/x-randomvalues@13.5.9(@polkadot/util@13.5.9)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.9)))':
     dependencies:
       '@polkadot/util': 13.5.9
       '@polkadot/wasm-util': 7.5.3(@polkadot/util@13.5.9)
-      '@polkadot/x-randomvalues': 13.5.9(@polkadot/util@13.5.6)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.6))
+      '@polkadot/x-randomvalues': 13.5.9(@polkadot/util@13.5.9)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.9))
       tslib: 2.8.1
 
   '@polkadot/wasm-crypto-asmjs@7.5.1(@polkadot/util@13.5.6)':
@@ -9032,14 +9062,14 @@ snapshots:
       '@polkadot/x-randomvalues': 13.5.9(@polkadot/util@13.5.6)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.6))
       tslib: 2.8.1
 
-  '@polkadot/wasm-crypto-init@7.5.3(@polkadot/util@13.5.9)(@polkadot/x-randomvalues@13.5.9(@polkadot/util@13.5.6)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.6)))':
+  '@polkadot/wasm-crypto-init@7.5.3(@polkadot/util@13.5.9)(@polkadot/x-randomvalues@13.5.9(@polkadot/util@13.5.9)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.9)))':
     dependencies:
       '@polkadot/util': 13.5.9
-      '@polkadot/wasm-bridge': 7.5.3(@polkadot/util@13.5.9)(@polkadot/x-randomvalues@13.5.9(@polkadot/util@13.5.6)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.6)))
+      '@polkadot/wasm-bridge': 7.5.3(@polkadot/util@13.5.9)(@polkadot/x-randomvalues@13.5.9(@polkadot/util@13.5.9)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.9)))
       '@polkadot/wasm-crypto-asmjs': 7.5.3(@polkadot/util@13.5.9)
       '@polkadot/wasm-crypto-wasm': 7.5.3(@polkadot/util@13.5.9)
       '@polkadot/wasm-util': 7.5.3(@polkadot/util@13.5.9)
-      '@polkadot/x-randomvalues': 13.5.9(@polkadot/util@13.5.6)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.6))
+      '@polkadot/x-randomvalues': 13.5.9(@polkadot/util@13.5.9)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.9))
       tslib: 2.8.1
 
   '@polkadot/wasm-crypto-wasm@7.5.1(@polkadot/util@13.5.6)':
@@ -9082,15 +9112,15 @@ snapshots:
       '@polkadot/x-randomvalues': 13.5.9(@polkadot/util@13.5.6)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.6))
       tslib: 2.8.1
 
-  '@polkadot/wasm-crypto@7.5.3(@polkadot/util@13.5.9)(@polkadot/x-randomvalues@13.5.9(@polkadot/util@13.5.6)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.6)))':
+  '@polkadot/wasm-crypto@7.5.3(@polkadot/util@13.5.9)(@polkadot/x-randomvalues@13.5.9(@polkadot/util@13.5.9)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.9)))':
     dependencies:
       '@polkadot/util': 13.5.9
-      '@polkadot/wasm-bridge': 7.5.3(@polkadot/util@13.5.9)(@polkadot/x-randomvalues@13.5.9(@polkadot/util@13.5.6)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.6)))
+      '@polkadot/wasm-bridge': 7.5.3(@polkadot/util@13.5.9)(@polkadot/x-randomvalues@13.5.9(@polkadot/util@13.5.9)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.9)))
       '@polkadot/wasm-crypto-asmjs': 7.5.3(@polkadot/util@13.5.9)
-      '@polkadot/wasm-crypto-init': 7.5.3(@polkadot/util@13.5.9)(@polkadot/x-randomvalues@13.5.9(@polkadot/util@13.5.6)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.6)))
+      '@polkadot/wasm-crypto-init': 7.5.3(@polkadot/util@13.5.9)(@polkadot/x-randomvalues@13.5.9(@polkadot/util@13.5.9)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.9)))
       '@polkadot/wasm-crypto-wasm': 7.5.3(@polkadot/util@13.5.9)
       '@polkadot/wasm-util': 7.5.3(@polkadot/util@13.5.9)
-      '@polkadot/x-randomvalues': 13.5.9(@polkadot/util@13.5.6)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.6))
+      '@polkadot/x-randomvalues': 13.5.9(@polkadot/util@13.5.9)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.9))
       tslib: 2.8.1
 
   '@polkadot/wasm-util@7.5.1(@polkadot/util@13.5.6)':
@@ -9152,10 +9182,10 @@ snapshots:
       '@polkadot/x-global': 13.5.9
       tslib: 2.8.1
 
-  '@polkadot/x-randomvalues@13.5.9(@polkadot/util@13.5.9)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.6))':
+  '@polkadot/x-randomvalues@13.5.9(@polkadot/util@13.5.9)(@polkadot/wasm-util@7.5.3(@polkadot/util@13.5.9))':
     dependencies:
       '@polkadot/util': 13.5.9
-      '@polkadot/wasm-util': 7.5.3(@polkadot/util@13.5.6)
+      '@polkadot/wasm-util': 7.5.3(@polkadot/util@13.5.9)
       '@polkadot/x-global': 13.5.9
       tslib: 2.8.1
 
@@ -14494,10 +14524,17 @@ snapshots:
 
   workbox-core@7.3.0: {}
 
+  workbox-core@7.4.0: {}
+
   workbox-expiration@7.3.0:
     dependencies:
       idb: 7.1.1
       workbox-core: 7.3.0
+
+  workbox-expiration@7.4.0:
+    dependencies:
+      idb: 7.1.1
+      workbox-core: 7.4.0
 
   workbox-google-analytics@7.3.0:
     dependencies:
@@ -14516,6 +14553,12 @@ snapshots:
       workbox-routing: 7.3.0
       workbox-strategies: 7.3.0
 
+  workbox-precaching@7.4.0:
+    dependencies:
+      workbox-core: 7.4.0
+      workbox-routing: 7.4.0
+      workbox-strategies: 7.4.0
+
   workbox-range-requests@7.3.0:
     dependencies:
       workbox-core: 7.3.0
@@ -14533,9 +14576,17 @@ snapshots:
     dependencies:
       workbox-core: 7.3.0
 
+  workbox-routing@7.4.0:
+    dependencies:
+      workbox-core: 7.4.0
+
   workbox-strategies@7.3.0:
     dependencies:
       workbox-core: 7.3.0
+
+  workbox-strategies@7.4.0:
+    dependencies:
+      workbox-core: 7.4.0
 
   workbox-streams@7.3.0:
     dependencies:

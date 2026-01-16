@@ -17,9 +17,21 @@ self.addEventListener('push', (event) => {
   try {
     if (event.data) {
       const payload = event.data.json();
+      console.log('[SW-Push] Payload:', JSON.stringify(payload));
+
+      // Para chamadas, formatar título especial
+      let title = payload.title || data.title;
+      let body = payload.body || data.body;
+
+      if (payload.data?.type === 'incoming_call') {
+        const callerName = payload.data.callerName || 'Alguém';
+        title = '📞 Ligação de ' + callerName;
+        body = 'Toque para atender a chamada';
+      }
+
       data = {
-        title: payload.title || data.title,
-        body: payload.body || data.body,
+        title: title,
+        body: body,
         icon: payload.icon || data.icon,
         badge: payload.badge || data.badge,
         tag: payload.tag || data.tag,
@@ -30,19 +42,26 @@ self.addEventListener('push', (event) => {
     console.error('[SW-Push] Error parsing push data:', e);
   }
 
+  const isCall = data.data.type === 'incoming_call';
+
   const options = {
     body: data.body,
     icon: data.icon,
     badge: data.badge,
     tag: data.tag,
     data: data.data,
-    vibrate: [200, 100, 200],
-    requireInteraction: data.data.type === 'incoming_call',
-    actions: data.data.type === 'incoming_call' ? [
-      { action: 'answer', title: 'Atender' },
-      { action: 'decline', title: 'Recusar' }
+    // Som e vibração para chamadas
+    vibrate: isCall ? [300, 100, 300, 100, 300, 100, 300] : [200, 100, 200],
+    silent: false, // Garantir que o som do sistema toque
+    requireInteraction: isCall, // Chamadas não somem automaticamente
+    renotify: true, // Permite múltiplas notificações com mesmo tag
+    actions: isCall ? [
+      { action: 'answer', title: '✅ Atender' },
+      { action: 'decline', title: '❌ Recusar' }
     ] : []
   };
+
+  console.log('[SW-Push] Showing notification:', data.title, options);
 
   event.waitUntil(
     self.registration.showNotification(data.title, options)
@@ -57,6 +76,7 @@ self.addEventListener('notificationclick', (event) => {
 
   const data = event.notification.data || {};
   let url = '/app/chat';
+  const isCallNotification = data.type === 'incoming_call';
 
   // Se tem threadId, abre a conversa específica
   if (data.threadId) {
@@ -70,12 +90,42 @@ self.addEventListener('notificationclick', (event) => {
 
   // Se clicou em recusar, apenas fecha
   if (event.action === 'decline') {
+    // Enviar mensagem para o app informando que o usuário recusou
+    event.waitUntil(
+      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+        for (const client of windowClients) {
+          if (client.url.includes(self.location.origin)) {
+            client.postMessage({
+              type: 'call:notification-clicked',
+              action: 'decline',
+              threadId: data.threadId,
+              callId: data.callId
+            });
+          }
+        }
+      })
+    );
     return;
   }
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      // Se já tem uma janela aberta, foca nela
+      // Se é notificação de chamada, enviar postMessage para o app
+      if (isCallNotification) {
+        for (const client of windowClients) {
+          if (client.url.includes(self.location.origin)) {
+            console.log('[SW-Push] Sending call notification message to client');
+            client.postMessage({
+              type: 'call:notification-clicked',
+              action: event.action || 'open', // 'answer', 'decline', ou 'open' (clique genérico)
+              threadId: data.threadId,
+              callId: data.callId
+            });
+          }
+        }
+      }
+
+      // Se já tem uma janela aberta, foca nela e navega
       for (const client of windowClients) {
         if (client.url.includes(self.location.origin)) {
           client.focus();

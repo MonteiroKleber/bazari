@@ -8,7 +8,6 @@ import { CreateGroupDialog } from '../../components/chat/CreateGroupDialog';
 import { SearchMessages } from '../../components/chat/SearchMessages';
 import { ChatSettings } from '../../components/chat/ChatSettings';
 import { NotificationPermissionBanner } from '../../components/chat/NotificationPermissionBanner';
-import { PushNotificationInitializer } from '../../components/chat/PushNotificationInitializer';
 import { StoriesBar } from '../../components/chat/StoriesBar';
 import { StoryViewer } from '../../components/chat/StoryViewer';
 import { StoryCreator } from '../../components/chat/StoryCreator';
@@ -224,9 +223,6 @@ export function ChatInboxPage() {
 
       {/* Notification Permission Banner */}
       <NotificationPermissionBanner />
-
-      {/* Inicializa push notifications para usuários autenticados */}
-      <PushNotificationInitializer />
 
       {/* Search Modal */}
       <SearchMessages isOpen={searchOpen} onClose={() => setSearchOpen(false)} />

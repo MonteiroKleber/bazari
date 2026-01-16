@@ -12,6 +12,7 @@ import {
   handleCallEnd,
   handleIceCandidate,
   handleCallDisconnect,
+  checkPendingCallOnConnect,
 } from './call-handlers.js';
 
 // Mapa global de conexões ativas
@@ -53,6 +54,17 @@ export async function handleWsConnection(
 
   // Presença online - notificar contatos
   broadcastPresenceToContacts(profileId, 'online', log);
+
+  // Verificar chamadas pendentes (usuário pode estar reconectando após receber push notification)
+  checkPendingCallOnConnect(profileId, (msg) => {
+    socket.send(JSON.stringify(msg));
+  }).then((hasPendingCall) => {
+    if (hasPendingCall) {
+      log.info({ profileId }, 'Delivered pending call to reconnected user');
+    }
+  }).catch((err) => {
+    log.error({ err, profileId }, 'Error checking pending call on connect');
+  });
 
   socket.on('message', async (data: Buffer) => {
     try {

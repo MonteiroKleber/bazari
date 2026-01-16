@@ -100,6 +100,7 @@ import { useDocumentTitle } from './hooks/useDocumentTitle';
 import { LightboxProvider } from './contexts/LightboxContext';
 import { IncomingCallModal } from './components/chat/IncomingCallModal';
 import { ActiveCallOverlay } from './components/chat/ActiveCallOverlay';
+import { PushNotificationInitializer } from './components/chat/PushNotificationInitializer';
 
 // Delivery pages
 import { DeliveryLandingPage } from './pages/delivery/DeliveryLandingPage';
@@ -445,6 +446,8 @@ function App() {
           {/* Global Call Components - Show incoming/active calls from anywhere */}
           <IncomingCallModal />
           <ActiveCallOverlay />
+          {/* Global Push Notification Handler - Listens for SW messages */}
+          <PushNotificationInitializer />
           <Routes>
             <Route
               path="/app/wallet/*"

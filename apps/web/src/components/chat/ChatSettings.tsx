@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings, Key, RefreshCw, AlertTriangle, Check, X } from 'lucide-react';
+import { Settings, Key, RefreshCw, AlertTriangle, Check, X, Bell, BellOff, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '../ui/button';
 import {
   Dialog,
@@ -20,7 +20,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../ui/alert-dialog';
+import { Switch } from '../ui/switch';
 import { chatCrypto } from '@/lib/chat/crypto';
+import { useNotifications } from '@/hooks/useNotifications';
 
 interface ChatSettingsProps {
   onReset?: () => void;
@@ -31,8 +33,21 @@ export function ChatSettings({ onReset }: ChatSettingsProps) {
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
+  const [subscribingPush, setSubscribingPush] = useState(false);
 
   const sessionCount = chatCrypto.listSessions().length;
+  const {
+    permission,
+    isSupported,
+    isPushSubscribed,
+    soundEnabled,
+    requestPermission,
+    subscribePush,
+    unsubscribePush,
+    setSoundEnabled,
+    testNotification,
+    testSound,
+  } = useNotifications();
 
   const handleResetE2EE = async () => {
     setResetting(true);
@@ -70,15 +85,120 @@ export function ChatSettings({ onReset }: ChatSettingsProps) {
             <Settings className="h-5 w-5" />
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Configurações do Chat</DialogTitle>
             <DialogDescription>
               Gerencie suas configurações de criptografia e privacidade
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4 overflow-y-auto flex-1">
+            {/* Seção de Notificações */}
+            {isSupported && (
+              <>
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                  Notificações
+                </h3>
+
+                {/* Push Notifications */}
+                <div className="flex items-start gap-3 p-3 border rounded-lg">
+                  {isPushSubscribed ? (
+                    <Bell className="h-5 w-5 mt-0.5 text-green-500" />
+                  ) : (
+                    <BellOff className="h-5 w-5 mt-0.5 text-muted-foreground" />
+                  )}
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium">Notificações Push</h4>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Receba alertas de chamadas e mensagens mesmo com o app fechado
+                    </p>
+                    {permission === 'denied' && (
+                      <p className="text-xs text-red-500 mt-2">
+                        Bloqueado pelo navegador. Habilite nas configurações do navegador.
+                      </p>
+                    )}
+                  </div>
+                  {permission === 'denied' ? (
+                    <BellOff className="h-5 w-5 text-red-500" />
+                  ) : (
+                    <Button
+                      variant={isPushSubscribed ? 'outline' : 'default'}
+                      size="sm"
+                      disabled={subscribingPush}
+                      onClick={async () => {
+                        setSubscribingPush(true);
+                        try {
+                          if (isPushSubscribed) {
+                            await unsubscribePush();
+                          } else {
+                            // Primeiro pedir permissão se ainda não tem
+                            if (permission !== 'granted') {
+                              await requestPermission();
+                            }
+                            await subscribePush();
+                          }
+                        } finally {
+                          setSubscribingPush(false);
+                        }
+                      }}
+                    >
+                      {subscribingPush
+                        ? 'Aguarde...'
+                        : isPushSubscribed
+                        ? 'Desativar'
+                        : 'Ativar'}
+                    </Button>
+                  )}
+                </div>
+
+                {/* Som de Notificação */}
+                <div className="flex items-start gap-3 p-3 border rounded-lg">
+                  {soundEnabled ? (
+                    <Volume2 className="h-5 w-5 mt-0.5 text-primary" />
+                  ) : (
+                    <VolumeX className="h-5 w-5 mt-0.5 text-muted-foreground" />
+                  )}
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium">Som de notificação</h4>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Tocar som ao receber novas mensagens
+                    </p>
+                  </div>
+                  <Switch
+                    checked={soundEnabled}
+                    onCheckedChange={setSoundEnabled}
+                  />
+                </div>
+
+                {/* Botões de Teste */}
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={testNotification}
+                    disabled={permission !== 'granted'}
+                  >
+                    Testar notificação
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={testSound}
+                    disabled={!soundEnabled}
+                  >
+                    Testar som
+                  </Button>
+                </div>
+
+                <div className="border-t my-4" />
+
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                  Segurança
+                </h3>
+              </>
+            )}
+
             {/* Status E2EE */}
             <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
               <Key className="h-5 w-5 mt-0.5 text-primary" />
@@ -136,7 +256,7 @@ export function ChatSettings({ onReset }: ChatSettingsProps) {
             )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-shrink-0 border-t pt-4">
             <Button variant="outline" onClick={() => setOpen(false)}>
               Fechar
             </Button>

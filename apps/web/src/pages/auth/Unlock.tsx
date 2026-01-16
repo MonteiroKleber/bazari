@@ -45,7 +45,31 @@ export function Unlock() {
   const [allAccounts, setAllAccounts] = useState<any[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<any | null>(null);
   const [lockoutTime, setLockoutTime] = useState(0);
-  const from = (location.state as { from?: string } | undefined)?.from;
+  // Prioridade: location.state > localStorage (para navegação externa como Service Worker)
+  const stateFrom = (location.state as { from?: string } | undefined)?.from;
+  const [from, setFrom] = useState<string | undefined>(stateFrom);
+
+  // Verificar localStorage para redirect pendente (usado quando SW navega diretamente)
+  useEffect(() => {
+    if (!stateFrom) {
+      try {
+        const pending = localStorage.getItem('bazari:pendingRedirect');
+        if (pending) {
+          const { url, timestamp } = JSON.parse(pending);
+          // Só usar se for recente (menos de 5 minutos)
+          if (Date.now() - timestamp < 5 * 60 * 1000) {
+            console.log('🔐 Found pending redirect in localStorage:', url);
+            setFrom(url);
+          } else {
+            console.log('🔐 Pending redirect expired, removing');
+            localStorage.removeItem('bazari:pendingRedirect');
+          }
+        }
+      } catch (e) {
+        console.error('🔐 Error reading pending redirect:', e);
+      }
+    }
+  }, [stateFrom]);
 
   const form = useForm<UnlockForm>({
     mode: 'onSubmit',
@@ -139,6 +163,9 @@ export function Unlock() {
 
       // Success! Reset attempts
       resetAttempts();
+
+      // Limpar redirect pendente do localStorage
+      localStorage.removeItem('bazari:pendingRedirect');
 
       const refreshed = await refreshSession();
       if (refreshed) {

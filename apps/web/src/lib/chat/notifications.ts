@@ -45,6 +45,10 @@ class ChatNotificationService {
    * Verifica se as notificações estão habilitadas pelo usuário
    */
   isEnabled(): boolean {
+    // Sempre verificar a permissão atual do navegador
+    if ('Notification' in window) {
+      this.permission = Notification.permission;
+    }
     return this.enabled && this.permission === 'granted';
   }
 
@@ -84,17 +88,19 @@ class ChatNotificationService {
 
   /**
    * Exibe uma notificação
+   * @param options - Opções da notificação
+   * @param forceShow - Se true, mostra mesmo com a aba em foco (para testes)
    */
-  async showNotification(options: NotificationOptions): Promise<void> {
+  async showNotification(options: NotificationOptions, forceShow = false): Promise<void> {
     // Não mostrar se:
     // - Não tem permissão
     // - Notificações desabilitadas
-    // - Tab em foco
     if (!this.isEnabled()) {
       return;
     }
 
-    if (this.isTabFocused()) {
+    // Não mostrar se tab em foco (a menos que forceShow)
+    if (!forceShow && this.isTabFocused()) {
       return;
     }
 

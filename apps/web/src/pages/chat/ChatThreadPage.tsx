@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { useChat } from '../../hooks/useChat';
 import { MessageList } from '../../components/chat/MessageList';
 import { ChatComposer } from '../../components/chat/ChatComposer';
@@ -11,6 +11,7 @@ import { MediaMetadata, ChatMessage, CallProfile } from '@bazari/shared-types';
 import { CreateProposalDialog } from '../../components/chat/CreateProposalDialog';
 import { LastSeenText } from '../../components/chat/LastSeenText';
 import { CallButton } from '../../components/chat/CallButton';
+import { useCallStore } from '../../stores/call.store';
 
 interface ReplyingToMessage {
   id: string;
@@ -27,6 +28,7 @@ interface EditingMessage {
 
 export function ChatThreadPage() {
   const { threadId } = useParams<{ threadId: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const {
     messages,
@@ -41,9 +43,11 @@ export function ChatThreadPage() {
     getPresence,
     loadPresences,
   } = useChat();
+  const { state: callState, acceptCall } = useCallStore();
   const [showProposalDialog, setShowProposalDialog] = useState(false);
   const [replyingTo, setReplyingTo] = useState<ReplyingToMessage | null>(null);
   const [editingMessage, setEditingMessage] = useState<EditingMessage | null>(null);
+  const autoAnswerAttemptedRef = useRef(false);
 
   // Encontrar thread atual
   const currentThread = threads.find(t => t.id === threadId);
@@ -78,6 +82,48 @@ export function ChatThreadPage() {
       markMessagesAsRead(threadId);
     }
   }, [threadId, threadMessages.length, markMessagesAsRead]);
+
+  // Auto-atender chamada quando vindo de notificação push com ?answer=true
+  useEffect(() => {
+    const shouldAnswer = searchParams.get('answer') === 'true';
+
+    if (shouldAnswer && !autoAnswerAttemptedRef.current) {
+      console.log('[ChatThreadPage] Detected ?answer=true, call state:', callState);
+
+      // Limpar o parâmetro da URL
+      setSearchParams({}, { replace: true });
+
+      // Se a chamada está no estado 'incoming', atender automaticamente
+      if (callState === 'incoming') {
+        console.log('[ChatThreadPage] Auto-answering incoming call');
+        autoAnswerAttemptedRef.current = true;
+        acceptCall();
+      } else {
+        // A chamada pode ainda não ter chegado via WebSocket
+        // Aguardar um pouco e tentar novamente
+        console.log('[ChatThreadPage] Call not in incoming state yet, waiting...');
+        const checkInterval = setInterval(() => {
+          const currentState = useCallStore.getState().state;
+          console.log('[ChatThreadPage] Checking call state:', currentState);
+
+          if (currentState === 'incoming' && !autoAnswerAttemptedRef.current) {
+            console.log('[ChatThreadPage] Call is now incoming, auto-answering');
+            autoAnswerAttemptedRef.current = true;
+            useCallStore.getState().acceptCall();
+            clearInterval(checkInterval);
+          }
+        }, 500);
+
+        // Timeout após 10 segundos
+        setTimeout(() => {
+          clearInterval(checkInterval);
+          if (!autoAnswerAttemptedRef.current) {
+            console.log('[ChatThreadPage] Timeout waiting for incoming call');
+          }
+        }, 10000);
+      }
+    }
+  }, [searchParams, callState, acceptCall, setSearchParams]);
 
   const handleReplyToMessage = useCallback((message: ChatMessage) => {
     // Obter nome do remetente

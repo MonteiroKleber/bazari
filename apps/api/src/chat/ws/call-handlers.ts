@@ -2,6 +2,12 @@ import { WebSocket } from 'ws';
 import { prisma } from '../../lib/prisma.js';
 import { sendToProfile, getConnectionByProfileId } from './handlers.js';
 import { sendIncomingCallPush } from '../../lib/web-push.js';
+import {
+  savePendingCall,
+  getPendingCall,
+  deletePendingCall,
+  type PendingCallData,
+} from './call-redis.js';
 import type { CallType } from '@bazari/shared-types';
 
 // Map de chamadas ativas: callId -> { callerId, calleeId, startedAt }
@@ -11,8 +17,8 @@ const activeCalls = new Map<string, {
   startedAt?: Date;
 }>();
 
-// Timeout para chamada não atendida (30 segundos)
-const RING_TIMEOUT = 30000;
+// Timeout para chamada não atendida (90 segundos - extended for offline users)
+const RING_TIMEOUT = 90000;
 const ringTimeouts = new Map<string, NodeJS.Timeout>();
 
 export async function handleCallOffer(
@@ -91,10 +97,30 @@ export async function handleCallOffer(
     console.log('[Call] Sent incoming call to callee via WS:', { calleeId, sent: sentToCallee });
   }
 
-  // Se callee está offline ou falhou envio WS, tentar push notification
+  // Se callee está offline ou falhou envio WS, tentar push notification e salvar no Redis
   if (!calleeIsOnline || !sentToCallee) {
-    console.log('[Call] Callee offline or WS failed, sending push notification');
+    console.log('[Call] Callee offline or WS failed, sending push notification and saving to Redis');
     const callerName = caller?.displayName || caller?.handle || 'Alguém';
+
+    // Salvar chamada pendente no Redis para recuperação quando callee reconectar
+    const pendingCallData: PendingCallData = {
+      callId: call.id,
+      threadId,
+      callerId,
+      calleeId,
+      type,
+      sdp,
+      caller: {
+        id: caller?.id || callerId,
+        handle: caller?.handle || '',
+        displayName: caller?.displayName || null,
+        avatarUrl: caller?.avatarUrl || null,
+      },
+      createdAt: Date.now(),
+    };
+
+    await savePendingCall(calleeId, pendingCallData);
+
     const pushSent = await sendIncomingCallPush(
       calleeId,
       callerName,
@@ -145,6 +171,9 @@ export async function handleCallAnswer(
     clearTimeout(timeout);
     ringTimeouts.delete(callId);
   }
+
+  // Limpar chamada pendente do Redis
+  await deletePendingCall(profileId);
 
   // Atualizar status
   const startedAt = new Date();
@@ -223,6 +252,9 @@ async function endCall(callId: string, reason: 'ended' | 'missed' | 'rejected' |
     ringTimeouts.delete(callId);
   }
 
+  // Limpar chamada pendente do Redis
+  await deletePendingCall(call.calleeId);
+
   // Calcular duração
   const activeCall = activeCalls.get(callId);
   const duration = activeCall?.startedAt
@@ -273,4 +305,73 @@ export function isInCall(profileId: string): boolean {
     }
   }
   return false;
+}
+
+/**
+ * Verifica se há chamada pendente para um usuário que acabou de reconectar.
+ * Se houver, envia a chamada para o usuário imediatamente.
+ * Esta função deve ser chamada quando um usuário conecta ao WebSocket.
+ */
+export async function checkPendingCallOnConnect(
+  profileId: string,
+  sendToSocket: (msg: any) => void
+): Promise<boolean> {
+  try {
+    const pendingCall = await getPendingCall(profileId);
+
+    if (!pendingCall) {
+      return false;
+    }
+
+    // Verificar se a chamada ainda está ativa no banco
+    const call = await prisma.call.findUnique({
+      where: { id: pendingCall.callId },
+    });
+
+    if (!call || call.status !== 'RINGING') {
+      // Chamada não existe mais ou não está mais tocando
+      await deletePendingCall(profileId);
+      console.log('[Call] Pending call no longer valid:', pendingCall.callId);
+      return false;
+    }
+
+    // Verificar se o caller ainda está online
+    const callerConn = getConnectionByProfileId(pendingCall.callerId);
+    if (!callerConn) {
+      // Caller desconectou, chamada não é mais válida
+      await deletePendingCall(profileId);
+      console.log('[Call] Caller disconnected, pending call invalid:', pendingCall.callId);
+      return false;
+    }
+
+    console.log('[Call] Delivering pending call to reconnected user:', {
+      calleeId: profileId,
+      callId: pendingCall.callId,
+    });
+
+    // Rastrear chamada ativa se ainda não estiver rastreada
+    if (!activeCalls.has(pendingCall.callId)) {
+      activeCalls.set(pendingCall.callId, {
+        callerId: pendingCall.callerId,
+        calleeId: pendingCall.calleeId,
+      });
+    }
+
+    // Enviar chamada para o usuário reconectado
+    sendToSocket({
+      op: 'call:incoming',
+      data: {
+        callId: pendingCall.callId,
+        threadId: pendingCall.threadId,
+        caller: pendingCall.caller,
+        type: pendingCall.type,
+        sdp: pendingCall.sdp,
+      },
+    });
+
+    return true;
+  } catch (error) {
+    console.error('[Call] Error checking pending call:', error);
+    return false;
+  }
 }

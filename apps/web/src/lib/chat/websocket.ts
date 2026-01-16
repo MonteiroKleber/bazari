@@ -121,6 +121,9 @@ class ChatWebSocketClient {
       this.reconnectTimer = null;
     }
 
+    // Limpar token para evitar reconexão com token inválido
+    this.token = null;
+
     this.ws?.close(1000, 'Client disconnect');
     this.ws = null;
   }

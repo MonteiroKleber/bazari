@@ -26,6 +26,7 @@ import { useTheme } from '@/theme/ThemeProvider';
 import { ReputationBadge } from './profile/ReputationBadge';
 import { logoutSession } from '@/modules/auth/api';
 import { clearSession } from '@/modules/auth/session';
+import { chatWs } from '@/lib/chat/websocket';
 import { toast } from 'sonner';
 
 export function UserMenu() {
@@ -58,6 +59,9 @@ export function UserMenu() {
     setLoggingOut(true);
 
     try {
+      // Desconectar WebSocket imediatamente para marcar como offline
+      chatWs.disconnect();
+
       // Chama a função oficial de logout que:
       // 1. Faz POST para /auth/logout (revoga refresh token no backend)
       // 2. Limpa cookie refresh_token

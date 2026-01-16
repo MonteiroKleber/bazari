@@ -63,6 +63,16 @@ export function RequireAuth({ children }: RequireAuthProps) {
 
           console.log('🔐 User state detected:', userState, 'targetUrl:', targetUrl);
 
+          // Salvar URL de destino no localStorage para caso de navegação externa (ex: Service Worker)
+          // Isso permite recuperar a URL após unlock mesmo quando location.state não está disponível
+          if (targetUrl && targetUrl !== '/app') {
+            localStorage.setItem('bazari:pendingRedirect', JSON.stringify({
+              url: targetUrl,
+              timestamp: Date.now()
+            }));
+            console.log('🔐 Saved pending redirect to localStorage:', targetUrl);
+          }
+
           switch (userState) {
             case UserState.NEW_USER:
               // Usuário nunca criou conta - vai para boas-vindas

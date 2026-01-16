@@ -25,6 +25,7 @@ import { ReputationBadge } from "./profile/ReputationBadge";
 import { StreakWidgetCompact, CashbackBalanceCompact } from "./rewards/index";
 import { logoutSession } from "@/modules/auth/api";
 import { clearSession } from "@/modules/auth/session";
+import { chatWs } from "@/lib/chat/websocket";
 import { toast } from "sonner";
 import { apiHelpers } from "@/lib/api";
 import { useIsDAOMember } from "@/hooks/useIsDAOMember";
@@ -110,6 +111,9 @@ export function AppHeader() {
     setLoggingOut(true);
 
     try {
+      // Desconectar WebSocket imediatamente para marcar como offline
+      chatWs.disconnect();
+
       await logoutSession();
       toast.success(t('auth.logout.success', { defaultValue: 'Logout realizado com sucesso!' }));
       setMobileMenuOpen(false);
